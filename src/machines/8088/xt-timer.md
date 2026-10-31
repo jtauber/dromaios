@@ -51,7 +51,7 @@ before any clock or device changes. Zero advances do nothing.
 | Channel | Ports | Gate | Output |
 | --- | --- | --- | --- |
 | 0 | `40`, control at `43` | Tied high | PIC IR0 |
-| 1 | `41`, control at `43` | Tied high | Exposed `refreshOutput`; DMA refresh logic remains to be implemented |
+| 1 | `41`, control at `43` | Tied high | [DMA refresh request latch](xt-refresh.md), also exposed as `refreshOutput` |
 | 2 | `42`, control at `43` | PPI PB0 | PPI PC5 and speaker control |
 
 PB1 enables the modeled speaker signal: `speakerLevel` is PB1 AND OUT2.
@@ -161,7 +161,8 @@ the PIC. The fixture explicitly supplies IVT/BDA state and device clocks.
 
 ## Instruction-driven machine time
 
-`stepTimedXtCpu()` first offers a pending PIC request through the CPU’s timed
+`stepTimedXtCpu()` first grants a pending [DMA refresh](xt-refresh.md), if any,
+then offers a pending PIC request through the CPU’s timed
 interrupt boundary. An ignored offer consumes no clocks and does not acknowledge
 the PIC; execution continues through `stepTimed()`. Accepted entry or a completed
 instruction then advances devices by **three oscillator ticks per CPU clock**.
@@ -172,16 +173,17 @@ The board has no opcode table or BIOS-address shortcuts.
 This model performs CPU memory and port effects at the beginning of the interval,
 then advances devices through every intervening PIT boundary. Newly raised IRQs
 are offered at the next CPU boundary. This ordering is deterministic, but is not
-a bus-cycle schedule: prefetch overlap, READY waits, DMA contention, and the
-intra-instruction time of an IN/OUT transfer are omitted. Missing timing throws
-before operand effects and advances no device time. Other CPU callback failures
+a bus-cycle schedule: prefetch overlap, READY waits, instruction-interior DMA
+arbitration, and the intra-instruction time of an IN/OUT transfer are omitted.
+Missing timing throws before CPU operand effects and adds no CPU interval;
+an already granted refresh remains completed. Other CPU callback failures
 retain completed effects but produce no interval; a device-advancement failure
 retains the completed CPU boundary and any already completed device progress.
 
-After HLT, subsequent idle calls advance only to the next PIT pulse and return.
+After HLT, subsequent idle calls grant any pending refresh, then advance to the next PIT pulse and return.
 Even a masked IRQ cannot block the caller indefinitely. Idle records retain zero
 CPU instruction clocks, while the wrapper’s `oscillatorTicks` records the actual
-idle interval. Device state and total oscillator ticks save all timing phase;
+idle interval plus any refresh cost. Device state and total oscillator ticks save all timing phase;
 there is no unsaved clock accumulator or dependence on browser frame duration.
 External input schedules, if introduced, will need their own saved state.
 
@@ -199,8 +201,9 @@ use `XT_BIOS_ROM` to exercise two unmodified 11/08/82 BIOS routines:
 
 Both fixtures reach their ROM success exits through hardware I/O and timed CPU
 execution. Their prepared entry state bypasses earlier POST stages; they do not
-establish DMA refresh, video initialization, or a complete native boot. Extending
-timing to the remaining instruction forms, then adding DMA/refresh, CGA, and the
-empty diskette-controller path remains necessary for full POST.
+establish video initialization or a complete native boot. The
+[refresh example](xt-refresh.md) continues through the original DMA register and
+refresh checks. Remaining instruction timing, board glue, CGA, and the empty
+diskette-controller path are still needed for full POST.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

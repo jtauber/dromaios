@@ -3,7 +3,7 @@ import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { cpu8008StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
 import type { Cpu8008StoredState } from "../../../../src/components/cpus/semantics/generated/state/8008.js";
-import { addWrap, capture, cpuSymbols, extend, fillArray, flagLiteral, highByte, literal, readElement, readRegister, readSource, shiftLeft, shiftRight, signExtend, truncate, value, when, writeElement, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
+import { addWrap, bitAnd, bitOr, capture, cpuSymbols, extend, fillArray, flagLiteral, highByte, literal, readElement, readRegister, readSource, shiftLeft, shiftRight, signExtend, truncate, value, when, writeElement, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition, NumberExpression, Statement, Width } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
@@ -67,6 +67,24 @@ test("narrow captures retain lexical scope and require explicit conversions for 
   }
   assert.throws(() => define([capture("bad", truncate(literal(16, 0), 12 as Width))]), /expected width/);
   assert.throws(() => define([capture("bad", truncate(flagLiteral(false) as unknown as NumberExpression, 3))]), /numeric expression/);
+});
+
+test("a literal AND mask proves an array bound without accepting unbounded bitwise selectors", async () => {
+  for (const index of [bitAnd(value("byte"), literal(8, 7)), bitAnd(literal(8, 7), value("byte"))]) {
+    const probe = defineInstruction({ cpu: cpu.declaration, name: "masked slot", explanation: "Bound a byte to eight slots.",
+      inputs: { byte: 8 }, steps: [writeElement(slots, index, literal(14, 42))] });
+    const { write } = await compile({ write: probe });
+    for (let byte = 0; byte < 256; byte++) {
+      const saved = state(); write!(saved, byte);
+      assert.equal(saved.addressStack[byte % 8], 42);
+      assert.equal(saved.addressStack.length, 8);
+    }
+  }
+  for (const index of [bitAnd(value("byte"), literal(8, 8)), bitOr(value("byte"), literal(8, 7)),
+    bitAnd(value("byte"), value("byte")), bitAnd(value("byte"), literal(16, 7))]) {
+    assert.throws(() => defineInstruction({ cpu: cpu.declaration, name: "unbounded", explanation: "Reject unsafe selectors.",
+      inputs: { byte: 8 }, steps: [readElement("pc", slots, index)] }), /index may exceed|equal widths/);
+  }
 });
 
 test("generated narrowing and widening retain every 3-bit selector and 14-bit address without RAM capabilities", async () => {

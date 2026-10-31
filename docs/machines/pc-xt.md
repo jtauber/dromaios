@@ -9,8 +9,10 @@ IBM's hardware documentation as the authority. Retain Dromaios's generated
 [keyboard-interrupt example](../../src/machines/8088/xt-keyboard.md) connects
 the generated 8088, PIC, PPI, and keyboard receiver. The
 [timer example](../../src/machines/8088/xt-timer.md) adds the 8253, saved
-oscillator phase, and native IRQ0 handling. Instruction-driven time now passes
-isolated original BIOS counter and interrupt timing checks.
+oscillator phase, and native IRQ0 handling. The [refresh example](../../src/machines/8088/xt-refresh.md)
+adds the 8237A register file, timer-to-DMA request latch, and four-clock refresh
+grants. Instruction-driven time passes isolated original BIOS counter, DMA
+register/refresh, and interrupt timing checks.
 There is no complete PC/XT machine or laboratory yet. The reference's DOS
 boot works through JavaScript BIOS services; it does not demonstrate original-ROM
 startup or a working floppy controller. The first native milestone is original
@@ -183,7 +185,9 @@ The [timer chapter](../../src/machines/8088/xt-timer.md) now owns the explicit
 oscillator clock, device-event ordering, and saved-phase contract. Its timed
 path now consumes nominal clock declarations from the 8088 chapter and passes
 the original BIOS’s channel-1 counter and channel-0 interrupt timing checks.
-Timing coverage is partial; prefetch overlap and bus contention remain omitted.
+The [refresh chapter](../../src/machines/8088/xt-refresh.md) adds instruction-boundary
+DMA grants and passes the BIOS's register and refresh checks. Timing coverage
+is partial; prefetch overlap and instruction-interior bus arbitration remain omitted.
 Manual device ticks remain useful in component tests. An arbitrary tick per instruction or host-frame
 timer is not evidence that POST or software timing is correct. Full electrical
 simulation need not precede a documented, tested timing model.
@@ -270,15 +274,17 @@ AT/286 and later x86 remain separate CPU and machine projects.
 
 ## Next implementation slice
 
-The PIC, PPI/keyboard, and PIT now have executable device descriptions and
+The PIC, PPI/keyboard, PIT, and bounded DMA profile now have executable device descriptions and
 native 8088 examples. Their chapters own supported profiles, clock/gate behavior,
 snapshots, and acceptance tests. Original IRQ0 and IRQ1 handlers have separate
 ROM-backed fixtures; neither test establishes POST.
 
-Instruction-driven timing now passes isolated original BIOS timer checks.
-Next add 8237A DMA/refresh behavior and extend checked instruction timing as
-required by the next POST stages. Follow with CGA and the empty diskette-controller
-path before attempting complete native POST. Keep every
+Instruction-driven timing passes isolated original BIOS timer and DMA/refresh
+checks. Next compose the selected firmware/RAM map and remaining board glue,
+using the next POST stages to drive checked instruction timing and CGA text
+support. Follow with the empty diskette-controller path before attempting
+complete native POST. DMA data transfers and page registers belong with the
+later native disk milestone. Keep every
 firmware operation on the modeled hardware path.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

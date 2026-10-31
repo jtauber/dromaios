@@ -535,6 +535,9 @@ check isolated scopes, argument order, transitive capabilities, and failures.
 must match the declared element width; old slot contents are never read. It
 lowers to the shared `fill-array` effect. Ordinary indexed writes still use
 `ARRAY[index] <- value` and retain their index-range checks.
+An index must fit the array for every possible value. A literal AND mask, as
+in `CHANNEL[and(selector, u8(3))]`, can prove a four-element bound even when
+the selector itself is wider; an unmasked byte index cannot.
 
 The generated 8008 adapter binds PC/HL readers and calls generated `setPC` and
 `reset` actions. PC writes explicitly truncate a sixteen-bit supplied address

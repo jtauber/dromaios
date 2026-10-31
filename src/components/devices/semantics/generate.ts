@@ -7,7 +7,7 @@ export function generateDevice(chapter: DeviceChapter, stem: string) {
   const { model, interface: api } = chapter;
   const output = [...api.writes.values()].some(binding => binding.notify);
   const state = JSON.stringify(Object.fromEntries(Object.entries(model.state).map(([name, field]) =>
-    [name, field.kind === "unsigned" ? 0 : false])));
+    [name, field.kind === "array" ? Array<number>(field.length).fill(0) : field.kind === "unsigned" ? 0 : false])));
   const read = (source: string, argument = "") => `this.#sources[${JSON.stringify(source)}](${argument})`;
   const lifecycle = (action: string) => `instructions[${JSON.stringify(action)}](this.#state)`;
   const methods = [...api.views, ...api.inputs].map(name => {

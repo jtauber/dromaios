@@ -101,8 +101,12 @@ function validation(cpu: CpuDeclaration, prefix: string) {
   function element(ref: RegisterArray, index: NumberExpression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
     const elementWidth = registerArray(ref, where);
     const bits = expression(index, scope, where);
-    // A dynamic selector's entire unsigned range must fit; constants can name any valid slot.
-    const maximum = index.kind === "literal" ? index.value : 2 ** bits - 1;
+    // A literal mask can bound a selector more tightly than its storage width.
+    const maximum = index.kind === "literal" ? index.value
+      : index.kind === "bit-and" ? Math.min(
+        index.left.kind === "literal" ? index.left.value : 2 ** bits - 1,
+        index.right.kind === "literal" ? index.right.value : 2 ** bits - 1)
+      : 2 ** bits - 1;
     if (maximum >= ref.length) fail(where, `index may exceed the ${ref.length}-element register array`);
     return elementWidth;
   }

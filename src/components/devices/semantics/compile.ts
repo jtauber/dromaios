@@ -1,5 +1,5 @@
 import { literateBlocks } from "../../../literate.ts";
-import type { CpuDeclaration, InstructionDefinition, Latch, Register, ValueSource } from "../../cpus/semantics/model.ts";
+import type { CpuDeclaration, InstructionDefinition, Latch, Register, RegisterArray, ValueSource } from "../../cpus/semantics/model.ts";
 import { chapterBody, ChapterError, ChapterTokens } from "../../cpus/semantics/literate/document.ts";
 import { chapterState, stateSymbol } from "../../cpus/semantics/literate/state.ts";
 import { chapterDeclaration } from "../../cpus/semantics/literate/declarations.ts";
@@ -32,6 +32,7 @@ export interface DeviceChapter {
 export function compileDeviceChapter(markdown: string, file = "<device>"): DeviceChapter {
   let model: CpuDeclaration | undefined, ownsState = false, api: DeviceInterface | undefined;
   const registers = new Map<string, Register>(), latches = new Map<string, Latch>();
+  const arrays = new Map<string, RegisterArray>();
   const sources = new Map<string, ValueSource>(), actions = new Map<string, InstructionDefinition>();
   const names = new Set<string>();
   const fail = (line: number, message: string): never => { throw new ChapterError(file, line, 1, message); };
@@ -55,11 +56,12 @@ export function compileDeviceChapter(markdown: string, file = "<device>"): Devic
         const { body, end } = chapterBody(lines, index); index = end;
         const declarations = body.map(tokens => {
           const kind = tokens.word(), name = tokens.word();
-          if (kind !== "register" && kind !== "latch") tokens.fail("Device state currently supports registers and latches.");
+          if (kind !== "register" && kind !== "latch" && kind !== "array") tokens.fail("Device state supports registers, arrays, and latches.");
           declare(tokens, name);
           const symbol = stateSymbol(tokens, kind, name, currentModel.name);
           if (symbol.kind === "register") registers.set(name, symbol);
           if (symbol.kind === "latch") latches.set(name, symbol);
+          if (symbol.kind === "register-array") arrays.set(name, symbol);
           return { symbol, tokens };
         });
         model = { ...model, state: chapterState(declarations) }; ownsState = true; continue;
@@ -75,7 +77,7 @@ export function compileDeviceChapter(markdown: string, file = "<device>"): Devic
         { cpu: model, flags: new Map(), sources, views: new Map(), actions, policies: new Map() },
         (body, options) => chapterStatements(body, {
           cpu: currentModel, registers, latches, sources, actions,
-          arrays: new Map(), choices: new Map(), flags: new Map(), flagGroups: new Map(), policies: new Map(),
+          arrays, choices: new Map(), flags: new Map(), flagGroups: new Map(), policies: new Map(),
           operands: new Map(), conditions: new Map(), catalogues: new Map(),
         }, { ...options, effects: "state" }));
     }

@@ -82,6 +82,8 @@ examples add polling and consuming input reads with the same devices.
   state, register operations, and generated device APIs.
 - [Intel 8253](../src/components/devices/specifications/i8253-counter.md): shared
   binary counter specification for XT timer, refresh, and speaker signals.
+- [Intel 8237A](../src/components/devices/specifications/i8237a.md): DMA register
+  pairs, masks, terminal count, and single read/verify transfers.
 - [Intel 8259A](../src/components/devices/specifications/i8259a.md): the XT's
   single interrupt controller, priorities, masking, acknowledgement, and EOI.
 - [Intel 8255A](../src/components/devices/specifications/i8255a.md): mode-0
@@ -114,6 +116,8 @@ examples add polling and consuming input reads with the same devices.
   executable 8088 composition with native PIC/PPI wiring and IRQ1 handling.
 - [XT timer and device-clock example](../src/machines/8088/xt-timer.md):
   integer oscillator phase, PIT wiring, and native IRQ0 acceptance.
+- [XT refresh example](../src/machines/8088/xt-refresh.md): timer-to-DMA requests,
+  timed bus grants, automatic reload, and saved continuation.
 - [TRS-80 Color Computer target](machines/coco.md): selected first configuration,
   pinned dromaios-coco audit, real-ROM comparison, and acceptance checks.
 - [TRS-80 Color Computer chapter](../src/machines/6809/coco.md): native 6809,

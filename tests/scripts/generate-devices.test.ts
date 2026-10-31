@@ -9,9 +9,12 @@ import { generateDevices } from "../../scripts/generate-devices.js";
 import { parseMachine } from "../../src/machines/machine-language.js";
 
 const source = readFileSync("src/components/devices/specifications/mc6850-polling.md", "utf8");
-const pinSource = source.replace("interface Mc6850Polling {", `action setPins "Sample external data and a pin" (byte: 8, high: flag) {
+const pinSource = source.replace("  register RX: 8", "  register RX: 8\n  array BANK: 8[4]")
+  .replace("  TX <- u8($00)", "  TX <- u8($00)\n  BANK[] <- u8(0)")
+  .replace("interface Mc6850Polling {", `action setPins "Sample external data and a pin" (byte: 8, high: flag) {
   RX <- byte
   FULL <- high
+  BANK[and(byte, u8(3))] <- byte
 }
 
 interface Mc6850Polling {
@@ -95,12 +98,22 @@ test("generated device code follows chapter edits and failed regeneration preser
   assert.deepEqual(readdirSync(join(directory, "generated")).sort(), files);
   const { Mc6850Polling } = await import(pathToFileURL(join(directory, "generated/probe.ts")).href);
   const device = new Mc6850Polling(() => {});
+  assert.deepEqual(device.snapshot().bank, [0, 0, 0, 0]);
   device.write(0, 0x15); device.offer(0x42);
   assert.equal(device.status(), device.read(0));
   assert.equal(device.read(1), 0xbd); // Changed formal effect reaches the public device API.
   device.setPins(0x35, true);
   const pins = device.snapshot();
   assert.equal(pins.rx, 0x35); assert.equal(pins.full, true);
+  assert.deepEqual(pins.bank, [0, 0x35, 0, 0]);
+  const restored = new Mc6850Polling(() => {}, pins);
+  pins.bank[1] = 0xff;
+  assert.deepEqual(restored.snapshot().bank, [0, 0x35, 0, 0]);
+  assert.deepEqual(device.snapshot().bank, [0, 0x35, 0, 0]);
+  pins.bank[1] = 0x35;
+  assert.throws(() => new Mc6850Polling(() => {}, { ...pins, bank: [1, 2, 3] }));
+  assert.throws(() => new Mc6850Polling(() => {}, { ...pins, bank: [0, 0, 256, 0] }));
+  restored.reset(); assert.deepEqual(restored.snapshot().bank, [0, 0, 0, 0]);
   for (const value of [-1, 256, 0.5, NaN, Infinity, "42"]) {
     assert.throws(() => device.setPins(value, false), RangeError);
   }

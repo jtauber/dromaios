@@ -15,9 +15,12 @@ share a fence. The first declaration is `device "model-name"`. Model names use l
 letters, digits, and hyphens; RAM, ROM, and the existing teaching-device names
 are reserved.
 
-A `state` block declares uppercase registers with widths and Boolean latches.
+A `state` block declares uppercase registers, fixed-length register arrays, and Boolean latches.
 It uses the [CPU state syntax](../cpus/literate-specifications.md#state-ownership),
-currently limited to registers and latches. An explicit empty `state` block
+currently limited to those three field kinds. Arrays such as `array ADDRESS: 16[4]`
+start with zeroed elements and use the CPU language's indexed reads, writes,
+and whole-array fills. Snapshots validate their length and element widths and
+copy their contents. An explicit empty `state` block
 describes a combinational device with no retained state, as in the
 [MC6847 decoder](../../src/components/devices/specifications/mc6847.md).
 `source` and `action` declarations
