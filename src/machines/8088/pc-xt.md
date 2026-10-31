@@ -1,19 +1,21 @@
 # IBM PC/XT: native firmware startup
 
 This executable chapter assembles the selected IBM 5160 board around the
-[8088](../../components/cpus/specifications/8088.md). The first acceptance target
-is **reset through early POST to video initialization**, using the original
+[8088](../../components/cpus/specifications/8088.md). The current acceptance target
+is **reset through early POST and CGA video tests**, using the original
 11/08/82 BIOS. The CPU tests itself, tests DMA and the first 16 KiB of RAM,
 discovers 640 KiB, initializes its interrupt vectors, and resets the XT keyboard.
+It then programs CGA, tests video RAM and retrace status, and clears the display.
 No BIOS service is replaced by host code and no BIOS data area is preloaded.
-This is not yet a complete POST or ROM BASIC boot: CGA control/status/display
-and the empty-drive diskette-controller path are the next hardware slices.
+This is not yet a complete POST or ROM BASIC boot: the empty-drive
+diskette-controller path and later POST stages remain ahead.
 
 ## Physical storage and firmware
 
 The board has 640 KiB of conventional RAM, separate 16 KiB CGA backing storage,
-and externally supplied BIOS and BASIC images. The CGA storage aliases at
-`B8000` and `BC000`; display behavior is not implemented yet. Missing memory
+and externally supplied BIOS, BASIC, and character ROM images. The CGA storage
+aliases at `B8000` and `BC000`; the character ROM connects only to the display
+and is not visible on the CPU bus. Missing memory
 reads as `FF`, and writes to missing memory or ROM are ignored. This fixed
 unanswered-bus value is a model convention, not an electrical floating-bus model.
 
@@ -28,6 +30,8 @@ records the pinned reference emulator and later acceptance milestones.
 components {
     ram = ram A0000
     video = ram 4000
+    cga = ibm-cga
+    font = rom 2000
     bios = rom 2000
     basic = rom 8000
     io = xt-io
@@ -56,13 +60,18 @@ map 100000 {
 
 image bios external sha256 2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2
 image basic external sha256 3033d1a54c99d7e2aa1fc7c8c2e51a56ae1b61bf4e70e8aa580f43c43e37a63e
+image font external sha256 37527f661580e5a09710051cec67422abfadf31c61b841537a91e7f27be19304
 ```
 
-The generated `create8088PcXt({ bios, basic })` accepts independently verified
+The generated `create8088PcXt({ bios, basic, font })` accepts independently verified
 `RomImage` bindings or explicit `null` for absent firmware. Installation does
 not reset or execute the machine. Snapshots store ROM identities, not ROM bytes;
 restoration requires the same bindings. The optional ROM-backed test uses
-`XT_BIOS_ROM` and `XT_BASIC_ROM`; firmware stays external to the repository.
+`XT_BIOS_ROM` and `XT_BASIC_ROM`; `XT_CGA_ROM` additionally checks the rendered
+firmware test bar. Firmware stays external to the repository. The selected
+8 KiB [IBM MDA/CGA character ROM][font-image] uses its default double-dot CGA
+bank at offset `1800`; the font is unnecessary for CPU execution but required
+for visible text rendering. Missing bindings are not replaced with a host font.
 
 ## Power-on and reset
 
@@ -81,14 +90,14 @@ cpu 8088 {
     halted = false waiting = false interruptDeferred = false recognitionDeferred = false trapPending = false
     flags { CF = 0  PF = 0  AF = 0  ZF = 0  SF = 0  TF = 0  IF = 0  DF = 0  OF = 0 }
 }
-reset { cpu io }
+reset { cpu io cga }
 ```
 
 ## Board ports, checks, and interrupts
 
-The port map connects DMA, PIC, PIT, PPI, and the write-only NMI-enable latch.
+The port map connects DMA, PIC, PIT, PPI, CGA, and the write-only NMI-enable latch.
 Unpopulated ports return `FF` and ignore output, including the absent expansion
-box at `0213`. Canonical register addresses are declared; extra hardware port
+box at `0213`. CGA's index/data aliases are declared; extra system-board port
 aliases are not yet decoded. The selected switch byte is `2D`: 256 KiB planar
 RAM, no 8087, 80-column colour, one drive, and no manufacturing loop.
 
@@ -139,6 +148,21 @@ ports {
     out 62 = io 62
     out 63 = io 63
     out A0 = io A0
+    out 3D0 = cga 0
+    in 3D1 = cga 1
+    out 3D1 = cga 1
+    out 3D2 = cga 2
+    in 3D3 = cga 3
+    out 3D3 = cga 3
+    out 3D4 = cga 4
+    in 3D5 = cga 5
+    out 3D5 = cga 5
+    out 3D6 = cga 6
+    in 3D7 = cga 7
+    out 3D7 = cga 7
+    out 3D8 = cga 8
+    out 3D9 = cga 9
+    in 3DA = cga A
     unmapped = FF
 }
 ```
@@ -158,6 +182,33 @@ and the small examples. It grants refresh, offers interrupts, executes one CPU
 boundary, and advances devices using declared instruction clocks. Repeated
 strings use the CPU chapter's explicitly bounded **one-element re-entry timing**;
 this does not reproduce an uninterrupted hardware REP's throughput.
+Timing currently covers the video POST path; later BIOS services still need
+additional declarations, including the byte multiply used by teletype output.
+
+## CGA text output
+
+The [CGA device chapter](../../components/devices/specifications/ibm-cga.md)
+owns the 6845 register masks, scan/status signals, display-start latch, cursor,
+and attribute/blink rules. This board selects 40/80-column, 25-row RGBI text
+with eight-line characters. Graphics, composite colour, and the CRTC's internal
+cursor-blink modes are outside this first profile.
+
+`stepTimedXtCpu()` advances CGA and the system board from the same oscillator:
+refresh grants advance both before CPU accesses, and instruction/interrupt
+clocks advance both after the CPU boundary. An idle halt advances both to the
+next PIT pulse. For explicit device-only advancement, call
+`advanceXtOscillatorTicks(machine, ticks)`; calling `io.advanceOscillatorTicks()`
+alone advances only the system-board devices. Snapshots retain CGA's divider,
+scan and blink phase alongside the board clock, so inspection and restoration
+do not restart the display.
+
+The pure [text renderer](pc-xt/video.ts), `renderXtTextFrame(machine)`, returns
+a detached 320×200 or 640×200 array of RGBI colour indices. It reads physical
+video RAM and the character ROM without CPU bus accesses or elapsed time.
+`cgaColours` supplies the 16-colour monitor palette. Presentation code can scale
+40-column pixels to the same physical screen width; a browser display is not
+part of this slice. The renderer rejects unsupported profiles and a missing
+font when video is enabled, and returns black when configured video is disabled.
 
 ## Acceptance boundary
 
@@ -167,13 +218,20 @@ and detached restoration. Synthetic firmware tests exercise the same map and
 CPU path without distributing historical ROM bytes.
 
 With the selected external ROMs, the [startup test](../../../tests/machines/8088/pc-xt/startup.test.ts)
-begins at reset and reaches `F000:E242`, immediately before video initialization.
+begins at reset, checks `F000:E242` before video initialization, and continues to
+`F000:E30A` after the video tests and immediately before the option-ROM scan.
 It requires 640 KiB in the BIOS data area, the selected equipment switches,
 firmware-owned interrupt vectors, successful DMA refresh, and the keyboard's
-native `AA` self-test response through IRQ1. It rejects unsupported execution,
-failure halts, and unexpected diagnostics. A saved continuation must reach the
-same boundary with identical CPU, RAM, devices, and oscillator time.
+native `AA` self-test response through IRQ1. The video continuation requires
+the ROM's temporary test bar, successful retrace polling and video-memory tests,
+the mode-3 BIOS data area and CRTC values, and cleared video RAM. With the font
+installed, it checks the bar's pixels without changing machine state.
+It rejects unsupported execution, failure halts, and unexpected diagnostics.
+A saved continuation must reach the same boundary with identical CPU, RAM,
+devices, and oscillator time. Independent [rendering tests](../../../tests/machines/8088/pc-xt/video.test.ts)
+cover text pixels, attributes, cursor, wrapping, and saved blink phase.
 The test never patches firmware, seeds RAM, or shortcuts a BIOS routine.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/
+[font-image]: https://www.pcjs.org/machines/pcx86/ibm/video/cga/

@@ -11,6 +11,7 @@ async function syntheticImages() {
   const basic = Uint8Array.from({ length: 0x8000 }, (_, i) => (i >>> 13) * 0x10 + (i & 0xf));
   // Stub only the host digest for synthetic map tests; real-ROM acceptance uses SHA-256.
   return {
+    font: null,
     bios: await RomImage.verify(bios, romImages.bios, async () => romImages.bios.sha256),
     basic: await RomImage.verify(basic, romImages.basic, async () => romImages.basic.sha256),
   };
@@ -60,14 +61,14 @@ test("XT starts through its reset ROM and snapshots restore detached storage and
 });
 
 test("XT firmware installation and unanswered ports have no hidden CPU or RAM initialization", async () => {
-  const machine = create8088PcXt({ bios: null, basic: null });
+  const machine = create8088PcXt({ bios: null, basic: null, font: null });
   for (const address of [0xf0000, 0xf6000, 0xfe000, 0xffff0]) assert.equal(machine.memory.read(address), 0xff);
   const cpu = machine.cpu.snapshot(), { bios, basic } = await syntheticImages();
   machine.bios.install(bios); machine.basic.install(basic);
   assert.deepEqual(machine.cpu.snapshot(), cpu); assert.ok(machine.snapshot().ram.every(byte => byte === 0));
   const before = machine.io.snapshot();
-  for (const port of [0xa0, 0x213, 0x3d8, 0x3da, 0x3f4, 0xffff]) assert.equal(machine.ports.readPort(port), 0xff);
-  for (const port of [0x213, 0x3d8, 0x3f2, 0xffff]) machine.ports.writePort(port, 0x80);
+  for (const port of [0xa0, 0x213, 0x3d8, 0x3f4, 0xffff]) assert.equal(machine.ports.readPort(port), 0xff);
+  for (const port of [0x213, 0x3f2, 0xffff]) machine.ports.writePort(port, 0x80);
   assert.deepEqual(machine.io.snapshot(), before);
   machine.ports.writePort(0x63, 0x99); machine.ports.writePort(0x61, 0x40);
   machine.ports.writePort(0xa0, 0x80); machine.io.setCheckErrors(true, false);

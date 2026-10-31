@@ -92,6 +92,8 @@ examples add polling and consuming input reads with the same devices.
   scan-code reception, receiver clear, and the explicit reset-pulse profile.
 - [IBM XT system control](../src/components/devices/specifications/ibm-xt-system-control.md):
   parity/channel-check latches and NMI enable.
+- [IBM CGA](../src/components/devices/specifications/ibm-cga.md): text registers,
+  scan/status timing, RGBI attributes, cursor, and saved blink phase.
 - [MC6850 polling profile](../src/components/devices/specifications/mc6850-polling.md):
   the first 88-2SIO serial channel's chip behavior and explicit fidelity limits.
 - [Apple II keyboard](../src/components/devices/specifications/apple2-keyboard.md):
@@ -115,7 +117,7 @@ examples add polling and consuming input reads with the same devices.
 - [IBM PC/XT target](machines/pc-xt.md): pinned dromaios-pc audit, selected XT
   firmware and hardware, and acceptance from ROM BASIC to native floppy DOS.
 - [IBM PC/XT machine](../src/machines/8088/pc-xt.md): executable firmware map
-  and native startup from reset through early POST to video initialization.
+  and native startup from reset through early POST and CGA video tests.
 - [XT keyboard-interrupt example](../src/machines/8088/xt-keyboard.md): an
   executable 8088 composition with native PIC/PPI wiring and IRQ1 handling.
 - [XT timer and device-clock example](../src/machines/8088/xt-timer.md):

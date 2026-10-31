@@ -32,6 +32,8 @@ const examples: readonly [readonly number[], number][] = [
   [[0xfa], 2], [[0xfb], 2], [[0xfc], 2], [[0xfd], 2], [[0x9e], 4], [[0x9f], 4],
   [[0xcc], 72], [[0xcd, 3], 71], [[0xcf], 36], [[0xeb, 0], 15],
   [[0x26, 0x3e, 0xa1, 0, 2], 18], [[0xf0, 0x01, 6, 0, 2], 32],
+  [[0xff, 0xe0], 11], [[0xff, 0x26, 0, 2], 28], [[0x2e, 0xff, 0xa4, 0, 2], 33],
+  [[0xc4, 6, 0, 2], 30], [[0xc5, 6, 0, 2], 30], [[0x26, 0xc5, 0x80, 0, 2], 37],
 ];
 test("8088 nominal clocks include operand transfers without changing instruction semantics or records", () => {
   for (const [code, expected] of examples) {
@@ -117,7 +119,7 @@ test("conditional timing follows the captured decision, including LOOP wraparoun
 });
 
 test("uncovered instructions and group forms reject before data effects and do not consume deferrals", () => {
-  for (const code of [[0xf6, 0xe0], [0xf6, 0x26, 0, 2], [0xf7, 0xf3], [0xff, 0xd0], [0x9b], [0x0f]]) {
+  for (const code of [[0xf6, 0xe0], [0xf6, 0x26, 0, 2], [0xf7, 0xf3], [0xff, 0xd0], [0x9b], [0x0f], [0xc4, 0xc0], [0xc5, 0xc0]]) {
     const { cpu, ram } = fixture(code, { interruptDeferred: true });
     const before = cpu.snapshot(), writes: number[] = [];
     ram.observeWrites(write => writes.push(write.address));
@@ -126,7 +128,7 @@ test("uncovered instructions and group forms reject before data effects and do n
       assert.equal(error.address, 0x100); assert.equal(error.bytes[0], code[0]); return true;
     });
     assert.deepEqual(cpu.snapshot(), before); assert.deepEqual(writes, []);
-    if (code[0] !== 0x0f) assert.notEqual(cpu.step().outcome, "unsupported"); // Guard released; ordinary execution still works.
+    if (![0x0f, 0xc4, 0xc5].includes(code[0]!)) assert.notEqual(cpu.step().outcome, "unsupported"); // Guard released; ordinary execution still works.
   }
 });
 

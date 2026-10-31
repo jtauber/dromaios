@@ -961789,6 +961789,18 @@ LEA (`1000 1101`) resolves a memory address and writes its sixteen-bit offset wi
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+ea:u16 := source "8088 effective-address calculation" {
+  postbyte:u8 := postbyte
+  mode := bitAnd(postbyte, C0:u8)
+  code := bitAnd(postbyte, 07:u8)
+  paired:flag := lessThan(code, 04:u8, unsigned)
+  slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+  base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+  displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+  direct:flag := and(isZero(mode), equal(code, 06:u8))
+  yield select(direct, 0006:u16, displaced)
+}
+instruction timing: addWrap(0018:u16, ea) CPU clocks when not(equal(bitAnd(postbyte, C0:u8), C0:u8)); otherwise timing unavailable
 match byte postbyte {
   case (byte & B8) = 00 {
     pointer:u32 := source "capture a logical memory address" {
@@ -966988,6 +967000,18 @@ LEA (`1000 1101`) resolves a memory address and writes its sixteen-bit offset wi
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+ea:u16 := source "8088 effective-address calculation" {
+  postbyte:u8 := postbyte
+  mode := bitAnd(postbyte, C0:u8)
+  code := bitAnd(postbyte, 07:u8)
+  paired:flag := lessThan(code, 04:u8, unsigned)
+  slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+  base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+  displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+  direct:flag := and(isZero(mode), equal(code, 06:u8))
+  yield select(direct, 0006:u16, displaced)
+}
+instruction timing: addWrap(0018:u16, ea) CPU clocks when not(equal(bitAnd(postbyte, C0:u8), C0:u8)); otherwise timing unavailable
 match byte postbyte {
   case (byte & B8) = 00 {
     pointer:u32 := source "capture a logical memory address" {
@@ -1014220,10 +1014244,12 @@ The stack action decrements live SP before reading SS and the new SP, then write
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+operation := bits(postbyte, 5, 3)
+nearJump:flag := equal(operation, 4:u3)
 cost:u16 := source "register cost or memory cost plus EA" {
   postbyte:u8 := postbyte
-  registerCost:u16 := 0002:u16
-  memoryCost:u16 := 0017:u16
+  registerCost:u16 := select(nearJump, 000B:u16, 0002:u16)
+  memoryCost:u16 := select(nearJump, 0016:u16, 0017:u16)
   ea:u16 := source "8088 effective-address calculation" {
     postbyte:u8 := postbyte
     mode := bitAnd(postbyte, C0:u8)
@@ -1014237,7 +1014263,7 @@ cost:u16 := source "register cost or memory cost plus EA" {
   }
   yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
 }
-instruction timing: cost CPU clocks when lessThan(zeroExtend8(bits(postbyte, 5, 3)), 02:u8, unsigned); otherwise timing unavailable
+instruction timing: cost CPU clocks when or(nearJump, lessThan(operation, 2:u3, unsigned)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {

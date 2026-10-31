@@ -203,8 +203,8 @@ Both fixtures reach their ROM success exits through hardware I/O and timed CPU
 execution. Their prepared entry state bypasses earlier POST stages; they do not
 establish video initialization or a complete native boot. The
 [refresh example](xt-refresh.md) continues through the original DMA register and
-refresh checks. The [full board chapter](pc-xt.md) begins at reset and reaches
-the video-initialization boundary. CGA, the empty diskette-controller path,
-and timing for their additional instruction families remain ahead of full POST.
+refresh checks. The [full board chapter](pc-xt.md) begins at reset and passes
+CGA initialization and video tests. The empty diskette-controller path and
+later POST stages remain ahead of full startup acceptance.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

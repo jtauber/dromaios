@@ -23,7 +23,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,788](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,576](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,434](../../src/components/cpus/specifications/8088.md) | 2,840 | 291 / 291 | 100% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,444](../../src/components/cpus/specifications/8088.md) | 2,846 | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,819](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% |
 
 **Literate instruction coverage** measures documented opcode forms authored in
@@ -87,10 +87,10 @@ judging source reduction; all counts include comments and blank lines.
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,956 |
 | **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,956** |
 | Shared CPU/machine Markdown reader (`src/literate.ts`, outside the CPU directory) | 30 |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,367 |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,377 |
 | CPU compilation and generation scripts (`compile-cpu-chapters.ts`, `generate-cpu-chapters.ts`, and `generate-cpu-semantics.ts`) | 166 |
-| Generated executable CPU output, counted separately | 605,833 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,000,457 |
+| Generated executable CPU output, counted separately | 605,857 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,000,607 |
 | Generated state schemas/types, counted separately | 213 |
 
 Chapter-data generation reuses an existing reference when it encounters the same
@@ -1098,10 +1098,11 @@ and [program specifications](../README.md#cpu-examples) for acceptance evidence.
 [Specification and model contract](../../src/components/cpus/specifications/8088.md)
 
 Optional [instruction-clock accounting](../../src/components/cpus/specifications/8088.md#instruction-clocks)
-covers the subset used from XT reset through early POST to video initialization,
+covers the subset used from XT reset through early POST and CGA video tests,
 including address calculation, word transfers, branches, shifts/rotates, strings,
-prefixes, and interrupt entry. Repeated strings use an explicitly bounded
-one-element re-entry cost, not uninterrupted hardware REP throughput. Timing
+prefixes, indirect near jumps, far-pointer loads, and interrupt entry. Repeated
+strings use an explicitly bounded one-element re-entry cost, not uninterrupted
+hardware REP throughput. Timing
 coverage is separate from the complete opcode-form coverage below; uncovered
 timed forms stop explicitly.
 

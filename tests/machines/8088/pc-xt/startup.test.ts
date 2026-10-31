@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { create8088PcXt, romImages } from "../../../../src/machines/generated/8088/pc-xt.js";
 import { RomImage } from "../../../../src/machines/rom-image.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
+import { renderXtTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
 
 const optional = { skip: !(process.env.XT_BIOS_ROM && process.env.XT_BASIC_ROM)
   && "Set XT_BIOS_ROM and XT_BASIC_ROM to the selected XT BIOS and ROM BASIC images." };
@@ -13,10 +14,11 @@ function atVideo(machine: Machine): boolean {
   const { cs, ip } = machine.cpu.snapshot(); return cs === 0xf000 && ip === 0xe242;
 }
 
-test("original XT firmware reaches video initialization from reset, with a repeatable saved continuation", optional, async () => {
+test("original XT firmware passes early POST and CGA video tests from reset, with a repeatable saved continuation", optional, async () => {
   const digest = async (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
   const biosBytes = readFileSync(process.env.XT_BIOS_ROM!);
   const bindings = {
+    font: process.env.XT_CGA_ROM ? await RomImage.verify(readFileSync(process.env.XT_CGA_ROM), romImages.font, digest) : null,
     bios: await RomImage.verify(biosBytes, romImages.bios, digest),
     basic: await RomImage.verify(readFileSync(process.env.XT_BASIC_ROM!), romImages.basic, digest),
   };
@@ -60,4 +62,46 @@ test("original XT firmware reaches video initialization from reset, with a repea
   const restored = create8088PcXt(bindings, checkpoint);
   for (let step = 0; step < 100000 && !atVideo(restored); step++) stepTimedXtCpu(restored);
   assert.ok(atVideo(restored)); assert.deepEqual(restored.snapshot(), machine.snapshot());
+
+  function finishVideo(target: Machine, inspect: boolean) {
+    const status = new Set<number>();
+    let sawBar = false, sawSuccess = false;
+    for (let step = 0; step < 750000; step++) {
+      const { cs, ip } = target.cpu.snapshot();
+      if (cs === 0xf000 && ip === 0xe30a) {
+        assert.ok(sawBar); assert.ok(sawSuccess);
+        assert.ok([...status].some(value => value & 8)); assert.ok([...status].some(value => !(value & 8)));
+        assert.ok([...status].some(value => value & 1)); assert.ok([...status].some(value => !(value & 1)));
+        return;
+      }
+      assert.notEqual(ip, 0xe2f0, "POST must not enter the CRT error path.");
+      if (cs === 0xf000 && ip === 0xe305) sawSuccess = true;
+      if (cs === 0xf000 && ip === 0xe2cd) {
+        sawBar = true;
+        for (let column = 0; column < 40; column++) {
+          assert.equal(target.video.read(column * 2), 0x20); assert.equal(target.video.read(column * 2 + 1), 0x70);
+        }
+        if (inspect && target.font.loaded) {
+          const before = target.snapshot(), frame = renderXtTextFrame(target);
+          assert.equal(frame.width, 640); assert.equal(frame.height, 200);
+          assert.ok(frame.pixels.slice(0, 320).every(pixel => pixel === 7));
+          assert.ok(frame.pixels.slice(320, 640).every(pixel => pixel === 0));
+          assert.deepEqual(target.snapshot(), before);
+        }
+      }
+      const { record } = stepTimedXtCpu(target);
+      assert.equal(record.outcome, "executed", `Video POST stopped at ${ip.toString(16)}`);
+      for (const access of record.accesses) if (access.kind === "input" && access.port === 0x3da) status.add(access.value);
+    }
+    assert.fail("Video POST did not reach F000:E30A within its execution budget.");
+  }
+  finishVideo(machine, true); finishVideo(restored, false);
+  assert.deepEqual(restored.snapshot(), machine.snapshot());
+  assert.equal(machine.ram.read(0x449), 3); assert.equal(word(0x44a), 80);
+  assert.equal(word(0x44c), 4096); assert.equal(word(0x463), 0x3d4);
+  assert.equal(machine.cga.snapshot().mode, 0x29); assert.equal(machine.cga.textSupported(), true);
+  assert.deepEqual(machine.cga.snapshot().crtc, [113, 80, 90, 10, 31, 6, 25, 28, 2, 7, 6, 7, 0, 0, 0, 0]);
+  for (let cell = 0; cell < 8192; cell++) {
+    assert.equal(machine.video.read(cell * 2), 0x20); assert.equal(machine.video.read(cell * 2 + 1), 7);
+  }
 });

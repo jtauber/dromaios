@@ -14,10 +14,12 @@ adds the 8237A register file, timer-to-DMA request latch, and four-clock refresh
 grants. Instruction-driven time passes isolated original BIOS counter, DMA
 register/refresh, and interrupt timing checks. The executable
 [PC/XT machine chapter](../../src/machines/8088/pc-xt.md) now owns the firmware
-map, board check/NMI controls, and a native reset-to-video-initialization
-acceptance test. The original BIOS tests base RAM, discovers 640 KiB, installs
-its vectors, and receives the keyboard self-test response through IRQ1.
-Full POST, CGA, diskette boot, ROM BASIC, and a laboratory remain ahead. The reference's DOS
+map, board check/NMI controls, and native startup through the video tests.
+The original BIOS tests base RAM, discovers 640 KiB, installs
+its vectors, receives the keyboard self-test response through IRQ1, and passes
+CGA initialization, video-memory and retrace checks. CGA text rendering uses
+the selected original character ROM. Full POST, diskette boot, ROM BASIC, and
+a laboratory remain ahead. The reference's DOS
 boot works through JavaScript BIOS services; it does not demonstrate original-ROM
 startup or a working floppy controller. The first native milestone is original
 XT firmware reaching ROM BASIC, followed by a separate DOS milestone.
@@ -123,6 +125,7 @@ identify exact bytes rather than accepting a filename as proof of version.
 | --- | ---: | --- |
 | [XT BIOS, 11/08/82][bios-image] | 8,192 | `2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2` |
 | [IBM ROM BASIC C1.10][basic-image] | 32,768 | `3033d1a54c99d7e2aa1fc7c8c2e51a56ae1b61bf4e70e8aa580f43c43e37a63e` |
+| [IBM MDA/CGA character ROM][font-image] | 8,192 | `37527f661580e5a09710051cec67422abfadf31c61b841537a91e7f27be19304` |
 | Reference `disks/Dos3.3.img` (NEC MS-DOS 3.30) | 1,474,560 | `dcde53d1a4e4c1abed2d30f05a4674730eac14f4504924b83c97262d0f8c58d2` |
 
 The [executable machine map](../../src/machines/8088/pc-xt.md#physical-storage-and-firmware)
@@ -130,9 +133,10 @@ owns BIOS/BASIC placement, original-board aliases, write protection, and externa
 image binding. The [ROM layout notes][rom-layout] distinguish the selected
 arrangement from later 64 KiB XT firmware.
 
-The remaining fixture gates are a documented CGA character set and a pinned,
-IBM-compatible **360 KiB DOS boot disk**. Select the DOS edition, bytes, boot
-files, and expected transcript before claiming DOS acceptance. Do not relabel
+The [CGA chapter](../../src/components/devices/specifications/ibm-cga.md) describes
+the selected font bank and supported text profile. The remaining fixture gate
+is a pinned, IBM-compatible **360 KiB DOS boot disk**. Select the DOS edition,
+bytes, boot files, and expected transcript before claiming DOS acceptance. Do not relabel
 or resize the reference's NEC image to fit the drive. Windows 2.0 and Ultima V
 images in the reference are later software candidates, not verified native
 targets. Hard-disk and EGA configurations need their own firmware/device choices.
@@ -167,10 +171,10 @@ The first board needs these observable behaviors:
 - **Board glue:** the [machine chapter](../../src/machines/8088/pc-xt.md#board-ports-checks-and-interrupts)
   now declares NMI/check controls and unanswered-device behavior. Retain those
   concrete board contracts while adding devices; do not hide them in the CPU or BIOS.
-- **CGA:** physical text storage, attribute/character decoding, mode control,
-  CRTC cursor/start address, and status behavior required by the ROM. Select and
-  document the font source. Display reads must use detached observation, not
-  CPU device reads. Declare absent graphics/composite behavior explicitly.
+- **CGA:** the [device chapter](../../src/components/devices/specifications/ibm-cga.md)
+  and [machine display contract](../../src/machines/8088/pc-xt.md#cga-text-output)
+  own text decoding, mode/cursor/start registers, oscillator-driven status and
+  blink, the selected font, pure rendering, and explicit graphics limits.
 - **Diskette adapter:** original controller command/result phases, reset,
   drive selection, no-media errors, and IRQ behavior are needed even for the
   failed bootstrap that enters BASIC. Add sector/DMA transfers for DOS; do not
@@ -285,18 +289,19 @@ native 8088 examples. Their chapters own supported profiles, clock/gate behavior
 snapshots, and acceptance tests. Original IRQ0 and IRQ1 handlers have separate
 ROM-backed fixtures; neither test establishes POST.
 
-Instruction-driven timing passes isolated original BIOS timer and DMA/refresh
-checks. Next compose the selected firmware/RAM map and remaining board glue,
-using the next POST stages to drive checked instruction timing and CGA text
-support. Follow with the empty diskette-controller path before attempting
-complete native POST. DMA data transfers and page registers belong with the
-later native disk milestone. Keep every
-firmware operation on the modeled hardware path.
+The full board now runs the original firmware through RAM discovery, keyboard
+self-test, and CGA video tests. Next implement the empty-drive diskette-controller
+path and continue through the remaining POST and bootstrap to ROM BASIC. Use
+those firmware paths to drive independently checked device behavior and any
+additional instruction-clock declarations. DMA data transfers and page registers
+belong with the later native disk milestone. Keep every firmware operation on
+the modeled hardware path.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/
 [bios-image]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/bios/1982-11-08/XTBIOS-REV1.json5
 [basic-image]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/basic/BASIC110.json5
+[font-image]: https://www.pcjs.org/machines/pcx86/ibm/video/cga/IBM-CGA.json5
 [ref-commit]: https://github.com/jtauber/dromaios-pc/commit/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54
 [ref-architecture]: https://github.com/jtauber/dromaios-pc/blob/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54/ARCHITECTURE.md
 [ref-cpu]: https://github.com/jtauber/dromaios-pc/blob/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54/js/cpu_8088.js
