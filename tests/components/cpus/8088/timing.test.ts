@@ -34,6 +34,8 @@ const examples: readonly [readonly number[], number][] = [
   [[0x26, 0x3e, 0xa1, 0, 2], 18], [[0xf0, 0x01, 6, 0, 2], 32],
   [[0xff, 0xe0], 11], [[0xff, 0x26, 0, 2], 28], [[0x2e, 0xff, 0xa4, 0, 2], 33],
   [[0xc4, 6, 0, 2], 30], [[0xc5, 6, 0, 2], 30], [[0x26, 0xc5, 0x80, 0, 2], 37],
+  [[0x98], 2], [[0x99], 5],
+  [[0x26, 0xf7, 0x60, 0], 156], // MUL word ES:[BX+SI+0]: 139 + 4 transfer + 11 EA + 2 prefix.
 ];
 test("8088 nominal clocks include operand transfers without changing instruction semantics or records", () => {
   for (const [code, expected] of examples) {
@@ -41,6 +43,34 @@ test("8088 nominal clocks include operand transfers without changing instruction
     const { clocks, ...record } = cpu.stepTimed();
     assert.equal(clocks, expected, code.map(byte => byte.toString(16)).join(" "));
     assert.deepEqual(record, ordinary);
+  }
+});
+
+test("8088 unsigned MUL charges the declared Intel range ceiling independently of operand values", () => {
+  // Table 2-21: byte register 70–77, memory 76–83; word register 118–133,
+  // memory 124–139, plus four clocks for its word read. Direct memory EA costs six.
+  for (const word of [false, true]) for (const memory of [false, true]) {
+    for (const left of [0, 1, 0x7f, 0x80, 0xff, 0x8000, 0xffff]) for (const right of [0, 1, 0x10, 0xff, 0xffff]) {
+      const code = [word ? 0xf7 : 0xf6, memory ? 0x26 : 0xe1, ...(memory ? [0, 2] : [])];
+      const state = { ax: left, cx: right, flags: flags(0x1ff) };
+      const timed = fixture(code, state), plain = fixture(code, state);
+      for (const { ram } of [timed, plain]) { ram.write(0x200, right & 255); ram.write(0x201, right >>> 8); }
+      const { clocks, ...record } = timed.cpu.stepTimed();
+      assert.equal(clocks, word ? memory ? 149 : 133 : memory ? 89 : 77);
+      assert.deepEqual(record, plain.cpu.step()); // Includes one ordered source read, never a timing peek.
+      const product = (word ? left : left & 255) * (word ? right : right & 255);
+      assert.equal(record.after.ax, product % 65536);
+      if (word) assert.equal(record.after.dx, Math.floor(product / 65536));
+    }
+  }
+});
+
+test("8088 sign-extension clocks preserve ordinary results and flags for both signs", () => {
+  for (const [opcode, expected] of [[0x98, 2], [0x99, 5]] as const) for (const ax of [0, 0x7f, 0x80, 0xff, 0x7fff, 0x8000, 0xffff]) {
+    const state = { ax, dx: 0xa55a, flags: flags(0x1ff) };
+    const { clocks, ...record } = fixture([opcode], state).cpu.stepTimed();
+    assert.equal(clocks, expected); assert.deepEqual(record, fixture([opcode], state).cpu.step());
+    assert.deepEqual(record.after.flags, state.flags);
   }
 });
 
@@ -119,7 +149,7 @@ test("conditional timing follows the captured decision, including LOOP wraparoun
 });
 
 test("uncovered instructions and group forms reject before data effects and do not consume deferrals", () => {
-  for (const code of [[0xf6, 0xe0], [0xf6, 0x26, 0, 2], [0xf7, 0xf3], [0xff, 0xd0], [0x9b], [0x0f], [0xc4, 0xc0], [0xc5, 0xc0]]) {
+  for (const code of [[0xf6, 0xe8], [0xf6, 0x2e, 0, 2], [0xf7, 0xf3], [0xff, 0xd0], [0x9b], [0x0f], [0xc4, 0xc0], [0xc5, 0xc0]]) {
     const { cpu, ram } = fixture(code, { interruptDeferred: true });
     const before = cpu.snapshot(), writes: number[] = [];
     ram.observeWrites(write => writes.push(write.address));

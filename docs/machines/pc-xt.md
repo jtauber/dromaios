@@ -18,7 +18,9 @@ map, board check/NMI controls, and native startup through the video tests.
 The original BIOS tests base RAM, discovers 640 KiB, installs
 its vectors, receives the keyboard self-test response through IRQ1, and passes
 CGA initialization, video-memory and retrace checks. CGA text rendering uses
-the selected original character ROM. Full POST, diskette boot, ROM BASIC, and
+the selected original character ROM. The original BIOS's text, cursor,
+page-selection, and scrolling services have timed acceptance tests, including
+restoration during a scroll. Full POST, diskette boot, ROM BASIC, and
 a laboratory remain ahead. The reference's DOS
 boot works through JavaScript BIOS services; it does not demonstrate original-ROM
 startup or a working floppy controller. The first native milestone is original

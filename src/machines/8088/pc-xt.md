@@ -182,8 +182,9 @@ and the small examples. It grants refresh, offers interrupts, executes one CPU
 boundary, and advances devices using declared instruction clocks. Repeated
 strings use the CPU chapter's explicitly bounded **one-element re-entry timing**;
 this does not reproduce an uninterrupted hardware REP's throughput.
-Timing currently covers the video POST path; later BIOS services still need
-additional declarations, including the byte multiply used by teletype output.
+Timing covers video POST and the text services below. Unsigned multiplication
+uses the CPU chapter's documented **published-range ceiling**, including memory
+and word-transfer costs; operand-dependent multiply microcode remains unmodeled.
 
 ## CGA text output
 
@@ -209,6 +210,35 @@ video RAM and the character ROM without CPU bus accesses or elapsed time.
 40-column pixels to the same physical screen width; a browser display is not
 part of this slice. The renderer rejects unsupported profiles and a missing
 font when video is enabled, and returns black when configured video is disabled.
+
+### Original BIOS text services
+
+The ROM's `INT 10h` handler is ordinary 8088 code. It converts row/column
+positions to video-memory offsets, polls CGA status, writes characters and
+attributes, and programs the CRTC cursor and display start. The BIOS data area
+stores the active page, page size, and each page's cursor. IBM describes the
+interface on printed pages A-46–A-48 of the [Technical Reference][ibm]; the
+teletype routine is on A-68–A-69.
+
+The [original-ROM text tests](../../../tests/machines/8088/pc-xt/rom-video.test.ts)
+establish these cases through timed execution:
+
+| BIOS service (`AH`, hexadecimal) | Acceptance |
+| --- | --- |
+| `00`, `0F`: set/read mode | Modes 0–3 initialize 40/80-column text, report the correct geometry, and retain the RGBI text profile. |
+| `01`–`03`: cursor shape, position, and query | Cursor registers and per-page BIOS positions agree; a programmed shape and hidden cursor reach the rendered pixels. |
+| `05`: select active page | All eight 40-column pages and four 80-column pages retain independent text/cursors; hidden-page writes survive selection. Display start takes effect at the next frame boundary. |
+| `06`, `07`: scroll up/down | A bounded window copies rows in the correct direction, leaves its border and cursor untouched, and fills vacated cells with the supplied attribute. A zero count clears the window. |
+| `08`–`0A`: read/write character and attribute | Repeated writes preserve cursor position; character-only writes retain the existing attribute, and reads return both bytes. |
+| `0E`: teletype | Ordinary characters retain cell attributes; carriage return, line feed, and backspace update the active page's cursor. Backspace at column zero stays there; wrapping at the bottom right scrolls the screen. |
+
+These tests first run reset through `F000:E30A`, then start small RAM callers
+of the installed BIOS handler. The original POST supplies their IVT, BIOS data
+area, and display state. This is a service-level acceptance fixture, not a claim
+that later POST or disk boot has completed. It adds no host BIOS services or
+firmware patches. The same suite saves a scroll during a `REP MOVSW` element
+sequence and requires restored execution to reproduce RAM, CPU, device state,
+clock phase, and pixels. `XT_CGA_ROM` enables the original-font pixel checks.
 
 ## Acceptance boundary
 

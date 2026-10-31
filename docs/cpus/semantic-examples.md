@@ -894619,6 +894619,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 word:u16 := read AX
 write AX:u16 := signExtend16(lowByte(word))
 ```
@@ -894630,6 +894631,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
+instruction timing: 0005:u16 CPU clocks
 word:u16 := read AX
 write DX:u16 := select(topBit(word), FFFF:u16, 0000:u16)
 ```
@@ -1002490,10 +1002492,12 @@ A zero divisor or out-of-range quotient delivers interrupt type 0 after fetching
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+operation := bits(postbyte, 5, 3)
+unsignedMultiply:flag := equal(operation, 4:u3)
 cost:u16 := source "register cost or memory cost plus EA" {
   postbyte:u8 := postbyte
-  registerCost:u16 := 0005:u16
-  memoryCost:u16 := 000B:u16
+  registerCost:u16 := select(unsignedMultiply, 004D:u16, 0005:u16)
+  memoryCost:u16 := select(unsignedMultiply, 0053:u16, 000B:u16)
   ea:u16 := source "8088 effective-address calculation" {
     postbyte:u8 := postbyte
     mode := bitAnd(postbyte, C0:u8)
@@ -1002507,7 +1002511,7 @@ cost:u16 := source "register cost or memory cost plus EA" {
   }
   yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
 }
-instruction timing: cost CPU clocks when isZero(bits(postbyte, 5, 3)); otherwise timing unavailable
+instruction timing: cost CPU clocks when or(isZero(operation), unsignedMultiply); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1007656,10 +1007660,12 @@ A zero divisor or out-of-range quotient delivers interrupt type 0 after fetching
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+operation := bits(postbyte, 5, 3)
+unsignedMultiply:flag := equal(operation, 4:u3)
 cost:u16 := source "register cost or memory cost plus EA" {
   postbyte:u8 := postbyte
-  registerCost:u16 := 0005:u16
-  memoryCost:u16 := 000F:u16
+  registerCost:u16 := select(unsignedMultiply, 0085:u16, 0005:u16)
+  memoryCost:u16 := select(unsignedMultiply, 008F:u16, 000F:u16)
   ea:u16 := source "8088 effective-address calculation" {
     postbyte:u8 := postbyte
     mode := bitAnd(postbyte, C0:u8)
@@ -1007673,7 +1007679,7 @@ cost:u16 := source "register cost or memory cost plus EA" {
   }
   yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
 }
-instruction timing: cost CPU clocks when isZero(bits(postbyte, 5, 3)); otherwise timing unavailable
+instruction timing: cost CPU clocks when or(isZero(operation), unsignedMultiply); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {

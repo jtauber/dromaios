@@ -48,7 +48,7 @@ test("masked IRQ0 remains pending while halted time continues; observation is in
 });
 
 test("an uncovered timed instruction stops the XT without advancing device time", () => {
-  const machine = create8088XtTimer(); machine.ram.write(0x100, 0xf6); machine.ram.write(0x101, 0xe0);
+  const machine = create8088XtTimer(); machine.ram.write(0x100, 0xf6); machine.ram.write(0x101, 0xe8); // IMUL AL remains untimed.
   const before = machine.snapshot();
   assert.throws(() => stepTimedXtCpu(machine), InstructionTimingUnavailable);
   assert.deepEqual(machine.snapshot(), before);
