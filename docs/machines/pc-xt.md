@@ -12,8 +12,12 @@ the generated 8088, PIC, PPI, and keyboard receiver. The
 oscillator phase, and native IRQ0 handling. The [refresh example](../../src/machines/8088/xt-refresh.md)
 adds the 8237A register file, timer-to-DMA request latch, and four-clock refresh
 grants. Instruction-driven time passes isolated original BIOS counter, DMA
-register/refresh, and interrupt timing checks.
-There is no complete PC/XT machine or laboratory yet. The reference's DOS
+register/refresh, and interrupt timing checks. The executable
+[PC/XT machine chapter](../../src/machines/8088/pc-xt.md) now owns the firmware
+map, board check/NMI controls, and a native reset-to-video-initialization
+acceptance test. The original BIOS tests base RAM, discovers 640 KiB, installs
+its vectors, and receives the keyboard self-test response through IRQ1.
+Full POST, CGA, diskette boot, ROM BASIC, and a laboratory remain ahead. The reference's DOS
 boot works through JavaScript BIOS services; it does not demonstrate original-ROM
 startup or a working floppy controller. The first native milestone is original
 XT firmware reaching ROM BASIC, followed by a separate DOS milestone.
@@ -121,11 +125,10 @@ identify exact bytes rather than accepting a filename as proof of version.
 | [IBM ROM BASIC C1.10][basic-image] | 32,768 | `3033d1a54c99d7e2aa1fc7c8c2e51a56ae1b61bf4e70e8aa580f43c43e37a63e` |
 | Reference `disks/Dos3.3.img` (NEC MS-DOS 3.30) | 1,474,560 | `dcde53d1a4e4c1abed2d30f05a4674730eac14f4504924b83c97262d0f8c58d2` |
 
-Map BIOS at `FE000–FFFFF` and BASIC at `F6000–FDFFF`. The original XT's ROM
-decoding also repeats BASIC's first 8 KiB at `F0000`, `F2000`, and `F4000`;
-this must not become writable RAM or a host stub area. The
-[ROM layout notes][rom-layout] distinguish this arrangement from later 64 KiB
-XT firmware. Check ROM mapping and write protection independently of boot.
+The [executable machine map](../../src/machines/8088/pc-xt.md#physical-storage-and-firmware)
+owns BIOS/BASIC placement, original-board aliases, write protection, and external
+image binding. The [ROM layout notes][rom-layout] distinguish the selected
+arrangement from later 64 KiB XT firmware.
 
 The remaining fixture gates are a documented CGA character set and a pinned,
 IBM-compatible **360 KiB DOS boot disk**. Select the DOS edition, bytes, boot
@@ -161,9 +164,9 @@ The first board needs these observable behaviors:
   and DRAM refresh. RAM need not physically decay, but the observable refresh
   and controller state must be consistent. Later disk transfers use DMA channel
   2, including address/count, page selection, direction, and terminal count.
-- **Board glue:** declare the NMI enable latch at port `A0`, parity/I/O-check
-  status and reset behavior, and unpopulated-device responses. These remain
-  machine wiring rather than hidden CPU or BIOS special cases.
+- **Board glue:** the [machine chapter](../../src/machines/8088/pc-xt.md#board-ports-checks-and-interrupts)
+  now declares NMI/check controls and unanswered-device behavior. Retain those
+  concrete board contracts while adding devices; do not hide them in the CPU or BIOS.
 - **CGA:** physical text storage, attribute/character decoding, mode control,
   CRTC cursor/start address, and status behavior required by the ROM. Select and
   document the font source. Display reads must use detached observation, not
@@ -188,6 +191,9 @@ the original BIOS’s channel-1 counter and channel-0 interrupt timing checks.
 The [refresh chapter](../../src/machines/8088/xt-refresh.md) adds instruction-boundary
 DMA grants and passes the BIOS's register and refresh checks. Timing coverage
 is partial; prefetch overlap and instruction-interior bus arbitration remain omitted.
+The [full board startup test](../../tests/machines/8088/pc-xt/startup.test.ts)
+also covers the CPU's declared one-element REP re-entry timing. Each element
+pays setup again; uninterrupted hardware REP throughput remains unmodeled.
 Manual device ticks remain useful in component tests. An arbitrary tick per instruction or host-frame
 timer is not evidence that POST or software timing is correct. Full electrical
 simulation need not precede a documented, tested timing model.

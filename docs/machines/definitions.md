@@ -54,6 +54,9 @@ they do not require a general-purpose peripheral wiring language.
 The [XT keyboard example](../../src/machines/8088/xt-keyboard.md) adds 8088
 port bindings and concrete PIC/PPI/keyboard wiring. Its CPU-boundary helper
 acknowledges the PIC only when the processor accepts INTR.
+The [PC/XT machine chapter](../../src/machines/8088/pc-xt.md) combines those
+devices with a 20-bit memory map, verified BIOS/BASIC images and ROM aliases,
+and board NMI controls. Its startup acceptance begins at the hardware reset vector.
 
 The [68000 ROM-output example](../cpus/68000/examples/output.md) also maps a
 byte-output register and connects device reset to the CPU's RESET instruction.

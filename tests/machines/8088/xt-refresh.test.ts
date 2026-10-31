@@ -44,7 +44,7 @@ test("a completed refresh remains observable if the following CPU instruction la
   for (let step = 0; step < 30 && !machine.io.snapshot().refreshPending; step++) stepTimedXtCpu(machine);
   assert.equal(machine.io.snapshot().refreshPending, true);
   const cpu = machine.cpu.snapshot(), before = machine.io.snapshot();
-  machine.ram.write(cpu.ip, 0xd0); machine.ram.write(cpu.ip + 1, 0xc0); // ROL AL,1 has no timing rule yet.
+  machine.ram.write(cpu.ip, 0xf6); machine.ram.write(cpu.ip + 1, 0xe0); // MUL AL has no timing rule yet.
   assert.throws(() => stepTimedXtCpu(machine), InstructionTimingUnavailable);
   assert.deepEqual(machine.cpu.snapshot(), cpu);
   const after = machine.io.snapshot();

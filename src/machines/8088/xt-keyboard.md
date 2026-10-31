@@ -24,9 +24,12 @@ No port or interrupt has a host BIOS shortcut.
 PB6 releases the keyboard clock when high. PB7 clears/disables the keyboard
 receiver when high. PB3 selects the high switch nibble when high and low nibble
 otherwise. PB0/PB1 expose timer-2 gate and speaker data. PC5 receives timer 2
-OUT; spare PC4 and the two error inputs are held low.
+OUT; spare PC4 is low, and both error inputs remain inactive in this example.
 The [timer chapter](xt-timer.md) owns PIT wiring and explicit board time.
-Parity checking, NMI, DMA, and port aliases remain subsequent work.
+The [refresh chapter](xt-refresh.md) owns DMA grants; the
+[full board chapter](pc-xt.md#board-ports-checks-and-interrupts) owns check/NMI
+controls. Those ports are omitted from this keyboard-only example. Extra
+hardware port aliases remain unmodeled.
 These are the original XT connections in [IBM's manual][manual], pages 1-10
 and 1-67, not the AT's 8042 interface.
 
@@ -121,12 +124,13 @@ An interrupt record is its own boundary, including the stack/vector accesses.
 
 `snapshot()`, `keyboardData`, `keyboardPending`, timer/speaker views, and status
 reads do not consume input, change interrupt state, or advance time. Snapshots
-include the PIC, PIT, PPI, keyboard, switch configuration, clock, CPU, and RAM.
+include CPU, RAM, switch configuration, and every board component, including
+DMA/refresh and check/NMI state used by the later examples.
 Restoration checks that stored PPI inputs, timer gates, and PIC IRQ0/IRQ1 agree
 with their connected devices; inconsistent wiring is rejected, not repaired.
 
-CPU-only reset preserves the board. Machine `reset()` resets CPU, PPI, PIC,
-PIT, keyboard receiver, and clock while retaining RAM, switches, and external
+CPU-only reset preserves the board. Machine `reset()` resets CPU and all board
+components while retaining RAM, switches, and external
 IRQ2–IRQ7 levels. CPU reset enters `FFFF:0000`, not this example's `0000:0100`;
 construct a fresh example to restart its program. Fresh construction resets
 all external levels and reloads the authored RAM image. Host input queues are

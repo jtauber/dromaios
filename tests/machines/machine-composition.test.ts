@@ -259,3 +259,19 @@ test("external images resolve ROM identities and reject ambiguous initialization
   assert.throws(() => parseDefinition(`${components}\nimage firmware external sha256 xyz`, "bad.machine"),
     /bad.machine:2:32: Expected a 64-digit SHA-256 digest/);
 });
+
+test("8088 maps use the full physical address space and require an explicit unanswered bus value", () => {
+  const source = `cpu 8088 { AX=0 BX=0 CX=0 DX=0 SP=0 BP=0 SI=0 DI=0 CS=0 DS=0 SS=0 ES=0 IP=0
+    halted=false waiting=false interruptDeferred=false recognitionDeferred=false trapPending=false
+    flags { CF=0 PF=0 AF=0 ZF=0 SF=0 TF=0 IF=0 DF=0 OF=0 } }
+    components { ram=ram A0000 bios=rom 2000 }
+    map 100000 { 00000=ram FE000=bios unmapped=FF }`;
+  const machine = parseMachine(source);
+  assert.ok("components" in machine);
+  assert.deepEqual(machine.connection, { kind: "mapped", size: 0x100000, unmapped: 0xff,
+    regions: [{ start: 0, component: "ram" }, { start: 0xfe000, component: "bios" }] });
+  assert.throws(() => parseMachine(source.replace("unmapped=FF", "")), /8088 map requires an explicit/);
+  assert.throws(() => parseMachine(source.replace("map 100000", "map 10000")), /Address-space size for 8088/);
+  assert.throws(() => parseMachine(source.replace("FE000=bios", "FF000=bios")), /beyond/);
+  assert.throws(() => parseMachine(source.replace("FE000=bios", "9FFFF=bios")), /overlap/);
+});

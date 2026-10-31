@@ -52,6 +52,57 @@ test("all 8088 ModR/M address forms use independently tabulated EA clocks", () =
   }
 });
 
+test("8088 shift and rotate clocks include the full CL count, EA, and word read/write transfers", () => {
+  for (const operation of [0, 1, 2, 3, 4, 5, 7]) for (const word of [false, true]) for (const memory of [false, true]) {
+    for (const count of [undefined, 0, 1, 32, 255]) {
+      const code = [0xd0 + Number(word) + (count === undefined ? 0 : 2), operation * 8 + (memory ? 6 : 0xc0), ...(memory ? [0, 2] : [])];
+      const state = { cx: count ?? 0x80, ax: 0xa55a, flags: flags(1) };
+      const { cpu } = fixture(code, state), ordinary = fixture(code, state).cpu.step();
+      const { clocks, ...record } = cpu.stepTimed();
+      const base = count === undefined ? memory ? 15 : 2 : memory ? 20 : 8;
+      assert.equal(clocks, base + (memory ? 6 + (word ? 8 : 0) : 0) + (count === undefined ? 0 : 4 * count));
+      assert.deepEqual(record, ordinary);
+    }
+  }
+  for (const opcode of [0xd0, 0xd1, 0xd2, 0xd3]) {
+    const { cpu } = fixture([opcode, 0xf0]), before = cpu.snapshot(); // Reserved /6 form.
+    assert.throws(() => cpu.stepTimed(), InstructionTimingUnavailable);
+    assert.deepEqual(cpu.snapshot(), before);
+  }
+});
+
+test("8088 strings use standalone or bounded REP-entry clocks, including empty counts and word transfers", () => {
+  // opcode, standalone byte, repeated byte, extra clocks for word transfers (Intel table 2-21).
+  for (const [opcode, plain, repeated, wordExtra] of [[0xa4, 18, 17, 8], [0xa6, 22, 22, 8],
+    [0xaa, 11, 10, 4], [0xac, 12, 13, 4], [0xae, 15, 15, 4]] as const) {
+    const prefixes = opcode === 0xa6 || opcode === 0xae ? [undefined, 0xf2, 0xf3] : [undefined, 0xf3];
+    for (const prefix of prefixes) for (const word of [false, true]) for (const cx of [0, 1, 2]) for (const df of [false, true]) {
+      const code = [...(prefix === undefined ? [] : [prefix]), opcode + Number(word)];
+      const state = { cx, si: 0x400, di: 0x600, ax: 0, flags: { ...flags(0), df } };
+      const { cpu } = fixture(code, state), ordinary = fixture(code, state).cpu.step();
+      const { clocks, ...record } = cpu.stepTimed();
+      const extra = word ? wordExtra : 0;
+      assert.equal(clocks, prefix === undefined ? plain + extra : 2 + 9 + (cx ? repeated + extra : 0));
+      assert.deepEqual(record, ordinary);
+      if (prefix !== undefined && cx === 0) assert.deepEqual(record.accesses,
+        code.map((value, index) => ({ kind: "read", address: 0x100 + index, value })));
+    }
+  }
+});
+
+test("8088 timed REP resumption has no hidden timing state and refetches prefixes on every step", () => {
+  const { cpu, ram } = fixture([0x26, 0xf3, 0xab], { cx: 3, di: 0x600, ax: 0x1234 });
+  assert.equal(cpu.stepTimed().clocks, 27); // Two prefixes + 9 setup + 10 store + 4 word transfer.
+  const restored = new Cpu8088(ram, cpu.snapshot());
+  const second = restored.stepTimed(); assert.equal(second.clocks, 27);
+  assert.equal(second.after.cx, 1); assert.equal(second.after.ip, 0x100);
+  const third = restored.stepTimed(); assert.equal(third.clocks, 27);
+  assert.equal(third.after.cx, 0); assert.equal(third.after.ip, 0x103);
+  assert.deepEqual(Array.from({ length: 6 }, (_, i) => ram.read(0x600 + i)), [0x34, 0x12, 0x34, 0x12, 0x34, 0x12]);
+  ram.write(0x100, 0xf4); // The still-pending original CPU sees modified code, not a cached repetition.
+  assert.equal(cpu.stepTimed().clocks, 2); assert.equal(cpu.snapshot().cx, 2);
+});
+
 test("conditional timing follows the captured decision, including LOOP wraparound", () => {
   for (const taken of [false, true]) {
     assert.equal(fixture([0x74, 2], { flags: flags(taken ? 8 : 0) }).cpu.stepTimed().clocks, taken ? 16 : 4);
@@ -66,7 +117,7 @@ test("conditional timing follows the captured decision, including LOOP wraparoun
 });
 
 test("uncovered instructions and group forms reject before data effects and do not consume deferrals", () => {
-  for (const code of [[0xd0, 0xc0], [0xf6, 0x26, 0, 2], [0xf7, 0xf3], [0xff, 0xd0], [0xf3, 0xa4], [0x9b], [0x0f]]) {
+  for (const code of [[0xf6, 0xe0], [0xf6, 0x26, 0, 2], [0xf7, 0xf3], [0xff, 0xd0], [0x9b], [0x0f]]) {
     const { cpu, ram } = fixture(code, { interruptDeferred: true });
     const before = cpu.snapshot(), writes: number[] = [];
     ram.observeWrites(write => writes.push(write.address));

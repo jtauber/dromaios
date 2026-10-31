@@ -973628,6 +973628,24 @@ Memory forms fetch the complete encoding, read the operand once, perform all mov
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0002:u16
+  memoryCost:u16 := 000F:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks when not(equal(bits(postbyte, 5, 3), 6:u3)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -979670,6 +979688,24 @@ Memory forms fetch the complete encoding, read the operand once, perform all mov
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0002:u16
+  memoryCost:u16 := 0017:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks when not(equal(bits(postbyte, 5, 3), 6:u3)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -985348,6 +985384,28 @@ Memory forms fetch the complete encoding, read the operand once, perform all mov
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+shiftCount:u8 := source "low byte of CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+baseClocks:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0008:u16
+  memoryCost:u16 := 0014:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: addWrap(baseClocks, multiplyUnsigned(shiftCount, 04:u8)) CPU clocks when not(equal(bits(postbyte, 5, 3), 6:u3)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -991411,6 +991469,28 @@ Memory forms fetch the complete encoding, read the operand once, perform all mov
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+shiftCount:u8 := source "low byte of CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+baseClocks:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0008:u16
+  memoryCost:u16 := 001C:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: addWrap(baseClocks, multiplyUnsigned(shiftCount, 04:u8)) CPU clocks when not(equal(bits(postbyte, 5, 3), 6:u3)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1021731,6 +1021811,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "B" {
+  yield 00:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0008:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(0011:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(0012:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1021750,9 +1021836,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "B" {
-    yield 00:u8
-  }
   contents:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
     width:u8 := width
@@ -1021879,6 +1021962,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "W" {
+  yield 01:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0008:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(0011:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(0012:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1021898,9 +1021987,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "W" {
-    yield 01:u8
-  }
   contents:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
     width:u8 := width
@@ -1022024,6 +1022110,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "B" {
+  yield 00:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0008:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(0016:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(0016:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1022043,9 +1022135,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "B" {
-    yield 00:u8
-  }
   left:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
     width:u8 := width
@@ -1022201,6 +1022290,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "W" {
+  yield 01:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0008:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(0016:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(0016:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1022220,9 +1022315,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "W" {
-    yield 01:u8
-  }
   left:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
     width:u8 := width
@@ -1022381,6 +1022473,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "B" {
+  yield 00:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0004:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(000A:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(000B:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1022400,9 +1022498,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "B" {
-    yield 00:u8
-  }
   contents:u16 := source "AL or AX string operand" {
     width:u8 := width
     contents:u16 := match byte width {
@@ -1022518,6 +1022613,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "W" {
+  yield 01:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0004:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(000A:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(000B:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1022537,9 +1022638,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "W" {
-    yield 01:u8
-  }
   contents:u16 := source "AL or AX string operand" {
     width:u8 := width
     contents:u16 := match byte width {
@@ -1022655,6 +1022753,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "B" {
+  yield 00:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0004:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(000D:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(000C:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1022674,9 +1022778,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "B" {
-    yield 00:u8
-  }
   contents:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
     width:u8 := width
@@ -1022793,6 +1022894,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "W" {
+  yield 01:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0004:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(000D:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(000C:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1022812,9 +1022919,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "W" {
-    yield 01:u8
-  }
   contents:u16 := source "byte or word string operand" {
     pointer:u32 := concatHighLow(sourceSegment, sourceOffset)
     width:u8 := width
@@ -1022928,6 +1023032,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "B" {
+  yield 00:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0004:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(000F:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(000F:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1022947,9 +1023057,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "B" {
-    yield 00:u8
-  }
   left:u16 := source "AL or AX string operand" {
     width:u8 := width
     contents:u16 := match byte width {
@@ -1023094,6 +1023201,12 @@ count:u16 := source "plain operation or remaining repeat count" {
   }
   yield count
 }
+width:u8 := source "W" {
+  yield 01:u8
+}
+wordClocks := select(isZero(width), 0000:u16, 0004:u16)
+repeatClocks := addWrap(0009:u16, select(isZero(count), 0000:u16, addWrap(000F:u16, wordClocks)))
+instruction timing: select(isZero(repeatMode), addWrap(000F:u16, wordClocks), repeatClocks) CPU clocks
 when not(isZero(count)) {
   sourceSegment:u16 := source "DS unless a segment override was captured" {
     overridden:u8 := overridden
@@ -1023113,9 +1023226,6 @@ when not(isZero(count)) {
   sourceOffset:u16 := read SI
   destinationSegment:u16 := read ES
   destinationOffset:u16 := read DI
-  width:u8 := source "W" {
-    yield 01:u8
-  }
   left:u16 := source "AL or AX string operand" {
     width:u8 := width
     contents:u16 := match byte width {

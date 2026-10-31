@@ -230,9 +230,9 @@ export function compositionSyntax(syntax: MachineSyntax) {
         }
         connection = { kind: "direct", component: direct.text };
       } else if (mapSize !== undefined) {
-        if (!["68000", "8080", "6502", "6809"].includes(cpu)) fail(declarations.get("map")!, "Mapped memory currently requires CPU 6502, 6809, 8080, or 68000");
+        if (!["68000", "8080", "6502", "6809", "8088"].includes(cpu)) fail(declarations.get("map")!, "Mapped memory currently requires CPU 6502, 6809, 8080, 8088, or 68000");
         if (cpu !== "68000" && unmapped === undefined) fail(declarations.get("map")!, `A ${cpu} map requires an explicit unmapped bus value`);
-        if (cpu === "68000" && unmapped !== undefined) fail(declarations.get("map")!, "68000 maps report bus errors; unmapped bus values currently require CPU 6502, 6809, or 8080");
+        if (cpu === "68000" && unmapped !== undefined) fail(declarations.get("map")!, "68000 maps report bus errors; unmapped bus values currently require CPU 6502, 6809, 8080, or 8088");
         if (mapSize !== requiredSize) fail(declarations.get("map")!, `Address-space size for ${cpu} must be ${requiredSize.toString(16).toUpperCase()}`);
         for (const validate of windows) validate();
         const sorted = regions.map(region => ({ ...region,

@@ -8,6 +8,8 @@ import { I8253 } from "../../../components/devices/i8253.ts";
 import type { I8253Snapshot } from "../../../components/devices/i8253.ts";
 import { I8237a } from "../../../components/devices/generated/i8237a.ts";
 import type { I8237aSnapshot } from "../../../components/devices/generated/i8237a.ts";
+import { IbmXtSystemControl } from "../../../components/devices/generated/ibm-xt-system-control.ts";
+import type { IbmXtSystemControlSnapshot } from "../../../components/devices/generated/ibm-xt-system-control.ts";
 import { XtClock } from "./clock.ts";
 import type { XtClockSnapshot } from "./clock.ts";
 import type { MemoryConnection } from "../../../components/memory/connection.ts";
@@ -22,6 +24,7 @@ export interface XtIoSnapshot {
   readonly clock: XtClockSnapshot;
   readonly dma: I8237aSnapshot;
   readonly refreshPending: boolean;
+  readonly system: IbmXtSystemControlSnapshot;
 }
 
 /** XT device wiring, driven by explicit oscillator intervals and bus grants. */
@@ -35,11 +38,12 @@ export class XtIo implements MemoryConnection {
   readonly #dma: I8237a;
   #refreshPending: boolean;
   #refreshOutput: boolean;
+  readonly #system: IbmXtSystemControl;
 
   constructor(state?: XtIoSnapshot) {
-    if (state !== undefined && (!state.pic || !state.ppi || !state.keyboard || !state.pit || !state.clock || !state.dma
+    if (state !== undefined && (!state.pic || !state.ppi || !state.keyboard || !state.pit || !state.clock || !state.dma || !state.system
       || typeof state.refreshPending !== "boolean")) {
-      throw new TypeError("XT I/O state requires the PIC, PIT, PPI, DMA, keyboard, clock, and refresh latch.");
+      throw new TypeError("XT I/O state requires the PIC, PIT, PPI, DMA, system control, keyboard, clock, and refresh latch.");
     }
     this.#pic = new I8259a(state?.pic);
     this.#ppi = new I8255a(state?.ppi);
@@ -51,6 +55,7 @@ export class XtIo implements MemoryConnection {
     this.#dma = new I8237a(state?.dma);
     this.#refreshPending = state?.refreshPending ?? false;
     this.#refreshOutput = this.#pit.output(1);
+    this.#system = new IbmXtSystemControl(state?.system);
     checkUnsigned("XT equipment switches", this.#equipmentSwitches, 0xff);
     if (state !== undefined) {
       const pins = this.#ppi.driveB();
@@ -59,6 +64,7 @@ export class XtIo implements MemoryConnection {
         || state.ppi.input_c !== this.#portCInputs() || Boolean(state.pic.levels & 2) !== this.#keyboard.irq()
         || Boolean(state.pic.levels & 1) !== this.#pit.output(0)
         || state.dma.levels !== Number(state.refreshPending)
+        || state.system.control !== pins
         || !state.pit.channels[0].gate || !state.pit.channels[1].gate
         || state.pit.channels[2].gate !== Boolean(pins & 1)) {
         throw new RangeError("Stored device inputs do not match the XT wiring.");
@@ -69,6 +75,7 @@ export class XtIo implements MemoryConnection {
 
   get size(): number { return 0x100; }
   get irq(): boolean { return this.#pic.irq(); }
+  get nmiPending(): boolean { return this.#system.nmiPending(); }
   get keyboardPending(): boolean { return this.#keyboard.irq(); }
   get keyboardData(): number { return this.#keyboard.data(); }
   get timer2Gate(): boolean { return Boolean(this.#ppi.driveB() & 1); }
@@ -80,7 +87,7 @@ export class XtIo implements MemoryConnection {
   snapshot(): XtIoSnapshot {
     return { pic: this.#pic.snapshot(), ppi: this.#ppi.snapshot(), keyboard: this.#keyboard.snapshot(),
       equipmentSwitches: this.#equipmentSwitches, pit: this.#pit.snapshot(), clock: this.#clock.snapshot(),
-      dma: this.#dma.snapshot(), refreshPending: this.#refreshPending };
+      dma: this.#dma.snapshot(), refreshPending: this.#refreshPending, system: this.#system.snapshot() };
   }
 
   read(address: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 13 | 0x20 | 0x21 | 0x40 | 0x41 | 0x42 | 0x60 | 0x61 | 0x62): number;
@@ -101,6 +108,7 @@ export class XtIo implements MemoryConnection {
     else if (address === 0x20 || address === 0x21) this.#pic.write(address - 0x20, value);
     else if (address >= 0x40 && address <= 0x43) this.#pit.write(address - 0x40, value);
     else if (address >= 0x60 && address <= 0x63) this.#ppi.write(address - 0x60, value);
+    else if (address === 0xa0) this.#system.write(0, value);
     else return "bus-error";
     this.#updateWiring();
   }
@@ -110,6 +118,13 @@ export class XtIo implements MemoryConnection {
     const vector = this.#pic.vector();
     this.#pic.acknowledge();
     return vector;
+  }
+
+  acknowledgeNmi(): void { this.#system.acknowledgeNmi(); }
+
+  setCheckErrors(parity: boolean, channel: boolean): void {
+    this.#system.setErrors(parity, channel);
+    this.#updateWiring();
   }
 
   offerScanCode(byte: number): boolean {
@@ -163,19 +178,21 @@ export class XtIo implements MemoryConnection {
     this.#pit.reset(); this.#clock.reset();
     this.#pic.reset(); this.#ppi.reset(); this.#keyboard.reset();
     this.#dma.reset(); this.#refreshPending = false; this.#refreshOutput = false;
+    this.#system.reset();
     this.#updateWiring();
   }
 
   #portCInputs(): number {
     const switches = this.#ppi.driveB() & 8 ? this.#equipmentSwitches >>> 4 : this.#equipmentSwitches & 0xf;
-    // PC4 is spare (modelled low); parity and channel-check errors remain deasserted.
-    return switches | (this.#pit.output(2) ? 0x20 : 0);
+    // PC4 is spare (modelled low); PC6/PC7 carry the check latches.
+    return switches | (this.#pit.output(2) ? 0x20 : 0) | this.#system.status();
   }
 
   #updateWiring(refreshAcknowledged = false): void {
     const pins = this.#ppi.driveB();
     this.#pit.setGate(0, true); this.#pit.setGate(1, true); this.#pit.setGate(2, Boolean(pins & 1));
     this.#keyboard.setControl(Boolean(pins & 0x40), Boolean(pins & 0x80));
+    this.#system.setControl(pins);
     this.#ppi.setPortInputs(this.#keyboard.data(), 0xff, this.#portCInputs());
     this.#pic.setLine(0, this.#pit.output(0));
     this.#pic.setLine(1, this.#keyboard.irq());
