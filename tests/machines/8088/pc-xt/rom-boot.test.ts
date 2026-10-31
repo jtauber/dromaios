@@ -12,8 +12,23 @@ const available = Boolean(process.env.XT_BIOS_ROM && process.env.XT_BASIC_ROM);
 const optional = { skip: !available && "Set XT_BIOS_ROM and XT_BASIC_ROM to the selected original firmware." };
 let bindings: Parameters<typeof create8088PcXt>[0];
 let afterDiskettePost: Snapshot;
+let atBasicPrompt: Snapshot;
 const commands: number[] = [], controls: number[] = [];
-let disketteInterrupts = 0;
+let disketteInterrupts = 0, keyboardInterrupts = 0;
+let secondKeyboardReset = false, basicEntry = false;
+
+function screen(machine: Machine): string[] {
+  // BASIC also prints character FF, the blank nonbreaking-space glyph in the CGA ROM.
+  return Array.from({ length: 25 }, (_, row) => String.fromCharCode(...Array.from({ length: 80 }, (_, column) =>
+    machine.video.read((row * 80 + column) * 2)).map(code => code === 0xff ? 0x20 : code)).trimEnd());
+}
+
+function waitingForKey(machine: Machine): boolean {
+  // Original INT 16h/AH=00 blocking loop, with its BIOS circular buffer empty.
+  return machine.cpu.snapshot().pc === 0xfe842
+    && machine.ram.read(0x41a) === machine.ram.read(0x41c)
+    && machine.ram.read(0x41b) === machine.ram.read(0x41d);
+}
 
 before(async () => {
   if (!available) return;
@@ -24,18 +39,78 @@ before(async () => {
     font: null,
   };
   const machine = create8088PcXt(bindings); machine.reset();
-  for (let step = 0; step < 25000000; step++) {
+  for (let step = 0; step < 27000000; step++) {
     const { record } = stepTimedXtCpu(machine);
     if (record.outcome !== "executed" && record.outcome !== "accepted") assert.fail(`POST stopped at ${record.before.pc.toString(16)}`);
-    if (record.outcome === "accepted" && record.vector === 14) disketteInterrupts++;
+    if (record.outcome === "accepted" && record.vector === 14 && !afterDiskettePost) disketteInterrupts++;
+    if (record.outcome === "accepted" && record.vector === 9) keyboardInterrupts++;
     assert.notEqual(record.after.pc, 0xfe58a, "Original POST entered the diskette 601 error path.");
-    for (const access of record.accesses) if (access.kind === "output") {
+    assert.notEqual(record.after.pc, 0xfe3d7, "Original POST entered the keyboard 301 error path.");
+    if (record.after.pc === 0xfe3b7) {
+      secondKeyboardReset = true;
+      assert.notEqual(record.after.cx, 0, "The second keyboard reset must complete before the BIOS timeout.");
+      assert.equal(record.after.bl, 0xaa);
+    }
+    for (const access of record.accesses) if (!afterDiskettePost && access.kind === "output") {
       if (access.port === 0x3f2) controls.push(access.value);
       if (access.port === 0x3f5) commands.push(access.value);
     }
-    if (record.after.pc === 0xfe597) { afterDiskettePost = machine.snapshot(); return; }
+    if (record.after.pc === 0xfe597) afterDiskettePost = machine.snapshot();
+    if (record.after.pc === 0xf6000) basicEntry = true;
+    if (basicEntry && waitingForKey(machine)) { atBasicPrompt = machine.snapshot(); return; }
   }
-  assert.fail("Original POST did not finish its diskette tests within the instruction budget.");
+  assert.fail("Original firmware did not reach the ROM BASIC keyboard wait within the instruction budget.");
+});
+
+test("original XT firmware completes POST and empty-drive bootstrap into ROM BASIC without host input", optional, () => {
+  assert.ok(afterDiskettePost); assert.ok(secondKeyboardReset); assert.ok(basicEntry);
+  assert.equal(keyboardInterrupts, 2, "Each of POST's two keyboard resets must deliver one native IRQ1.");
+  const machine = create8088PcXt(bindings, atBasicPrompt);
+  assert.deepEqual(screen(machine).slice(0, 5), ["The IBM Personal Computer Basic", "Version C1.10 Copyright IBM Corp 1981",
+    "62940 Bytes free", "Ok", ""]);
+  assert.equal(machine.ram.read(0x441), 0x80); // Original bootstrap's final empty-drive read timed out.
+  assert.equal(atBasicPrompt.io.diskette.phase, 3); assert.equal(atBasicPrompt.io.keyboard.full, false);
+  assert.equal(atBasicPrompt.io.keyboard.self_test_pending, false);
+});
+
+// IBM's 83-key make/break codes: Shift+PRINT, space, 2, Shift+'=', 2, Enter.
+// These are keyboard bytes, never characters injected into BIOS or BASIC RAM.
+const printCodes = [0x2a, 0x19, 0x99, 0x13, 0x93, 0x17, 0x97, 0x31, 0xb1, 0x14, 0x94, 0xaa,
+  0x39, 0xb9, 0x03, 0x83, 0x2a, 0x0d, 0x8d, 0xaa, 0x03, 0x83, 0x1c, 0x9c];
+
+function finishInput(machine: Machine, remaining: readonly number[], batchSize: number) {
+  const queue = [...remaining];
+  let instructions = 0, interrupts = 0;
+  while (instructions < 200000) {
+    for (let batch = 0; batch < batchSize; batch++) {
+      if (queue.length && machine.io.offerScanCode(queue[0]!)) queue.shift();
+      const { record } = stepTimedXtCpu(machine); instructions++;
+      assert.ok(record.outcome === "executed" || record.outcome === "accepted");
+      if (record.outcome === "accepted" && record.vector === 9) interrupts++;
+      if (!queue.length && waitingForKey(machine)) {
+        assert.deepEqual(screen(machine).slice(3, 8), ["Ok", "PRINT 2+2", " 4", "Ok", ""]);
+        return { instructions, interrupts };
+      }
+    }
+  }
+  assert.fail("ROM BASIC did not evaluate the keyboard input and return to its input wait.");
+}
+
+test("ROM BASIC evaluates native keyboard input and restores a pending key identically across execution batches", optional, () => {
+  const machine = create8088PcXt(bindings, atBasicPrompt);
+  assert.equal(machine.io.offerScanCode(printCodes[0]!), true);
+  const pending = machine.snapshot(), remaining = printCodes.slice(1);
+  assert.equal(pending.io.keyboard.full, true); assert.equal(pending.io.pic.irr & 2, 2);
+  assert.equal(machine.io.offerScanCode(remaining[0]!), false, "An unconsumed key must not be overwritten.");
+  assert.deepEqual(machine.snapshot(), pending);
+  const result = finishInput(machine, remaining, 1);
+  assert.equal(result.interrupts, printCodes.length);
+  for (const batchSize of [37, 4096]) {
+    const restored = create8088PcXt(bindings, pending);
+    assert.deepEqual(finishInput(restored, remaining, batchSize), result);
+    assert.deepEqual(restored.snapshot(), machine.snapshot());
+  }
+  assert.equal(machine.ram.read(0x417) & 3, 0, "Shift must be released in the BIOS keyboard flags.");
 });
 
 test("original XT diskette POST resets, specifies, recalibrates and seeks an empty drive through native IRQ6", optional, () => {

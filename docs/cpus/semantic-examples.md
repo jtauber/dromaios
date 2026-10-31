@@ -895806,7 +895806,7 @@ Flags preserved throughout: CF, AF, TF, IF, DF, OF.
 
 ### 8088 LOOPNE rel8
 
-LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
+LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. Their initial costs are 5/6 clocks; a taken branch adds 14/12, giving Intel's 19/18 clocks without moving the ZF read ahead of counter writeback. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
 
 ```text
 offset:u8 := source "immediate byte" {
@@ -895814,11 +895814,13 @@ offset:u8 := source "immediate byte" {
   yield byte
 }
 counter:u16 := read CX
+instruction timing: 0005:u16 CPU clocks
 write CX:u16 := subtract(counter, 0001:u16)
 remaining:u16 := read CX
 when not(isZero(remaining)) {
   equal:flag := read ZF
   when not(equal) {
+    additional instruction timing: 000E:u16 CPU clocks
     perform "branch from live post-fetch IP" {
       offset:u16 := signExtend16(offset)
       position:u16 := read IP
@@ -895832,7 +895834,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 LOOPE rel8
 
-LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
+LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. Their initial costs are 5/6 clocks; a taken branch adds 14/12, giving Intel's 19/18 clocks without moving the ZF read ahead of counter writeback. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
 
 ```text
 offset:u8 := source "immediate byte" {
@@ -895840,11 +895842,13 @@ offset:u8 := source "immediate byte" {
   yield byte
 }
 counter:u16 := read CX
+instruction timing: 0006:u16 CPU clocks
 write CX:u16 := subtract(counter, 0001:u16)
 remaining:u16 := read CX
 when not(isZero(remaining)) {
   equal:flag := read ZF
   when equal {
+    additional instruction timing: 000C:u16 CPU clocks
     perform "branch from live post-fetch IP" {
       offset:u16 := signExtend16(offset)
       position:u16 := read IP
@@ -895858,7 +895862,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 LOOP rel8
 
-LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
+LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. Their initial costs are 5/6 clocks; a taken branch adds 14/12, giving Intel's 19/18 clocks without moving the ZF read ahead of counter writeback. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
 
 ```text
 offset:u8 := source "immediate byte" {
@@ -895882,7 +895886,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 JCXZ rel8
 
-LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
+LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. Their initial costs are 5/6 clocks; a taken branch adds 14/12, giving Intel's 19/18 clocks without moving the ZF read ahead of counter writeback. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
 
 ```text
 offset:u8 := source "immediate byte" {
@@ -896025,7 +896029,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 JMP rel16
 
-LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
+LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. Their initial costs are 5/6 clocks; a taken branch adds 14/12, giving Intel's 19/18 clocks without moving the ZF read ahead of counter writeback. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
 
 ```text
 instruction timing: 000F:u16 CPU clocks
@@ -896071,7 +896075,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 JMP rel8
 
-LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
+LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. Their initial costs are 5/6 clocks; a taken branch adds 14/12, giving Intel's 19/18 clocks without moving the ZF read ahead of counter writeback. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
 
 ```text
 instruction timing: 000F:u16 CPU clocks
@@ -997215,6 +997219,7 @@ LEA (`1000 1101`) resolves a memory address and writes its sixteen-bit offset wi
 ```text
 overridden:u8 := input
 segmentOverride:u16 := input
+instruction timing: 000B:u16 CPU clocks
 base:u16 := read BX
 index:u8 := source "low byte of AX" {
   word:u16 := read AX
@@ -1002495,8 +1002500,9 @@ postbyte:u8 := fetch byte
 operation := bits(postbyte, 5, 3)
 unsignedMultiply:flag := equal(operation, 4:u3)
 unsignedDivide:flag := equal(operation, 6:u3)
-registerCost := select(unsignedDivide, 005A:u16, select(unsignedMultiply, 004D:u16, 0005:u16))
-memoryCost := select(unsignedDivide, 0060:u16, select(unsignedMultiply, 0053:u16, 000B:u16))
+unary:flag := or(equal(operation, 2:u3), equal(operation, 3:u3))
+registerCost := select(unary, 0003:u16, select(unsignedDivide, 005A:u16, select(unsignedMultiply, 004D:u16, 0005:u16)))
+memoryCost := select(unary, 0010:u16, select(unsignedDivide, 0060:u16, select(unsignedMultiply, 0053:u16, 000B:u16)))
 cost:u16 := source "register cost or memory cost plus EA" {
   postbyte:u8 := postbyte
   registerCost:u16 := registerCost
@@ -1002514,7 +1002520,7 @@ cost:u16 := source "register cost or memory cost plus EA" {
   }
   yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
 }
-instruction timing: cost CPU clocks when or(isZero(operation), or(unsignedMultiply, unsignedDivide)); otherwise timing unavailable
+instruction timing: cost CPU clocks when or(unary, or(isZero(operation), or(unsignedMultiply, unsignedDivide))); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1007666,8 +1007672,9 @@ postbyte:u8 := fetch byte
 operation := bits(postbyte, 5, 3)
 unsignedMultiply:flag := equal(operation, 4:u3)
 unsignedDivide:flag := equal(operation, 6:u3)
-registerCost := select(unsignedDivide, 00A2:u16, select(unsignedMultiply, 0085:u16, 0005:u16))
-memoryCost := select(unsignedDivide, 00AC:u16, select(unsignedMultiply, 008F:u16, 000F:u16))
+unary:flag := or(equal(operation, 2:u3), equal(operation, 3:u3))
+registerCost := select(unary, 0003:u16, select(unsignedDivide, 00A2:u16, select(unsignedMultiply, 0085:u16, 0005:u16)))
+memoryCost := select(unary, 0018:u16, select(unsignedDivide, 00AC:u16, select(unsignedMultiply, 008F:u16, 000F:u16)))
 cost:u16 := source "register cost or memory cost plus EA" {
   postbyte:u8 := postbyte
   registerCost:u16 := registerCost
@@ -1007685,7 +1007692,7 @@ cost:u16 := source "register cost or memory cost plus EA" {
   }
   yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
 }
-instruction timing: cost CPU clocks when or(isZero(operation), or(unsignedMultiply, unsignedDivide)); otherwise timing unavailable
+instruction timing: cost CPU clocks when or(unary, or(isZero(operation), or(unsignedMultiply, unsignedDivide))); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1014258,10 +1014265,13 @@ segmentOverride:u16 := input
 postbyte:u8 := fetch byte
 operation := bits(postbyte, 5, 3)
 nearJump:flag := equal(operation, 4:u3)
+push:flag := equal(operation, 6:u3)
+registerCost := select(push, 000F:u16, select(nearJump, 000B:u16, 0002:u16))
+memoryCost := select(push, 0018:u16, select(nearJump, 0016:u16, 0017:u16))
 cost:u16 := source "register cost or memory cost plus EA" {
   postbyte:u8 := postbyte
-  registerCost:u16 := select(nearJump, 000B:u16, 0002:u16)
-  memoryCost:u16 := select(nearJump, 0016:u16, 0017:u16)
+  registerCost:u16 := registerCost
+  memoryCost:u16 := memoryCost
   ea:u16 := source "8088 effective-address calculation" {
     postbyte:u8 := postbyte
     mode := bitAnd(postbyte, C0:u8)
@@ -1014275,7 +1014285,7 @@ cost:u16 := source "register cost or memory cost plus EA" {
   }
   yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
 }
-instruction timing: cost CPU clocks when or(nearJump, lessThan(operation, 2:u3, unsigned)); otherwise timing unavailable
+instruction timing: cost CPU clocks when or(push, or(nearJump, lessThan(operation, 2:u3, unsigned))); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {

@@ -35,6 +35,9 @@ const examples: readonly [readonly number[], number][] = [
   [[0xff, 0xe0], 11], [[0xff, 0x26, 0, 2], 28], [[0x2e, 0xff, 0xa4, 0, 2], 33],
   [[0xc4, 6, 0, 2], 30], [[0xc5, 6, 0, 2], 30], [[0x26, 0xc5, 0x80, 0, 2], 37],
   [[0x98], 2], [[0x99], 5],
+  [[0xf6, 0xd0], 3], [[0xf7, 0xd9], 3], [[0xf6, 0x16, 0, 2], 22], [[0xf7, 0x1e, 0, 2], 30],
+  [[0xff, 0xf0], 15], [[0xff, 0xf4], 15], [[0xff, 0x36, 0, 2], 30], [[0x2e, 0xff, 0xb7, 0, 2], 35],
+  [[0xd7], 11], [[0x2e, 0xd7], 13],
   [[0x26, 0xf7, 0x60, 0], 156], // MUL word ES:[BX+SI+0]: 139 + 4 transfer + 11 EA + 2 prefix.
 ];
 test("8088 nominal clocks include operand transfers without changing instruction semantics or records", () => {
@@ -162,6 +165,33 @@ test("conditional timing follows the captured decision, including LOOP wraparoun
     assert.equal(cpu.stepTimed().clocks, cx === 1 ? 5 : 17);
     assert.equal(cpu.snapshot().cx, (cx + 0xffff) & 0xffff);
     assert.equal(fixture([0xe3, 0], { cx }).cpu.stepTimed().clocks, cx === 0 ? 18 : 6);
+  }
+});
+
+test("8088 LOOPNE and LOOPE timing follows both the remaining count and ZF without changing flags", () => {
+  // Intel table 2-21: LOOPNE taken/not taken = 19/5; LOOPE = 18/6.
+  for (const opcode of [0xe0, 0xe1]) for (const cx of [0, 1, 2, 0xffff]) for (const zf of [false, true]) {
+    const state = { cx, flags: { ...flags(0x1ff), zf } }, code = [opcode, 0xfe];
+    const { clocks, ...record } = fixture(code, state).cpu.stepTimed();
+    const taken = cx !== 1 && (opcode === 0xe1 ? zf : !zf);
+    assert.equal(clocks, opcode === 0xe1 ? taken ? 18 : 6 : taken ? 19 : 5);
+    assert.equal(record.after.cx, (cx + 0xffff) & 0xffff);
+    assert.equal(record.after.ip, taken ? 0x100 : 0x102);
+    assert.deepEqual(record.after.flags, state.flags);
+    assert.deepEqual(record, fixture(code, state).cpu.step());
+  }
+});
+
+test("8088 unary timing includes both word transfers and preserves NOT/NEG semantics at byte and word boundaries", () => {
+  for (const operation of [2, 3]) for (const word of [false, true]) for (const memory of [false, true]) {
+    for (const value of [0, 1, 0x7f, 0x80, 0xff, 0x7fff, 0x8000, 0xffff]) {
+      const code = [word ? 0xf7 : 0xf6, operation * 8 + (memory ? 6 : 0xc0), ...(memory ? [0, 2] : [])];
+      const state = { ax: value, flags: flags(0x1ff) }, timed = fixture(code, state), plain = fixture(code, state);
+      for (const { ram } of [timed, plain]) { ram.write(0x200, value & 255); ram.write(0x201, value >>> 8); }
+      const { clocks, ...record } = timed.cpu.stepTimed();
+      assert.equal(clocks, memory ? word ? 30 : 22 : 3);
+      assert.deepEqual(record, plain.cpu.step());
+    }
   }
 });
 

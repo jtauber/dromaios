@@ -276,6 +276,8 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           case "read-test": captured = { code: `${access("readTest")}()`, type: "flag" }; break;
           case "report-clocks":
             emit(`${access("reportClocks")}?.(${step.available ? `(${flag(step.available, scope)}) ? ${number(step.clocks, scope).code} : undefined` : number(step.clocks, scope).code});`); continue;
+          case "add-clocks":
+            emit(`${access("reportClocks")}?.(${number(step.clocks, scope).code}, true);`); continue;
           case "report-interrupt": emit(`${access("reportInterrupt")}(${number(step.vector, scope).code});`); continue;
           case "send-escape": {
             const memory = step.memory;

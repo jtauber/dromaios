@@ -43,32 +43,39 @@ type Symbols = {
 
 /** The segmented boundary admits only effects it can supply and fault outcomes it can deliver. */
 export function checkSegmentedEffects(steps: readonly Statement[], fault: string, continuation = false, timing = false): void {
-  for (const step of steps) switch (step.kind) {
-    case "choose": checkSegmentedEffects(step.yes.steps, fault, continuation); checkSegmentedEffects(step.no.steps, fault, continuation); break;
-    case "when": case "iterate": case "iterate-together": checkSegmentedEffects(step.steps, fault, continuation); break;
-    case "read-source": checkSegmentedEffects(step.source.steps, fault, continuation); break;
-    case "perform": checkSegmentedEffects(step.action.steps, fault, continuation); break;
-    case "dispatch": case "match":
-      if (continuation) throw new Error("A waiting continuation cannot reject an encoding.");
-      for (const branch of step.cases) checkSegmentedEffects(branch.steps, fault); break;
-    case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice":
-    case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags": case "exchange-flags":
-    case "read-test": break;
-    case "report-clocks":
-      if (!timing || continuation) throw new Error("Instruction clocks require a top-level family statement and a timing contract.");
-      break;
-    case "defer-interrupt":
-      if (step.scope === "irq") throw new Error("Segmented retirement accepts intr or all deferral.");
-      break;
-    case "fetch-byte": case "read-memory": case "write-memory": case "read-port": case "write-port":
-    case "send-escape": case "report-interrupt":
-      if (continuation) throw new Error(`A waiting continuation cannot use ${step.kind}.`);
-      break;
-    case "reject": case "divide":
-      if (continuation || (step.kind === "reject" ? step.reason !== fault && step.reason !== "opcode" && step.reason !== "unsupported" : step.onError !== fault || step.overflow !== undefined)) throw new Error("Instruction outcome needs a declared segmented fault.");
-      break;
-    default: throw new Error(`Segmented execution does not support ${step.kind}.`);
+  function check(steps: readonly Statement[], scope: "family" | "branch" | "reusable", clockDeclared = false): void {
+    for (const step of steps) switch (step.kind) {
+      case "choose": check(step.yes.steps, "branch", clockDeclared); check(step.no.steps, "branch", clockDeclared); break;
+      case "when": case "iterate": case "iterate-together": check(step.steps, "branch", clockDeclared); break;
+      case "read-source": check(step.source.steps, "reusable"); break;
+      case "perform": check(step.action.steps, "reusable"); break;
+      case "dispatch": case "match":
+        if (continuation) throw new Error("A waiting continuation cannot reject an encoding.");
+        for (const branch of step.cases) check(branch.steps, "branch", clockDeclared); break;
+      case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice":
+      case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags": case "exchange-flags":
+      case "read-test": break;
+      case "report-clocks":
+        if (!timing || continuation || scope !== "family") throw new Error("Instruction clocks require a top-level family statement and a timing contract.");
+        clockDeclared = true;
+        break;
+      case "add-clocks":
+        if (!clockDeclared || continuation) throw new Error("Additional clocks require a preceding family clock declaration; sources and actions cannot adjust timing.");
+        break;
+      case "defer-interrupt":
+        if (step.scope === "irq") throw new Error("Segmented retirement accepts intr or all deferral.");
+        break;
+      case "fetch-byte": case "read-memory": case "write-memory": case "read-port": case "write-port":
+      case "send-escape": case "report-interrupt":
+        if (continuation) throw new Error(`A waiting continuation cannot use ${step.kind}.`);
+        break;
+      case "reject": case "divide":
+        if (continuation || (step.kind === "reject" ? step.reason !== fault && step.reason !== "opcode" && step.reason !== "unsupported" : step.onError !== fault || step.overflow !== undefined)) throw new Error("Instruction outcome needs a declared segmented fault.");
+        break;
+      default: throw new Error(`Segmented execution does not support ${step.kind}.`);
+    }
   }
+  check(steps, "family");
 }
 
 /** A partial timing rule must reject before architectural writes or data/device accesses. */

@@ -175,7 +175,9 @@ condition. Generated code reports to an optional instruction-timing consumer;
 a false condition supplies `undefined`, declaring unavailable timing. The
 [segmented timing contract](literate-specifications.md#optional-instruction-clock-accounting)
 checks its placement before operand effects and governs rejection, prefix costs,
-and timed records. Ordinary execution has no timing consumer.
+and timed records. `add-clocks` adds a nonnegative 16-bit cost after that initial
+declaration, including inside family branches, without changing the availability
+decision or repeating prefix costs. Ordinary execution has no timing consumer.
 
 Reset, fetching, dispatch, stopping, retirement, interrupt recognition, and
 exception delivery also have declarative contracts, described in the

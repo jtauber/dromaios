@@ -2,14 +2,17 @@
 
 This executable chapter assembles the selected IBM 5160 board around the
 [8088](../../components/cpus/specifications/8088.md). The current acceptance target
-is **reset through the diskette POST**, using the original
+is **reset through ROM BASIC and native keyboard input**, using the original
 11/08/82 BIOS. The CPU tests itself, tests DMA and the first 16 KiB of RAM,
 discovers 640 KiB, initializes its interrupt vectors, and resets the XT keyboard.
 It then programs CGA, tests video RAM and retrace status, and clears the display.
-The continuation tests RAM and the empty diskette drive's reset and seeks.
+The continuation tests RAM and the empty diskette drive's reset and seeks,
+passes the second keyboard reset, and attempts a disk boot. With no disk
+inserted, the BIOS's own timeout leads to ROM BASIC C1.10. BASIC prints its
+prompt and evaluates `PRINT 2+2` entered through the keyboard receiver and IRQ1.
 No BIOS service is replaced by host code and no BIOS data area is preloaded.
-This is not yet a clean POST or ROM BASIC boot: the later keyboard reset
-currently produces a `301` diagnostic, described under the acceptance boundary.
+Stored-program editing, Ctrl-Break, firmware warm boot, a browser laboratory,
+and disk-image transfers remain subsequent acceptance work.
 
 ## Physical storage and firmware
 
@@ -188,8 +191,8 @@ and the small examples. It grants refresh, offers interrupts, executes one CPU
 boundary, and advances devices using declared instruction clocks. Repeated
 strings use the CPU chapter's explicitly bounded **one-element re-entry timing**;
 this does not reproduce an uninterrupted hardware REP's throughput.
-Timing covers the diskette POST, BIOS disk reset/read timeout, and text services
-below. Unsigned multiplication and division use the CPU chapter's documented
+Timing covers POST, empty-drive bootstrap, the BASIC prompt and immediate
+arithmetic, and the BIOS services below. Unsigned multiplication and division use the CPU chapter's documented
 **published-range ceilings**, including memory and word-transfer costs;
 operand-dependent arithmetic microcode remains unmodeled.
 
@@ -221,7 +224,7 @@ it preserves the mechanical position and Specify timing registers.
 The [board tests](../../../tests/machines/8088/pc-xt/diskette.test.ts) check port
 routing, fractional clock continuation, native IRQ6 entry from HLT, separate
 controller/PIC acknowledgement, and absence of DMA or memory side effects.
-The [original-ROM diskette tests](../../../tests/machines/8088/pc-xt/rom-diskette.test.ts)
+The [original-ROM boot tests](../../../tests/machines/8088/pc-xt/rom-boot.test.ts)
 start at reset and require the exact reset/Specify/recalibrate/seek sequence,
 four IRQ6 entries, seeks to cylinders 1 and 34, and `F000:E597` without entering
 the `601` diskette-error path at `F000:E58A`.
@@ -309,14 +312,39 @@ devices, and oscillator time. Independent [rendering tests](../../../tests/machi
 cover text pixels, attributes, cursor, wrapping, and saved blink phase.
 The test never patches firmware, seeds RAM, or shortcuts a BIOS routine.
 
-The later diskette continuation establishes that device's POST success, not
-error-free whole-machine startup. The keyboard's current immediate self-test
-response arrives too early during POST's **second** keyboard reset: IRQ1 runs
-after the PIC is unmasked at `F000:FA3D`, before the ROM clears its interrupt
-flag at `F000:FA3F`. The ROM then loses that indication, times out, and reports
-`301`. A subsequent run reaches its F1 recovery prompt rather than the
-bootstrap. Modeling keyboard self-test/byte-delivery latency is the next boot
-blocker; no synthetic F1, BIOS-data patch, or bypass is part of acceptance.
+### ROM BASIC boot and input
+
+The [boot tests](../../../tests/machines/8088/pc-xt/rom-boot.test.ts) continue
+from reset through the remaining POST and empty-drive bootstrap. Both keyboard
+resets must deliver `AA` through IRQ1, with a nonzero timeout counter after the
+second reset at `F000:E3B7`. Neither the keyboard `301` path nor diskette `601`
+path may be entered. The keyboard chapter owns the response delay; it allows
+the original ROM to clear its interrupt flag before the response arrives.
+
+Without any host input, the BIOS must exhaust its disk boot attempt, retain
+the disk timeout status `80`, and enter BASIC at `F600:0000`. The selected ROM
+then displays these first four rows and waits in the original INT 16h input loop:
+
+```text
+The IBM Personal Computer Basic
+Version C1.10 Copyright IBM Corp 1981
+62940 Bytes free
+Ok
+```
+
+BASIC uses the CGA character `FF` as a blank in some text; screen assertions
+treat it as a space, retaining the original video-memory bytes. Host make/break
+codes type `PRINT 2+2`, including Shift and its release. The command must echo,
+print ` 4`, and return to `Ok`; every supplied byte must traverse native IRQ1.
+The host retains rejected offers rather than overwriting an unconsumed byte.
+
+A snapshot taken with the first key pending in the receiver/PIC, together with
+the remaining host input queue, must resume identically with execution batches
+of 1, 37, or 4096 boundaries. The test compares complete CPU, RAM/video memory,
+device state, and oscillator phase. It never supplies F1 to bypass POST, changes
+the CPU entry registers, seeds BIOS RAM, or replaces a firmware routine.
+This establishes a first interactive ROM BASIC session, not the later stored-program,
+editing, warm-boot, or DOS milestones in the target audit.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

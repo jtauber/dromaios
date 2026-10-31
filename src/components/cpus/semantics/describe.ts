@@ -154,6 +154,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "notify-reti": emit("request RETI device notification after successful architectural retirement"); break;
         case "reset-devices": emit("assert connected device reset now; record only after callback success; preserve CPU state"); break;
         case "report-clocks": emit(`instruction timing: ${number(step.clocks)} CPU clocks${step.available ? ` when ${flag(step.available, {})}; otherwise timing unavailable` : ""}`); break;
+        case "add-clocks": emit(`additional instruction timing: ${number(step.clocks)} CPU clocks`); break;
         case "report-interrupt": emit(`report completed software interrupt delivery, vector ${number(step.vector)}`); break;
         case "read-test": emit(`${step.name}:flag := sample and record physical TEST level; high waits, low releases`); break;
         case "send-escape": emit(`send and record ESC opcode ${number(step.opcode)}, ModR/M ${number(step.modRM)}`

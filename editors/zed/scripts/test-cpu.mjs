@@ -31,7 +31,7 @@ for (const [text, category] of [
   ['*', 'operator'], ['input', 'keyword'], ['input', 'variable'],
   ['bit', 'function'],
   ['group', 'keyword'], ['choose', 'keyword'], ['then', 'keyword'], ['else', 'keyword'], ['ENTRY', 'property'],
-  ['clocks', 'keyword'], ['clocks', 'variable'], ['timing', 'keyword'], ['prefix', 'keyword'],
+  ['clocks', 'keyword'], ['clocks', 'variable'], ['+', 'operator'], ['timing', 'keyword'], ['prefix', 'keyword'],
   ['segmented', 'keyword'], ['prefixes', 'keyword'], ['sampling', 'keyword'], ['limit', 'keyword'], ['pending', 'keyword'],
   ['attempt', 'keyword'], ['complete', 'keyword'], ['stage', 'keyword'], ['stage', 'variable'], ['pending', 'variable'], ['staging', 'keyword'], ['staging', 'variable'], ['target', 'keyword'], ['target', 'variable'], ['devices', 'keyword'], ['reset', 'variable'], ['select', 'variable'], ['sample', 'keyword'], ['boundary', 'keyword'], ['report', 'keyword'], ['send', 'keyword'], ['escape', 'keyword'], ['test', 'keyword'], ['iterate', 'keyword'], ['step', 'keyword'], ['next', 'keyword'], ['next', 'variable'], ['divide', 'keyword'], ['reject', 'keyword'], ['signed', 'keyword'],
   ['projected', 'function'], ['projectAddress', 'function'], ['segment', 'variable'], ['offset', 'variable'],

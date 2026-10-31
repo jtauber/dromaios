@@ -124,7 +124,7 @@ module.exports = grammar({
     commit_statement: _ => seq('commit', 'addresses'),
     defer_statement: _ => seq('defer', choice('irq', 'intr', 'all')),
     notify_statement: _ => seq('notify', 'reti'),
-    clocks_statement: $ => seq('clocks', $._expression, optional(seq('when', $._expression))),
+    clocks_statement: $ => seq('clocks', choice(seq('+', $._expression), seq($._expression, optional(seq('when', $._expression))))),
     report_statement: $ => seq('report', 'interrupt', $.arguments),
     escape_statement: $ => seq('send', 'escape', $.arguments, optional(seq('with', 'memory', $.arguments))),
     _local_name: $ => choice($.identifier, ...['exchange', 'port', 'next', 'reset', 'select', 'target', 'stage', 'pending', 'staging', 'notify', 'report', 'send', 'clocks'].map(word => alias(word, $.identifier))),

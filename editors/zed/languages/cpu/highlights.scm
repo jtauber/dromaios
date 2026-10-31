@@ -36,7 +36,7 @@
 (string) @string
 (escape_sequence) @string.escape
 (comment) @comment
-["=" "<-" "*"] @operator
+["=" "<-" "*" "+"] @operator
 ["{" "}" "[" "]" "(" ")" "<" ">"] @punctuation.bracket
 [":" "," "."] @punctuation.delimiter
 

@@ -51,6 +51,8 @@ test("a keyboard reset pulse uses supplied time and the self-test response follo
   assert.equal(io.irq, false); assert.equal(io.offerScanCode(0x1e), false);
   const restored = new XtIo(io.snapshot());
   restored.write(0x61, 0x48);
+  assert.equal(restored.irq, false); restored.advanceOscillatorTicks(114545);
+  assert.equal(restored.irq, false); restored.advanceOscillatorTicks(1);
   assert.equal(restored.read(0x60), 0xaa); assert.equal(restored.irq, true);
   assert.equal(restored.acknowledge(), 9);
   assert.equal(io.keyboardPending, false);

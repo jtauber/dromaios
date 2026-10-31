@@ -1423,6 +1423,15 @@ data accesses, writes, and other effects are forbidden. Clock declarations
 cannot be hidden in branches, sources, or actions. This makes partial coverage
 explicit before operand effects. Runtime counts must be positive.
 
+After that initial declaration, `clocks + expression` adds a nonnegative 16-bit
+cost for a path actually executed. It can appear in family branches or loops,
+but not before the initial declaration or inside reusable sources/actions.
+It has no availability condition and cannot withdraw timing after effects have
+started. This allows a loop instruction to declare its untaken cost, decrement
+the counter, then test a flag and add the taken-branch cost in the original
+execution order. Prefix costs are added once; additions never reapply them.
+Ordinary execution ignores both kinds of clock report.
+
 The runtime adds prefix costs, reports the declared pending-entry cost, and
 reports zero for an already stopped CPU or ignored interrupt offer. Missing
 family timing, a false availability condition, rejected encodings, and WAIT

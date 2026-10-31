@@ -173,11 +173,33 @@ test("timing contracts reject late, nested, repeated, and ill-typed clock declar
     ['clocks u16(3)\n  selected = register AX', 'unused = source popWord\n  clocks u16(3)\n  selected = register AX', /precede read-memory/],
     ['clocks u16(3)\n  selected = register AX', 'when 1 {\n    clocks u16(3)\n  }\n  selected = register AX', /top-level/],
     ['clocks u16(3)\n  selected = register AX', 'clocks u16(3)\n  clocks u16(3)\n  selected = register AX', /exactly once/],
+    ['clocks u16(3)\n  selected = register AX', 'clocks + u16(3)\n  selected = register AX', /preceding family clock/],
+    ['clocks u16(3)\n  selected = register AX', 'when 1 {\n    clocks + u16(3)\n  }\n  clocks u16(3)\n  selected = register AX', /preceding family clock/],
+    ['clocks u16(3)\n  selected = register AX', 'clocks u16(3)\n  clocks + u8(1)\n  selected = register AX', /expected 16-bit/],
+    ['clocks u16(3)\n  selected = register AX', 'clocks u16(3)\n  clocks + u16(1) when 0\n  selected = register AX', /trailing input/],
+    ['action relativeJump "branch from live post-fetch IP" (offset: 16) {', 'action relativeJump "branch from live post-fetch IP" (offset: 16) {\n  clocks + u16(1)', /actions.*CPU boundaries/],
   ];
   for (const [before, after, message] of replacements) {
     assert.ok(text.includes(before), before);
     assert.throws(() => compileCpuChapter(text.replace(before, after), { name: "8088" }, file), message);
   }
+});
+
+test("path clock additions preserve effects, include prefixes once, and cannot bypass partial timing rejection", async () => {
+  const model = await generate(text.replace('clocks u16(3)\n  selected = register AX',
+    'allowed = flag CF\n  clocks u16(3) when allowed\n  AX <- u16(42)\n  extra = flag ZF\n  when extra {\n    clocks + u16(7)\n  }\n  clocks + u16(0)\n  selected = register AX'));
+  for (const zf of [false, true]) {
+    const timed = fixture(model, [0x26, 0x90, 0x90]), ordinary = fixture(model, [0x26, 0x90, 0x90]);
+    for (const { state } of [timed, ordinary]) { state.flags.cf = true; state.flags.zf = zf; }
+    const { clocks, ...record } = timed.boundary.stepTimed();
+    assert.equal(clocks, zf ? 12 : 5); assert.equal(timed.state.ax, 42);
+    assert.deepEqual(record, ordinary.boundary.step());
+    assert.equal(timed.boundary.stepTimed().clocks, zf ? 10 : 3);
+  }
+  const { state, boundary } = fixture(model, [0x90]), before = snapshot(state);
+  assert.throws(() => boundary.stepTimed(), InstructionTimingUnavailable);
+  assert.deepEqual(snapshot(state), before);
+  boundary.step(); assert.equal(state.ax, 42); // Ordinary execution needs no clock consumer.
 });
 
 

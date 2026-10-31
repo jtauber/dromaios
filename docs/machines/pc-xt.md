@@ -14,7 +14,7 @@ adds the 8237A register file, timer-to-DMA request latch, and four-clock refresh
 grants. Instruction-driven time passes isolated original BIOS counter, DMA
 register/refresh, and interrupt timing checks. The executable
 [PC/XT machine chapter](../../src/machines/8088/pc-xt.md) now owns the firmware
-map, board check/NMI controls, and native startup through the video tests.
+map, board check/NMI controls, and native startup through ROM BASIC.
 The original BIOS tests base RAM, discovers 640 KiB, installs
 its vectors, receives the keyboard self-test response through IRQ1, and passes
 CGA initialization, video-memory and retrace checks. CGA text rendering uses
@@ -22,14 +22,15 @@ the selected original character ROM. The original BIOS's text, cursor,
 page-selection, and scrolling services have timed acceptance tests, including
 restoration during a scroll. The literate empty-drive adapter now passes the
 original diskette POST through IRQ6; original INT 13h reads time out without
-DMA transfers, with saved continuation checked. The later keyboard reset
-still reports `301` because its self-test response is immediate; the
-[machine chapter](../../src/machines/8088/pc-xt.md#acceptance-boundary) records
-the interrupt race. Clean POST, diskette boot, ROM BASIC, and a laboratory
-remain ahead. The reference's DOS
+DMA transfers, with saved continuation checked. Timed keyboard self-test delivery
+also passes the second keyboard reset. Original firmware now completes POST,
+falls back from an empty drive to ROM BASIC, and evaluates `PRINT 2+2` through
+native keyboard input. The [machine chapter](../../src/machines/8088/pc-xt.md#rom-basic-boot-and-input)
+owns those checks and pending-key snapshot acceptance. Broader BASIC interaction,
+a laboratory, and disk-image boot remain ahead. The reference's DOS
 boot works through JavaScript BIOS services; it does not demonstrate original-ROM
-startup or a working floppy controller. The first native milestone is original
-XT firmware reaching ROM BASIC, followed by a separate DOS milestone.
+startup or a working floppy controller. Native ROM BASIC is the first milestone;
+DOS remains a separate milestone.
 
 ## Selected first configuration
 
@@ -298,13 +299,13 @@ native 8088 examples. Their chapters own supported profiles, clock/gate behavior
 snapshots, and acceptance tests. Original IRQ0 and IRQ1 handlers have separate
 ROM-backed fixtures; neither test establishes POST.
 
-The full board now runs the original firmware through RAM discovery, keyboard
-self-test, and CGA video tests. Next implement the empty-drive diskette-controller
-path and continue through the remaining POST and bootstrap to ROM BASIC. Use
-those firmware paths to drive independently checked device behavior and any
-additional instruction-clock declarations. DMA data transfers and page registers
-belong with the later native disk milestone. Keep every firmware operation on
-the modeled hardware path.
+The full board now runs original firmware through POST and empty-drive bootstrap
+to a first ROM BASIC command. Next complete the BASIC interaction acceptance
+above: stored programs, editing, Ctrl-Break, firmware warm boot, and snapshots
+with a program and pending input. Let those firmware paths identify any further
+instruction-clock or device gaps before adding the shared laboratory. DMA data
+transfers and page registers belong with the later native disk milestone.
+Keep every firmware operation on the modeled hardware path.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

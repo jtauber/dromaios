@@ -96,10 +96,11 @@ export function segmentedExecution<S, Device, External, Fault extends string, Pe
       readByte: memory.readByte, writeByte: memory.writeByte,
       ...recordPorts(ports(), record), ...devices(record),
       fetchByte,
-      ...(timing ? { reportClocks: (clocks: number | undefined): void => {
+      ...(timing ? { reportClocks: (clocks: number | undefined, additional = false): void => {
         if (clocks === undefined) return unavailable();
-        if (!Number.isInteger(clocks) || clocks <= 0 || clocks > 65535) throw new RangeError("Instruction clocks must be a positive 16-bit integer.");
-        timing.clocks = prefixClocks + clocks;
+        if (!Number.isInteger(clocks) || clocks < (additional ? 0 : 1) || clocks > 65535) throw new RangeError("Instruction clocks must be a positive 16-bit integer; additions may be zero.");
+        if (additional && timing.clocks === 0) throw new Error("Additional clocks require an initial instruction cost.");
+        timing.clocks = (additional ? timing.clocks : prefixClocks) + clocks;
       } } : {}),
       deferInterrupt: (scope: "intr" | "all"): void => { if (scope === "all") all = true; else intr = true; },
       reportInterrupt: (vector: number): void => { interrupt = { source: "software", vector }; },

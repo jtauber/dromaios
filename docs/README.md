@@ -119,7 +119,7 @@ examples add polling and consuming input reads with the same devices.
 - [IBM PC/XT target](machines/pc-xt.md): pinned dromaios-pc audit, selected XT
   firmware and hardware, and acceptance from ROM BASIC to native floppy DOS.
 - [IBM PC/XT machine](../src/machines/8088/pc-xt.md): executable firmware map
-  and native startup through diskette POST, BIOS read timeouts, and current boot limits.
+  and native startup through POST, empty-drive bootstrap, and ROM BASIC keyboard input.
 - [XT keyboard-interrupt example](../src/machines/8088/xt-keyboard.md): an
   executable 8088 composition with native PIC/PPI wiring and IRQ1 handling.
 - [XT timer and device-clock example](../src/machines/8088/xt-timer.md):

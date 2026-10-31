@@ -25,7 +25,7 @@ export interface InterruptReportContext {
   readonly reportInterrupt: (vector: number) => void;
 }
 
-/** Optional instruction-level clock reporting; ordinary execution needs no timing consumer. */
+/** Declare a base cost or add a path's cost; ordinary execution needs no timing consumer. */
 export interface InstructionTimingContext {
-  readonly reportClocks?: (clocks: number | undefined) => void;
+  readonly reportClocks?: (clocks: number | undefined, additional?: boolean) => void;
 }

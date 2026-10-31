@@ -427,6 +427,9 @@ interface AddressedDevice {
 family timed "0000 0000" {
   clocks = u16(3)
   clocks clocks when 1
+  when 1 {
+    clocks + u16(2)
+  }
 }
 execution segmented {
   timing prefix 2 pending 70 offers "intr" 81, "nmi" 70

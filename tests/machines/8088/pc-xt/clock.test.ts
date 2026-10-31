@@ -93,6 +93,7 @@ test("board batches and partial-phase restores retain pending latches, timer edg
   for (const board of [whole, restored]) {
     board.read(0x40); board.write(0x42, 0); board.advanceOscillatorTicks(236361);
     board.write(0x61, 0xcb); board.write(0x61, 0x4b);
+    assert.equal(board.keyboardPending, false); board.advanceOscillatorTicks(114546);
     assert.equal(board.keyboardData, 0xaa); assert.equal(board.keyboardPending, true);
   }
   assert.deepEqual(restored.snapshot(), whole.snapshot()); assert.equal(saved.clock.ticks, 50003);

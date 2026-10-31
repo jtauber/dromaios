@@ -99,9 +99,10 @@ untimed 32 KiB profile runs Color BASIC with matrix keyboard input and text/
 semigraphics decoding on the existing 6809. The workspace adds CPU, memory,
 PIA/SAM inspection, remembered local ROM loading, and snapshots. The
 [reference audit and acceptance plan](docs/machines/coco.md) records the remaining work.
-The [IBM PC/XT](docs/machines/pc-xt.md) is the next machine: its reference audit
-and acceptance plan select original-ROM startup, ROM BASIC, and then floppy DOS
-on the existing 8088. Native PC hardware and its laboratory remain to be built.
+The [IBM PC/XT](docs/machines/pc-xt.md) now runs original firmware through POST
+and empty-drive bootstrap into ROM BASIC on the existing 8088. Native keyboard
+input evaluates an immediate command with repeatable saved continuation.
+Broader BASIC interaction, its laboratory, and native floppy DOS remain ahead.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)
