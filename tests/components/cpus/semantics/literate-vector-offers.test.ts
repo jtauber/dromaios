@@ -44,7 +44,8 @@ test("vector offer declarations control gate order, mask flags, fixed vectors, a
 test("segmented public generation depends on declarations rather than the CPU name", async () => {
   const source = text.replace('cpu "8088"', 'cpu "renamed"').replace('interface Cpu8088 ', 'interface CpuRenamed ')
     .replace('source intr acknowledge', 'source request acknowledge').replace('source nmi vector 2', 'source edge vector 9')
-    .replace('snapshot al = AL', 'snapshot low = AH');
+    .replace('snapshot al = AL', 'snapshot low = AH')
+    .replace('offers "intr" 81, "nmi" 70', 'offers "request" 83, "edge" 79');
   const exports = await generateChapterModule(source, "renamed", "renamed.md");
   const Model = exports.CpuRenamed, ram = new Ram(0x100000), state = initialState({ cs: 0, ip: 0, ax: 0x1234 });
   const cpu = new Model(ram, state);
@@ -57,6 +58,8 @@ test("segmented public generation depends on declarations rather than the CPU na
     assert.deepEqual(cpu.snapshot(), before);
   }
   assert.equal(cpu.interrupt("edge").vector, 9);
+  const timed = new Model(ram, state).interruptTimed("edge");
+  assert.equal(timed.vector, 9); assert.equal(timed.clocks, 79);
   ram.write(0, 0x9b);
   const waiting = new Model(ram, state, { test: () => false });
   assert.equal(waiting.step().outcome, "executed");

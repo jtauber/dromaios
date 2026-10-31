@@ -423,3 +423,11 @@ interface AddressedDevice {
   read * readSwitch
   write * writeSwitch
 }
+
+family timed "0000 0000" {
+  clocks = u16(3)
+  clocks clocks when 1
+}
+execution segmented {
+  timing prefix 2 pending 70 offers "intr" 81, "nmi" 70
+}

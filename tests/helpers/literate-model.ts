@@ -22,7 +22,7 @@ function chapterLayers(text: string, name: string, file: string) {
     url(generateInstructions(name, Object.fromEntries(entries.filter(([, definition]) => definition.inputs && ("repeatMode" in definition.inputs) === repeated)))),
   ])) : {};
   const actions = url(generateInstructions(name, chapter.actions, { sources: { cpu: { name, state }, groups: { views: chapter.views } } }));
-  const execution = url(generateChapterExecution(name, name, chapter.execution!), { ...extra, [`./${name}.ts`]: opcodes, [`./${name}-state.ts`]: actions });
+  const execution = url(generateChapterExecution(name, name, chapter.execution!, [{ name, definitions: Object.fromEntries(entries) }]), { ...extra, [`./${name}.ts`]: opcodes, [`./${name}-state.ts`]: actions });
   return { chapter, state, api, url, schema, actions, execution };
 }
 

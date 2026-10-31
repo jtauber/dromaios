@@ -1,4 +1,5 @@
 import type { Flag, InstructionDefinition, Latch, Register, Statement, ValueSource } from "../model.ts";
+import type { WordInstructionModule } from "./word-execution.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
 import { chapterVectorOffers, generateVectorOffers } from "./vector-offers.ts";
@@ -7,6 +8,7 @@ import { checkStateEffects } from "./statements.ts";
 
 export interface SegmentedExecution {
   readonly mode: "segmented";
+  readonly timing?: { readonly prefix: number; readonly pending: number; readonly offers: Readonly<Record<string, number>> };
   readonly interrupt: "offers";
   readonly entries: readonly ChapterVectorOffer[];
   readonly memoryBits: number;
@@ -40,7 +42,7 @@ type Symbols = {
 };
 
 /** The segmented boundary admits only effects it can supply and fault outcomes it can deliver. */
-export function checkSegmentedEffects(steps: readonly Statement[], fault: string, continuation = false): void {
+export function checkSegmentedEffects(steps: readonly Statement[], fault: string, continuation = false, timing = false): void {
   for (const step of steps) switch (step.kind) {
     case "choose": checkSegmentedEffects(step.yes.steps, fault, continuation); checkSegmentedEffects(step.no.steps, fault, continuation); break;
     case "when": case "iterate": case "iterate-together": checkSegmentedEffects(step.steps, fault, continuation); break;
@@ -52,6 +54,9 @@ export function checkSegmentedEffects(steps: readonly Statement[], fault: string
     case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice":
     case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags": case "exchange-flags":
     case "read-test": break;
+    case "report-clocks":
+      if (!timing || continuation) throw new Error("Instruction clocks require a top-level family statement and a timing contract.");
+      break;
     case "defer-interrupt":
       if (step.scope === "irq") throw new Error("Segmented retirement accepts intr or all deferral.");
       break;
@@ -63,6 +68,18 @@ export function checkSegmentedEffects(steps: readonly Statement[], fault: string
       if (continuation || (step.kind === "reject" ? step.reason !== fault && step.reason !== "opcode" && step.reason !== "unsupported" : step.onError !== fault || step.overflow !== undefined)) throw new Error("Instruction outcome needs a declared segmented fault.");
       break;
     default: throw new Error(`Segmented execution does not support ${step.kind}.`);
+  }
+}
+
+/** A partial timing rule must reject before architectural writes or data/device accesses. */
+export function checkTimingPreparation(steps: readonly Statement[]): void {
+  for (const step of steps) switch (step.kind) {
+    case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice": case "fetch-byte": case "reject": break;
+    case "read-source": checkTimingPreparation(step.source.steps); break;
+    case "choose": checkTimingPreparation(step.yes.steps); checkTimingPreparation(step.no.steps); break;
+    case "when": checkTimingPreparation(step.steps); break;
+    case "match": case "dispatch": for (const branch of step.cases) checkTimingPreparation(branch.steps); break;
+    default: throw new Error(`Instruction clocks must precede ${step.kind}.`);
   }
 }
 
@@ -152,17 +169,34 @@ export function chapterSegmentedExecution(header: ChapterTokens, lines: readonly
   const failure = required("failure"); failure.expect("retain"); failure.end();
   const interrupt = required("interrupt"); interrupt.expect("offers"); interrupt.expect("{"); interrupt.end();
   const entries = chapterVectorOffers(interrupt, offerLines, symbols);
+  let timing: SegmentedExecution["timing"];
+  if (fields.has("timing")) {
+    const tokens = required("timing");
+    const clocks = () => { const value = number(tokens, 65535); if (!value) tokens.fail("Clock costs must be positive."); return value; };
+    tokens.expect("prefix"); const prefix = clocks(); tokens.expect("pending"); const pendingClocks = clocks(); tokens.expect("offers");
+    const offers: Record<string, number> = {};
+    do {
+      const name = tokens.quoted();
+      if (!entries.some(entry => entry.source === name) || Object.hasOwn(offers, name)) tokens.fail("Expected a distinct declared interrupt source.");
+      offers[name] = clocks();
+    } while (tokens.take(","));
+    tokens.end();
+    if (entries.some(entry => !Object.hasOwn(offers, entry.source))) tokens.fail("Timing needs every interrupt offer.");
+    timing = { prefix, pending: pendingClocks, offers };
+  }
   for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
   return { mode: "segmented", interrupt: "offers", entries, memoryBits, counter, writeCounter, segment, baseShift, recordAddress,
-    fetched, prefixLimit, prefixes, stopped, waiting, resume, resumeArgument,
+    ...(timing ? { timing } : {}), fetched, prefixLimit, prefixes, stopped, waiting, resume, resumeArgument,
     pending: { source, vector, owed, inhibited, consume, enter }, fault: { source: faultSource, vector: faultVector, enter: faultEnter }, reset, retire, samples };
 }
 
 /** Bind the three chapter family signatures to one shared segmented execution service. */
-export function generateSegmentedExecution(cpu: string, module: string, policy: SegmentedExecution): string {
+export function generateSegmentedExecution(cpu: string, module: string, policy: SegmentedExecution, modules: readonly WordInstructionModule[]): string {
   const q = JSON.stringify, field = (name: string) => `state[${q(name)}]`, call = (name: string, args = "") => `actions[${q(name)}](state${args})`;
   const prefix = policy.prefixes.map(entry => `      [${entry.opcode}, { kind: ${q(entry.kind)}${entry.kind === "segment" ? `, read: () => ${field(entry.field)}` : entry.kind === "repeat" ? `, value: ${entry.value}` : ""} }],`).join("\n");
-  const { pending, fault } = policy;
+  const { pending, fault, timing } = policy;
+  const timedOpcodes = modules.flatMap(module => Object.entries(module.definitions)
+    .filter(([, definition]) => definition.steps.some(step => step.kind === "report-clocks")).map(([opcode]) => Number(opcode)));
   return `// Generated from the chapter's execution contract. Do not edit.
 import { segmentedExecution } from "../segmented-execution.ts";
 import { vectorOffers } from "../vector-offers.ts";
@@ -188,7 +222,9 @@ export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries
   const views = sourceReaders(state).views;
   type Policy = SegmentedExecutionPolicy<CoprocessorContext, ${q(fault.source)}, { readonly source: ${q(pending.source)}; readonly vector: ${pending.vector} }>;
   type Handler = NonNullable<Policy["handlers"][number]>;
+  ${timing ? `const timedOpcodes = new Set(${JSON.stringify(timedOpcodes)});` : ""}
   const policy: Policy = {
+    ${timing ? `timing: { prefix: ${timing.prefix}, pending: ${timing.pending} },` : ""}
     memoryBits: ${policy.memoryBits}, segment: () => ${field(policy.segment)}, baseShift: ${policy.baseShift},
     counter: programCounter(() => ${field(policy.counter)}, value => ${call(policy.writeCounter, ", value")}),
     recordAddress: views[${q(policy.recordAddress)}], fetched: () => ${call(policy.fetched)},
@@ -196,10 +232,10 @@ export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries
 ${prefix}
     ]),
     handlers: opcodeTable<Handler>([
-      ...opcodeEntries(state).map(([opcode, execute]): readonly [number, Handler] => [opcode, { repeated: false, execute: (_inputs, context) => execute(context) }]),
-      ...Object.entries(operands).map(([opcode, execute]): readonly [number, Handler] => [Number(opcode), { repeated: false,
+      ...opcodeEntries(state).map(([opcode, execute]): readonly [number, Handler] => [opcode, { ${timing ? "timed: timedOpcodes.has(opcode), " : ""}repeated: false, execute: (_inputs, context) => execute(context) }]),
+      ...Object.entries(operands).map(([opcode, execute]): readonly [number, Handler] => [Number(opcode), { ${timing ? "timed: timedOpcodes.has(Number(opcode)), " : ""}repeated: false,
         execute: (inputs, context) => execute(state, inputs.overridden, inputs.segmentOverride, context) }]),
-      ...Object.entries(strings).map(([opcode, execute]): readonly [number, Handler] => [Number(opcode), { repeated: true,
+      ...Object.entries(strings).map(([opcode, execute]): readonly [number, Handler] => [Number(opcode), { ${timing ? "timed: timedOpcodes.has(Number(opcode)), " : ""}repeated: true,
         execute: (inputs, context) => execute(state, inputs.overridden, inputs.segmentOverride, inputs.repeatMode, inputs.startIP, context) }]),
     ]),
     stopped: () => ${field(policy.stopped)}, waiting: () => ${field(policy.waiting)},
@@ -218,6 +254,11 @@ ${prefix}
 ${generateVectorOffers(policy.entries)}
   });
   return { reset: boundary.reset, step: boundary.step,
+    ${timing ? `stepTimed: boundary.stepTimed,
+    interruptTimed: (source: ${policy.entries.map(entry => q(entry.source)).join(" | ")}, acknowledge?: () => number) => boundary.atBoundary(() => {
+      const record = offer(source, acknowledge);
+      return { ...record, clocks: record.outcome === "ignored" ? 0 : (${JSON.stringify(timing.offers)})[source] };
+    }),` : ""}
     interrupt: (source: ${policy.entries.map(entry => q(entry.source)).join(" | ")}, acknowledge?: () => number) => boundary.atBoundary(() => offer(source, acknowledge)),
   };
 }

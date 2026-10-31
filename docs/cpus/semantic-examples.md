@@ -891511,6 +891511,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Do not read incoming flags. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -891542,6 +891543,7 @@ Flags preserved throughout: TF, IF, DF.
 Do not read incoming flags. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -891567,6 +891569,7 @@ Flags preserved throughout: TF, IF, DF.
 Segment PUSH/POP uses `000 ss 11 p`, with `ss=00/01/10/11` selecting ES/CS/SS/DS. POP CS is undocumented. After any documented segment pop, request inhibition of **all** interrupt recognition at successful retirement. The request does not immediately change a stored boundary latch; a later failure leaves it uncommitted. The same rule applies to MOV into a segment.
 
 ```text
+instruction timing: 000E:u16 CPU clocks
 original:u16 := read ES
 perform "push a captured word" {
   word:u16 := original
@@ -891592,6 +891595,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Segment PUSH/POP uses `000 ss 11 p`, with `ss=00/01/10/11` selecting ES/CS/SS/DS. POP CS is undocumented. After any documented segment pop, request inhibition of **all** interrupt recognition at successful retirement. The request does not immediately change a stored boundary latch; a later failure leaves it uncommitted. The same rule applies to MOV into a segment.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -891618,6 +891622,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Do not read incoming flags. Clear OF/CF/AF, then set ZF/SF/PF. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -891649,6 +891654,7 @@ Flags preserved throughout: TF, IF, DF.
 Do not read incoming flags. Clear OF/CF/AF, then set ZF/SF/PF. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -891674,6 +891680,7 @@ Flags preserved throughout: TF, IF, DF.
 Segment PUSH/POP uses `000 ss 11 p`, with `ss=00/01/10/11` selecting ES/CS/SS/DS. POP CS is undocumented. After any documented segment pop, request inhibition of **all** interrupt recognition at successful retirement. The request does not immediately change a stored boundary latch; a later failure leaves it uncommitted. The same rule applies to MOV into a segment.
 
 ```text
+instruction timing: 000E:u16 CPU clocks
 original:u16 := read CS
 perform "push a captured word" {
   word:u16 := original
@@ -891699,6 +891706,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Capture incoming CF after both operands. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -891731,6 +891739,7 @@ Flags preserved throughout: TF, IF, DF.
 Capture incoming CF after both operands. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -891757,6 +891766,7 @@ Flags preserved throughout: TF, IF, DF.
 Segment PUSH/POP uses `000 ss 11 p`, with `ss=00/01/10/11` selecting ES/CS/SS/DS. POP CS is undocumented. After any documented segment pop, request inhibition of **all** interrupt recognition at successful retirement. The request does not immediately change a stored boundary latch; a later failure leaves it uncommitted. The same rule applies to MOV into a segment.
 
 ```text
+instruction timing: 000E:u16 CPU clocks
 original:u16 := read SS
 perform "push a captured word" {
   word:u16 := original
@@ -891782,6 +891792,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Segment PUSH/POP uses `000 ss 11 p`, with `ss=00/01/10/11` selecting ES/CS/SS/DS. POP CS is undocumented. After any documented segment pop, request inhibition of **all** interrupt recognition at successful retirement. The request does not immediately change a stored boundary latch; a later failure leaves it uncommitted. The same rule applies to MOV into a segment.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -891808,6 +891819,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Capture incoming CF after both operands. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -891840,6 +891852,7 @@ Flags preserved throughout: TF, IF, DF.
 Capture incoming CF after both operands. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -891866,6 +891879,7 @@ Flags preserved throughout: TF, IF, DF.
 Segment PUSH/POP uses `000 ss 11 p`, with `ss=00/01/10/11` selecting ES/CS/SS/DS. POP CS is undocumented. After any documented segment pop, request inhibition of **all** interrupt recognition at successful retirement. The request does not immediately change a stored boundary latch; a later failure leaves it uncommitted. The same rule applies to MOV into a segment.
 
 ```text
+instruction timing: 000E:u16 CPU clocks
 original:u16 := read DS
 perform "push a captured word" {
   word:u16 := original
@@ -891891,6 +891905,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Segment PUSH/POP uses `000 ss 11 p`, with `ss=00/01/10/11` selecting ES/CS/SS/DS. POP CS is undocumented. After any documented segment pop, request inhibition of **all** interrupt recognition at successful retirement. The request does not immediately change a stored boundary latch; a later failure leaves it uncommitted. The same rule applies to MOV into a segment.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -891917,6 +891932,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Do not read incoming flags. Clear OF/CF/AF, then set ZF/SF/PF. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -891948,6 +891964,7 @@ Flags preserved throughout: TF, IF, DF.
 Do not read incoming flags. Clear OF/CF/AF, then set ZF/SF/PF. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -892030,6 +892047,7 @@ Flags preserved throughout: TF, IF, DF, OF.
 Do not read incoming flags. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -892061,6 +892079,7 @@ Flags preserved throughout: TF, IF, DF.
 Do not read incoming flags. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -892143,6 +892162,7 @@ Flags preserved throughout: TF, IF, DF, OF.
 Do not read incoming flags. Clear OF/CF/AF, then set ZF/SF/PF. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -892174,6 +892194,7 @@ Flags preserved throughout: TF, IF, DF.
 Do not read incoming flags. Clear OF/CF/AF, then set ZF/SF/PF. Write AL/AX after flags and preserve TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -892235,6 +892256,7 @@ Flags preserved throughout: PF, ZF, SF, TF, IF, DF, OF.
 Do not read incoming flags. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Preserve AL/AX and TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -892261,6 +892283,7 @@ Flags preserved throughout: TF, IF, DF.
 Do not read incoming flags. Set CF/AF/OF, then ZF/SF/PF from the wrapped result. Preserve AL/AX and TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -892321,6 +892344,7 @@ Flags preserved throughout: PF, ZF, SF, TF, IF, DF, OF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read AX
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892346,6 +892370,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read CX
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892371,6 +892396,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read DX
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892396,6 +892422,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read BX
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892421,6 +892448,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read SP
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892446,6 +892474,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read BP
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892471,6 +892500,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read SI
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892496,6 +892526,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read DI
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892521,6 +892552,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read AX
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892546,6 +892578,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read CX
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892571,6 +892604,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read DX
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892596,6 +892630,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read BX
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892621,6 +892656,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read SP
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892646,6 +892682,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read BP
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892671,6 +892708,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read SI
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892696,6 +892734,7 @@ Flags preserved throughout: TF, IF, DF.
 `0100 d rrr` selects INC (`d=0`) or DEC (`d=1`) of a word register. Capture the register, then CF. Add or subtract one with sixteen-bit wrapping, update arithmetic flags, restore captured CF, and only then write the register. Preserve TF/IF/DF. This deliberately retains the model's flag-write ordering, including its transient CF update if a host observer interrupts execution.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 left:u16 := read DI
 preservedCarry:flag := read CF
 right := 0001:u16
@@ -892721,6 +892760,7 @@ Flags preserved throughout: TF, IF, DF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 original:u16 := read AX
 perform "push a captured word" {
   word:u16 := original
@@ -892746,6 +892786,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 original:u16 := read CX
 perform "push a captured word" {
   word:u16 := original
@@ -892771,6 +892812,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 original:u16 := read DX
 perform "push a captured word" {
   word:u16 := original
@@ -892796,6 +892838,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 original:u16 := read BX
 perform "push a captured word" {
   word:u16 := original
@@ -892821,6 +892864,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 original:u16 := source "original 8088 PUSH SP source" {
   pointer:u16 := read SP
   yield subtract(pointer, 0002:u16)
@@ -892849,6 +892893,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 original:u16 := read BP
 perform "push a captured word" {
   word:u16 := original
@@ -892874,6 +892919,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 original:u16 := read SI
 perform "push a captured word" {
   word:u16 := original
@@ -892899,6 +892945,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 original:u16 := read DI
 perform "push a captured word" {
   word:u16 := original
@@ -892924,6 +892971,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -892949,6 +892997,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -892974,6 +893023,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -892999,6 +893049,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -893024,6 +893075,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -893049,6 +893101,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -893074,6 +893127,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -893099,6 +893153,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `0101 p rrr` selects register PUSH/POP. Original 8088 PUSH SP differs from other registers: its source is the captured SP minus two, before the stack's independent pointer update. The separate source makes that exception visible; all other encoded registers use the ordinary register catalogue.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 result:u16 := source "pop segmented word" {
   segment:u16 := read SS
   offset:u16 := read SP
@@ -893190,6 +893245,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -893272,6 +893328,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -893354,6 +893411,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -893436,6 +893494,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -893518,6 +893577,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -893600,6 +893660,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -893682,6 +893743,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -893764,6 +893826,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -893846,6 +893909,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -893928,6 +893992,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -894010,6 +894075,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -894092,6 +894158,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -894174,6 +894241,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -894256,6 +894324,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -894338,6 +894407,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -894420,6 +894490,7 @@ decision:flag := source "ordered branch test" {
   }
   yield xor(positive, lowBit(condition))
 }
+instruction timing: select(decision, 0010:u16, 0004:u16) CPU clocks
 when decision {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -894436,6 +894507,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1001 0 rrr` exchanges AX with the selected word register: capture that register before AX, write AX, then write the selected register. The documented NOP encoding `$90` retains the same self-exchange schedule, including both reads and writes; no flags or memory are touched.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 selected:u16 := read AX
 accumulator:u16 := read AX
 write AX:u16 := selected
@@ -894449,6 +894521,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1001 0 rrr` exchanges AX with the selected word register: capture that register before AX, write AX, then write the selected register. The documented NOP encoding `$90` retains the same self-exchange schedule, including both reads and writes; no flags or memory are touched.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 selected:u16 := read CX
 accumulator:u16 := read AX
 write AX:u16 := selected
@@ -894462,6 +894535,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1001 0 rrr` exchanges AX with the selected word register: capture that register before AX, write AX, then write the selected register. The documented NOP encoding `$90` retains the same self-exchange schedule, including both reads and writes; no flags or memory are touched.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 selected:u16 := read DX
 accumulator:u16 := read AX
 write AX:u16 := selected
@@ -894475,6 +894549,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1001 0 rrr` exchanges AX with the selected word register: capture that register before AX, write AX, then write the selected register. The documented NOP encoding `$90` retains the same self-exchange schedule, including both reads and writes; no flags or memory are touched.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 selected:u16 := read BX
 accumulator:u16 := read AX
 write AX:u16 := selected
@@ -894488,6 +894563,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1001 0 rrr` exchanges AX with the selected word register: capture that register before AX, write AX, then write the selected register. The documented NOP encoding `$90` retains the same self-exchange schedule, including both reads and writes; no flags or memory are touched.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 selected:u16 := read SP
 accumulator:u16 := read AX
 write AX:u16 := selected
@@ -894501,6 +894577,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1001 0 rrr` exchanges AX with the selected word register: capture that register before AX, write AX, then write the selected register. The documented NOP encoding `$90` retains the same self-exchange schedule, including both reads and writes; no flags or memory are touched.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 selected:u16 := read BP
 accumulator:u16 := read AX
 write AX:u16 := selected
@@ -894514,6 +894591,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1001 0 rrr` exchanges AX with the selected word register: capture that register before AX, write AX, then write the selected register. The documented NOP encoding `$90` retains the same self-exchange schedule, including both reads and writes; no flags or memory are touched.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 selected:u16 := read SI
 accumulator:u16 := read AX
 write AX:u16 := selected
@@ -894527,6 +894605,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1001 0 rrr` exchanges AX with the selected word register: capture that register before AX, write AX, then write the selected register. The documented NOP encoding `$90` retains the same self-exchange schedule, including both reads and writes; no flags or memory are touched.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 selected:u16 := read DI
 accumulator:u16 := read AX
 write AX:u16 := selected
@@ -894562,6 +894641,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Near relative CALL (`1110 1000`) fetches its displacement, captures and pushes return IP, then adds the displacement to **live IP after both writes**. Immediate far CALL (`1001 1010`) fetches the complete offset and segment before pushing CS and then live IP. Far JMP (`1110 1010`) fetches the same pointer and writes CS before IP without a stack access. The far-transfer action also serves the indirect FF forms, after they have read their complete memory pointer.
 
 ```text
+instruction timing: 0024:u16 CPU clocks
 targetOffset:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -894652,6 +894732,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 PUSHF (`1001 1100`) captures the packed FLAGS word before pushing. POPF (`1001 1101`) reads the complete word before consulting live IF. A transition from clear IF to set IF requests INTR deferral before replacing the flag object. Reserved bits are ignored by the specification's existing restore policy. IRET uses this same specification action after completing its far return.
 
 ```text
+instruction timing: 000E:u16 CPU clocks
 original:u16 := source "packed FLAGS word" {
   cf:flag := read CF
   pf:flag := read PF
@@ -894688,6 +894769,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 PUSHF (`1001 1100`) captures the packed FLAGS word before pushing. POPF (`1001 1101`) reads the complete word before consulting live IF. A transition from clear IF to set IF requests INTR deferral before replacing the flag object. Reserved bits are ignored by the specification's existing restore policy. IRET uses this same specification action after completing its far return.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 perform "restore stacked FLAGS with recognition delay" {
   status:u16 := source "pop segmented word" {
     segment:u16 := read SS
@@ -894734,6 +894816,7 @@ Flags preserved throughout: none.
 `1001 111d` selects SAHF (`d=0`) or LAHF (`d=1`). SAHF captures AH before updating CF/PF/AF/ZF/SF in layout order; OF/TF/IF/DF and all registers survive. LAHF packs the low flags before writing AH, preserving live AL at writeback and leaving all flags unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 status:u8 := source "high byte of AX" {
   word:u16 := read AX
   yield highByte(word)
@@ -894754,6 +894837,7 @@ Flags preserved throughout: TF, IF, DF, OF.
 `1001 111d` selects SAHF (`d=0`) or LAHF (`d=1`). SAHF captures AH before updating CF/PF/AF/ZF/SF in layout order; OF/TF/IF/DF and all registers survive. LAHF packs the low flags before writing AH, preserving live AL at writeback and leaving all flags unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 status:u8 := source "packed low FLAGS" {
   cf:flag := read CF
   pf:flag := read PF
@@ -894776,6 +894860,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Do not read incoming flags. Clear OF/CF/AF, then set ZF/SF/PF. Preserve AL/AX and TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -894802,6 +894887,7 @@ Flags preserved throughout: TF, IF, DF.
 Do not read incoming flags. Clear OF/CF/AF, then set ZF/SF/PF. Preserve AL/AX and TF/IF/DF.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 right:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -894826,6 +894912,7 @@ Flags preserved throughout: TF, IF, DF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -894844,6 +894931,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -894862,6 +894950,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -894880,6 +894969,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -894898,6 +894988,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -894916,6 +895007,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -894934,6 +895026,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -894952,6 +895045,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -894970,6 +895064,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -894985,6 +895080,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895000,6 +895096,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895015,6 +895112,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895030,6 +895128,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895045,6 +895144,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895060,6 +895160,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895075,6 +895176,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1011 w rrr` selects MOV: `w=0` takes one immediate byte, `w=1` a low-first word. Fetch the complete immediate before writing the destination. Byte writes retain the current other half of the stored word. Preserve every flag; a failed fetch leaves the destination untouched, while completed fetches and IP advances remain.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895090,6 +895192,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
+instruction timing: 0010:u16 CPU clocks
 discard:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895125,6 +895228,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
+instruction timing: 000C:u16 CPU clocks
 perform "return within CS" {
   discard:u16 := 0000:u16
   targetIP:u16 := source "pop segmented word" {
@@ -895155,6 +895259,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
+instruction timing: 0019:u16 CPU clocks
 discard:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895206,6 +895311,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 `1100 f 01 n` selects returns: `f=0/1` means near/far, and `n=0` fetches an unsigned discard count while `n=1` discards zero. Fetch that count before any stack read. Pop IP and optional CS before committing either target; then read and adjust live SP, including when the discard count is zero. A failed later read leaves completed pops intact. IRET reuses the far-return action before its separate FLAGS pop, retaining the two commit points.
 
 ```text
+instruction timing: 001A:u16 CPU clocks
 perform "return to a saved CS:IP" {
   discard:u16 := 0000:u16
   targetIP:u16 := source "pop segmented word" {
@@ -895252,6 +895358,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 The formal entry action clears TF then IF and the recognition/wait/halt latches. It pushes FLAGS, live CS, and live IP, then commits target CS and IP after the complete frame succeeds. Software forms use `1100 11 tt`: INT3 (`tt=00`), INT with a fetched type byte (`01`), INTO (`10`), and IRET (`11`). `report interrupt` records completed software delivery; it performs no vector or stack effects itself.
 
 ```text
+instruction timing: 0048:u16 CPU clocks
 perform "interrupt entry" {
   vector:u8 := 03:u8
   offset := shiftBitsLeft(zeroExtend16(vector), 2)
@@ -895351,6 +895458,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 The formal entry action clears TF then IF and the recognition/wait/halt latches. It pushes FLAGS, live CS, and live IP, then commits target CS and IP after the complete frame succeeds. Software forms use `1100 11 tt`: INT3 (`tt=00`), INT with a fetched type byte (`01`), INTO (`10`), and IRET (`11`). `report interrupt` records completed software delivery; it performs no vector or stack effects itself.
 
 ```text
+instruction timing: 0047:u16 CPU clocks
 vector:u8 := fetch byte
 perform "interrupt entry" {
   vector:u8 := vector
@@ -895452,6 +895560,7 @@ The formal entry action clears TF then IF and the recognition/wait/halt latches.
 
 ```text
 overflow:flag := read OF
+instruction timing: select(overflow, 0049:u16, 0004:u16) CPU clocks
 when overflow {
   perform "interrupt entry" {
     vector:u8 := 04:u8
@@ -895553,6 +895662,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 The formal entry action clears TF then IF and the recognition/wait/halt latches. It pushes FLAGS, live CS, and live IP, then commits target CS and IP after the complete frame succeeds. Software forms use `1100 11 tt`: INT3 (`tt=00`), INT with a fetched type byte (`01`), INTO (`10`), and IRET (`11`). `report interrupt` records completed software delivery; it performs no vector or stack effects itself.
 
 ```text
+instruction timing: 0024:u16 CPU clocks
 perform "return to a saved CS:IP" {
   discard:u16 := 0000:u16
   targetIP:u16 := source "pop segmented word" {
@@ -895754,6 +895864,7 @@ offset:u8 := source "immediate byte" {
   yield byte
 }
 counter:u16 := read CX
+instruction timing: select(equal(counter, 0001:u16), 0005:u16, 0011:u16) CPU clocks
 write CX:u16 := subtract(counter, 0001:u16)
 remaining:u16 := read CX
 when not(isZero(remaining)) {
@@ -895777,6 +895888,7 @@ offset:u8 := source "immediate byte" {
   yield byte
 }
 remaining:u16 := read CX
+instruction timing: select(isZero(remaining), 0012:u16, 0006:u16) CPU clocks
 when isZero(remaining) {
   perform "branch from live post-fetch IP" {
     offset:u16 := signExtend16(offset)
@@ -895793,6 +895905,10 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
+cost:u16 := source "immediate port timing" {
+  yield 000A:u16
+}
+instruction timing: cost CPU clocks
 selector:u16 := source "zero-extended immediate port" {
   byte:u8 := fetch byte
   yield zeroExtend16(byte)
@@ -895812,6 +895928,10 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
+cost:u16 := source "immediate port timing" {
+  yield 000A:u16
+}
+instruction timing: addWrap(cost, 0004:u16) CPU clocks
 selector:u16 := source "zero-extended immediate port" {
   byte:u8 := fetch byte
   yield zeroExtend16(byte)
@@ -895828,6 +895948,10 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
+cost:u16 := source "immediate port timing" {
+  yield 000A:u16
+}
+instruction timing: cost CPU clocks
 selector:u16 := source "zero-extended immediate port" {
   byte:u8 := fetch byte
   yield zeroExtend16(byte)
@@ -895846,6 +895970,10 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
+cost:u16 := source "immediate port timing" {
+  yield 000A:u16
+}
+instruction timing: addWrap(cost, 0004:u16) CPU clocks
 selector:u16 := source "zero-extended immediate port" {
   byte:u8 := fetch byte
   yield zeroExtend16(byte)
@@ -895862,6 +895990,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Near relative CALL (`1110 1000`) fetches its displacement, captures and pushes return IP, then adds the displacement to **live IP after both writes**. Immediate far CALL (`1001 1010`) fetches the complete offset and segment before pushing CS and then live IP. Far JMP (`1110 1010`) fetches the same pointer and writes CS before IP without a stack access. The far-transfer action also serves the indirect FF forms, after they have read their complete memory pointer.
 
 ```text
+instruction timing: 0017:u16 CPU clocks
 displacement:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895897,6 +896026,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 offset:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895916,6 +896046,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 Near relative CALL (`1110 1000`) fetches its displacement, captures and pushes return IP, then adds the displacement to **live IP after both writes**. Immediate far CALL (`1001 1010`) fetches the complete offset and segment before pushing CS and then live IP. Far JMP (`1110 1010`) fetches the same pointer and writes CS before IP without a stack access. The far-transfer action also serves the indirect FF forms, after they have read their complete memory pointer.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 targetOffset:u16 := source "immediate word, low byte first" {
   low:u8 := fetch byte
   high:u8 := fetch byte
@@ -895941,6 +896072,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 LOOPNE/LOOPE/LOOP/JCXZ use `1110 00 cc`. LOOP decrements CX without changing flags, then rereads live CX. A zero count skips any ZF read; otherwise LOOPNE requires ZF clear and LOOPE requires it set. JCXZ tests CX once and never decrements it. Relative JMP uses `1110 10 s 1`, where `s=0` takes a word and `s=1` sign-extends a byte. All offsets are fetched before these effects.
 
 ```text
+instruction timing: 000F:u16 CPU clocks
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -895959,6 +896091,10 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
+cost:u16 := source "DX port timing" {
+  yield 0008:u16
+}
+instruction timing: cost CPU clocks
 selector:u16 := source "DX port" {
   selector:u16 := read DX
   yield selector
@@ -895978,6 +896114,10 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
+cost:u16 := source "DX port timing" {
+  yield 0008:u16
+}
+instruction timing: addWrap(cost, 0004:u16) CPU clocks
 selector:u16 := source "DX port" {
   selector:u16 := read DX
   yield selector
@@ -895994,6 +896134,10 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
+cost:u16 := source "DX port timing" {
+  yield 0008:u16
+}
+instruction timing: cost CPU clocks
 selector:u16 := source "DX port" {
   selector:u16 := read DX
   yield selector
@@ -896012,6 +896156,10 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 The paired encodings share a body through their port source. Explicit byte accesses keep partial word failures and device ordering visible.
 
 ```text
+cost:u16 := source "DX port timing" {
+  yield 0008:u16
+}
+instruction timing: addWrap(cost, 0004:u16) CPU clocks
 selector:u16 := source "DX port" {
   selector:u16 := read DX
   yield selector
@@ -896028,6 +896176,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 HLT sets the stored stopped latch; the boundary still owns retirement and pending traps. CMC complements live CF. CLC/STC and CLD/STD set their selected flag without reading it. CLI clears IF directly; STI reads IF, requests INTR deferral only when it was clear, then sets it. None of these bodies commits recognition latches itself. These requests remain explicit instruction effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 write halted:boolean := true
 ```
 
@@ -896038,6 +896187,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 HLT sets the stored stopped latch; the boundary still owns retirement and pending traps. CMC complements live CF. CLC/STC and CLD/STD set their selected flag without reading it. CLI clears IF directly; STI reads IF, requests INTR deferral only when it was clear, then sets it. None of these bodies commits recognition latches itself. These requests remain explicit instruction effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 incoming:flag := read CF
 flags "restore captured carry" simultaneously {
   CF := not(incoming)
@@ -896051,6 +896201,7 @@ Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF, OF.
 HLT sets the stored stopped latch; the boundary still owns retirement and pending traps. CMC complements live CF. CLC/STC and CLD/STD set their selected flag without reading it. CLI clears IF directly; STI reads IF, requests INTR deferral only when it was clear, then sets it. None of these bodies commits recognition latches itself. These requests remain explicit instruction effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "restore captured carry" simultaneously {
   CF := 0:flag
 } // Preserve unlisted flags.
@@ -896063,6 +896214,7 @@ Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF, OF.
 HLT sets the stored stopped latch; the boundary still owns retirement and pending traps. CMC complements live CF. CLC/STC and CLD/STD set their selected flag without reading it. CLI clears IF directly; STI reads IF, requests INTR deferral only when it was clear, then sets it. None of these bodies commits recognition latches itself. These requests remain explicit instruction effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "restore captured carry" simultaneously {
   CF := 1:flag
 } // Preserve unlisted flags.
@@ -896075,6 +896227,7 @@ Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF, OF.
 HLT sets the stored stopped latch; the boundary still owns retirement and pending traps. CMC complements live CF. CLC/STC and CLD/STD set their selected flag without reading it. CLI clears IF directly; STI reads IF, requests INTR deferral only when it was clear, then sets it. None of these bodies commits recognition latches itself. These requests remain explicit instruction effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "set interrupt enable" simultaneously {
   IF := 0:flag
 } // Preserve unlisted flags.
@@ -896087,6 +896240,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, DF, OF.
 HLT sets the stored stopped latch; the boundary still owns retirement and pending traps. CMC complements live CF. CLC/STC and CLD/STD set their selected flag without reading it. CLI clears IF directly; STI reads IF, requests INTR deferral only when it was clear, then sets it. None of these bodies commits recognition latches itself. These requests remain explicit instruction effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 enabled:flag := read IF
 when not(enabled) {
   request INTR deferral at successful retirement
@@ -896103,6 +896257,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, DF, OF.
 HLT sets the stored stopped latch; the boundary still owns retirement and pending traps. CMC complements live CF. CLC/STC and CLD/STD set their selected flag without reading it. CLI clears IF directly; STI reads IF, requests INTR deferral only when it was clear, then sets it. None of these bodies commits recognition latches itself. These requests remain explicit instruction effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "set direction" simultaneously {
   DF := 0:flag
 } // Preserve unlisted flags.
@@ -896115,6 +896270,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, OF.
 HLT sets the stored stopped latch; the boundary still owns retirement and pending traps. CMC complements live CF. CLC/STC and CLD/STD set their selected flag without reading it. CLI clears IF directly; STI reads IF, requests INTR deferral only when it was clear, then sets it. None of these bodies commits recognition latches itself. These requests remain explicit instruction effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "set direction" simultaneously {
   DF := 1:flag
 } // Preserve unlisted flags.
@@ -896130,6 +896286,27 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, OF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -896745,9 +896922,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -897026,6 +897200,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -897641,9 +897836,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -897848,6 +898040,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -898463,9 +898676,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -898744,6 +898954,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -899359,9 +899590,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -899566,6 +899794,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -900181,9 +900430,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -900462,6 +900708,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -901077,9 +901344,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -901284,6 +901548,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -901899,9 +902184,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -902180,6 +902462,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -902795,9 +903098,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -903002,6 +903302,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -903617,9 +903938,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -903899,6 +904217,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -904514,9 +904853,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -904722,6 +905058,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -905337,9 +905694,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -905619,6 +905973,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -906234,9 +906609,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -906442,6 +906814,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -907057,9 +907450,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -907339,6 +907729,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -907954,9 +908365,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -908162,6 +908570,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -908777,9 +909206,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -909059,6 +909485,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -909674,9 +910121,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -909882,6 +910326,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -910497,9 +910962,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -910778,6 +911240,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -911393,9 +911876,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -911600,6 +912080,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -912215,9 +912716,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -912496,6 +912994,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -913111,9 +913630,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -913318,6 +913834,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -913933,9 +914470,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -914214,6 +914748,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -914829,9 +915384,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -915036,6 +915588,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -915651,9 +916224,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -915932,6 +916502,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -916547,9 +917138,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -916754,6 +917342,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -917369,9 +917978,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -917650,6 +918256,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -918265,9 +918892,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -918472,6 +919096,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0010:u16, 0009:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -919087,9 +919732,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -919368,6 +920010,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := select(isZero(direction), 0018:u16, 000D:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -919983,9 +920646,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -920190,6 +920850,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := 0009:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -920805,9 +921486,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -921004,6 +921682,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := 000D:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -921619,9 +922318,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -921774,6 +922470,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := 0009:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -922389,9 +923106,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u8 := source "read a resolved 8-bit operand" {
@@ -922588,6 +923302,27 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := 000D:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -923203,9 +923938,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 right:u16 := source "read a resolved 16-bit operand" {
@@ -923358,6 +924090,24 @@ Capture the pointer, fetch the complete immediate, then read the destination and
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0004:u16
+  memoryCost:u16 := select(equal(zeroExtend8(bits(postbyte, 5, 3)), 07:u8), 000A:u16, 0011:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -929701,6 +930451,24 @@ Capture the pointer, fetch the complete immediate, then read the destination and
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0004:u16
+  memoryCost:u16 := select(equal(zeroExtend8(bits(postbyte, 5, 3)), 07:u8), 000E:u16, 0019:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -935666,6 +936434,24 @@ Capture the pointer, fetch the complete immediate, then read the destination and
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0004:u16
+  memoryCost:u16 := select(equal(zeroExtend8(bits(postbyte, 5, 3)), 07:u8), 000A:u16, 0011:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -939606,6 +940392,24 @@ Capture the pointer, fetch the complete immediate, then read the destination and
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0004:u16
+  memoryCost:u16 := select(equal(zeroExtend8(bits(postbyte, 5, 3)), 07:u8), 000E:u16, 0019:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -943316,6 +944120,24 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := 0009:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -944125,6 +944947,24 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := 000D:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -944890,6 +945730,24 @@ Flags preserved throughout: TF, IF, DF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0004:u16
+  memoryCost:u16 := 0011:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -945854,6 +946712,24 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0004:u16
+  memoryCost:u16 := 0019:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -946714,6 +947590,27 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0002:u16
+  memoryCost:u16 := select(isZero(direction), 0009:u16, 0008:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -947329,9 +948226,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 perform "move a resolved 8-bit operand" {
@@ -947517,6 +948411,27 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r/m,r" {
+  yield 00:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0002:u16
+  memoryCost:u16 := select(isZero(direction), 000D:u16, 000C:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -948132,9 +949047,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r/m,r" {
-  yield 00:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 perform "move a resolved 16-bit operand" {
@@ -948268,6 +949180,27 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0002:u16
+  memoryCost:u16 := select(isZero(direction), 0009:u16, 0008:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -948883,9 +949816,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 perform "move a resolved 8-bit operand" {
@@ -949071,6 +950001,27 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+direction:u8 := source "r,r/m" {
+  yield 01:u8
+}
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0002:u16
+  memoryCost:u16 := select(isZero(direction), 000D:u16, 000C:u16)
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 pointer:u32 := source "resolve memory; defer register reads" {
   postbyte:u8 := postbyte
   overridden:u8 := overridden
@@ -949686,9 +950637,6 @@ pointer:u32 := source "resolve memory; defer register reads" {
   yield pointer
 }
 register := bitOr(C0:u8, zeroExtend8(bits(postbyte, 5, 3)))
-direction:u8 := source "r,r/m" {
-  yield 01:u8
-}
 destination := select(isZero(direction), postbyte, register)
 source := select(isZero(direction), register, postbyte)
 perform "move a resolved 16-bit operand" {
@@ -949822,6 +950770,24 @@ MOV segment forms use `1000 11 d 0` and ModR/M `mm 0ss rrr`: `d=0` stores a segm
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0002:u16
+  memoryCost:u16 := 000D:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -957344,6 +958310,24 @@ MOV segment forms use `1000 11 d 0` and ModR/M `mm 0ss rrr`: `d=0` stores a segm
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0002:u16
+  memoryCost:u16 := 000C:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -960096,6 +961080,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 ```text
 overridden:u8 := input
 segmentOverride:u16 := input
+instruction timing: 000A:u16 CPU clocks
 pointer:u32 := source "absolute offset and selected segment" {
   overridden:u8 := overridden
   segmentOverride:u16 := segmentOverride
@@ -960298,6 +961283,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 ```text
 overridden:u8 := input
 segmentOverride:u16 := input
+instruction timing: 000E:u16 CPU clocks
 pointer:u32 := source "absolute offset and selected segment" {
   overridden:u8 := overridden
   segmentOverride:u16 := segmentOverride
@@ -960448,6 +961434,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 ```text
 overridden:u8 := input
 segmentOverride:u16 := input
+instruction timing: 000A:u16 CPU clocks
 pointer:u32 := source "absolute offset and selected segment" {
   overridden:u8 := overridden
   segmentOverride:u16 := segmentOverride
@@ -960650,6 +961637,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 ```text
 overridden:u8 := input
 segmentOverride:u16 := input
+instruction timing: 000E:u16 CPU clocks
 pointer:u32 := source "absolute offset and selected segment" {
   overridden:u8 := overridden
   segmentOverride:u16 := segmentOverride
@@ -971199,6 +972187,24 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0004:u16
+  memoryCost:u16 := 000A:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -971916,6 +972922,24 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0004:u16
+  memoryCost:u16 := 000E:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1001362,6 +1002386,24 @@ A zero divisor or out-of-range quotient delivers interrupt type 0 after fetching
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0005:u16
+  memoryCost:u16 := 000B:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks when isZero(bits(postbyte, 5, 3)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1006510,6 +1007552,24 @@ A zero divisor or out-of-range quotient delivers interrupt type 0 after fetching
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0005:u16
+  memoryCost:u16 := 000F:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks when isZero(bits(postbyte, 5, 3)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1011447,6 +1012507,24 @@ The stack action decrements live SP before reading SS and the new SP, then write
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0003:u16
+  memoryCost:u16 := 000F:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks when lessThan(zeroExtend8(bits(postbyte, 5, 3)), 02:u8, unsigned); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1013062,6 +1014140,24 @@ The stack action decrements live SP before reading SS and the new SP, then write
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+cost:u16 := source "register cost or memory cost plus EA" {
+  postbyte:u8 := postbyte
+  registerCost:u16 := 0002:u16
+  memoryCost:u16 := 0017:u16
+  ea:u16 := source "8088 effective-address calculation" {
+    postbyte:u8 := postbyte
+    mode := bitAnd(postbyte, C0:u8)
+    code := bitAnd(postbyte, 07:u8)
+    paired:flag := lessThan(code, 04:u8, unsigned)
+    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+    direct:flag := and(isZero(mode), equal(code, 06:u8))
+    yield select(direct, 0006:u16, displaced)
+  }
+  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+}
+instruction timing: cost CPU clocks when lessThan(zeroExtend8(bits(postbyte, 5, 3)), 02:u8, unsigned); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {

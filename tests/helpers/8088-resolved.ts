@@ -13,7 +13,7 @@ const encoded = new Map(Object.values(families).flat());
 function resolved(opcode: number, extension: number, target: number | "memory"): InstructionDefinition {
   const definition = encoded.get(opcode)!;
   const postbyte = (target === "memory" ? 0x06 : 0xc0 + target) + extension * 8;
-  const dispatch = definition.steps[1];
+  const dispatch = definition.steps.find(step => step.kind === "dispatch");
   assert.equal(definition.steps[0]?.kind, "fetch-byte");
   assert.ok(dispatch?.kind === "dispatch");
   const branch = dispatch.cases.find(branch => (postbyte & branch.mask) === branch.value)!;

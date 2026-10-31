@@ -24,3 +24,8 @@ export interface RetiNotificationContext {
 export interface InterruptReportContext {
   readonly reportInterrupt: (vector: number) => void;
 }
+
+/** Optional instruction-level clock reporting; ordinary execution needs no timing consumer. */
+export interface InstructionTimingContext {
+  readonly reportClocks?: (clocks: number | undefined) => void;
+}

@@ -213,7 +213,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
 /** Bind validated references to generated functions; no processor-specific execution algorithm is emitted. */
 export function generateChapterExecution(cpu: string, module: string, policy: ChapterExecution, modules: readonly WordInstructionModule[] = []): string {
   if (policy.mode === "word") return generateWordExecution(module, policy, modules);
-  if (policy.mode === "segmented") return generateSegmentedExecution(cpu, module, policy);
+  if (policy.mode === "segmented") return generateSegmentedExecution(cpu, module, policy, modules);
   if (policy.opcodeAdvance === "decode") return generateDecodedExecution(cpu, module, policy);
   if (policy.interrupt === "vectors") return generateVectorExecution(cpu, module, policy);
   const quoted = JSON.stringify, action = (name: string) => `actions[${quoted(name)}](state)`;

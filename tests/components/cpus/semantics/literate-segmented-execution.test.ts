@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { InstructionTimingUnavailable } from "../../../../src/components/cpus/instruction-timing.js";
 import { Ram } from "../../../../src/components/memory/ram.js";
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
@@ -106,7 +107,7 @@ test("failed fetches and trap entries retain effects without retirement, release
 const invalid: readonly [string, string, RegExp][] = [
   ['  failure retain\n', '', /needs failure/],
   ['memory 20', 'memory 20\n  memory 20', /Duplicate execution field/],
-  ['failure retain', 'failure retain\n  timing cycles', /Unknown execution field/],
+  ['failure retain', 'failure retain\n  surprise cycles', /Unknown execution field/],
   ['memory 20', 'memory 15', /16 to 24/],
   ['memory 20', 'memory 25', /integer from/],
   ['segment CS shift 4', 'segment CS shift 5', /integer from/],
@@ -145,4 +146,51 @@ test("segmented retirement requires Boolean decisions even when its action ignor
 }
 execution segmented {`).replace('retire action retireInstruction sampling', 'retire action numericRetirement sampling');
   assert.throws(() => compileCpuChapter(numeric, { name: "8088" }, file), /two flag deferrals followed by one flag per sample/);
+});
+
+test("chapter clock declarations reach generated timing, prefixes, and interrupt offers", async () => {
+  const model = await generate(text.replace('clocks u16(3)\n  selected = register AX', 'clocks u16(7)\n  selected = register AX')
+    .replace('timing prefix 2 pending 70 offers "intr" 81, "nmi" 70', 'timing prefix 5 pending 73 offers "intr" 83, "nmi" 79'));
+  const { state, boundary } = fixture(model, [0x26, 0x90]);
+  assert.equal(boundary.stepTimed().clocks, 12);
+  state.trapPending = true;
+  assert.equal(boundary.stepTimed().clocks, 73);
+  assert.equal(boundary.interruptTimed("nmi").clocks, 79);
+  state.flags.if = true;
+  assert.equal(boundary.interruptTimed("intr", () => 8).clocks, 83);
+});
+
+test("timing contracts reject late, nested, repeated, and ill-typed clock declarations", () => {
+  const replacements: readonly [string, string, RegExp][] = [
+    ['timing prefix 2 pending 70 offers "intr" 81, "nmi" 70', '', /timing contract/],
+    ['timing prefix 2', 'timing prefix 0', /positive/],
+    ['offers "intr" 81, "nmi" 70', 'offers "intr" 81', /every interrupt offer/],
+    ['offers "intr" 81, "nmi" 70', 'offers "intr" 81, "intr" 70', /distinct declared/],
+    ['clocks u16(3)\n  selected = register AX', 'clocks u8(3)\n  selected = register AX', /expected 16-bit/],
+    ['clocks u16(3)\n  selected = register AX', 'clocks u16(3) when u8(1)\n  selected = register AX', /flag|Boolean|numeric|Unknown/],
+    ['clocks u16(3)\n  selected = register AX', 'IP <- u16(0)\n  clocks u16(3)\n  selected = register AX', /precede write-register/],
+    ['clocks u16(3)\n  selected = register AX', 'byte = memory(u16(0))\n  clocks u16(3)\n  selected = register AX', /precede read-memory/],
+    ['clocks u16(3)\n  selected = register AX', 'unused = source popWord\n  clocks u16(3)\n  selected = register AX', /precede read-memory/],
+    ['clocks u16(3)\n  selected = register AX', 'when 1 {\n    clocks u16(3)\n  }\n  selected = register AX', /top-level/],
+    ['clocks u16(3)\n  selected = register AX', 'clocks u16(3)\n  clocks u16(3)\n  selected = register AX', /exactly once/],
+  ];
+  for (const [before, after, message] of replacements) {
+    assert.ok(text.includes(before), before);
+    assert.throws(() => compileCpuChapter(text.replace(before, after), { name: "8088" }, file), message);
+  }
+});
+
+
+test("timing preparation cannot deliver an early fault without a declared cost", async () => {
+  const model = await generate(text.replace('clocks u16(3)\n  selected = register AX',
+    'reject "divide-error"\n  clocks u16(3)\n  selected = register AX'));
+  const { boundary, state } = fixture(model, [0x90]), before = snapshot(state);
+  assert.throws(() => boundary.stepTimed(), InstructionTimingUnavailable);
+  assert.deepEqual(snapshot(state), before);
+});
+
+test("clocks remains a contextual name for typed captures", async () => {
+  const model = await generate(text.replace('clocks u16(3)\n  selected = register AX',
+    'clocks: 16 = u16(9)\n  clocks clocks\n  selected = register AX'));
+  assert.equal(fixture(model, [0x90]).boundary.stepTimed().clocks, 9);
 });

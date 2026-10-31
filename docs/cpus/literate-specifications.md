@@ -21,7 +21,7 @@ come from compiled state declarations, so widths and groups have one source.
 | Calculations and instruction families | [Expressions, operands, encodings, and policies](#expressions-and-policies), [bounded iteration](#bounded-iteration-and-arithmetic-outcomes) |
 | Conditions and decoding | [Conditions and control state](#conditions-and-stored-control-state), [opcode pages](#opcode-pages), [byte-pattern matches](#byte-pattern-matches) |
 | Lifecycle and public API | [Execution contracts](#execution-contracts), [reset with modeled faults](#reset-sequences-with-modeled-faults), [public interfaces](#public-interfaces) |
-| Segmented models | [Segmented execution](#segmented-execution), [vector offers](#fixed-and-acknowledged-vector-offers) |
+| Segmented models | [Segmented execution](#segmented-execution), [instruction clocks](#optional-instruction-clock-accounting), [vector offers](#fixed-and-acknowledged-vector-offers) |
 | Word models | [Address boundaries and pending writes](#address-decoder-and-execution-boundaries), [word execution](#word-execution), [events](#word-exception-and-interrupt-entry), [public interfaces](#word-public-interfaces-and-catalogue-binding) |
 
 ## Reading and building a chapter
@@ -1401,6 +1401,33 @@ exercise policy edits, live fetch callbacks, delayed samples, retained failures,
 and invalid contracts. [Public integration checks](../../tests/scripts/8088-chapter-integration.test.ts)
 edit a copied chapter and verify that the CPU class follows its reset, fetch,
 prefix, retirement, memory-size, and vector declarations.
+
+### Optional instruction-clock accounting
+
+A segmented contract can declare `timing prefix 2 pending 70 offers "intr" 81,
+"nmi" 70` on one line. Values are positive 16-bit CPU clock counts. The source
+names must cover every declared interrupt offer exactly once. This enables
+`stepTimed()` and `interruptTimed()` on the generated public class; ordinary
+methods retain their existing behavior and record shapes. Clock totals belong
+to the caller, not stored CPU state. The current timing facility applies only
+to segmented boundaries.
+
+A timed family has exactly one top-level `clocks expression` statement with a
+16-bit expression. `clocks expression when condition` declares timing only when
+the Boolean condition holds. Before that statement, the family may capture
+values, read state, fetch instruction bytes, and reject encodings; transitive
+data accesses, writes, and other effects are forbidden. Clock declarations
+cannot be hidden in branches, sources, or actions. This makes partial coverage
+explicit before operand effects. Runtime counts must be positive.
+
+The runtime adds prefix costs, reports the declared pending-entry cost, and
+reports zero for an already stopped CPU or ignored interrupt offer. Missing
+family timing, a false availability condition, rejected encodings, and WAIT
+continuations raise `InstructionTimingUnavailable`, restoring the starting
+counter without retirement. Successful fetches remain observable. Timing rules
+do not change ordinary effect ordering or make callback failures atomic.
+See the [8088 chapter](../../src/components/cpus/specifications/8088.md#instruction-clocks)
+for the actual fidelity model, numerical rules, and CPU record contract.
 
 ### Fixed and acknowledged vector offers
 

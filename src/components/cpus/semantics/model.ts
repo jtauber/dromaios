@@ -136,6 +136,7 @@ export type Statement =
   | { readonly kind: "defer-interrupt"; readonly scope: "irq" | "intr" | "all" }
   | { readonly kind: "notify-reti" }
   | { readonly kind: "reset-devices" }
+  | { readonly kind: "report-clocks"; readonly clocks: NumberExpression; readonly available?: FlagExpression }
   | { readonly kind: "report-interrupt"; readonly vector: NumberExpression }
   | { readonly kind: "read-test"; readonly name: string }
   | ({ readonly kind: "send-escape" } & EscapeRequest)
@@ -330,6 +331,8 @@ export const writeChoice = <Value extends string | number>(choice: Choice<Value>
 export const notifyReti = (): Statement => ({ kind: "notify-reti" });
 
 /** External delivery reporting and pin/device effects do not hide CPU state or memory operations. */
+export const reportClocks = (clocks: NumberExpression, available?: FlagExpression): Statement =>
+  ({ kind: "report-clocks", clocks, ...(available === undefined ? {} : { available }) });
 export const reportInterrupt = (vector: NumberExpression): Statement => ({ kind: "report-interrupt", vector });
 export const readTest = (name: string): Statement => ({ kind: "read-test", name });
 export const sendEscape = (request: EscapeRequest): Statement => ({ kind: "send-escape", ...request });

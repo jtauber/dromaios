@@ -63,6 +63,7 @@ export class XtIo implements MemoryConnection {
   get speakerData(): boolean { return Boolean(this.#ppi.driveB() & 2); }
   get speakerLevel(): boolean { return this.speakerData && this.#pit.output(2); }
   get refreshOutput(): boolean { return this.#pit.output(1); }
+  get oscillatorTicks(): number { return this.#clock.ticks; }
 
   snapshot(): XtIoSnapshot {
     return { pic: this.#pic.snapshot(), ppi: this.#ppi.snapshot(), keyboard: this.#keyboard.snapshot(),
@@ -114,7 +115,7 @@ export class XtIo implements MemoryConnection {
     this.#updateWiring();
   }
 
-  /** Advance devices only; callers must supply time independently of untimed CPU steps. */
+  /** Advance devices only, from an explicit interval or a completed timed CPU boundary. */
   advanceOscillatorTicks(ticks: number): void {
     this.#clock.advance(ticks, (microseconds, pitClock) => {
       this.#keyboard.advanceMicroseconds(microseconds);

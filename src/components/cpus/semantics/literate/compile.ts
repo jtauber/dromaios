@@ -9,7 +9,7 @@ import { opcodePageLayouts } from "../opcode-pages.ts";
 import type { OpcodePage } from "../opcode-pages.ts";
 import { chapterBlocks, chapterBody, chapterContext, ChapterError, ChapterTokens } from "./document.ts";
 import { definitionReference, flagExpression, width } from "./expressions.ts";
-import { chapterSegmentedExecution, checkSegmentedEffects } from "./segmented-execution.ts";
+import { chapterSegmentedExecution, checkSegmentedEffects, checkTimingPreparation } from "./segmented-execution.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
 import type { ChapterExecution } from "./execution.ts";
 import { chapterReset } from "./reset.ts";
@@ -290,7 +290,14 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
       if (!signatures.some(signature => JSON.stringify(signature) === JSON.stringify(inputs))) tokens.fail("Segmented families need plain, override, or repeat inputs in declared order.");
       if (opcode > 255 || execution.prefixes.some(prefix => prefix.opcode === opcode)) tokens.fail("Segmented instruction bytes cannot collide with prefixes or use opcode pages.");
       const fault = execution.fault.source;
-      tokens.checked(() => checkSegmentedEffects(definition.steps, fault));
+      tokens.checked(() => {
+        checkSegmentedEffects(definition.steps, fault, false, execution.timing !== undefined);
+        const clocks = definition.steps.findIndex(step => step.kind === "report-clocks");
+        if (clocks >= 0) {
+          if (definition.steps.filter(step => step.kind === "report-clocks").length !== 1) throw new Error("A family reports clocks exactly once.");
+          checkTimingPreparation(definition.steps.slice(0, clocks));
+        }
+      });
     } else tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined, execution.interrupt === "vectors",
       execution.opcodeAdvance === "decode" ? execution : undefined));
   }

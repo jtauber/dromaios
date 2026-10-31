@@ -10,7 +10,7 @@ import { opcodeTable } from "../opcodes.ts";
 import type { OpcodeEntry } from "../opcodes.ts";
 
 const typeName = (type: ValueType): string => type === "flag" ? "boolean" : "number";
-type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape"
+type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "reportClocks" | "readTest" | "sendEscape"
   | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte" | "nextAddress" | "jump" | "resetDevices" | "readPendingRegister" | "stageRegister";
 
 interface Outcomes {
@@ -60,6 +60,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     { name: "BytePorts", file: "port-access", capabilities: ["readPort", "writePort"] },
     { name: "InterruptDeferralContext", type: `InterruptDeferralContext${irqDeferral ? '<"irq">' : ""}`, file: "instruction-context", capabilities: ["deferInterrupt"] },
     { name: "RetiNotificationContext", file: "instruction-context", capabilities: ["notifyReti"] },
+    { name: "InstructionTimingContext", file: "instruction-context", capabilities: ["reportClocks"] },
     { name: "InterruptReportContext", file: "instruction-context", capabilities: ["reportInterrupt"] },
     { name: "CoprocessorContext", file: "coprocessor-access", capabilities: ["readTest", "sendEscape"] },
     { name: "WordInstructionContext", file: "instruction-context", capabilities: ["fetchWord"] },
@@ -273,6 +274,8 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
           case "fill-array": emit(`${bank(step.array)}${field(step.array.field)}.fill(${number(step.value, scope).code});`); continue;
           case "write-latch": emit(`${bank(step.latch)}${field(step.latch.field)} = ${typeof step.value === "boolean" ? step.value : flag(step.value, scope)};`); continue;
           case "read-test": captured = { code: `${access("readTest")}()`, type: "flag" }; break;
+          case "report-clocks":
+            emit(`${access("reportClocks")}?.(${step.available ? `(${flag(step.available, scope)}) ? ${number(step.clocks, scope).code} : undefined` : number(step.clocks, scope).code});`); continue;
           case "report-interrupt": emit(`${access("reportInterrupt")}(${number(step.vector, scope).code});`); continue;
           case "send-escape": {
             const memory = step.memory;
@@ -329,7 +332,7 @@ export function generateInstructions(cpu: string, definitions: Readonly<Record<s
     }
     body(definition.steps, scope);
     if (result) emit(`return ${typed(result.value, result.type, scope).code};`);
-    if (capabilities.size) parameters.push(`instruction: Pick<${contextType(capabilities)}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
+    if (capabilities.size) parameters.push(`instruction: Pick<${contextType(capabilities)}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>${capabilities.size === 1 && capabilities.has("reportClocks") ? " = {}" : ""}`);
     const key = bound ? `0x${Number(name).toString(16).padStart(2, "0")}` : JSON.stringify(name);
     const code = `${indent}// ${JSON.stringify(`${cpu} ${definition.name}`)}\n`
       + `${indent}${key}(${parameters.join(", ")}): ${outcomeType(result ? typeName(result.type) : "void", outcomes)} {\n${lines.join("\n")}\n${indent}},`;

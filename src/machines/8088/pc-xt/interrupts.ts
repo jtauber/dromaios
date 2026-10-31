@@ -9,3 +9,12 @@ export function stepXtCpu(machine: { readonly cpu: Cpu8088; readonly io: XtIo })
   }
   return machine.cpu.step();
 }
+
+/** Complete one CPU boundary, then advance device time; an idle halt visits the next PIT pulse. */
+export function stepTimedXtCpu({ cpu, io }: { readonly cpu: Cpu8088; readonly io: XtIo }) {
+  const offered = io.irq ? cpu.interruptTimed("intr", () => io.acknowledge()) : undefined;
+  const record = offered && offered.outcome !== "ignored" ? offered : cpu.stepTimed();
+  const oscillatorTicks = record.clocks === 0 ? 12 - io.oscillatorTicks % 12 : record.clocks * 3;
+  io.advanceOscillatorTicks(oscillatorTicks);
+  return { record, oscillatorTicks };
+}

@@ -170,6 +170,13 @@ Validation rejects effects whose required capability is absent. Examples include
 IRQ deferral, segmented TEST/ESC and interrupt reporting, word address resolution
 and device reset, and RETI notification after retirement.
 
+`report-clocks` carries a 16-bit clock expression and optional Boolean availability
+condition. Generated code reports to an optional instruction-timing consumer;
+a false condition supplies `undefined`, declaring unavailable timing. The
+[segmented timing contract](literate-specifications.md#optional-instruction-clock-accounting)
+checks its placement before operand effects and governs rejection, prefix costs,
+and timed records. Ordinary execution has no timing consumer.
+
 Reset, fetching, dispatch, stopping, retirement, interrupt recognition, and
 exception delivery also have declarative contracts, described in the
 [language reference](literate-specifications.md#execution-contracts). Shared

@@ -5,11 +5,12 @@ laboratory. Use **dromaios-pc** as the primary implementation reference and
 IBM's hardware documentation as the authority. Retain Dromaios's generated
 [8088](../../src/components/cpus/specifications/8088.md); a new CPU is not required.
 
-**Status, 2026-10-30:** reference audit complete; the first native
+**Status, 2026-10-31:** reference audit complete; the first native
 [keyboard-interrupt example](../../src/machines/8088/xt-keyboard.md) connects
 the generated 8088, PIC, PPI, and keyboard receiver. The
 [timer example](../../src/machines/8088/xt-timer.md) adds the 8253, saved
-oscillator phase, and native IRQ0 handling with explicitly supplied device time.
+oscillator phase, and native IRQ0 handling. Instruction-driven time now passes
+isolated original BIOS counter and interrupt timing checks.
 There is no complete PC/XT machine or laboratory yet. The reference's DOS
 boot works through JavaScript BIOS services; it does not demonstrate original-ROM
 startup or a working floppy controller. The first native milestone is original
@@ -35,9 +36,9 @@ IBM's [April 1983 Technical Reference][ibm] describes the system board, port map
 keyboard, CGA, diskette adapter, and BIOS listing. Its printed pages 1-3 through
 1-10 establish the board and device connections; Appendix A contains the BIOS.
 The 8088 clock is derived from the 14.31818 MHz oscillator divided by three,
-and the PIT input from the same oscillator divided by twelve. A clock frequency
-in this target is a hardware requirement, not a claim that the current CPU
-already reports elapsed cycles.
+and the PIT input from the same oscillator divided by twelve. The timed CPU subset
+reports nominal instruction clocks; prefetch and bus-cycle timing remain outside
+that model.
 
 ## Pinned reference audit
 
@@ -179,11 +180,11 @@ progress, scheduled device events, and saved clock phase. Keep device ticks
 integer and independent of rendering, host dates, and browser batch size.
 
 The [timer chapter](../../src/machines/8088/xt-timer.md) now owns the explicit
-oscillator clock, device-event ordering, and saved-phase contract. The current
-8088 model still does not supply elapsed-time accounting. Implement and check
-its proposed instruction-level timing before automatic scheduling; state
-omissions such as prefetch/bus contention explicitly. Manual device ticks
-are useful in component tests. An arbitrary tick per instruction or host-frame
+oscillator clock, device-event ordering, and saved-phase contract. Its timed
+path now consumes nominal clock declarations from the 8088 chapter and passes
+the original BIOS’s channel-1 counter and channel-0 interrupt timing checks.
+Timing coverage is partial; prefetch overlap and bus contention remain omitted.
+Manual device ticks remain useful in component tests. An arbitrary tick per instruction or host-frame
 timer is not evidence that POST or software timing is correct. Full electrical
 simulation need not precede a documented, tested timing model.
 
@@ -274,9 +275,10 @@ native 8088 examples. Their chapters own supported profiles, clock/gate behavior
 snapshots, and acceptance tests. Original IRQ0 and IRQ1 handlers have separate
 ROM-backed fixtures; neither test establishes POST.
 
-Next implement checked 8088 elapsed-clock accounting against the timer chapter's
-contract, then add 8237A DMA/refresh behavior. Follow with CGA and the empty
-diskette-controller path before attempting complete native POST. Keep every
+Instruction-driven timing now passes isolated original BIOS timer checks.
+Next add 8237A DMA/refresh behavior and extend checked instruction timing as
+required by the next POST stages. Follow with CGA and the empty diskette-controller
+path before attempting complete native POST. Keep every
 firmware operation on the modeled hardware path.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

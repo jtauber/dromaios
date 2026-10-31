@@ -23,7 +23,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,788](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,576](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,175](../../src/components/cpus/specifications/8088.md) | 2,657 | 291 / 291 | 100% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,388](../../src/components/cpus/specifications/8088.md) | 2,815 | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,819](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% |
 
 **Literate instruction coverage** measures documented opcode forms authored in
@@ -84,13 +84,13 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,843 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,843** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,952 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,952** |
 | Shared CPU/machine Markdown reader (`src/literate.ts`, outside the CPU directory) | 30 |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,108 |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,321 |
 | CPU compilation and generation scripts (`compile-cpu-chapters.ts`, `generate-cpu-chapters.ts`, and `generate-cpu-semantics.ts`) | 166 |
-| Generated executable CPU output, counted separately | 604,721 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 995,502 |
+| Generated executable CPU output, counted separately | 605,732 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 999,303 |
 | Generated state schemas/types, counted separately | 213 |
 
 Chapter-data generation reuses an existing reference when it encounters the same
@@ -1096,6 +1096,12 @@ and [program specifications](../README.md#cpu-examples) for acceptance evidence.
 ## 8088
 
 [Specification and model contract](../../src/components/cpus/specifications/8088.md)
+
+Optional [instruction-clock accounting](../../src/components/cpus/specifications/8088.md#instruction-clocks)
+now covers the declared subset needed by the original XT BIOS timer checks,
+including address calculation, word transfers, branches, prefixes, and interrupt
+entry. Timing coverage is deliberately separate from the complete opcode-form
+coverage below; uncovered timed forms stop explicitly.
 
 | Opcode pattern / bytes | Instruction | Forms | Scope |
 | --- | --- | ---: | --- |

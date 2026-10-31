@@ -7,7 +7,7 @@ module.exports = grammar({
   extras: $ => [/\s/, $.comment],
   word: $ => $.identifier,
   // A local named pending can precede an operand write on the next line.
-  conflicts: $ => [[$.pending_read, $._local_name]],
+  conflicts: $ => [[$.pending_read, $._local_name], [$.clocks_statement]],
 
   rules: {
     source_file: $ => repeat(choice(
@@ -80,7 +80,7 @@ module.exports = grammar({
     body: $ => seq('{', repeat($._statement), '}'),
     _statement: $ => choice(
       $.choose_capture, $.match_capture, $.match_statement, $.capture, $.write, $.apply_statement, $.exchange_statement, $.perform_statement, $.when_statement,
-      $.iterate_capture, $.iterate_statement, $.divide_capture, $.reject_statement, $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement, $.notify_statement, $.report_statement, $.escape_statement, $.target_statement, $.reset_statement, $.stage_statement,
+      $.iterate_capture, $.iterate_statement, $.divide_capture, $.reject_statement, $.return_statement, $.fault_statement, $.commit_statement, $.defer_statement, $.notify_statement, $.report_statement, $.clocks_statement, $.escape_statement, $.target_statement, $.reset_statement, $.stage_statement,
     ),
     choose_capture: $ => seq(field('name', $._local_name), '=', 'choose', $._expression, ':', $._value_type,
       '{', 'then', $.body, 'else', $.body, '}'),
@@ -124,9 +124,10 @@ module.exports = grammar({
     commit_statement: _ => seq('commit', 'addresses'),
     defer_statement: _ => seq('defer', choice('irq', 'intr', 'all')),
     notify_statement: _ => seq('notify', 'reti'),
+    clocks_statement: $ => seq('clocks', $._expression, optional(seq('when', $._expression))),
     report_statement: $ => seq('report', 'interrupt', $.arguments),
     escape_statement: $ => seq('send', 'escape', $.arguments, optional(seq('with', 'memory', $.arguments))),
-    _local_name: $ => choice($.identifier, ...['exchange', 'port', 'next', 'reset', 'select', 'target', 'stage', 'pending', 'staging', 'notify', 'report', 'send'].map(word => alias(word, $.identifier))),
+    _local_name: $ => choice($.identifier, ...['exchange', 'port', 'next', 'reset', 'select', 'target', 'stage', 'pending', 'staging', 'notify', 'report', 'send', 'clocks'].map(word => alias(word, $.identifier))),
     _expression: $ => choice($._local_name, $.number, $.call),
     call: $ => seq(field('function', $._local_name), optional($.width_argument), $.arguments),
     arguments: $ => seq('(', optional(commaSeparated($._expression)), ')'),
@@ -136,9 +137,10 @@ module.exports = grammar({
     )), '}'),
     execution_declaration: $ => seq('execution', optional(choice('segmented', 'word')), '{', repeat(choice(
       $.word_execution_policy, $.word_events, $.memory_policy, $.counter_policy, $.stopped_policy, $.word_policy,
-      $.segmentation_policy, $.prefix_policy, $.waiting_policy, $.pending_policy, $.fault_delivery_policy, $.unsupported_policy,
+      $.timing_policy, $.segmentation_policy, $.prefix_policy, $.waiting_policy, $.pending_policy, $.fault_delivery_policy, $.unsupported_policy,
       $.opcode_policy, $.operand_policy, $.failure_policy, $.action_policy, $.retirement_policy, $.notification_policy, $.interrupt_policy,
     )), '}'),
+    timing_policy: $ => seq('timing', 'prefix', $.number, 'pending', $.number, 'offers', commaSeparated(seq($.string, $.number))),
     word_execution_policy: $ => choice(
       seq('fetch', choice('big', 'little'), 'advance', 'after', 'word'), seq('alignment', $.number),
       seq('terminal', $._state_name), seq('fetched', 'action', $.identifier),

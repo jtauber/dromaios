@@ -7,10 +7,11 @@ and receives IRQ0 after the host supplies a known interval. Its handler
 increments a RAM byte and sends EOI. No host code increments a BIOS tick or
 replaces an interrupt handler.
 
-This is **device-clock acceptance**, not complete 8088 timing or successful
-POST. `stepXtCpu()` still executes an untimed boundary. In particular, a busy
-polling loop does not advance time automatically. The optional original-ROM
-check runs the real IRQ0 handler with a prepared fixture; it is not a boot test.
+The program below retains **device-clock acceptance** through untimed
+`stepXtCpu()` and explicitly supplied intervals. The separate
+[instruction-driven path](#instruction-driven-machine-time) uses the 8088
+chapter’s nominal clock declarations, including for original BIOS timer checks.
+Neither path establishes complete timing coverage or successful POST.
 
 ## Oscillator and event ordering
 
@@ -158,27 +159,48 @@ the [ROM test](../../../tests/machines/8088/pc-xt/rom-timer.test.ts) verifies
 that the original handler updates the BIOS time-of-day word and acknowledges
 the PIC. The fixture explicitly supplies IVT/BDA state and device clocks.
 
-## CPU timing boundary still to implement
+## Instruction-driven machine time
 
-The next layer must assign checked elapsed clocks to actual execution before
-this board can run timed POST. Use the 8088 chapter as the owner of those
-rules: instruction form and effective-address cost, taken versus untaken
-branches, word transfers over the byte bus, prefixes, each recorded REP
-iteration, interrupt entry, and idle HLT/WAIT periods all matter. CPU CLK
-periods translate to three oscillator ticks; an instruction count is not an
-elapsed-clock count.
+`stepTimedXtCpu()` first offers a pending PIC request through the CPU’s timed
+interrupt boundary. An ignored offer consumes no clocks and does not acknowledge
+the PIC; execution continues through `stepTimed()`. Accepted entry or a completed
+instruction then advances devices by **three oscillator ticks per CPU clock**.
+The CPU’s [literate timing rules](../../components/cpus/specifications/8088.md#instruction-clocks)
+own all instruction, effective-address, prefix, word-transfer, and entry costs.
+The board has no opcode table or BIOS-address shortcuts.
 
-The first intended fidelity is documented instruction-level timing, with
-prefetch-queue overlap, bus contention, wait states, and electrical bus phases
-explicitly omitted. Device transfers need an explicit ordering within that
-model. Unsupported timing must fail explicitly rather than silently using a
-constant fallback. A halted CPU must allow the clock to reach the next device
-event, then offer the resulting interrupt through the same CPU acceptance path
-used during stepping. Input schedules and idle progress must be saved too.
+This model performs CPU memory and port effects at the beginning of the interval,
+then advances devices through every intervening PIT boundary. Newly raised IRQs
+are offered at the next CPU boundary. This ordering is deterministic, but is not
+a bus-cycle schedule: prefetch overlap, READY waits, DMA contention, and the
+intra-instruction time of an IN/OUT transfer are omitted. Missing timing throws
+before operand effects and advances no device time. Other CPU callback failures
+retain completed effects but produce no interval; a device-advancement failure
+retains the completed CPU boundary and any already completed device progress.
 
-These are requirements for the next CPU-timing implementation, not behavior
-provided by `stepXtCpu()` today. The clock and PIT tests establish a reusable
-foundation; native POST still requires that timing work, DMA/refresh, CGA,
-board glue, and the empty diskette-controller path.
+After HLT, subsequent idle calls advance only to the next PIT pulse and return.
+Even a masked IRQ cannot block the caller indefinitely. Idle records retain zero
+CPU instruction clocks, while the wrapper’s `oscillatorTicks` records the actual
+idle interval. Device state and total oscillator ticks save all timing phase;
+there is no unsaved clock accumulator or dependence on browser frame duration.
+External input schedules, if introduced, will need their own saved state.
+
+[Timed execution tests](../../../tests/machines/8088/pc-xt/timed-execution.test.ts)
+run this native program without host-supplied time, verify halted progress and
+masked requests, and compare continuous stepping with batches and restored
+snapshots. [Original-ROM timing tests](../../../tests/machines/8088/pc-xt/rom-timing.test.ts)
+use `XT_BIOS_ROM` to exercise two unmodified 11/08/82 BIOS routines:
+
+- `F000:E0E1`–`E10E`: the channel-1 counter-bit test, starting with BX=CX=0.
+- `F000:E35D`–`E3A2`: the channel-0 fast/slow interrupt test, with an initialized
+  PIC, IF set, stack/RAM, and vector 8 pointing to the ROM’s diagnostic handler
+  at `F000:FF23`. That handler identifies the active PIC input, sets the BIOS
+  interrupt flag, masks its source, sends EOI, and returns through IRET.
+
+Both fixtures reach their ROM success exits through hardware I/O and timed CPU
+execution. Their prepared entry state bypasses earlier POST stages; they do not
+establish DMA refresh, video initialization, or a complete native boot. Extending
+timing to the remaining instruction forms, then adding DMA/refresh, CGA, and the
+empty diskette-controller path remains necessary for full POST.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

@@ -42,7 +42,7 @@ export function chapterInterface(header: ChapterTokens, lines: readonly ChapterT
     fields.add(field); snapshots.push({ field, view, description: source.name, type: source.type });
   }
   // Array/group aliases share the public namespace with standard record and state types.
-  const types = new Set(["State", "StoredState", "Snapshot", "MemoryAccess", "Access", "Instruction", "StepRecord", "ResetRecord",
+  const types = new Set(["State", "StoredState", "Snapshot", "MemoryAccess", "Access", "Instruction", "StepRecord", "TimedStepRecord", "TimedInterruptRecord", "ResetRecord",
     "InterruptAccess", "InterruptInstruction", "InterruptRecord", "InterruptSource", "Connections", "Delivery", "Escape",
     "InterruptLevel", "InterruptVector", "MemoryFault", "AlignmentFault", "BusFault", "Exception",
     "ShortExceptionDelivery", "AddressErrorDelivery", "BusErrorDelivery", "MemoryErrorDelivery", "ExceptionDelivery"]);
@@ -69,6 +69,7 @@ export function generateChapterInterface(module: string, state: StateFields, api
   if (execution.interrupt === "external") throw new Error("A public interface requires chapter-owned interrupt entry.");
   if (execution.mode === "word") return generateWordInterface(module, state, api, execution, reset);
   const vectors = execution.interrupt === "vectors", segmented = execution.mode === "segmented";
+  const timed = segmented && execution.timing !== undefined;
   const stoppedStep = vectors ? execution.waiting === undefined ? undefined : "WaitingStep" : "HaltedStep";
   const name = api.name, schema = `${name[0]!.toLowerCase() + name.slice(1)}StateDescription`, quoted = JSON.stringify;
   const aliases = [...stateAliases(state), ...(api.banks ?? [])].map(alias => `${name}${alias.name}`);
@@ -80,8 +81,8 @@ export function generateChapterInterface(module: string, state: StateFields, api
     ...(sourceNames.length ? [`export type ${name}InterruptSource = ${sourceNames.join(" | ")};`] : []),
     ...(segmented ? [`export type ${name}InterruptAccess = MemoryAccess | InterruptAcknowledge;`] : vectors ? [] : [`export type ${name}InterruptAccess = ${name}Access | InterruptAcknowledge;`, `export type ${name}InterruptInstruction = InterruptInstruction;`]),
   ].join("\n");
-  const overloads = named || segmented ? execution.entries.map(entry =>
-    `  interrupt(source: ${quoted(entry.source)}${("vector" in entry ? entry.vector === "acknowledge" : entry.delivery.kind === "acknowledged") ? ", acknowledge: () => number" : ""}): ${name}InterruptRecord;`).join("\n") + "\n" : "";
+  const overloads = (method: "interrupt" | "interruptTimed") => named || segmented ? execution.entries.map(entry =>
+    `  ${method}(source: ${quoted(entry.source)}${("vector" in entry ? entry.vector === "acknowledge" : entry.delivery.kind === "acknowledged") ? ", acknowledge: () => number" : ""}): ${name}${method === "interruptTimed" ? "Timed" : ""}InterruptRecord;`).join("\n") + "\n" : "";
   const initialState = vectors ? `ReadonlyState<${name}State>` : `${name}State`;
   const snapshot = snapshotInterface(api);
   return `// Generated from the chapter's public interface. Do not edit.
@@ -113,6 +114,8 @@ export interface ${name}Delivery { readonly source: "software" | ${quoted(execut
 export type ${name}Instruction = FetchedInstruction;
 export type ${name}StepRecord = ${segmented ? `ReturnType<ReturnType<typeof createExecution<${name}Snapshot>>["step"]>` : `InstructionStep<${name}Snapshot, ${name}Access>${stoppedStep ? ` | ${stoppedStep}<${name}Snapshot, ${name}Access>` : ""}`};
 export type ${name}ResetRecord = StateTransition<${name}Snapshot>;
+${timed ? `export type ${name}TimedStepRecord = ReturnType<ReturnType<typeof createExecution<${name}Snapshot>>["stepTimed"]>;
+export type ${name}TimedInterruptRecord = ReturnType<ReturnType<typeof createExecution<${name}Snapshot>>["interruptTimed"]>;` : ""}
 ${interruptTypes}
 export type ${name}InterruptRecord = ReturnType<ReturnType<typeof createExecution<${name}Snapshot>>["interrupt"]>;
 
@@ -134,7 +137,9 @@ export class ${name} {
 
   reset(): ${name}ResetRecord { return this.#execution.reset(); }
   step(): ${name}StepRecord { return this.#execution.step(); }
-${overloads}  interrupt(${interruptParameter}): ${name}InterruptRecord { return this.#execution.interrupt(${vectors ? "source" : named || segmented ? "source, acknowledge" : "acknowledge"}); }
+${timed ? `  stepTimed(): ${name}TimedStepRecord { return this.#execution.stepTimed(); }
+${overloads("interruptTimed")}  interruptTimed(${interruptParameter}): ${name}TimedInterruptRecord { return this.#execution.interruptTimed(source, acknowledge); }` : ""}
+${overloads("interrupt")}  interrupt(${interruptParameter}): ${name}InterruptRecord { return this.#execution.interrupt(${vectors ? "source" : named || segmented ? "source, acknowledge" : "acknowledge"}); }
 }
 `;
 }

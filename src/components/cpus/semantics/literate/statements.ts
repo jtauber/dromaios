@@ -1,5 +1,5 @@
 import { divide, iterate, reject, alignmentFault, capture, commitAddressUpdates, deferInterrupt, notifyReti, exchangeFlags, fetchByte, fetchWord, fillArray, flagValue, highByte, lowByte, replaceFlags, not, perform, readElement,
-  readFlag, readLatch, readMemory, readProgramMemory, readPort, readRegister, readPendingRegister, stageRegister, readSource, readTest, reportInterrupt, sendEscape, resolveAddress, readNextAddress, selectTarget, resetDevices, updateFlags,
+  readFlag, readLatch, readMemory, readProgramMemory, readPort, readRegister, readPendingRegister, stageRegister, readSource, readTest, reportClocks, reportInterrupt, sendEscape, resolveAddress, readNextAddress, selectTarget, resetDevices, updateFlags,
   testChoice, value, when, writeChoice, writeElement, writeLatch, writeMemory, writePort, writeRegister } from "../model.ts";
 import type { Choice, CpuDeclaration, Flag, FlagGroup, FlagExpression, FlagPolicy, InstructionDefinition, Latch, Register, RegisterArray, Statement, ValueSource, ValueType } from "../model.ts";
 import { statementValidator } from "../validate.ts";
@@ -155,6 +155,9 @@ export function chapterStatements(lines: readonly ChapterTokens[], symbols: Symb
         result.push(selectTarget(expression(tokens))); tokens.expect(")");
       } else if (tokens.next === "reset" && tokens.peek(1) === "devices") {
         tokens.expect("reset"); tokens.expect("devices"); result.push(resetDevices());
+      } else if (tokens.next === "clocks" && tokens.peek(1) !== "=" && tokens.peek(1) !== ":") {
+        tokens.expect("clocks"); const clocks = expression(tokens);
+        result.push(reportClocks(clocks, tokens.take("when") ? flagExpression(tokens) : undefined));
       } else if (tokens.take("defer")) {
         const scope = tokens.word();
         if (scope !== "irq" && scope !== "intr" && scope !== "all") return tokens.fail("Expected irq, intr, or all deferral scope.");
