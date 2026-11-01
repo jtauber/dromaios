@@ -273,7 +273,8 @@ board now passes original POST and empty-drive bootstrap, reaching ROM BASIC
 with [stored programs and repeatable keyboard sessions](src/machines/8088/pc-xt.md#rom-basic-sessions).
 Its laboratory runs these sessions with segmented 8088 inspection, a BIOS
 walkthrough, and shared change/watch histories. Native disk transfers come next.
-EGA and further software are later configurations.
+The software goal beyond DOS is a [playable Ultima V session](docs/machines/pc-xt.md#5-ultima-v-on-the-xt)
+with EGA graphics, keyboard control, and a game save that survives a fresh boot.
 Introduce further abstractions through concrete requirements.
 
 The [Apple II Plus](docs/machines/apple2.md) already has ROM BASIC, graphics,

@@ -145,9 +145,9 @@ The [CGA chapter](../../src/components/devices/specifications/ibm-cga.md) descri
 the selected font bank and supported text profile. The remaining fixture gate
 is a pinned, IBM-compatible **360 KiB DOS boot disk**. Select the DOS edition,
 bytes, boot files, and expected transcript before claiming DOS acceptance. Do not relabel
-or resize the reference's NEC image to fit the drive. Windows 2.0 and Ultima V
-images in the reference are later software candidates, not verified native
-targets. Hard-disk and EGA configurations need their own firmware/device choices.
+or resize the reference's NEC image to fit the drive. The reference's
+`ultima5.img` is also 1,474,560 bytes. Select compatible game media separately
+for the [Ultima V milestone](#5-ultima-v-on-the-xt).
 
 ## Native implementation boundaries
 
@@ -269,9 +269,24 @@ snapshot continuation during an in-flight transfer.
 Begin with explicitly write-protected images. Writable media is a subsequent
 checkpoint: create/read/delete a file, export and reload the changed image, and
 verify bytes independently. Host FAT helpers may inspect images but must not
-perform guest filesystem operations. EGA, audible speaker output, fixed disks,
-and selected games follow as named configurations with their own acceptance;
-AT/286 and later x86 remain separate CPU and machine projects.
+perform guest filesystem operations.
+
+### 5. Ultima V on the XT
+
+The [reference architecture][ref-architecture] records Ultima V running on the
+8088 with EGA graphics and disk saves. Our reference audit reproduced the DOS
+session only. Use the same game as the target for the native XT laboratory.
+
+Choose a DOS release of the game, record the disk identities and launch
+command, and specify the EGA adapter and its firmware. Use the working CGA
+configuration for the preceding DOS checkpoint. Verify the following session
+in the EGA laboratory.
+
+1. Boot DOS through the XT BIOS and launch Ultima V from the guest prompt.
+2. Reach the title screen, enter Britannia, and use the XT keyboard to move the
+   party to a known location. Check the map display before and after the move.
+3. Save using the game's own command. Power on afresh with the saved disk,
+   relaunch the game, and resume at the recorded location.
 
 ## Next implementation slice
 
