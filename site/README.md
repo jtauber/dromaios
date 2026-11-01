@@ -34,6 +34,9 @@ Its [laboratory](../src/machines/8088/pc-xt.md#using-the-laboratory) uses the
 shared docking workspace, execution controller, and verified ROM loader.
 `xt-session.ts` owns the native board and keyboard between draws. The display
 reads the CGA frame, and the keyboard delivers scan codes at timed CPU boundaries.
+The 8088 inspector catalogue gets opcode names, register selectors, prefix bytes,
+and valid ModR/M patterns from the CPU chapter. The machine chapter supplies the
+storage ranges it can inspect, including the video and BASIC aliases.
 The [session checks](../src/machines/8088/pc-xt.md#rom-basic-sessions) give a
 program to try after POST and the results to expect from editing and running it.
 

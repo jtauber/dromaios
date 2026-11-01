@@ -417,6 +417,19 @@ choose **Save snapshot**. The checkpoint includes RAM, CGA storage, CPU, board
 devices, and any undelivered keyboard input. On a later visit, restore it with
 the same three ROMs loaded. **Step** advances one timed CPU boundary.
 
+From fresh power-on, **Disassembly** shows `EA 5B E0 00 F0` at `FFFF:0000`
+(physical `FFFF0`). The far jump takes its offset from the first word and its
+segment from the second. Step once. **Registers** highlights CS changing to
+`F000` and IP to `E05B`. The current disassembly row moves to physical `FE05B`,
+with the jump above it. Recent rows use the bytes the CPU fetched. The current
+row and the rows below it read the instruction stream from RAM or loaded ROM.
+Fetching across `IP=FFFF` wraps the offset within CS. A missing byte, unsupported
+encoding, or the inspector's 32-byte preview limit ends the forward listing.
+
+Each inspector has its own **Live** switch during Run. Pause or Step refreshes
+both visible panels. Register and flag highlights compare the two snapshots
+from the latest CPU boundary. Inspection leaves the board clock and devices alone.
+
 The browser maps US physical keys to XT makes and breaks. Tab moves focus out
 of the screen. Leaving the screen releases held keys, and leaving the window
 also pauses execution. Pasting supports US keyboard text and line breaks.

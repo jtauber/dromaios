@@ -276,10 +276,10 @@ AT/286 and later x86 remain separate CPU and machine projects.
 
 ## Next implementation slice
 
-Extend the XT laboratory with 8088 registers, disassembly and instruction
-inspection. Start with both CS:IP and its physical address. Then adapt memory
-navigation and breakpoints to the 20-bit address space. DMA data transfers and
-page registers belong with the native disk milestone.
+The Registers and Disassembly panels follow the reset jump in both logical
+and physical addresses. Extend inspection with a 20-bit memory browser and
+breakpoints that distinguish a specific CS:IP from its physical aliases.
+DMA data transfers and page registers belong with the native disk milestone.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

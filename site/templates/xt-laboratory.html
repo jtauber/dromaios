@@ -17,6 +17,7 @@
 {% block footer %}{% endblock %}
 {% block main %}
 <main id="main" class="laboratory xt-laboratory" data-xt-laboratory>
+  <script type="application/json" data-xt-catalogue>{{ xt_catalogue | tojson }}</script>
   <noscript><p>Enable JavaScript to use the laboratory. <a href="{{ calc_url(xt_url) }}">Read the machine guide</a>.</p></noscript>
   <div class="workspace-scroll"><div class="workspace-dock" data-workspace-root aria-label="XT laboratory workspace"></div></div>
   <div hidden data-workspace-panels>
@@ -36,6 +37,17 @@
       <p class="basic-message" data-error role="alert"></p>
       <p class="basic-message" data-message role="status"></p>
       <details><summary>Using the keyboard</summary><p class="lab-hint">At BASIC’s Ok prompt, type PRINT 2+3 and press Enter. You can paste several lines at once. Ctrl-Break interrupts a running BASIC program. Ctrl-Alt-Del sends the XT restart chord.</p></details>
+    </section>
+    <section class="lab-tool lab-tool-registers lab-panel-body lab-scroll" data-workspace-panel="registers" data-panel-title="Registers" data-panel-heading="Intel 8088 · Registers" data-panel-live="true">
+      <div class="lab-registers"></div><div class="lab-flags"></div>
+      <pre class="basic-readout" data-pointers aria-label="Logical and physical pointers"></pre>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-title="Disassembly" data-panel-live="true">
+      <p class="basic-readout" data-code-status></p>
+      <table class="lab-code" aria-label="Intel 8088 disassembly">
+        <thead><tr><th aria-label="Execution"></th><th>CS:IP</th><th>Physical</th><th>Bytes</th><th>Instruction</th></tr></thead>
+        <tbody></tbody>
+      </table>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-title="Firmware">
       <p>Load the three ROMs, then press <strong>Run</strong>. The XT checks 640 KiB of RAM and the empty drive before BASIC displays <samp>Ok</samp>.</p>

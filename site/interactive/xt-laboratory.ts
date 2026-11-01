@@ -5,15 +5,15 @@ import { readRomFile } from "./rom-file.js";
 import { romFileStorage } from "./rom-storage.js";
 import { createWorkspace } from "./workspace/dock.js";
 import { mountWorkspaceControls } from "./workspace/controls.js";
-import type { TabGroup } from "./workspace/layout.js";
+import { createPanelUpdates } from "./panel-updates.js";
+import { migrateXtWorkspace, xtDefaultLayout, xtWorkspaceKey } from "./xt-workspace.js";
+import { createXtCodeView, createXtRegisterView } from "./xt-inspector-view.js";
+import { xtHex as hex } from "./8088-disassembly.js";
 import { createXtSession } from "./xt-session.js";
 import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
 import { createXtScreen } from "./xt-screen.js";
 import { decodeXtCheckpoint, encodeXtCheckpoint, xtCheckpointKey } from "./xt-checkpoint.js";
-
-const group = (id: string): TabGroup => ({ kind: "tabs", id: "xt-" + id, active: id, panels: [id], collapsed: false });
-const hex = (number: number, digits: number) => number.toString(16).toUpperCase().padStart(digits, "0");
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-xt-laboratory]")) mount(root);
 
@@ -23,6 +23,11 @@ function mount(root: HTMLElement): void {
   const screen = at("screen"), message = at("message"), status = at("execution");
   const display = createXtScreen(root.querySelector("canvas")!, at("screen-text"), at("screen-notice"));
   const session = createXtSession();
+  const registers = root.querySelector<HTMLElement>('[data-workspace-panel="registers"]')!;
+  const code = root.querySelector<HTMLElement>('[data-workspace-panel="code"]')!;
+  const showRegisters = createXtRegisterView(registers);
+  const showCode = createXtCodeView(code, JSON.parse(at("xt-catalogue").textContent!));
+  const updates = createPanelUpdates(root, id => refresh(id), "dromaios:inspectors:xt:live");
   const slots = [...root.querySelectorAll<HTMLElement>("[data-slot]")].map(panel => {
     const id = panel.dataset.slot as XtRomSlot;
     return { id, file: panel.querySelector("input")!, load: panel.querySelector<HTMLButtonElement>("[data-load]")!,
@@ -38,7 +43,7 @@ function mount(root: HTMLElement): void {
   });
   execution.setDelay(1);
 
-  function refresh(): void {
+  function refresh(requested?: string): void {
     const running = execution.running, ready = session.ready && !loading, runnable = ready && !execution.error;
     button("run").disabled = button("step").disabled = !runnable || running;
     button("pause").disabled = !running;
@@ -56,8 +61,15 @@ function mount(root: HTMLElement): void {
       session.keyboard.pasteRemaining ? `${session.keyboard.pasteRemaining} characters to paste` : ""].filter(Boolean).join(" · ");
     at("error").textContent = execution.error ?? "";
     const now = performance.now();
-    if (screen.getClientRects().length && (!running || now - lastDraw >= 65)) {
-      display(session.machine, ready); lastDraw = now;
+    if (requested || !running || now - lastDraw >= 65) {
+      lastDraw = now;
+      if (screen.getClientRects().length) display(session.machine, ready);
+      if (registers.getClientRects().length && (requested === "registers" || updates.shouldUpdate("registers", running))) {
+        showRegisters(cpu, execution.error ? undefined : execution.records.at(-1)?.before);
+      }
+      if (code.getClientRects().length && (requested === "code" || updates.shouldUpdate("code", running))) {
+        showCode(session.machine, cpu, execution.records);
+      }
     }
   }
   function act(work: () => void) {
@@ -126,15 +138,11 @@ function mount(root: HTMLElement): void {
   layoutStatus.setAttribute("role", "status"); layoutStatus.className = "workspace-status";
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")].map(content => ({
     content, id: content.dataset.workspacePanel!, title: content.dataset.panelTitle!,
-    heading: content.dataset.panelHeading, detail: content.dataset.panelDetail,
+    heading: content.dataset.panelHeading, detail: content.dataset.panelDetail, controls: updates.controls(content.dataset.workspacePanel!),
   }));
+  try { migrateXtWorkspace(localStorage); } catch { /* Use the default layout if storage is unavailable or invalid. */ }
   const workspace = createWorkspace(at("workspace-root"), at("workspace-panels"), panels, {
-    defaults: { root: { kind: "split", id: "xt-columns", axis: "horizontal", items: [
-      { weight: .68, node: { kind: "split", id: "xt-console", axis: "vertical", items: [
-        { weight: .77, node: group("screen") }, { weight: .23, node: group("execution") }] } },
-      { weight: .32, node: { kind: "split", id: "xt-session", axis: "vertical", items: [
-        { weight: .65, node: group("rom") }, { weight: .35, node: group("snapshot") }] } },
-    ] } }, storageKey: "dromaios:workspace:xt:1", onShow: () => queueMicrotask(refresh),
+    defaults: xtDefaultLayout, storageKey: xtWorkspaceKey, onShow: id => queueMicrotask(() => refresh(id)),
     onStatus: text => { layoutStatus.textContent = text; },
   });
   mountWorkspaceControls(controls, workspace, layoutStatus);

@@ -154,8 +154,10 @@ def build(base):
                           "coco_rom_guides": coco_annotations(COCO.read_text(), coco_instructions["romImages"], coco_instructions)})
     xt_lab = machine_guide(XT, "Intel 8088", "XT",
                            "Explore the IBM PC/XT’s executable specification and run ROM BASIC in its laboratory.")
+    xt_catalogue = json.loads(subprocess.run(["node", "site/xt-instructions.ts"], cwd=ROOT,
+                                             check=True, capture_output=True, text=True).stdout)
     site.render_template("xt-laboratory.html", f"{xt_lab}index.html",
-                         {"xt_url": MACHINES[XT], "title": "IBM PC/XT laboratory"})
+                         {"xt_url": MACHINES[XT], "title": "IBM PC/XT laboratory", "xt_catalogue": xt_catalogue})
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):
