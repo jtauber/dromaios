@@ -274,8 +274,9 @@ with [stored programs and repeatable keyboard sessions](src/machines/8088/pc-xt.
 Its laboratory runs these sessions with segmented 8088 inspection, a BIOS
 walkthrough, and shared change/watch histories. The board also
 [cold-boots MS-DOS 3.30 from a 360 KiB floppy](src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
-and runs `VER` and `DIR`. Reading a known text file and launching a COM program
-are the next read-only DOS checks.
+and runs `VER` and `DIR`. After a [disk exchange](src/machines/8088/pc-xt.md#changing-disks-at-the-dos-prompt),
+DOS can display a text file and run a COM program. The next steps are drive A
+controls in the laboratory and writable media.
 The software goal beyond DOS is a [playable Ultima V session](docs/machines/pc-xt.md#5-ultima-v-on-the-xt)
 with EGA graphics, keyboard control, and a game save that survives a fresh boot.
 Introduce further abstractions through concrete requirements.

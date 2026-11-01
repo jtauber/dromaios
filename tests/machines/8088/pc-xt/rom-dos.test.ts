@@ -5,13 +5,14 @@ import { test } from "node:test";
 import { create8088PcXt, romImages } from "../../../../src/machines/generated/8088/pc-xt.js";
 import { RomImage } from "../../../../src/machines/rom-image.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
+import { makeXtDataDisk } from "../../../../scripts/make-xt-data-disk.js";
 import { runInput, scanCodes, screen } from "./rom-console.js";
 
 type Machine = ReturnType<typeof create8088PcXt>;
 const { XT_BIOS_ROM, XT_BASIC_ROM, XT_DOS_DISK } = process.env;
 const diskHash = "d79f283ebd2cd68e8dede44ed876da13c25024f7000bcb576177820388c424f4";
 
-// Independent expectation from the pinned FAT12 image. Its 112 root entries start at sector five.
+// Both 360 KiB FAT12 disks have 112 root entries beginning at sector five.
 function visibleRootFiles(disk: Buffer) {
   const files: [string, string, number][] = [];
   for (let i = 0; i < 112; i++) {
@@ -57,7 +58,29 @@ function consoleUntil(machine: Machine, input: string, prompt: string, expectedL
   return lines;
 }
 
-test("original XT BIOS cold-boots MS-DOS 3.30 and VER and DIR return to A>", {
+// Wait for DOS to echo each key so long commands cannot overrun the BIOS typeahead buffer.
+function dosCommand(machine: Machine, command: string, expectedLine: string) {
+  let echo = "A>";
+  for (const key of command) {
+    echo += key;
+    consoleUntil(machine, key, echo.trimEnd());
+  }
+  return consoleUntil(machine, "\n", "A>", expectedLine);
+}
+
+function checkDirectory(machine: Machine, disk: Buffer, volume: string, totals: string) {
+  const listing = dosCommand(machine, "DIR", ` Volume in drive A is ${volume}`);
+  assert.ok(listing.includes("A>DIR"));
+  assert.equal(listing.find(row => row.includes("File(s)"))?.trim().replace(/\s+/g, " "), totals);
+  assert.ok(listing.includes(" Directory of  A:\\"));
+  const files = listing.flatMap(row => {
+    const file = /^(\S+)\s+(\S+)\s+(\d+)\s+\d+-\d+-\d+/.exec(row);
+    return file ? [[file[1], file[2], Number(file[3])]] : [];
+  });
+  assert.deepEqual(files, visibleRootFiles(disk));
+}
+
+test("original XT boots MS-DOS 3.30, lists the system disk, then reads and runs files from a replacement disk", {
   skip: !(XT_BIOS_ROM && XT_BASIC_ROM && XT_DOS_DISK) && "Set XT_BIOS_ROM, XT_BASIC_ROM and XT_DOS_DISK to the selected images.",
 }, async () => {
   const digest = async (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -76,16 +99,21 @@ test("original XT BIOS cold-boots MS-DOS 3.30 and VER and DIR return to A>", {
   consoleUntil(machine, "\n", "Enter new time:");
   consoleUntil(machine, "\n", "A>", "Microsoft(R) MS-DOS(R)  Version 3.30");
 
-  const version = consoleUntil(machine, "VER\n", "A>", "MS-DOS Version 3.30");
+  const version = dosCommand(machine, "VER", "MS-DOS Version 3.30");
   assert.ok(version.includes("A>VER"));
-  const listing = consoleUntil(machine, "DIR\n", "A>", "       34 File(s)      5120 bytes free");
-  assert.ok(listing.includes("A>DIR"));
-  assert.ok(listing.includes(" Volume in drive A is MS330PP01"));
-  assert.ok(listing.includes(" Directory of  A:\\"));
-  const files = listing.flatMap(row => {
-    const file = /^(\S+)\s+(\S+)\s+(\d+)\s+\d+-\d+-\d+/.exec(row);
-    return file ? [[file[1], file[2], Number(file[3])]] : [];
-  });
-  assert.equal(files.length, 34);
-  assert.deepEqual(files, visibleRootFiles(disk));
+  checkDirectory(machine, disk, "MS330PP01", "34 File(s) 5120 bytes free");
+
+  // On the original drive DOS can still trust the old FAT while the motor is running.
+  // Let the BIOS timer interrupt turn drive A off before opening the drive door.
+  if (machine.io.snapshot().diskette.dor & 0x10) {
+    runInput(machine, [], { limit: 2_000_000, until: (_, { accesses }) =>
+      accesses.some(access => access.kind === "output" && access.port === 0x3f2 && (access.value & 0x10) === 0) });
+  }
+  const dataDisk = makeXtDataDisk();
+  machine.io.setDiskette(dataDisk);
+  const readme = dosCommand(machine, "TYPE README.TXT", "DOS read this file from drive A.");
+  assert.deepEqual(readme, ["A>TYPE README.TXT", "Dromaios XT data disk.", "DOS read this file from drive A.", ""]);
+  const hello = dosCommand(machine, "HELLO.COM", "Hello from HELLO.COM on drive A.");
+  assert.deepEqual(hello, ["A>HELLO.COM", "Hello from HELLO.COM on drive A.", ""]);
+  checkDirectory(machine, dataDisk, "DROMAIOS", "2 File(s) 360448 bytes free");
 });

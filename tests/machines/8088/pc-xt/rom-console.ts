@@ -20,7 +20,7 @@ export function waitingForKey(machine: Machine): boolean {
 // Only the keys in these acceptance programs, in physical order on IBM's 83-key keyboard.
 const makeCode = new Map([[" ", 0x39], ["\n", 0x1c], ["\b", 0x0e]]);
 for (const [first, row] of [[0x02, "1234567890-="], [0x10, "QWERTYUIOP"],
-  [0x1e, "ASDFGHJKL"], [0x2c, "ZXCVBNM"]] as const) {
+  [0x1e, "ASDFGHJKL"], [0x2c, "ZXCVBNM,."]] as const) {
   [...row].forEach((key, index) => makeCode.set(key, first + index));
 }
 

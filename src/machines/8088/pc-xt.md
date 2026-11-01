@@ -325,6 +325,40 @@ and size, in order, with the image's root directory. To run it, set
 then use `npm test`. With current compiled output, the focused check is
 `node --test dist/tests/machines/8088/pc-xt/rom-dos.test.js`.
 
+### Changing disks at the DOS prompt
+
+After listing the system disk, leave DOS running and wait for the drive light
+to go out before exchanging disks. The original drive has no disk-change line.
+An immediate exchange in this session gave the new filenames but the old disk's
+5,120 bytes free. The test lets the BIOS timer interrupt clear the drive A motor
+bit at port `3F2h` before exchanging disks. DOS then reports the new disk's free
+space. [Microsoft's account of the floppy disk cache](https://devblogs.microsoft.com/oldnewthing/20191001-00/?p=102946)
+
+Insert the `DROMAIOS` data disk. The [disk builder](../../../scripts/make-xt-data-disk.ts)
+creates this 360 KiB FAT12 image from scratch. To make a local copy, run
+`node scripts/make-xt-data-disk.ts dromaios-data.img` from the repository root.
+
+```text
+A>TYPE README.TXT
+Dromaios XT data disk.
+DOS read this file from drive A.
+
+A>HELLO.COM
+Hello from HELLO.COM on drive A.
+
+A>
+```
+
+`TYPE` is built into the command interpreter. It opens the new disk's
+`README.TXT` and displays its two lines. `HELLO.COM` exercises the DOS program
+loader. DOS starts its 12 bytes of code at offset `0100h`. The program calls
+`INT 21h` with `AH=09h` to print the string immediately after its code, then
+with `AX=4C00h` to exit with status zero. [The MS-DOS Encyclopedia, section II](https://www.pcjs.org/documents/books/mspl13/msdos/encyclopedia/section2/)
+
+The acceptance test issues one more `DIR` after the program exits. The
+interpreter must list volume `DROMAIOS`, its two files and 360,448 bytes free.
+Both disks stay write-protected throughout the session.
+
 ## CGA text output
 
 The [CGA device chapter](../../components/devices/specifications/ibm-cga.md)

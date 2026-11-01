@@ -257,10 +257,11 @@ shared address and execution interfaces.
 
 The [cold-boot session](../../src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
 passes the prompt, `VER` and `DIR` checks through the original INT 13h handler,
-IRQ6 and DMA channel 2. To finish the read-only checkpoint, `TYPE` a known text
-file and run a small known COM program that returns to DOS. Retain coverage of
-empty-drive and invalid-sector errors, write protection, reset, and snapshot
-continuation during an in-flight transfer.
+IRQ6 and DMA channel 2. The [read-only session](../../src/machines/8088/pc-xt.md#changing-disks-at-the-dos-prompt)
+continues with a disk exchange in drive A. DOS displays the new disk's text
+file with `TYPE`, loads and runs its COM program, and accepts `DIR` after the
+program exits. Device checks also cover empty-drive and invalid-sector errors,
+write protection, reset, and snapshot continuation during a transfer.
 
 Begin with explicitly write-protected images. Writable media is a subsequent
 checkpoint: create/read/delete a file, export and reload the changed image, and
@@ -286,11 +287,11 @@ in the EGA laboratory.
 
 ## Next implementation slice
 
-Use a reproducible 360 KiB data disk with a known text file and a small COM
-program. After the verified DOS boot, exchange disks in drive A, check the
-file's contents with `TYPE`, then launch the COM program and verify its output
-and return to `A>`. This completes the read-only portion of the
-[DOS acceptance checkpoint](#4-dos-through-the-diskette-controller).
+Expose drive A in the XT laboratory. Show the mounted disk's name and drive
+light alongside Insert and Eject controls for a local 360 KiB image. Verify the same cold boot
+and disk exchange in the browser and restore a checkpoint with the correct
+disk mounted. Then extend the controller to writable media for the
+[DOS file and save checks](#4-dos-through-the-diskette-controller).
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/
