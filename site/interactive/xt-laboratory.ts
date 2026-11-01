@@ -17,8 +17,13 @@ import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
 import { createXtScreen } from "./xt-screen.js";
 import { decodeXtCheckpoint, encodeXtCheckpoint, xtCheckpointKey } from "./xt-checkpoint.js";
-import { createXtDebugger, parseXtDebugAddress } from "./xt-debugger.js";
+import { createXtDebugger, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
 import { createXtDebuggerView } from "./xt-debugger-view.js";
+import { previewXtInstruction } from "./xt-instruction-preview.js";
+import { createXtInstructionView } from "./xt-instruction-view.js";
+import { createRomWalkthrough } from "./rom-walkthrough-view.js";
+import type { RomGuide } from "./rom-guide.js";
+import { createXtRomAnnotations, xtCheckpointPosition } from "./xt-rom-guide.js";
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-xt-laboratory]")) mount(root);
 
@@ -31,10 +36,14 @@ function mount(root: HTMLElement): void {
   const debug = createXtDebugger(() => session.machine);
   const registers = root.querySelector<HTMLElement>('[data-workspace-panel="registers"]')!;
   const code = root.querySelector<HTMLElement>('[data-workspace-panel="code"]')!;
+  const instruction = root.querySelector<HTMLElement>('[data-workspace-panel="instruction"]')!;
   const memoryPanel = root.querySelector<HTMLElement>('[data-workspace-panel="memory"]')!;
   const catalogue: XtCatalogue = JSON.parse(at("xt-catalogue").textContent!);
+  const guide: RomGuide = JSON.parse(at("xt-rom-guide").textContent!);
+  const annotations = createXtRomAnnotations(guide);
   const showRegisters = createXtRegisterView(registers);
-  const showCode = createXtCodeView(code, catalogue);
+  const showCode = createXtCodeView(code, catalogue, annotations);
+  const showInstruction = createXtInstructionView(instruction, browseMemory);
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
     followChoices: [
@@ -60,13 +69,24 @@ function mount(root: HTMLElement): void {
   execution.setDelay(1);
   const debugView = createXtDebuggerView(root, debug, {
     ramMaximum: session.machine.ram.size - 1, changed: refresh,
-    memory: address => { memory.browse(address); workspace.show("memory"); },
+    memory: browseMemory,
   });
+  function browseMemory(address: number): void { memory.browse(address); workspace.show("memory"); }
+  function runTo(text: string): void {
+    if (!session.ready || loading || execution.running || execution.error) return;
+    debug.runTo(parseXtDebugAddress(text)); message.textContent = ""; execution.run();
+  }
+  const walkthrough = createRomWalkthrough(root, guide, {
+    runTo: text => act(() => runTo(text)), browse: browseMemory, position: xtCheckpointPosition,
+    reference: address => {
+      const entry = annotations.reference.at(address)!;
+      at("walkthrough-reference-text").textContent = `${entry.name} · ${entry.description}`;
+    },
+  })!;
   const target = at<HTMLInputElement>("run-to-address");
   at<HTMLFormElement>("run-to-form").onsubmit = event => {
     event.preventDefault();
-    if (!session.ready || loading || execution.running || execution.error) return;
-    try { debug.runTo(parseXtDebugAddress(target.value)); message.textContent = ""; execution.run(); }
+    try { runTo(target.value); }
     catch (cause) { target.setCustomValidity((cause as Error).message); target.reportValidity(); }
   };
   target.oninput = () => target.setCustomValidity("");
@@ -90,6 +110,7 @@ function mount(root: HTMLElement): void {
       session.keyboard.pasteRemaining ? `${session.keyboard.pasteRemaining} characters to paste` : ""].filter(Boolean).join(" · ");
     at("error").textContent = execution.error ?? "";
     debugView.refresh(running);
+    walkthrough.refresh(xtDebugLocation(cpu), runnable, running);
     const now = performance.now();
     if (requested || !running || now - lastDraw >= 65) {
       lastDraw = now;
@@ -99,6 +120,9 @@ function mount(root: HTMLElement): void {
       }
       if (code.getClientRects().length && (requested === "code" || updates.shouldUpdate("code", running))) {
         showCode(session.machine, cpu, execution.records);
+      }
+      if (instruction.getClientRects().length && (requested === "instruction" || updates.shouldUpdate("instruction", running))) {
+        showInstruction(previewXtInstruction(session, catalogue));
       }
       if (memoryPanel.getClientRects().length && (requested === "memory" || updates.shouldUpdate("memory", running))) {
         memory.refresh(address => readXtStorage(session.machine, catalogue.storage, address), cpu.pc, {

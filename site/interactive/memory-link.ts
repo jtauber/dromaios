@@ -37,11 +37,11 @@ export function memoryLink(address: number, browse: (address: number) => void, t
   return button;
 }
 
-/** Four-digit addresses in an observed access or PC result are navigable; byte values stay plain. */
-export function memoryAddressText(text: string, browse: (address: number) => void): DocumentFragment {
+/** Only the selected address width is navigable; byte values stay plain. */
+export function memoryAddressText(text: string, browse: (address: number) => void, digits = 4): DocumentFragment {
   const fragment = document.createDocumentFragment(); let start = 0;
-  for (const match of text.matchAll(/\$([0-9A-F]{4})\b/g)) {
-    fragment.append(text.slice(start, match.index), memoryLink(parseInt(match[1]!, 16), browse));
+  for (const match of text.matchAll(new RegExp(`\\$([0-9A-F]{${digits}})\\b`, "g"))) {
+    fragment.append(text.slice(start, match.index), memoryLink(parseInt(match[1]!, 16), browse, match[0]));
     start = match.index + match[0].length;
   }
   fragment.append(text.slice(start)); return fragment;

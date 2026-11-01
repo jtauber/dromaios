@@ -2,7 +2,7 @@ import type { MemoryAccess } from "../../src/components/cpus/memory-access.js";
 
 /** A private overlay for copied CPUs. Its owner decides which writes are RAM, ignored, or unsafe to predict. */
 export function previewMemory(read: (address: number) => number | undefined,
-  writeKind: (address: number) => "ram" | "ignored" | "device") {
+  writeKind: (address: number) => "ram" | "ignored" | "device", size = 0x10000) {
   const accesses: MemoryAccess[] = [], writes = new Map<number, number>();
   const unavailable = Symbol("unavailable observation");
   let blocked: { readonly kind: "read" | "write"; readonly address: number } | undefined;
@@ -10,7 +10,7 @@ export function previewMemory(read: (address: number) => number | undefined,
   return {
     accesses,
     get blocked() { return blocked; },
-    memory: { size: 0x10000,
+    memory: { size,
       read(address: number): number {
         const value = writes.get(address) ?? read(address);
         if (value === undefined) return stop("read", address);

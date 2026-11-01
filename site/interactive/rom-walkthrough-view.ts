@@ -8,6 +8,7 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   readonly browse: (address: number) => void;
   readonly reference: (address: number) => void;
   readonly available?: (tour: RomWalkthrough) => boolean;
+  readonly position?: typeof romCheckpointPosition;
 }) {
   const panel = root.querySelector<HTMLElement>("[data-rom-walkthrough]");
   if (!panel) return undefined;
@@ -23,12 +24,12 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
     const enabled = available && (actions.available?.(selected()) ?? true);
     run.disabled = !enabled || running;
     position.setAttribute("aria-live", running ? "off" : "polite");
-    const text = romCheckpointPosition(checkpoint(), location, enabled, running);
+    const text = (actions.position ?? romCheckpointPosition)(checkpoint(), location, enabled, running);
     if (position.textContent !== text) position.textContent = text;
   }
   function showCheckpoint(): void {
     const step = checkpoint();
-    element("heading").textContent = `${checkpoints.selectedIndex + 1}. ${step.title} · $${step.address}`;
+    element("heading").textContent = `${checkpoints.selectedIndex + 1}. ${step.title} · ${step.execution ?? "$" + step.address}`;
     element("prepare").textContent = step.prepare; element("observe").textContent = step.observe;
     previous.disabled = checkpoints.selectedIndex === 0; next.disabled = checkpoints.selectedIndex === selected().steps.length - 1;
     showPosition();
@@ -36,13 +37,13 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   function showTour(): void {
     element("setup").textContent = selected().setup;
     checkpoints.replaceChildren();
-    selected().steps.forEach((step, index) => checkpoints.add(new Option(`${index + 1}. ${step.title} · $${step.address}`, String(index))));
+    selected().steps.forEach((step, index) => checkpoints.add(new Option(`${index + 1}. ${step.title} · ${step.execution ?? "$" + step.address}`, String(index))));
     showCheckpoint();
   }
   choice.addEventListener("change", showTour); checkpoints.addEventListener("change", showCheckpoint);
   previous.addEventListener("click", () => { checkpoints.selectedIndex--; showCheckpoint(); });
   next.addEventListener("click", () => { checkpoints.selectedIndex++; showCheckpoint(); });
-  run.addEventListener("click", () => { if (!run.disabled) actions.runTo(checkpoint().address); });
+  run.addEventListener("click", () => { if (!run.disabled) actions.runTo(checkpoint().execution ?? checkpoint().address); });
   element<HTMLButtonElement>("browse").addEventListener("click", () => actions.browse(parseInt(checkpoint().address, 16)));
   element<HTMLButtonElement>("reference").addEventListener("click", () => {
     const routine = guide.routines.find(routine => routine.name === checkpoint().routine)!;

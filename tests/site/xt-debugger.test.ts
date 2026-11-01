@@ -183,8 +183,8 @@ test("XT version-3 layouts gain Debugger once, preserving hidden panels and exis
   const saved = new Map([["dromaios:workspace:xt:3", encodeWorkspaceState(old)]]);
   const storage = { getItem: (key: string) => saved.get(key) ?? null, setItem: (key: string, text: string) => saved.set(key, text) };
   migrateXtWorkspace(storage);
-  const next = decodeWorkspaceState(saved.get(xtWorkspaceKey)!, ["rom", "snapshot", "debugger"]);
-  assert.deepEqual(groups(next).map(group => group.panels), [["rom", "snapshot"], ["debugger"]]);
+  const next = decodeWorkspaceState(saved.get(xtWorkspaceKey)!, ["rom", "snapshot", "debugger", "instruction", "walkthrough"]);
+  assert.deepEqual(groups(next).map(group => group.panels), [["rom", "snapshot"], ["instruction"], ["debugger", "walkthrough"]]);
   assert.deepEqual(groups(next)[0], old.root);
   saved.set(xtWorkspaceKey, encodeWorkspaceState(old)); migrateXtWorkspace(storage);
   assert.equal(saved.get(xtWorkspaceKey), encodeWorkspaceState(old));

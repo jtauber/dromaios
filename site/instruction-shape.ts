@@ -9,6 +9,17 @@ export class NeedsPostbyte extends Error {}
 const condition = (value: Known): value is FlagCondition => typeof value === "object" && value.kind !== "origin";
 const negate = (value: FlagCondition): FlagCondition => value.kind === "not" ? value.value : { kind: "not", value };
 
+function chooseCondition(test: Known, yes: Known, no: Known): Known {
+  if (!condition(test)) return undefined;
+  if (yes === true && no === false) return test;
+  if (yes === false && no === true) return negate(test);
+  if (yes === true && condition(no)) return { kind: "or", left: test, right: no };
+  if (no === false && condition(yes)) return { kind: "and", left: test, right: yes };
+  if (yes === false && condition(no)) return { kind: "and", left: negate(test), right: no };
+  if (no === true && condition(yes)) return { kind: "or", left: negate(test), right: yes };
+  return undefined;
+}
+
 /** Track constants, branch tests, and value origins; never evaluate live registers or memory.
  * Origins identify stack effects, not concrete addresses. */
 function known(value: Expression, names: Names): Known {
@@ -34,6 +45,10 @@ function known(value: Expression, names: Names): Known {
       return undefined;
     }
     case "select": { const test = read(value.condition); return typeof test === "boolean" ? read(test ? value.yes : value.no) : undefined; }
+    case "shift-bits": {
+      const v = read(value.value);
+      return typeof v === "number" ? value.direction === "right" ? v >>> value.count : v * 2 ** value.count : undefined;
+    }
     case "bit": case "low-bit": case "zero": case "bits": case "low-byte": case "high-byte":
     case "extend": case "truncate": case "sign-extend": {
       const v = read(value.value);
@@ -70,7 +85,7 @@ function known(value: Expression, names: Names): Known {
 }
 
 /** Derive fetches, PC writes, and selected stack effects without running a CPU or reading memory. */
-export function instructionShape(steps: readonly Statement[], opcodeBytes: number, postbyte?: number, stackRegisters: readonly string[] = []): InstructionShape {
+export function instructionShape(steps: readonly Statement[], opcodeBytes: number, postbyte?: number, stackRegisters: readonly string[] = [], programCounter = "pc"): InstructionShape {
   let fetched = 0, supported = true, flow: InstructionControlFlow = "sequential", branch: FlagCondition | undefined;
   const savedPC = new Set<string>(), returnedPC = new Set<string>(), replacedStacks = new Set<string>();
   const stores = new Map<string, number>(), advances = new Set<string>();
@@ -86,8 +101,8 @@ export function instructionShape(steps: readonly Statement[], opcodeBytes: numbe
   function nested(body: readonly Statement[], names: Names) {
     const before = fetched, oldFlow = flow, oldBranch = branch, oldSupport = supported;
     flow = "sequential"; branch = undefined;
-    walk(body, new Map(names));
-    const result = { length: fetched - before, flow, branch, supported };
+    const scope = new Map(names); walk(body, scope);
+    const result = { length: fetched - before, flow, branch, supported, names: scope };
     fetched = before; flow = oldFlow; branch = oldBranch; supported = oldSupport;
     return result;
   }
@@ -139,11 +154,11 @@ export function instructionShape(steps: readonly Statement[], opcodeBytes: numbe
           if (yes.length !== no.length || !yes.supported || !no.supported) throw new NeedsPostbyte("Conditional layout needs its postbyte.");
           fetched += yes.length;
           transfer(yes.flow === no.flow ? yes.flow : "conditional");
-          names.set(step.name, undefined); break;
+          names.set(step.name, chooseCondition(test, known(step.yes.result, yes.names), known(step.no.result, no.names))); break;
         }
         case "write-register": {
           const value = known(step.value, names), field = step.register.field;
-          if (field === "pc") {
+          if (field === programCounter) {
             transfer("unconditional");
             if (origin(value) && value.source === "memory" && stackRegisters.includes(value.field)) returnedPC.add(value.field);
           } else if (stackRegisters.includes(field)) {
@@ -166,7 +181,8 @@ export function instructionShape(steps: readonly Statement[], opcodeBytes: numbe
           break;
         }
         case "read-latch": case "test-choice": names.set(step.name, undefined); break;
-        case "write-latch": case "write-choice": case "update-flags": case "replace-flags": break;
+        case "write-latch": case "write-choice": case "update-flags": case "replace-flags":
+        case "report-clocks": case "add-clocks": break;
         default: throw new Error(`Instruction layout does not support ${step.kind}.`);
       }
     }

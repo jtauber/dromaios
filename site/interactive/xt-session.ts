@@ -13,6 +13,14 @@ export interface XtSessionState {
   readonly keyboard: XtKeyboardState;
 }
 
+/** Keyboard delivery and timed arbitration are identical for live execution and a private preview. */
+export function stepXtSessionCpu(machine: Pick<XtMachine, "cpu" | "io" | "ram"> & Partial<Pick<XtMachine, "cga">>, keyboard: XtKeyboard) {
+  keyboard.beforeStep(byte => machine.io.offerScanCode(byte), () => Boolean(machine.ram.read(0x417) & 0x40));
+  const result = stepTimedXtCpu(machine);
+  keyboard.afterStep(result.oscillatorTicks, machine.io.keyboardSelfTesting);
+  return result.record;
+}
+
 /** The lab's execution and input boundary. Pausing, drawing and docking do not advance the machine. */
 export function createXtSession(initial: Bindings = { bios: null, basic: null, font: null }) {
   const bindings = { ...initial };
@@ -24,9 +32,6 @@ export function createXtSession(initial: Bindings = { bios: null, basic: null, f
   let machine = freshMachine();
   let keyboard = new XtKeyboard();
   const ready = () => machine.bios.loaded && machine.basic.loaded && machine.font.loaded;
-  const offer = (byte: number) => machine.io.offerScanCode(byte);
-  // Pasted text is for the selected IBM firmware; its lock state is readable without guest bus activity.
-  const capsLock = () => Boolean(machine.ram.read(0x417) & 0x40);
   return {
     get machine() { return machine; },
     get keyboard() { return keyboard; },
@@ -34,11 +39,9 @@ export function createXtSession(initial: Bindings = { bios: null, basic: null, f
     install(slot: XtRomSlot, image: RomImage) { machine[slot].install(image); bindings[slot] = image; },
     step() {
       if (!ready()) throw new Error("Load the BIOS, BASIC, and character ROMs to run the XT.");
-      keyboard.beforeStep(offer, capsLock);
-      const result = stepTimedXtCpu(machine);
-      keyboard.afterStep(result.oscillatorTicks, machine.io.keyboardSelfTesting);
-      if (result.record.outcome === "unsupported") throw new Error(`Unsupported instruction at ${result.record.before.pc.toString(16)}.`);
-      return result.record;
+      const record = stepXtSessionCpu(machine, keyboard);
+      if (record.outcome === "unsupported") throw new Error(`Unsupported instruction at ${record.before.pc.toString(16)}.`);
+      return record;
     },
     resetCpu() { machine.cpu.reset(); },
     powerOn() { machine = freshMachine(); keyboard = new XtKeyboard(); },

@@ -4,6 +4,7 @@ import { logical8088, physical8088, xtHex } from "./8088-disassembly.js";
 import { readXtStorage, xtCodeRows } from "./xt-inspection.js";
 import type { XtBoundary, XtCatalogue } from "./xt-inspection.js";
 import type { XtMachine } from "./xt-session.js";
+import type { createXtRomAnnotations } from "./xt-rom-guide.js";
 
 export function createXtRegisterView(panel: HTMLElement) {
   const numbers = panel.querySelector<HTMLElement>(".lab-registers")!, flags = panel.querySelector<HTMLElement>(".lab-flags")!;
@@ -39,21 +40,25 @@ export function createXtRegisterView(panel: HTMLElement) {
   };
 }
 
-export function createXtCodeView(panel: HTMLElement, catalogue: XtCatalogue) {
+export function createXtCodeView(panel: HTMLElement, catalogue: XtCatalogue, annotations: ReturnType<typeof createXtRomAnnotations>) {
   const body = panel.querySelector("tbody")!, status = panel.querySelector<HTMLElement>("[data-code-status]")!;
   return (machine: XtMachine, state: Cpu8088Snapshot, records: readonly XtBoundary[]) => {
     const rows = xtCodeRows(catalogue.cpu, state, address => readXtStorage(machine, catalogue.storage, address), records);
     body.replaceChildren(...rows.map(({ row, kind }) => {
       const tr = document.createElement("tr");
+      const annotation = annotations.annotate(row, machine.bios.loaded);
       tr.classList.add("is-" + kind);
       if (row.flow) tr.classList.add("flow-" + row.flow);
       const pointer = tr.insertCell();
       pointer.textContent = kind === "current" ? "→" : kind === "executed" ? "·" : "";
       if (kind !== "ahead") pointer.setAttribute("aria-label", kind === "current" ? "Current CS:IP" : "Previously executed");
+      const entry = tr.insertCell(); entry.textContent = annotation.entry?.name ?? ""; entry.title = annotation.entry?.description ?? "";
       tr.insertCell().textContent = logical8088(row.cs, row.ip);
       tr.insertCell().textContent = xtHex(physical8088(row.cs, row.ip), 5);
       tr.insertCell().textContent = row.bytes.map(b => b === undefined ? "--" : xtHex(b, 2)).join(" ");
       tr.insertCell().textContent = row.assembly;
+      const destination = tr.insertCell(); destination.textContent = annotation.target?.name ?? ""; destination.title = annotation.target?.description ?? "";
+      const note = tr.insertCell(); note.className = "lab-rom-note"; note.textContent = annotation.note ?? "";
       return tr;
     }));
     status.textContent = state.halted ? "Halted · CS:IP points past HLT" : state.waiting ? "Waiting for TEST" : "Following CS:IP";

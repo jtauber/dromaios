@@ -99,9 +99,20 @@ test("XT layouts gain the inspectors once while preserving existing tabs and hid
   const map = new Map([["dromaios:workspace:xt:1", encodeWorkspaceState(old)]]);
   const storage = { getItem: (key: string) => map.get(key) ?? null, setItem: (key: string, text: string) => map.set(key, text) };
   migrateXtWorkspace(storage);
-  const restored = decodeWorkspaceState(map.get(xtWorkspaceKey)!, ["screen", "snapshot", "registers", "code", "memory", "debugger"]);
-  assert.deepEqual(groups(restored).map(g => g.panels), [["screen", "snapshot"], ["debugger"], ["registers"], ["code"], ["memory"]]);
+  const restored = decodeWorkspaceState(map.get(xtWorkspaceKey)!, ["screen", "snapshot", "registers", "code", "memory", "debugger", "instruction", "walkthrough"]);
+  assert.deepEqual(groups(restored).map(g => g.panels), [["screen", "snapshot"], ["debugger", "walkthrough"], ["registers"], ["instruction"], ["code"], ["memory"]]);
   assert.deepEqual(groups(restored)[0], old.root);
   map.set(xtWorkspaceKey, encodeWorkspaceState(old)); migrateXtWorkspace(storage);
   assert.equal(map.get(xtWorkspaceKey), encodeWorkspaceState(old));
+});
+
+test("XT version-4 layouts gain Instruction and Walkthrough once without reopening hidden tools", () => {
+  const old = { root: { kind: "tabs", id: "console", active: "execution", panels: ["screen", "execution"], collapsed: true } } as const;
+  const map = new Map([["dromaios:workspace:xt:4", encodeWorkspaceState(old)]]);
+  const storage = { getItem: (key: string) => map.get(key) ?? null, setItem: (key: string, text: string) => map.set(key, text) };
+  migrateXtWorkspace(storage);
+  const layout = decodeWorkspaceState(map.get(xtWorkspaceKey)!, ["screen", "execution", "instruction", "walkthrough"]);
+  assert.deepEqual(groups(layout).flatMap(g => g.panels).sort(), ["execution", "instruction", "screen", "walkthrough"]);
+  assert.equal(groups(layout)[0]!.collapsed, true);
+  const saved = map.get(xtWorkspaceKey); migrateXtWorkspace(storage); assert.equal(map.get(xtWorkspaceKey), saved);
 });

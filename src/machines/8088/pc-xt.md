@@ -484,6 +484,114 @@ Check a RAM watch after restoration to verify that it follows the restored
 hardware. Panel updates and navigation use observed state and perform no guest
 bus or port accesses.
 
+### Following reset and early POST
+
+The **Instruction** panel previews the next native CPU boundary on private CPU,
+board-I/O, and keyboard copies. Its purpose and conditional-branch tests come
+from the 8088 chapter. It explains explicit memory operands as an effective
+offset, selected segment, and physical address, then shows predicted register,
+flag, and memory effects. Port I/O, TEST, and ESC stop the preview with an
+explanation. Unavailable storage and long prefix sequences also stop it. When a boundary
+has no modeled timing, the panel reports that the XT cannot yet execute it.
+**Step** executes the real boundary. The panel's **Live** switch controls updates
+during Run, and the previewed physical addresses link to Memory.
+
+Choose **Fresh power-on**, then open **Walkthrough**. Read each checkpoint's
+preparation and expected observations, and choose **Run to checkpoint**. Next
+and Previous select the guide without executing. Breakpoints and watchpoints
+can stop the run earlier. The current address alone does not verify the setup.
+The final checkpoint completes the BIOS checksum and leaves the machine ready
+for its DMA and timer tests. The screen is still dark during these early tests.
+
+These labels and comments follow the selected 11/08/82 listing in IBM's
+Technical Reference, appendix A, pages A-6–A-7 and A-73. `RESET`, `C8`, `C10`,
+`ERR01`, `C11`, `C1`, and `ROS_CHECKSUM` retain IBM's names. `RESET_VECTOR` is
+our label for the hardware entry. The instruction comments additionally check
+the fetched bytes, including retained disassembly history. The ROM identity
+below ties the guide to this chapter's BIOS socket. [IBM Technical Reference][ibm]
+
+Follow the first `SAHF` and `JAE` to see CF set and the error branch declined.
+The register test then passes an all-ones pattern and a zero pattern through
+the general and segment registers. After its first device writes, the BIOS
+sets DS and SS to `F000`, BX to `E000`, and SP to `E016`. `ROS_CHECKSUM` adds
+the 8,192 BIOS bytes modulo 256. Its `RET` reads `D7 E0` from physical `FE016`,
+returning to `F000:E0D7` through an existing ROM word. That lets this test use
+a return instruction before establishing a working RAM stack.
+
+```json
+{
+  "sha256": "2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2",
+  "regions": [
+    {"start": "FE000", "end": "FFFFF", "name": "IBM XT BIOS · 11/08/82"}
+  ],
+  "routines": [
+    {"address": "FFFF0", "name": "RESET_VECTOR", "description": "Hardware entry at FFFF:0000. Its far jump selects the BIOS code segment and RESET offset."},
+    {"address": "FE05B", "name": "RESET", "description": "Start of the 8088 flag, branch, and register tests. Maskable interrupts are disabled first."},
+    {"address": "FE08C", "name": "C8", "description": "Pass the current AX pattern through DS, BX, ES, CX, SS, DX, SP, BP, SI, and DI."},
+    {"address": "FE0AD", "name": "ERR01", "description": "HLT on an early processor or BIOS-checksum failure."},
+    {"address": "FE0AE", "name": "C10", "description": "Disable NMI and video, initialize board ports, and prepare the BIOS checksum."},
+    {"address": "FF8F2", "name": "ROS_CHECKSUM", "description": "Add the 8,192 bytes starting at DS:BX into AL. OR AL,AL sets ZF from the checksum before RET."},
+    {"address": "FE0D7", "name": "C11", "description": "Check the BIOS checksum result and continue to DMA/timer initialization when ZF is set."}
+  ],
+  "labels": [
+    {"address": "FE016", "name": "C1", "scope": "rom", "description": "ROM word D7 E0 used as the return address for the first checksum. SS:SP points here before the jump."}
+  ],
+  "notes": [
+    {"address": "FFFF0", "bytes": "EA 5B E0 00 F0", "text": "RESET_VECTOR selects CS=F000 and IP=E05B. The physical destination is FE05B."},
+    {"address": "FE05B", "bytes": "FA", "text": "Disable maskable interrupts before testing the CPU and initializing board devices."},
+    {"address": "FE05C", "bytes": "B4 D5", "text": "Prepare AH=D5 so SAHF sets SF, ZF, AF, PF, and CF."},
+    {"address": "FE05E", "bytes": "9E", "text": "Copy the five selected AH bits into FLAGS. OF, IF, DF, and TF retain their existing values."},
+    {"address": "FE05F", "bytes": "73 4C", "text": "JAE is IBM's JNC spelling here. CF should be 1, so continue to E061 instead of ERR01."},
+    {"address": "FE061", "bytes": "75 4A", "text": "ZF should also be 1. JNE must decline the error branch."},
+    {"address": "FE088", "bytes": "B8 FF FF", "text": "Begin the all-ones register pattern. A second pass checks zeroes."},
+    {"address": "FE08C", "bytes": "8E D8", "text": "Start passing the AX pattern through the data and segment registers."},
+    {"address": "FE0AD", "bytes": "F4", "text": "An early self-test failed. The expected walkthrough path does not reach this HLT."},
+    {"address": "FE0AE", "bytes": "E6 A0", "text": "AL is zero after the successful register test. Writing it to A0 disables the NMI latch."},
+    {"address": "FE0CB", "bytes": "8E D8", "text": "Set DS=F000 so the checksum reads the BIOS through DS:BX."},
+    {"address": "FE0CD", "bytes": "FC", "text": "Clear the direction flag for subsequent forward string operations."},
+    {"address": "FE0D1", "bytes": "BC 16 E0", "text": "Point SP at ROM word C1. With SS=F000, RET will read D7 E0 at FE016."},
+    {"address": "FE0D4", "bytes": "E9 1B 18", "text": "Jump to ROS_CHECKSUM. The return word is already in ROM at SS:SP."},
+    {"address": "FF8F2", "bytes": "B9 00 20", "text": "Count all 2000h bytes of the 8 KiB BIOS image."},
+    {"address": "FF8F7", "bytes": "02 07", "text": "Add the byte at DS:BX into AL. Incrementing BX and LOOP visit each BIOS byte."},
+    {"address": "FF8FE", "bytes": "C3", "text": "Pop the existing ROM word E0D7 into IP. SP advances from E016 to E018."},
+    {"address": "FE0D7", "bytes": "75 D4", "text": "The byte sum is zero, so ZF=1 and JNE declines ERR01. DMA and timer tests follow."}
+  ],
+  "walkthroughs": [{
+    "id": "reset-post", "title": "From reset to the BIOS checksum",
+    "setup": "Load the three verified ROMs and choose Fresh power-on. Follow checkpoints in order. Disassembly, Instruction, Registers, and Memory explain each stop. Existing debugger stops may interrupt a run earlier.",
+    "steps": [
+      {"title": "The hardware entry", "address": "FFFF0", "execution": "FFFF:0000", "routine": "RESET_VECTOR",
+       "prepare": "Choose Fresh power-on. Run to checkpoint is immediate at the reset address.",
+       "observe": "The five bytes are EA 5B E0 00 F0. Instruction predicts CS:IP F000:E05B and physical FE05B. Step once to take the far jump."},
+      {"title": "A pattern for the flags", "address": "FE05E", "execution": "F000:E05E", "routine": "RESET",
+       "prepare": "Run from the reset jump through CLI and MOV AH,D5.",
+       "observe": "AH is D5. Instruction predicts SF, ZF, AF, PF, and CF becoming 1. Step SAHF and watch the flag highlights."},
+      {"title": "A branch that should be declined", "address": "FE05F", "execution": "F000:E05F", "routine": "RESET",
+       "prepare": "Continue from SAHF. If you already stepped it, this checkpoint is immediate.",
+       "observe": "JAE tests CF=0. CF is 1, so the branch is not taken. ERR01 labels its destination. Step to E061, where JNE tests ZF."},
+      {"title": "Testing the registers", "address": "FE088", "execution": "F000:E088", "routine": "C8",
+       "prepare": "Run through the remaining flag and branch tests.",
+       "observe": "MOV AX,FFFF prepares the ones pattern. C8 passes it through the registers, then checks zeroes on a second pass. Follow a few Steps or continue to the next checkpoint."},
+      {"title": "The first board output", "address": "FE0AE", "execution": "F000:E0AE", "routine": "C10",
+       "prepare": "Run until both register patterns have passed.",
+       "observe": "AX is zero. OUT A0h,AL will disable NMI. Instruction shows the output and stops its preview at the port. Step performs the actual device write."},
+      {"title": "A return address in ROM", "address": "FE0D4", "execution": "F000:E0D4", "routine": "ROS_CHECKSUM",
+       "prepare": "Run through the initial board outputs and checksum setup.",
+       "observe": "DS=SS=F000, BX=E000, and SP=E016. Select SS:SP in Memory to see D7 E0 at FE016. JMP enters ROS_CHECKSUM without writing a return word."},
+      {"title": "Read the first BIOS byte", "address": "FF8F7", "execution": "F000:F8F7", "routine": "ROS_CHECKSUM",
+       "prepare": "Run through MOV CX,2000h and XOR AL,AL.",
+       "observe": "Instruction resolves DS:BX to F000:E000, physical FE000. CX counts 8192 bytes. The ADD, INC, and LOOP sequence accumulates an eight-bit sum."},
+      {"title": "Return through the ROM word", "address": "FF8FE", "execution": "F000:F8FE", "routine": "ROS_CHECKSUM",
+       "prepare": "Run through the checksum loop and OR AL,AL.",
+       "observe": "AL=00 and ZF=1. RET reads D7 E0 from SS:SP and predicts F000:E0D7. Its two reads are visible under Previewed storage accesses. Step to return."},
+      {"title": "Checksum passed", "address": "FE0D7", "execution": "F000:E0D7", "routine": "C11",
+       "prepare": "Continue from RET. This checkpoint is immediate if you already stepped it.",
+       "observe": "SP is E018. JNE tests ZF=0 and is not taken. Step reaches E0D9, ready for the DMA and timer tests. This completes the initial walkthrough."}
+    ]
+  }]
+}
+```
+
 ### Keyboard and restart controls
 
 The browser maps US physical keys to XT makes and breaks. Tab moves focus out

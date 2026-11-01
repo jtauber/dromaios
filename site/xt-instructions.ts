@@ -9,4 +9,5 @@ const chapter = compileCpuChapter(readFileSync("src/components/cpus/specificatio
 const file = "src/machines/8088/pc-xt.md";
 const machine = parseMachine(machineChapterSource(readFileSync(file, "utf8"), file), file);
 if (!("connection" in machine)) throw new Error("Expected the composed XT board.");
-process.stdout.write(JSON.stringify({ cpu: instructionCatalogue8088(chapter), storage: xtStorageRegions(machine) }));
+const romImages = Object.fromEntries(machine.externalImages!.map(image => [image.component, { sha256: image.sha256 }]));
+process.stdout.write(JSON.stringify({ cpu: instructionCatalogue8088(chapter), storage: xtStorageRegions(machine), romImages }));

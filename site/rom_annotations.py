@@ -7,7 +7,9 @@ def within(ranges, address, end=None):
     return any(low <= address <= (address if end is None else end) <= high for low, high in ranges)
 
 
-def validate_rom_annotations(record, firmware, *, rom_ranges, ram_end, hardware_ranges, instruction_bytes):
+def validate_rom_annotations(record, firmware, *, rom_ranges, ram_end, hardware_ranges, instruction_bytes,
+                             address_digits=4, execution_address=None):
+    address_pattern = rf"[0-9A-F]{{{address_digits}}}"
     if not isinstance(record, dict) or set(record) != {"sha256", "regions", "routines", "labels", "notes", "walkthroughs"} or record["sha256"] != firmware["sha256"]:
         raise ValueError("ROM annotations must identify the machine's declared firmware.")
     regions = record["regions"]
@@ -17,7 +19,7 @@ def validate_rom_annotations(record, firmware, *, rom_ranges, ram_end, hardware_
     for region in regions:
         if (not isinstance(region, dict) or set(region) != {"start", "end", "name"}
                 or not all(isinstance(value, str) and value.strip() for value in region.values())
-                or not all(re.fullmatch(r"[0-9A-F]{4}", region[key]) for key in ("start", "end"))
+                or not all(re.fullmatch(address_pattern, region[key]) for key in ("start", "end"))
                 or not previous < int(region["start"], 16) <= int(region["end"], 16)
                 or not within(rom_ranges, int(region["start"], 16), int(region["end"], 16))):
             raise ValueError("ROM regions need names and ordered, non-overlapping ROM bounds.")
@@ -29,7 +31,7 @@ def validate_rom_annotations(record, firmware, *, rom_ranges, ram_end, hardware_
     for routine in routines:
         if (not isinstance(routine, dict) or set(routine) not in ({"address", "name", "description"}, {"address", "name", "description", "details"})
                 or not all(isinstance(routine[key], str) and routine[key].strip() for key in ("address", "name", "description"))
-                or not re.fullmatch(r"[0-9A-F]{4}", routine["address"])
+                or not re.fullmatch(address_pattern, routine["address"])
                 or routine["address"] in addresses or routine["name"] in names):
             raise ValueError("ROM routines need unique names and ROM addresses, and descriptions.")
         addresses.add(routine["address"])
@@ -42,7 +44,7 @@ def validate_rom_annotations(record, firmware, *, rom_ranges, ram_end, hardware_
     for label in labels:
         if (not isinstance(label, dict) or set(label) not in ({"address", "name", "description", "scope"}, {"address", "name", "description", "scope", "bytes"})
                 or not all(isinstance(label[key], str) and label[key].strip() for key in ("address", "name", "description", "scope"))
-                or not re.fullmatch(r"[0-9A-F]{4}", label["address"])
+                or not re.fullmatch(address_pattern, label["address"])
                 or label["address"] in addresses or label["name"] in names
                 or label["scope"] not in {"workspace", "hardware", "rom"}):
             raise ValueError("Address labels need unique names and addresses, descriptions, and a known scope.")
@@ -74,7 +76,7 @@ def validate_rom_annotations(record, firmware, *, rom_ranges, ram_end, hardware_
             raise ValueError("Routine details need inputs, outputs, and valid workspace/routine references.")
 
     def rom_address(address):
-        return (isinstance(address, str) and re.fullmatch(r"[0-9A-F]{4}", address)
+        return (isinstance(address, str) and re.fullmatch(address_pattern, address)
                 and any(int(region["start"], 16) <= int(address, 16) <= int(region["end"], 16) for region in regions))
 
     notes = record["notes"]
@@ -101,10 +103,15 @@ def validate_rom_annotations(record, firmware, *, rom_ranges, ram_end, hardware_
             raise ValueError("Walkthroughs need unique IDs, titles, setup instructions, and checkpoints.")
         tour_ids.add(tour["id"])
         for step in tour["steps"]:
-            if (not isinstance(step, dict) or set(step) != {"title", "address", "prepare", "observe", "routine"}
+            fields = {"title", "address", "prepare", "observe", "routine"}
+            if execution_address is not None:
+                fields.add("execution")
+            if (not isinstance(step, dict) or set(step) != fields
                     or not all(isinstance(value, str) and value.strip() for value in step.values())
                     or not rom_address(step["address"]) or step["routine"] not in routine_names
                     or step["address"] not in note_addresses | {entry["address"] for entry in routines}):
                 raise ValueError("Checkpoints need a documented ROM instruction, guidance, and a known routine reference.")
+            if execution_address is not None and not execution_address(step["execution"], int(step["address"], 16)):
+                raise ValueError("Checkpoint execution addresses must identify their physical ROM byte.")
     return record
 

@@ -1,6 +1,10 @@
+import type { FlagCondition } from "./instruction-shape.js";
+
 /** An absent forms list means no ModR/M byte. An empty list admits every ModR/M byte. */
 export interface Encoding8088 {
   readonly notation: string | readonly string[];
+  readonly explanation: string;
+  readonly condition?: FlagCondition;
   readonly forms?: readonly (readonly [mask: number, value: number])[];
 }
 export interface Catalogue8088 {
@@ -24,6 +28,9 @@ export interface Row8088 {
   readonly assembly: string;
   readonly complete: boolean;
   readonly flow?: "conditional" | "unconditional";
+  readonly encoding?: Encoding8088;
+  readonly operand?: { readonly bases: readonly string[]; readonly displacement: number; readonly segment: string; readonly addressOnly: boolean };
+  readonly target?: { readonly cs: number; readonly ip: number };
 }
 
 // Bound the inspector's work even in RAM filled with prefix bytes. The CPU has its own fetch limit.
@@ -58,6 +65,8 @@ export function decode8088(cpu: Catalogue8088, cs: number, ip: number, read: (in
     if (repeat === "REP" && compares) repeat = "REPE";
 
     let mode = 0, reg = 0, rm = 0, memory = "";
+    let bases: readonly string[] = [], displacement = 0, memoryOperand = false, addressOnly = false;
+    let target: Row8088["target"];
     if (encoding.forms) {
       const post = byte();
       if (encoding.forms.length && !encoding.forms.some(([mask, value]) => (post & mask) === value))
@@ -65,9 +74,11 @@ export function decode8088(cpu: Catalogue8088, cs: number, ip: number, read: (in
       mode = post >> 6; reg = (post >> 3) & 7; rm = post & 7;
       if (mode !== 3) {
         let address = cpu.bases[rm]!;
-        if (mode === 0 && rm === 6) address = literal(word(), 4);
+        bases = address.split("+"); memoryOperand = true;
+        if (mode === 0 && rm === 6) { displacement = word(); bases = []; address = literal(displacement, 4); }
         else if (mode !== 0) {
           const disp = mode === 1 ? signed(byte(), 8) : signed(word(), 16);
+          displacement = disp;
           if (disp) address += (disp < 0 ? "-" : "+") + literal(Math.abs(disp), 1);
         }
         memory = "[" + address + "]";
@@ -85,17 +96,18 @@ export function decode8088(cpu: Catalogue8088, cs: number, ip: number, read: (in
         case "rm8": return mode === 3 ? cpu.bytes[rm]! : "BYTE PTR " + memory;
         case "rm16": return mode === 3 ? cpu.words[rm]! : "WORD PTR " + memory;
         case "farMem": return "DWORD PTR " + memory;
-        case "mem": return memory;
+        case "mem": addressOnly = true; return memory;
         case "escape": return literal((opcode & 7) * 8 + reg, 2);
         case "escOperand": return mode === 3 ? String(rm) : memory;
         case "imm8": return literal(byte(), 2);
         case "imm16": return literal(word(), 4);
         case "signed8": return literal(signed(byte(), 8) & 0xffff, 4);
-        case "[offset]": return "[" + literal(word(), 4) + "]";
-        case "ptr16:16": { const offset = word(); return logical8088(word(), offset); }
+        case "[offset]": displacement = word(); memoryOperand = true; return "[" + literal(displacement, 4) + "]";
+        case "ptr16:16": { const offset = word(); target = { cs: word(), ip: offset }; return logical8088(target.cs, target.ip); }
         case "rel8": case "rel16": {
           const delta = token === "rel8" ? signed(byte(), 8) : signed(word(), 16);
-          return logical8088(cs, (ip + bytes.length + delta) & 0xffff);
+          target = { cs, ip: (ip + bytes.length + delta) & 0xffff };
+          return logical8088(target.cs, target.ip);
         }
         default: return token;
       }
@@ -105,7 +117,8 @@ export function decode8088(cpu: Catalogue8088, cs: number, ip: number, read: (in
     const assembly = [lock, repeat, segment, mnemonic, formatted].filter(Boolean).join(" ");
     const flow = /^(JMP|CALL|RET|RETF|IRET|INT|INT3)$/.test(mnemonic!) ? "unconditional"
       : /^(J|LOOP|INTO)/.test(mnemonic!) ? "conditional" : undefined;
-    return { cs, ip, bytes, assembly, flow, complete: true };
+    const operandInfo = memoryOperand ? { bases, displacement, segment: segment.slice(0, -1) || (bases.includes("BP") ? "SS" : "DS"), addressOnly } : undefined;
+    return { cs, ip, bytes, assembly, flow, complete: true, encoding, operand: operandInfo, target };
   } catch (error) {
     if (!(error instanceof PreviewStopped)) throw error;
     return { cs, ip, bytes, assembly: error.message, complete: false };

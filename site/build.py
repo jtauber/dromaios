@@ -23,6 +23,7 @@ from lesson_rendering import basic_lesson_catalogue, lesson_markdown
 from machines import ALTAIR, APPLE2, COCO, XT, MACHINES, media_record, rom_container_record
 from apple2_rom import APPLE2_ROM, explorer_catalogue
 from coco_rom import coco_annotations
+from xt_rom import xt_annotations
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
 
 SITE = Path(__file__).resolve().parent
@@ -157,7 +158,8 @@ def build(base):
     xt_catalogue = json.loads(subprocess.run(["node", "site/xt-instructions.ts"], cwd=ROOT,
                                              check=True, capture_output=True, text=True).stdout)
     site.render_template("xt-laboratory.html", f"{xt_lab}index.html",
-                         {"xt_url": MACHINES[XT], "title": "IBM PC/XT laboratory", "xt_catalogue": xt_catalogue})
+                         {"xt_url": MACHINES[XT], "title": "IBM PC/XT laboratory", "xt_catalogue": xt_catalogue,
+                          "xt_rom_guide": xt_annotations(XT.read_text(), xt_catalogue)})
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):
