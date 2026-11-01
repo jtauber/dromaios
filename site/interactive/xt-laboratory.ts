@@ -8,7 +8,10 @@ import { mountWorkspaceControls } from "./workspace/controls.js";
 import { createPanelUpdates } from "./panel-updates.js";
 import { migrateXtWorkspace, xtDefaultLayout, xtWorkspaceKey } from "./xt-workspace.js";
 import { createXtCodeView, createXtRegisterView } from "./xt-inspector-view.js";
-import { xtHex as hex } from "./8088-disassembly.js";
+import { physical8088, xtHex as hex } from "./8088-disassembly.js";
+import { createMemoryInspector } from "./memory-inspector.js";
+import { parseXtAddress, readXtStorage } from "./xt-inspection.js";
+import type { XtCatalogue } from "./xt-inspection.js";
 import { createXtSession } from "./xt-session.js";
 import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
@@ -25,8 +28,17 @@ function mount(root: HTMLElement): void {
   const session = createXtSession();
   const registers = root.querySelector<HTMLElement>('[data-workspace-panel="registers"]')!;
   const code = root.querySelector<HTMLElement>('[data-workspace-panel="code"]')!;
+  const memoryPanel = root.querySelector<HTMLElement>('[data-workspace-panel="memory"]')!;
+  const catalogue: XtCatalogue = JSON.parse(at("xt-catalogue").textContent!);
   const showRegisters = createXtRegisterView(registers);
-  const showCode = createXtCodeView(code, JSON.parse(at("xt-catalogue").textContent!));
+  const showCode = createXtCodeView(code, catalogue);
+  const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
+    size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
+    followChoices: [
+      { value: "pc", label: "CS:IP", title: "Follow CS:IP at its physical address" },
+      { value: "sp", label: "SS:SP", title: "Follow SS:SP at its physical address" },
+    ],
+  });
   const updates = createPanelUpdates(root, id => refresh(id), "dromaios:inspectors:xt:live");
   const slots = [...root.querySelectorAll<HTMLElement>("[data-slot]")].map(panel => {
     const id = panel.dataset.slot as XtRomSlot;
@@ -70,6 +82,11 @@ function mount(root: HTMLElement): void {
       if (code.getClientRects().length && (requested === "code" || updates.shouldUpdate("code", running))) {
         showCode(session.machine, cpu, execution.records);
       }
+      if (memoryPanel.getClientRects().length && (requested === "memory" || updates.shouldUpdate("memory", running))) {
+        memory.refresh(address => readXtStorage(session.machine, catalogue.storage, address), cpu.pc, {
+          sp: physical8088(cpu.ss, cpu.sp),
+        });
+      }
     }
   }
   function act(work: () => void) {
@@ -80,8 +97,8 @@ function mount(root: HTMLElement): void {
   button("run").onclick = () => { message.textContent = ""; execution.run(); screen.focus(); };
   button("pause").onclick = () => execution.stop();
   button("step").onclick = () => execution.step();
-  button("reset").onclick = () => act(() => { execution.reset(); session.resetCpu(); });
-  button("power").onclick = () => act(() => { execution.reset(); session.powerOn(); });
+  button("reset").onclick = () => act(() => { execution.reset(); session.resetCpu(); memory.reset(); });
+  button("power").onclick = () => act(() => { execution.reset(); session.powerOn(); memory.reset(); });
   button("break").onclick = () => act(() => session.keyboard.chord(["ControlLeft", "ScrollLock"]));
   button("warm").onclick = () => act(() => session.keyboard.chord(["ControlLeft", "AltLeft", "Delete"]));
 
@@ -109,7 +126,7 @@ function mount(root: HTMLElement): void {
   button("restore").onclick = () => act(() => {
     const value = localStorage.getItem(xtCheckpointKey);
     if (value === null) throw new Error("No saved XT checkpoint.");
-    session.restore(decodeXtCheckpoint(value)); execution.reset();
+    session.restore(decodeXtCheckpoint(value)); execution.reset(); memory.reset();
     message.textContent = "Session restored and paused.";
   });
   button("remove").onclick = () => act(() => {
@@ -136,10 +153,14 @@ function mount(root: HTMLElement): void {
   }
   const controls = document.querySelector<HTMLElement>("[data-workspace-controls]")!, layoutStatus = document.createElement("span");
   layoutStatus.setAttribute("role", "status"); layoutStatus.className = "workspace-status";
-  const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")].map(content => ({
-    content, id: content.dataset.workspacePanel!, title: content.dataset.panelTitle!,
-    heading: content.dataset.panelHeading, detail: content.dataset.panelDetail, controls: updates.controls(content.dataset.workspacePanel!),
-  }));
+  const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")].map(content => {
+    const id = content.dataset.workspacePanel!, controls = document.createElement("span");
+    controls.className = "lab-inspector-controls";
+    if (id === "memory") controls.append(memory.controls);
+    const live = updates.controls(id); if (live) controls.append(live);
+    return { content, id, title: content.dataset.panelTitle!, heading: content.dataset.panelHeading,
+      detail: content.dataset.panelDetail, controls };
+  });
   try { migrateXtWorkspace(localStorage); } catch { /* Use the default layout if storage is unavailable or invalid. */ }
   const workspace = createWorkspace(at("workspace-root"), at("workspace-panels"), panels, {
     defaults: xtDefaultLayout, storageKey: xtWorkspaceKey, onShow: id => queueMicrotask(() => refresh(id)),

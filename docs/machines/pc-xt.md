@@ -243,9 +243,8 @@ and history tools already shared by Apple II and CoCo. Add adapters for 8088
 state, disassembly, instruction explanations, and PC devices. Keep hardware,
 tools, and workspace layout separate.
 
-The PC exposes concrete gaps to resolve in those shared tools: the memory
-inspector currently assumes 64 KiB, while the 8088 has a 20-bit physical memory
-space, logical segment:offset addresses, and a separate 16-bit port space.
+The PC extends the shared tools to handle a 20-bit physical memory space,
+logical segment:offset addresses, and a separate 16-bit port space.
 Show both `CS:IP` and its physical address; retain `SS:SP` and segment context
 for near/far calls, interrupts, RET/RETF/IRET, and stack inspection. Define
 whether a breakpoint matches a logical execution location or a physical byte.
@@ -276,9 +275,9 @@ AT/286 and later x86 remain separate CPU and machine projects.
 
 ## Next implementation slice
 
-The Registers and Disassembly panels follow the reset jump in both logical
-and physical addresses. Extend inspection with a 20-bit memory browser and
-breakpoints that distinguish a specific CS:IP from its physical aliases.
+Registers, Disassembly, and the 20-bit Memory panel follow the reset jump
+in both logical and physical addresses. Add breakpoints that distinguish
+a specific CS:IP from its physical aliases.
 DMA data transfers and page registers belong with the native disk milestone.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

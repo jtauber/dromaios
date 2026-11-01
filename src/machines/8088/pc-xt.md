@@ -426,8 +426,25 @@ row and the rows below it read the instruction stream from RAM or loaded ROM.
 Fetching across `IP=FFFF` wraps the offset within CS. A missing byte, unsupported
 encoding, or the inspector's 32-byte preview limit ends the forward listing.
 
+**Memory** scrolls through physical addresses `00000–FFFFF`. Enter a hexadecimal
+address or `segment:offset` in its header. `FFFF:0000` and `F000:FFF0` both
+select `FFFF0`, showing the same `EA 5B E0 00 F0` bytes. The field normalizes
+the entry to its physical address. A projected address wraps at 1 MiB, so
+`FFFF:0010` selects `00000`. Each segment and offset must fit sixteen bits.
+
+Select **CS:IP**, then Step from fresh power-on. Memory and Disassembly both
+move to `FE05B`. **SS:SP** follows the physical stack pointer. **FIX**, entering
+an address, or scrolling keeps the position fixed. The **8 / 16** buttons
+change bytes per row. The listing stays in physical address order across
+`0FFFF–10000` and ends at `FFFFF`. RAM is visible before firmware is loaded.
+Missing ROM sockets and unmapped ranges show `--`, and CGA's two ranges show
+the same backing storage. Changed bytes compare successive observations.
+
 Each inspector has its own **Live** switch during Run. Pause or Step refreshes
-both visible panels. Register and flag highlights compare the two snapshots
+the visible panels. A frozen Memory panel retains its full captured image
+when scrolled, resized, or switched between eight and sixteen bytes per row.
+Reset, fresh power-on, and restoration clear its change comparison.
+Register and flag highlights compare the two snapshots
 from the latest CPU boundary. Inspection leaves the board clock and devices alone.
 
 The browser maps US physical keys to XT makes and breaks. Tab moves focus out

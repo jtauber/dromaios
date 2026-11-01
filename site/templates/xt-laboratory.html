@@ -49,6 +49,12 @@
         <tbody></tbody>
       </table>
     </section>
+    <section class="lab-tool lab-tool-memory" data-workspace-panel="memory" data-panel-title="Memory" data-panel-live="true">
+      <div class="lab-panel-body">
+        <div class="lab-memory-scroll" data-memory-scroll><div class="lab-memory-space" data-memory-space><pre data-memory-output aria-label="Observed XT memory"></pre></div></div>
+        <p class="lab-hint">Physical 00000–FFFFF · enter hex or segment:offset · -- means no storage</p>
+      </div>
+    </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-title="Firmware">
       <p>Load the three ROMs, then press <strong>Run</strong>. The XT checks 640 KiB of RAM and the empty drive before BASIC displays <samp>Ok</samp>.</p>
       {% for id, name, size in [('bios','XT BIOS · 11/08/82','8 KiB'),('basic','IBM BASIC · C1.10','32 KiB'),('font','IBM MDA/CGA character ROM','8 KiB')] %}

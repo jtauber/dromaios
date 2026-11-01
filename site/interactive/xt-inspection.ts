@@ -2,6 +2,7 @@ import { decode8088, physical8088 } from "./8088-disassembly.js";
 import type { Catalogue8088, Row8088 } from "./8088-disassembly.js";
 import type { FetchedInstruction } from "../../src/components/cpus/execution-records.js";
 import type { XtMachine } from "./xt-session.js";
+import { parseMemoryAddress } from "./memory-window.js";
 
 export interface XtBoundary {
   readonly before: { readonly cs: number; readonly ip: number };
@@ -14,6 +15,14 @@ export interface XtStorageRegion {
   readonly offset: number;
 }
 export interface XtCatalogue { readonly cpu: Catalogue8088; readonly storage: readonly XtStorageRegion[] }
+
+/** Explicit segment:offset input wraps onto the original 8088's twenty address pins. */
+export function parseXtAddress(text: string): number {
+  const parts = text.split(":");
+  if (parts.length === 1) return parseMemoryAddress(text, 0xfffff);
+  if (parts.length === 2) return physical8088(parseMemoryAddress(parts[0]!), parseMemoryAddress(parts[1]!));
+  throw new RangeError("Enter a physical hexadecimal address or segment:offset.");
+}
 
 /** Resolve an observed physical byte using only the board's declared storage and aliases. */
 export function readXtStorage(machine: Pick<XtMachine, XtStorageRegion["component"]>, regions: readonly XtStorageRegion[], address: number): number | undefined {

@@ -37,6 +37,9 @@ reads the CGA frame, and the keyboard delivers scan codes at timed CPU boundarie
 The 8088 inspector catalogue gets opcode names, register selectors, prefix bytes,
 and valid ModR/M patterns from the CPU chapter. The machine chapter supplies the
 storage ranges it can inspect, including the video and BASIC aliases.
+Memory uses the shared scrolling inspector with a 1 MiB image, physical or
+segment:offset address entry, and CS:IP/SS:SP follow choices. Existing 16-bit
+inspectors retain their default address range and controls.
 The [session checks](../src/machines/8088/pc-xt.md#rom-basic-sessions) give a
 program to try after POST and the results to expect from editing and running it.
 

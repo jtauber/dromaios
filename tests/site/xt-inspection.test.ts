@@ -94,13 +94,13 @@ test("XT disassembly keeps fetched history when the instruction rewrites its own
   assert.equal(rows[1]!.kind, "current"); assert.equal(rows[1]!.row.ip, 5);
 });
 
-test("XT layouts gain the two inspectors once while preserving existing tabs and hidden panels", () => {
+test("XT layouts gain the inspectors once while preserving existing tabs and hidden panels", () => {
   const old = { root: { kind: "tabs", id: "my-tabs", active: "snapshot", panels: ["screen", "snapshot"], collapsed: true } } as const;
   const map = new Map([["dromaios:workspace:xt:1", encodeWorkspaceState(old)]]);
   const storage = { getItem: (key: string) => map.get(key) ?? null, setItem: (key: string, text: string) => map.set(key, text) };
   migrateXtWorkspace(storage);
-  const restored = decodeWorkspaceState(map.get(xtWorkspaceKey)!, ["screen", "snapshot", "registers", "code"]);
-  assert.deepEqual(groups(restored).map(g => g.panels), [["screen", "snapshot"], ["registers"], ["code"]]);
+  const restored = decodeWorkspaceState(map.get(xtWorkspaceKey)!, ["screen", "snapshot", "registers", "code", "memory"]);
+  assert.deepEqual(groups(restored).map(g => g.panels), [["screen", "snapshot"], ["registers"], ["code"], ["memory"]]);
   assert.deepEqual(groups(restored)[0], old.root);
   map.set(xtWorkspaceKey, encodeWorkspaceState(old)); migrateXtWorkspace(storage);
   assert.equal(map.get(xtWorkspaceKey), encodeWorkspaceState(old));
