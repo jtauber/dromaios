@@ -12,6 +12,7 @@ inserted, the BIOS's own timeout leads to ROM BASIC C1.10. BASIC prints its
 prompt and accepts immediate commands and stored programs through the keyboard receiver and IRQ1.
 No BIOS service is replaced by host code and no BIOS data area is preloaded.
 The [session checks](#rom-basic-sessions) cover editing, Ctrl-Break, warm boot, and saved input.
+With media inserted, the BIOS can [read a floppy sector through DMA](#reading-a-diskette-through-int-13h).
 The [browser laboratory](#using-the-laboratory) runs this machine with locally supplied ROMs.
 
 ## Physical storage and firmware
@@ -152,6 +153,7 @@ ports {
     in 62 = io 62
     out 62 = io 62
     out 63 = io 63
+    out 81 = io 81
     out A0 = io A0
     out 3D0 = cga 0
     in 3D1 = cga 1
@@ -187,7 +189,7 @@ have no guest readback.
 
 The [timer](xt-timer.md) and [refresh](xt-refresh.md) chapters own oscillator,
 device ordering, and DMA grants. The same execution helper services this board
-and the small examples. It grants refresh, offers interrupts, executes one CPU
+and the small examples. It grants one pending DMA transfer, offers interrupts, executes one CPU
 boundary, and advances devices using declared instruction clocks. Repeated
 strings use the CPU chapter's explicitly bounded **one-element re-entry timing**;
 this does not reproduce an uninterrupted hardware REP's throughput.
@@ -230,23 +232,18 @@ halted CPU intervals. IRQ6 is a settled device output, alongside timer IRQ0
 and keyboard IRQ1; callers cannot independently drive those three lines.
 PIC acknowledgement/EOI does not acknowledge the diskette controller.
 
-There is one empty 40-cylinder drive. Reset, recalibration, and seeks can
-complete without media. Reads wait for absent index/data pulses, with no
-controller result, IRQ, or DREQ2; the original BIOS's own loop times out.
-The DMA register file accepts the BIOS's single-write setup for channel 2,
-but its address and count do not advance. Channel-2 bus transfers, DMA page
-latches, mounted media, and DOS boot remain unimplemented. In particular,
-port `81` is still unanswered; accepting an empty read is not a working disk
-transfer implementation.
+The drive starts empty. Reset, recalibration, and seeks can complete without
+media. Reads wait for index/data pulses. The original BIOS times out while
+the controller waits and the channel-2 address and count remain unchanged.
 
 Snapshots retain partial commands/results, reset and seek timing, physical
 head position, and the controller's cylinder estimate. CPU reset preserves
-them. Board reset clears the adapter/controller and cancels in-flight work;
-it preserves the mechanical position and Specify timing registers.
+them. Board reset cancels in-flight work and retains the disk, head position,
+and Specify timing registers.
 
 The [board tests](../../../tests/machines/8088/pc-xt/diskette.test.ts) check port
 routing, fractional clock continuation, native IRQ6 entry from HLT, separate
-controller/PIC acknowledgement, and absence of DMA or memory side effects.
+controller/PIC acknowledgement, and the empty drive’s absence of DMA or memory side effects.
 The [original-ROM boot tests](../../../tests/machines/8088/pc-xt/rom-boot.test.ts)
 start at reset and require the exact reset/Specify/recalibrate/seek sequence,
 four IRQ6 entries, seeks to cylinders 1 and 34, and `F000:E597` without entering
@@ -259,6 +256,41 @@ sector buffer and channel-2 address/count unchanged. A snapshot taken inside
 that wait must resume to identical complete state. These callers change their
 own code and entry registers; they never patch BIOS, its vectors, or its data.
 
+## Reading a diskette through INT 13h
+
+Insert a raw, write-protected 360 KiB image with `io.setDiskette(bytes)`.
+The drive keeps its own copy. Eject it with `io.setDiskette(null)`. The
+controller matches the sector ID on the selected track and side. It requests
+channel 2 for each byte and the 8237A arbitrates between disk and refresh.
+
+The BIOS writes the upper four physical address bits to port `81`. Each
+channel-2 grant combines this page with the current 16-bit DMA address,
+writes one byte through the board's memory map, and takes five CPU clocks
+(15 oscillator ticks). The 16-bit address can wrap without changing the page.
+On the final grant the 8237A signals terminal count. The controller raises
+IRQ6 and makes seven result bytes available. The PIC accepts IRQ6 separately
+from the BIOS reading the controller results. [IBM Technical Reference][ibm]
+
+The [ROM acceptance](../../../tests/machines/8088/pc-xt/rom-boot.test.ts)
+starts after the original POST. A RAM caller requests cylinder 2, side 1,
+sector 3 into `2000:7C00` through INT 13h. The check follows all 512 DMA writes,
+checks the neighboring RAM bytes, and requires carry clear and AH zero on
+return. In the 11/08/82 ROM, `NUM_TRANS` computes one sector in AL at
+`F000:EFC4`. The final call to `GET_PARM` at `F000:EC6C` looks up the motor
+timeout and clears AX in the process. The caller therefore sees AL zero even
+after a successful read. [IBM BIOS listing, appendix A][ibm]
+
+Restoring after byte 256 must reproduce the remaining
+transfer and the final machine state. The checkpoint includes the disk bytes,
+DMA page, controller byte position, and delay until its next request.
+
+A second check inserts a synthetic boot disk after POST and lets the BIOS
+continue unaided. Its INT 19h bootstrap calls INT 13h for sector one, jumps
+to `0000:7C00`, and executes the first instruction from the sector. The ROM’s
+default diskette parameter table at `F000:EFC7` sets EOT to eight. The disk
+image has nine sectors per track. The controller uses the EOT supplied in each
+command, which matters when following a DOS loader beyond the boot sector.
+
 ## CGA text output
 
 The [CGA device chapter](../../components/devices/specifications/ibm-cga.md)
@@ -268,7 +300,7 @@ with eight-line characters. Graphics, composite colour, and the CRTC's internal
 cursor-blink modes are outside this first profile.
 
 `stepTimedXtCpu()` advances CGA and the system board from the same oscillator:
-refresh grants advance both before CPU accesses, and instruction/interrupt
+DMA grants advance both before CPU accesses, and instruction/interrupt
 clocks advance both after the CPU boundary. An idle halt advances both to the
 next PIT pulse. For explicit device-only advancement, call
 `advanceXtOscillatorTicks(machine, ticks)`; calling `io.advanceOscillatorTicks()`

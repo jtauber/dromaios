@@ -14,7 +14,7 @@ import { IbmXtDiskette } from "../../../components/devices/generated/ibm-xt-disk
 import type { IbmXtDisketteSnapshot } from "../../../components/devices/generated/ibm-xt-diskette.ts";
 import { XtClock } from "./clock.ts";
 import type { XtClockSnapshot } from "./clock.ts";
-import type { MemoryConnection } from "../../../components/memory/connection.ts";
+import type { ByteMemoryConnection, MemoryConnection } from "../../../components/memory/connection.ts";
 import { checkUnsigned } from "../../../components/validation.ts";
 
 export interface XtIoSnapshot {
@@ -29,6 +29,35 @@ export interface XtIoSnapshot {
   readonly refreshPending: boolean;
   readonly system: IbmXtSystemControlSnapshot;
   readonly diskette: IbmXtDisketteSnapshot;
+  readonly diskettePage: number;
+  readonly disketteImage: readonly number[] | null;
+}
+
+/** Freeze an owned copy so a checkpoint can retain the inserted disk across eject or replacement. */
+function readDiskette(bytes: Uint8Array | readonly number[]): readonly number[] {
+  if ((!Array.isArray(bytes) && !(bytes instanceof Uint8Array)) || bytes.length !== 40 * 2 * 9 * 512) {
+    throw new RangeError("XT diskette requires a raw 360 KiB image.");
+  }
+  return Object.freeze(Array.from({ length: bytes.length }, (_, index) => {
+    const byte = bytes[index]!;
+    checkUnsigned("XT diskette byte", byte, 255);
+    return byte;
+  }));
+}
+
+/** Empty-drive checkpoints used a two-byte result queue and had no DMA page or media. */
+function restoreDiskette(state: XtIoSnapshot): IbmXtDiskette {
+  const controller = state.diskette;
+  if (!Object.hasOwn(state, "disketteImage") && !Object.hasOwn(state, "diskettePage")
+    && "result" in controller && "result_pcn" in controller && !Object.hasOwn(controller, "results")) {
+    return new IbmXtDiskette({ ...controller, media: false, byte_offset: 0, byte_us: 0, result_index: 0,
+      results: [controller.result as number, controller.result_pcn as number, 0, 0, 0, 0, 0, 0] });
+  }
+  checkUnsigned("XT diskette DMA page", state.diskettePage, 15);
+  if (controller.media !== (state.disketteImage !== null) || state.disketteImage === undefined) {
+    throw new RangeError("XT diskette image does not match the drive.");
+  }
+  return new IbmXtDiskette(controller);
 }
 
 /** XT device wiring, driven by explicit oscillator intervals and bus grants. */
@@ -45,6 +74,8 @@ export class XtIo implements MemoryConnection {
   #refreshOutput: boolean;
   readonly #system: IbmXtSystemControl;
   readonly #diskette: IbmXtDiskette;
+  #diskettePage: number;
+  #disketteImage: readonly number[] | null;
 
   constructor(state?: XtIoSnapshot) {
     if (state !== undefined && (!state.pic || !state.ppi || !state.keyboard || !state.pit || !state.clock || !state.dma || !state.system || !state.diskette
@@ -63,7 +94,9 @@ export class XtIo implements MemoryConnection {
     this.#refreshPending = state?.refreshPending ?? false;
     this.#refreshOutput = this.#pit.output(1);
     this.#system = new IbmXtSystemControl(state?.system);
-    this.#diskette = new IbmXtDiskette(state?.diskette);
+    this.#diskette = state ? restoreDiskette(state) : new IbmXtDiskette();
+    this.#diskettePage = state?.diskettePage ?? 0;
+    this.#disketteImage = state?.disketteImage == null ? null : readDiskette(state.disketteImage);
     checkUnsigned("XT equipment switches", this.#equipmentSwitches, 0xff);
     if (state !== undefined) {
       const pins = this.#ppi.driveB();
@@ -72,7 +105,7 @@ export class XtIo implements MemoryConnection {
         || state.ppi.input_c !== this.#portCInputs() || Boolean(state.pic.levels & 2) !== this.#keyboard.irq()
         || Boolean(state.pic.levels & 1) !== this.#pit.output(0)
         || Boolean(state.pic.levels & 0x40) !== this.#diskette.irq()
-        || state.dma.levels !== Number(state.refreshPending)
+        || state.dma.levels !== (Number(state.refreshPending) | (this.#diskette.dreq() ? 4 : 0))
         || state.system.control !== pins
         || !state.pit.channels[0].gate || !state.pit.channels[1].gate
         || state.pit.channels[2].gate !== Boolean(pins & 1)) {
@@ -108,7 +141,7 @@ export class XtIo implements MemoryConnection {
       ppi: this.#ppi.snapshot(), keyboard: this.#keyboard.snapshot(),
       equipmentSwitches: this.#equipmentSwitches, pit: this.#pit.snapshot(), clock: this.#clock.snapshot(),
       dma: this.#dma.snapshot(), refreshPending: this.#refreshPending, system: this.#system.snapshot(),
-      diskette: this.#diskette.snapshot() };
+      diskette: this.#diskette.snapshot(), diskettePage: this.#diskettePage, disketteImage: this.#disketteImage };
   }
 
   read(address: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 13 | 0x20 | 0x21 | 0x40 | 0x41 | 0x42 | 0x60 | 0x61 | 0x62 | 0xf4 | 0xf5): number;
@@ -130,9 +163,19 @@ export class XtIo implements MemoryConnection {
     else if (address === 0x20 || address === 0x21) this.#pic.write(address - 0x20, value);
     else if (address >= 0x40 && address <= 0x43) this.#pit.write(address - 0x40, value);
     else if (address >= 0x60 && address <= 0x63) this.#ppi.write(address - 0x60, value);
+    else if (address === 0x81) this.#diskettePage = value & 0x0f;
     else if (address === 0xa0) this.#system.write(0, value);
     else if (address === 0xf2 || address === 0xf5) this.#diskette.write(address - 0xf2, value);
     else return "bus-error";
+    this.#updateWiring();
+  }
+
+  /** Insert a write-protected raw disk, or eject it. Validate a replacement before removing the old disk. */
+  setDiskette(bytes: Uint8Array | null): void {
+    const image = bytes === null ? null : readDiskette(bytes);
+    if (this.#disketteImage !== null) this.#diskette.setMedia(false);
+    this.#disketteImage = image;
+    if (image !== null) this.#diskette.setMedia(true);
     this.#updateWiring();
   }
 
@@ -173,20 +216,38 @@ export class XtIo implements MemoryConnection {
     this.#advance(ticks, false);
   }
 
-  /** Grant one refresh transfer between CPU boundaries; RAM has no charge-decay model. */
+  /** A refresh-only caller supplies no memory bus and cannot grant peripheral DMA. */
   serviceRefresh(): { readonly address: number; readonly oscillatorTicks: number } | undefined {
+    const grant = this.serviceDma();
+    return grant && { address: grant.address, oscillatorTicks: grant.oscillatorTicks };
+  }
+
+  /** Grant one single-mode transfer. Refresh has priority over the diskette adapter. */
+  serviceDma(memory?: ByteMemoryConnection) {
     const request = this.#dma.pending();
     if (!request) return undefined;
-    if (request !== 1 || !this.#dma.transferReady() || !this.#dma.readTransfer()) {
-      throw new RangeError("XT DMA currently services only channel-0 single-read refresh.");
-    }
-    const oscillatorTicks = 12; // Four CPU clocks; PIT and keyboard continue during the grant.
+    const refresh = request === 1;
+    const oscillatorTicks = refresh ? 12 : 15; // Four CPU clocks for refresh, five for a peripheral.
     if (!Number.isSafeInteger(this.#clock.ticks + oscillatorTicks)) throw new RangeError("XT elapsed time exceeds its exact range.");
-    const address = this.#dma.transferAddress();
+    let address = this.#dma.transferAddress();
+    let value: number | undefined;
+    if (refresh) {
+      if (!this.#dma.transferReady() || !this.#dma.readTransfer()) {
+        throw new RangeError("XT refresh supports only channel-0 single reads.");
+      }
+    } else {
+      if (request !== 4 || !this.#disketteImage || !memory || !this.#dma.transferReady() || !this.#dma.writeTransfer()) {
+        throw new RangeError("XT diskette DMA requires channel-2 single writes and the board memory bus.");
+      }
+      address |= this.#diskettePage << 16;
+      value = this.#disketteImage[this.#diskette.mediaOffset()]!;
+      memory.write(address, value);
+      this.#diskette.acknowledgeByte(this.#dma.terminalTransfer());
+    }
     this.#dma.completeTransfer();
-    this.#updateWiring(true);
-    this.#advance(oscillatorTicks, true);
-    return { address, oscillatorTicks };
+    this.#updateWiring(refresh);
+    this.#advance(oscillatorTicks, refresh);
+    return { channel: refresh ? 0 : 2, address, value, oscillatorTicks };
   }
 
   #advance(ticks: number, refreshAcknowledged: boolean): void {
@@ -203,6 +264,7 @@ export class XtIo implements MemoryConnection {
     this.#pic.reset(); this.#intrRaisedDuringCpu = false; this.#ppi.reset(); this.#keyboard.reset();
     this.#dma.reset(); this.#refreshPending = false; this.#refreshOutput = false;
     this.#system.reset();
+    this.#diskettePage = 0;
     this.#diskette.reset();
     this.#updateWiring();
   }
@@ -227,6 +289,6 @@ export class XtIo implements MemoryConnection {
     if (refreshAcknowledged) this.#refreshPending = false;
     else if (refresh && !this.#refreshOutput) this.#refreshPending = true;
     this.#refreshOutput = refresh;
-    this.#dma.setRequests(this.#refreshPending, false, false, false);
+    this.#dma.setRequests(this.#refreshPending, false, this.#disketteImage !== null && this.#diskette.dreq(), false);
   }
 }

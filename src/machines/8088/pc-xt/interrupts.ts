@@ -1,9 +1,16 @@
 import type { Cpu8088 } from "../../../components/cpus/generated/8088-cpu.ts";
 import type { XtIo } from "./io.ts";
 import type { IbmCga } from "../../../components/devices/generated/ibm-cga.ts";
+import type { ByteMemoryConnection } from "../../../components/memory/connection.ts";
 import { checkUnsigned } from "../../../components/validation.ts";
 
 interface XtDevices { readonly io: XtIo; readonly cga?: IbmCga; }
+
+export interface XtCpuBoard extends XtDevices {
+  readonly cpu: Cpu8088;
+  /** The small refresh-only examples have no peripheral DMA bus. */
+  readonly memory?: ByteMemoryConnection;
+}
 
 function advanceCga(cga: IbmCga | undefined, ticks: number): void {
   if (!cga) return;
@@ -40,11 +47,11 @@ export function stepXtCpu(machine: { readonly cpu: Cpu8088; readonly io: XtIo })
   });
 }
 
-/** Grant at most one refresh, then a CPU boundary; an idle halt visits the next PIT pulse. */
-export function stepTimedXtCpu(machine: XtDevices & { readonly cpu: Cpu8088 }) {
+/** Grant at most one DMA transfer, then a CPU boundary; an idle halt visits the next PIT pulse. */
+export function stepTimedXtCpu(machine: XtCpuBoard) {
   const { cpu, io, cga } = machine;
-  const refresh = io.serviceRefresh();
-  if (refresh) advanceCga(cga, refresh.oscillatorTicks);
+  const dma = io.serviceDma(machine.memory);
+  if (dma) advanceCga(cga, dma.oscillatorTicks);
   const record = io.runCpuBoundary(intr => {
     let offered = io.nmiPending ? cpu.interruptTimed("nmi") : undefined;
     if (offered?.outcome === "accepted") io.acknowledgeNmi();
@@ -53,5 +60,6 @@ export function stepTimedXtCpu(machine: XtDevices & { readonly cpu: Cpu8088 }) {
   });
   const oscillatorTicks = record.clocks === 0 ? 12 - io.oscillatorTicks % 12 : record.clocks * 3;
   advanceXtOscillatorTicks(machine, oscillatorTicks);
-  return { record, refresh, oscillatorTicks: oscillatorTicks + (refresh?.oscillatorTicks ?? 0) };
+  const refresh = dma?.channel === 0 ? { address: dma.address, oscillatorTicks: dma.oscillatorTicks } : undefined;
+  return { record, dma, refresh, oscillatorTicks: oscillatorTicks + (dma?.oscillatorTicks ?? 0) };
 }

@@ -1,5 +1,5 @@
 import { create8088PcXt } from "../../src/machines/generated/8088/pc-xt.js";
-import { stepTimedXtCpu } from "../../src/machines/8088/pc-xt/interrupts.js";
+import { stepTimedXtCpu, type XtCpuBoard } from "../../src/machines/8088/pc-xt/interrupts.js";
 import type { RomImage } from "../../src/machines/rom-image.js";
 import { checkMachineSnapshot } from "../../src/machines/snapshot.js";
 import { XtKeyboard } from "./xt-keyboard.js";
@@ -14,7 +14,7 @@ export interface XtSessionState {
 }
 
 /** Keyboard delivery and timed arbitration are identical for live execution and a private preview. */
-export function stepXtSessionCpu(machine: Pick<XtMachine, "cpu" | "io" | "ram"> & Partial<Pick<XtMachine, "cga">>, keyboard: XtKeyboard) {
+export function stepXtSessionCpu(machine: XtCpuBoard & Pick<XtMachine, "ram">, keyboard: XtKeyboard) {
   keyboard.beforeStep(byte => machine.io.offerScanCode(byte), () => Boolean(machine.ram.read(0x417) & 0x40));
   const result = stepTimedXtCpu(machine);
   keyboard.afterStep(result.oscillatorTicks, machine.io.keyboardSelfTesting);

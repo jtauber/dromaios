@@ -49,7 +49,7 @@ export function previewXtInstruction(session: Pick<ReturnType<typeof createXtSes
   });
   let record: ReturnType<typeof stepXtSessionCpu> | undefined, timingUnavailable = false;
   try {
-    record = memory.attempt(() => stepXtSessionCpu({ cpu, ram: machine.ram, io: new XtIo(machine.io.snapshot()) },
+    record = memory.attempt(() => stepXtSessionCpu({ cpu, memory: memory.memory, ram: machine.ram, io: new XtIo(machine.io.snapshot()) },
       new XtKeyboard(session.keyboard.snapshot())));
   } catch (error) {
     if (error instanceof InstructionTimingUnavailable) timingUnavailable = true;

@@ -5,7 +5,7 @@ laboratory. Use **dromaios-pc** as the primary implementation reference and
 IBM's hardware documentation as the authority. Retain Dromaios's generated
 [8088](../../src/components/cpus/specifications/8088.md); a new CPU is not required.
 
-**Status, 2026-10-31:** reference audit complete; the first native
+**Status, 2026-11-01:** reference audit complete; the first native
 [keyboard-interrupt example](../../src/machines/8088/xt-keyboard.md) connects
 the generated 8088, PIC, PPI, and keyboard receiver. The
 [timer example](../../src/machines/8088/xt-timer.md) adds the 8253, saved
@@ -20,9 +20,9 @@ its vectors, receives the keyboard self-test response through IRQ1, and passes
 CGA initialization, video-memory and retrace checks. CGA text rendering uses
 the selected original character ROM. The original BIOS's text, cursor,
 page-selection, and scrolling services have timed acceptance tests, including
-restoration during a scroll. The literate empty-drive adapter now passes the
-original diskette POST through IRQ6; original INT 13h reads time out without
-DMA transfers, with saved continuation checked. Timed keyboard self-test delivery
+restoration during a scroll. The adapter passes the original diskette POST and
+empty-drive timeout. With a write-protected disk, [original INT 13h reads a sector](../../src/machines/8088/pc-xt.md#reading-a-diskette-through-int-13h)
+through DMA channel 2 and IRQ6. Timed keyboard self-test delivery
 also passes the second keyboard reset. Original firmware completes POST,
 falls back from an empty drive, and runs [repeatable ROM BASIC sessions](../../src/machines/8088/pc-xt.md#rom-basic-sessions)
 with stored programs and native keyboard input. The
@@ -174,7 +174,7 @@ The first board needs these observable behaviors:
   treating these as independent byte registers.
 - **8253 and 8237A:** implement the timer and DMA register behavior used by POST
   and DRAM refresh. RAM need not physically decay, but the observable refresh
-  and controller state must be consistent. Later disk transfers use DMA channel
+  and controller state must be consistent. Diskette reads use DMA channel
   2, including address/count, page selection, direction, and terminal count.
 - **Board glue:** the [machine chapter](../../src/machines/8088/pc-xt.md#board-ports-checks-and-interrupts)
   now declares NMI/check controls and unanswered-device behavior. Retain those
@@ -183,12 +183,10 @@ The first board needs these observable behaviors:
   and [machine display contract](../../src/machines/8088/pc-xt.md#cga-text-output)
   own text decoding, mode/cursor/start registers, oscillator-driven status and
   blink, the selected font, pure rendering, and explicit graphics limits.
-- **Diskette adapter:** the [empty-drive chapter](../../src/components/devices/specifications/ibm-xt-diskette.md)
+- **Diskette adapter:** the [adapter chapter](../../src/components/devices/specifications/ibm-xt-diskette.md)
   owns controller command/result phases, reset, drive selection, timed seeks,
-  and IRQ behavior. The board's [diskette contract](../../src/machines/8088/pc-xt.md#empty-diskette-drive)
-  covers BIOS timeouts when an empty drive supplies no index pulses.
-  Add sector/DMA transfers for DOS; do not
-  skip the controller by recognizing INT 13h or a ROM address.
+  and IRQ behavior. The board chapter covers [empty-drive BIOS timeouts](../../src/machines/8088/pc-xt.md#empty-diskette-drive)
+  and [sector transfers through DMA](../../src/machines/8088/pc-xt.md#reading-a-diskette-through-int-13h).
 
 ### Time is a prerequisite for firmware acceptance
 
@@ -290,11 +288,10 @@ in the EGA laboratory.
 
 ## Next implementation slice
 
-The laboratory now has segmented inspection, Instruction previews, a BIOS
-walkthrough, and shared change/watch histories. The next hardware slice is a
-read-only 360 KiB disk through DMA channel 2, page registers, the diskette
-controller, and IRQ6. Follow the original INT 13h handler toward the DOS
-acceptance above; keep device behavior and transfer limits in their chapters.
+Pin a compatible 360 KiB DOS disk, including its boot files and expected
+transcript. Cold-boot it through the original INT 19h bootstrap. Trace the
+loader’s first reads after it gains control at `0000:7C00` and work toward
+the [DOS acceptance checkpoint](#4-dos-through-the-diskette-controller).
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

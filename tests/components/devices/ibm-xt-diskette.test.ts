@@ -147,3 +147,43 @@ test("XT diskette rejects unsupported modes, commands, units, inputs and contrad
   assert.throws(() => new IbmXtDiskette({ ...active, parameters: [] } as never), TypeError);
   assert.throws(() => new IbmXtDiskette({ ...active, interrupt: 1 } as never), TypeError);
 });
+
+test("XT Read Data gates byte requests, returns the next sector ID on TC, and clears IRQ on the first result", () => {
+  const device = fixture();
+  device.setMedia(true);
+  command(device, 4, 0); assert.equal(device.read(3), 0x78); // Protected disk, track zero.
+  command(device, 0xe6, 0, 0, 0, 9, 2, 9, 0x2a, 0xff);
+  device.advanceMicroseconds(31); assert.equal(device.dreq(), false);
+  device.advanceMicroseconds(1); assert.equal(device.dreq(), true);
+  device.write(0, 0x14); // Motor runs, but the board DMA/IRQ gate is closed.
+  device.acknowledgeByte(true); assert.equal(device.dreq(), false); assert.equal(device.status(), 0x10);
+  device.write(0, 0x1c); assert.equal(device.dreq(), true);
+  for (let i = 0; i < 512; i++) {
+    assert.equal(device.mediaOffset(), 4096 + i);
+    device.acknowledgeByte(false); assert.equal(device.dreq(), false);
+    device.advanceMicroseconds(32);
+  }
+  // MT continues on side 1. End this read on its first byte with DMA terminal count.
+  assert.equal(device.mediaOffset(), 4608); device.acknowledgeByte(true);
+  assert.equal(device.dreq(), false); assert.equal(device.irq(), true);
+  assert.equal(device.status(), 0xd0); assert.equal(device.read(3), 4); assert.equal(device.irq(), false);
+  const copy = new IbmXtDiskette(device.snapshot());
+  for (const current of [device, copy]) {
+    assert.deepEqual(Array.from({ length: 6 }, () => current.read(3)), [0, 0, 0, 1, 2, 2]);
+    assert.equal(current.status(), 0x80);
+  }
+});
+
+test("XT protected media reports IDs and rejects missing sectors without a DMA request", () => {
+  const device = fixture();
+  command(device, 0x4a, 4); assert.equal(device.status(), 0x10);
+  device.setMedia(true);
+  assert.deepEqual(Array.from({ length: 7 }, () => device.read(3)), [4, 0, 0, 0, 1, 1, 2]);
+  for (const [c, h, r, n, st2] of [[0, 0, 10, 2, 0], [1, 0, 1, 2, 0x10], [0, 1, 1, 2, 0], [0, 0, 1, 1, 0]] as const) {
+    command(device, 0x46, 0, c, h, r, n, 9, 0x2a, 0xff);
+    assert.equal(device.dreq(), false); assert.equal(device.irq(), true);
+    assert.deepEqual(Array.from({ length: 7 }, () => device.read(3)), [0x40, 4, st2, c, h, r, n]);
+  }
+  command(device, 0x46, 0, 0, 0, 1, 2, 9, 0x2a, 0xff); device.advanceMicroseconds(32);
+  device.reset(); assert.equal(device.dreq(), false); assert.equal(device.snapshot().media, true);
+});

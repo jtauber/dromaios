@@ -168,22 +168,22 @@ test("original XT diskette POST resets, specifies, recalibrates and seeks an emp
   assert.equal(afterDiskettePost.ram[0x443], 34);
 });
 
-function caller(ax: number): Machine {
+function caller(ax: number, cx = 1, dx = 0, es = 0): Machine {
   // Run a small RAM caller after unmodified POST has built the IVT/BDA and devices.
   // MOV AX/BX/CX/DX, immediate; INT 13h; HLT. No BIOS data or handler is substituted.
   const machine = create8088PcXt(bindings, { ...afterDiskettePost, cpu: { ...afterDiskettePost.cpu,
-    cs: 0x1000, ip: 0, ds: 0, es: 0, ss: 0, sp: 0x8000,
+    cs: 0x1000, ip: 0, ds: 0, es, ss: 0, sp: 0x8000,
     flags: { ...afterDiskettePost.cpu.flags, if: true, df: false },
   } });
-  [0xb8, ax & 255, ax >>> 8, 0xbb, 0, 0x7c, 0xb9, 1, 0, 0xba, 0, 0, 0xcd, 0x13, 0xf4]
+  [0xb8, ax & 255, ax >>> 8, 0xbb, 0, 0x7c, 0xb9, cx & 255, cx >>> 8, 0xba, dx & 255, dx >>> 8, 0xcd, 0x13, 0xf4]
     .forEach((byte, index) => machine.ram.write(0x10000 + index, byte));
   return machine;
 }
-function runCaller(machine: Machine, observe?: (machine: Machine) => void): void {
+function runCaller(machine: Machine, observe?: (machine: Machine, step: ReturnType<typeof stepTimedXtCpu>) => void): void {
   for (let step = 0; step < 1500000; step++) {
-    const { record } = stepTimedXtCpu(machine);
+    const boundary = stepTimedXtCpu(machine), { record } = boundary;
     assert.ok(record.outcome === "executed" || record.outcome === "accepted");
-    observe?.(machine);
+    observe?.(machine, boundary);
     if (record.after.cs === 0x1000 && record.after.ip === 14) return;
   }
   assert.fail("Original INT 13h did not return within the instruction budget.");
@@ -214,4 +214,56 @@ test("original INT 13h reset drains the controller result and reprograms Specify
   const { diskette, pic } = machine.io.snapshot();
   assert.equal(diskette.phase, 0); assert.equal(diskette.interrupt, false); assert.equal(diskette.cylinder, 34);
   assert.equal(diskette.srt_hut, 0xcf); assert.equal(diskette.hlt, 2); assert.equal(pic.isr & 0x40, 0);
+});
+
+test("original XT INT 13h reads a complete sector through DMA2 and IRQ6 and resumes from byte 256", optional, () => {
+  const machine = caller(0x0201, 0x0203, 0x0100, 0x2000); // C=2, H=1, R=3 into ES:BX = 2000:7C00.
+  const start = 0x27c00, image = new Uint8Array(368640);
+  const sector = Uint8Array.from({ length: 512 }, (_, i) => (i * 13 + (i >>> 8) * 7 + 0x5a) & 255);
+  image.set(sector, 47 * 512); // 18 sectors/cylinder, 9/side, one-based sector numbers.
+  machine.io.setDiskette(image);
+  machine.ram.write(start - 1, 0x3d); machine.ram.write(start + 512, 0x4e);
+  let transferred = 0, completionIrqs = 0, calculatedSectors: number | undefined, midway: Snapshot | undefined;
+  runCaller(machine, (current, { record, dma }) => {
+    if (dma?.channel === 2) {
+      assert.equal(dma.address, start + transferred); assert.equal(dma.value, sector[transferred]);
+      if (++transferred === 256) midway = current.snapshot();
+    }
+    if (record.before.pc === 0xfefc4) calculatedSectors = record.before.al; // NUM_TRANS returning to the ROM caller.
+    if (transferred === 512 && record.outcome === "accepted" && record.vector === 14) completionIrqs++;
+  });
+  assert.equal(transferred, 512); assert.equal(completionIrqs, 1);
+  assert.ok(midway); assert.equal(midway.io.dma.count[2], 255);
+  assert.deepEqual(midway.ram.slice(start, start + 256), Array.from(sector.slice(0, 256)));
+  const end = machine.snapshot(), cpu = machine.cpu.snapshot();
+  assert.equal(cpu.flags.cf, false); assert.equal(cpu.ah, 0);
+  assert.equal(calculatedSectors, 1); assert.equal(cpu.al, 0); // The final GET_PARM clears AX before fetching the motor timeout.
+  assert.deepEqual(end.ram.slice(start - 1, start + 513), [0x3d, ...sector, 0x4e]);
+  assert.deepEqual(end.ram.slice(0x442, 0x449), [4, 0, 0, 2, 1, 4, 2]); // ROM's seven FDC result bytes.
+  assert.equal(end.io.dma.address[2], 0x7e00); assert.equal(end.io.dma.count[2], 0xffff);
+  assert.equal(end.io.dma.terminal & 4, 4); assert.equal(end.io.diskette.phase, 0);
+  const resumed = create8088PcXt(bindings, midway); runCaller(resumed);
+  assert.deepEqual(resumed.snapshot(), end);
+});
+
+test("original XT bootstrap reads sector one and executes it at 0000:7C00", optional, () => {
+  const machine = create8088PcXt(bindings, afterDiskettePost), disk = new Uint8Array(368640);
+  disk.set([0xb8, 0x88, 0x51, 0xf4]); // MOV AX,5188h; HLT
+  disk.set([0x55, 0xaa], 510);
+  machine.io.setDiskette(disk);
+  let transferred = 0, bootstrap = false;
+  for (let i = 0; i < 1500000; i++) {
+    const { dma, record } = stepTimedXtCpu(machine);
+    if (record.before.pc === 0xfe6f2) bootstrap = true;
+    if (dma?.channel === 2) {
+      assert.equal(dma.address, 0x7c00 + transferred); assert.equal(dma.value, disk[transferred++]);
+    }
+    if (record.before.pc === 0x7c00) {
+      assert.equal(bootstrap, true); assert.equal(transferred, 512);
+      assert.equal(record.before.cs, 0); assert.equal(record.after.ax, 0x5188);
+      assert.deepEqual(machine.snapshot().ram.slice(0x7c00, 0x7e00), Array.from(disk.slice(0, 512)));
+      return;
+    }
+  }
+  assert.fail("The original XT bootstrap did not execute the mounted boot sector.");
 });

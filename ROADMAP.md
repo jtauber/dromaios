@@ -272,7 +272,8 @@ useful software examples but do not establish native hardware boot. The generate
 board now passes original POST and empty-drive bootstrap, reaching ROM BASIC
 with [stored programs and repeatable keyboard sessions](src/machines/8088/pc-xt.md#rom-basic-sessions).
 Its laboratory runs these sessions with segmented 8088 inspection, a BIOS
-walkthrough, and shared change/watch histories. Native disk transfers come next.
+walkthrough, and shared change/watch histories. The BIOS can now load and
+execute a boot sector through DMA. Booting a 360 KiB DOS disk comes next.
 The software goal beyond DOS is a [playable Ultima V session](docs/machines/pc-xt.md#5-ultima-v-on-the-xt)
 with EGA graphics, keyboard control, and a game save that survives a fresh boot.
 Introduce further abstractions through concrete requirements.

@@ -62,3 +62,53 @@ test("XT timed CPU and halt boundaries deliver native IRQ6 without DMA activity 
   const diskette = io.snapshot().diskette; machine.cpu.reset(); assert.deepEqual(io.snapshot().diskette, diskette);
   machine.reset(); assert.equal(io.snapshot().diskette.dor, 0); assert.equal(io.snapshot().diskette.phase, 0);
 });
+
+test("XT channel 2 writes to the latched page, wraps within it and honors the BIOS count", () => {
+  const { io, ports, memory } = fixture(), bytes = new Uint8Array(368640);
+  bytes.set([0xa6, 0x3b, 0x75], 512);
+  assert.throws(() => io.setDiskette(new Uint8Array(512)), /360 KiB/);
+  io.setDiskette(bytes); bytes.fill(0); // The drive owns the inserted bytes.
+  ports.writePort(0x3f2, 0x1c); io.advanceOscillatorTicks(29324);
+  ports.writePort(0x3f5, 8); ports.readPort(0x3f5); ports.readPort(0x3f5);
+  // DMA2 single write, address FFFE, count 2 (three bytes), page A19:A16 = 3.
+  for (const [port, byte] of [[0x0c, 0], [4, 0xfe], [4, 0xff], [5, 2], [5, 0], [0x0b, 0x46], [0x81, 0xf3]] as const) {
+    ports.writePort(port, byte);
+  }
+  assert.equal(ports.readPort(0x81), 0xff);
+  for (const byte of [0xe6, 0, 0, 0, 2, 2, 9, 0x2a, 0xff]) ports.writePort(0x3f5, byte);
+  io.advanceOscillatorTicks(470);
+  assert.equal(io.serviceDma(memory), undefined); assert.equal(ports.readPort(8) & 0x40, 0x40);
+  assert.throws(() => io.setDiskette(new Uint8Array(512)), /360 KiB/); // Preserve the pending read.
+  const swapped = new XtIo(io.snapshot());
+  swapped.setDiskette(bytes); // Ejecting the old disk interrupts the read before this one is inserted.
+  assert.equal(swapped.read(8) & 0x40, 0); assert.equal(swapped.read(0xf5), 0x40); assert.equal(swapped.read(0xf5), 4);
+  ports.writePort(0x0a, 2);
+  // OUT1 goes high as the timer is programmed. DACK0 must leave DREQ2 pending.
+  ports.writePort(0x0b, 0x58); ports.writePort(0x0a, 0);
+  ports.writePort(0x43, 0x54); ports.writePort(0x41, 18);
+  assert.equal(io.serviceDma(memory)?.channel, 0); assert.equal(memory.read(0x3fffe), 0);
+  ports.writePort(0x0a, 4); // Mask further refresh for this explicit grant sequence.
+  for (const [address, value] of [[0x3fffe, 0xa6], [0x3ffff, 0x3b], [0x30000, 0x75]] as const) {
+    assert.deepEqual(io.serviceDma(memory), { channel: 2, address, value, oscillatorTicks: 15 });
+    assert.equal(memory.read(address), value);
+    io.advanceOscillatorTicks(470);
+  }
+  assert.equal(memory.read(0x40000), 0);
+  assert.equal(io.serviceDma(memory), undefined); assert.equal(ports.readPort(8) & 4, 4); assert.equal(ports.readPort(8) & 4, 0);
+  const saved = io.snapshot();
+  assert.equal(saved.dma.mask & 4, 4); assert.equal(saved.dma.count[2], 0xffff);
+  io.setDiskette(null); assert.equal(new XtIo(saved).snapshot().disketteImage![512], 0xa6);
+  assert.throws(() => new XtIo({ ...saved, disketteImage: null }), /match/);
+});
+
+test("XT restores empty-drive checkpoints written before the media and DMA-page fields existed", () => {
+  const { io } = fixture();
+  io.write(0xf2, 0x1c); io.advanceOscillatorTicks(29324); io.write(0xf5, 8);
+  assert.equal(io.read(0xf5), 0xc0); // One unread Sense Interrupt result.
+  const { disketteImage, diskettePage, diskette, ...board } = io.snapshot();
+  const { results, result_index, byte_us, byte_offset, media, ...controller } = diskette;
+  const old = { ...board, diskette: { ...controller, result: 0, result_pcn: 0 } };
+  const restored = new XtIo(old as never);
+  assert.equal(restored.read(0xf5), 0); assert.equal(restored.read(0xf4), 0x80);
+  assert.equal(restored.snapshot().disketteImage, null); assert.equal(restored.snapshot().diskettePage, 0);
+});
