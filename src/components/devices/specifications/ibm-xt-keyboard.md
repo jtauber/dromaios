@@ -129,6 +129,11 @@ source irq "The completed byte asserts IRQ1 until receiver clear" : flag {
   return full
 }
 
+source selfTesting "A keyboard reset is waiting to return its self-test byte" : flag {
+  pending = latch SELF_TEST_PENDING
+  return pending
+}
+
 source validState "Reject contradictory receiver state and unsaturated reset durations" : flag {
   code = register CODE
   duration = register LOW_US
@@ -156,6 +161,7 @@ interface IbmXtKeyboard {
   offer offerCode
   view data
   view irq
+  view selfTesting
   read 0 data
 }
 ```
@@ -163,7 +169,9 @@ interface IbmXtKeyboard {
 The model's `reset()` represents a fresh receiver/keyboard session, not a CPU
 reset or the unused keyboard-connector reset pin. CPU reset leaves it alone.
 Snapshots preserve a partial clock-low interval, remaining response delay, and
-any queued self-test byte. The response timer runs even while receiver controls
+any queued self-test byte. The read-only `selfTesting()` view lets the host
+discard pre-reset keystrokes while the keyboard prepares its response.
+The response timer runs even while receiver controls
 block delivery: the keyboard's microcontroller has its own oscillator. Another
 qualifying reset restarts the response delay; receiver clear alone does not.
 No time passes through reads, inspection, or CPU instruction counts. The

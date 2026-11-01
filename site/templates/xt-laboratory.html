@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block description %}Boot an IBM PC/XT, type a ROM BASIC program, and save your session.{% endblock %}
+{% block body_class %}laboratory-page{% endblock %}
+{% block head %}<script type="module" src="{{ calc_url(xt_lab_script) }}"></script>{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ calc_url('assets/laboratory.css') }}">
+<link rel="stylesheet" href="{{ calc_url('assets/workspace.css') }}">
+<link rel="stylesheet" href="{{ calc_url('assets/xt.css') }}">
+{% endblock %}
+{% block header %}
+<header class="laboratory-header">
+  <a class="laboratory-brand" href="{{ calc_url('') }}">microcomputer.world</a>
+  <h1>IBM PC/XT <span>/ Laboratory</span></h1>
+  <div class="workspace-toolbar" data-workspace-controls role="group" aria-label="Workspace layout"></div>
+</header>
+{% endblock %}
+{% block footer %}{% endblock %}
+{% block main %}
+<main id="main" class="laboratory xt-laboratory" data-xt-laboratory>
+  <noscript><p>Enable JavaScript to use the laboratory. <a href="{{ calc_url(xt_url) }}">Read the machine guide</a>.</p></noscript>
+  <div class="workspace-scroll"><div class="workspace-dock" data-workspace-root aria-label="XT laboratory workspace"></div></div>
+  <div hidden data-workspace-panels>
+    <section class="lab-tool lab-tool-screen" data-workspace-panel="screen" data-panel-title="Screen" data-panel-heading="IBM PC/XT" data-panel-detail="CGA · RGBI">
+      <div class="lab-panel-body"><div class="lab-display-area">
+        <div class="xt-monitor" data-screen tabindex="0" role="region" aria-label="CGA display and XT keyboard" aria-describedby="xt-input-help">
+          <canvas width="640" height="200" hidden aria-hidden="true"></canvas>
+          <pre class="visually-hidden" data-screen-text aria-label="Screen text"></pre>
+          <div class="xt-screen-notice" data-screen-notice>Preparing display…</div>
+        </div>
+      </div><div class="lab-display-footer"><p class="basic-readout" id="xt-input-help">Click the screen to type or paste. Enter submits a line.</p></div></div>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">
+      <div class="basic-controls">{% for name, label in [('run','Run'),('pause','Pause'),('step','Step'),('break','Ctrl-Break'),('warm','Ctrl-Alt-Del'),('reset','Reset CPU'),('power','Fresh power-on')] %}
+        <button type="button" data-{{ name }} disabled>{{ label }}</button>{% endfor %}</div>
+      <p class="basic-readout" data-execution>Paused</p>
+      <p class="basic-message" data-error role="alert"></p>
+      <p class="basic-message" data-message role="status"></p>
+      <details><summary>Using the keyboard</summary><p class="lab-hint">At BASIC’s Ok prompt, type PRINT 2+3 and press Enter. You can paste several lines at once. Ctrl-Break interrupts a running BASIC program. Ctrl-Alt-Del sends the XT restart chord.</p></details>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-title="Firmware">
+      <p>Load the three ROMs, then press <strong>Run</strong>. The XT checks 640 KiB of RAM and the empty drive before BASIC displays <samp>Ok</samp>.</p>
+      {% for id, name, size in [('bios','XT BIOS · 11/08/82','8 KiB'),('basic','IBM BASIC · C1.10','32 KiB'),('font','IBM MDA/CGA character ROM','8 KiB')] %}
+      <div class="xt-socket" data-slot="{{ id }}">
+        <h2>{{ name }} <small>{{ size }}</small></h2>
+        <div class="basic-controls"><button type="button" data-load disabled aria-label="Load {{ name }}">Load…</button>
+        <button type="button" data-forget disabled aria-label="Forget remembered {{ name }}">Forget remembered file</button></div>
+        <input type="file" data-file hidden><p class="basic-readout" data-slot-status>Empty</p>
+      </div>
+      {% endfor %}
+      <p class="lab-hint">Verified files are remembered in this browser. <a href="{{ calc_url(xt_url) }}#physical-storage-and-firmware" target="_blank" rel="noopener">Firmware guide ↗</a></p>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="snapshot" data-panel-title="Session">
+      <h2>Local checkpoint</h2>
+      <div class="basic-controls"><button type="button" data-save disabled>Save snapshot</button>
+      <button type="button" data-restore disabled>Restore snapshot</button><button type="button" data-remove disabled>Forget snapshot</button></div>
+      <p class="basic-readout" data-saved>No checkpoint saved.</p>
+      <p class="lab-hint">Pause at BASIC’s Ok prompt and save a snapshot to skip POST next time. Saving replaces this browser’s XT checkpoint, including the program, screen, and pending input.</p>
+      <p><a href="{{ calc_url(xt_url) }}#rom-basic-sessions" target="_blank" rel="noopener">Try the three-line BASIC program ↗</a></p>
+    </section>
+  </div>
+</main>
+{% endblock %}

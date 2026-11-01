@@ -8,7 +8,13 @@ ROOT = Path(__file__).resolve().parent.parent
 ALTAIR = ROOT / "src/machines/8080/altair-basic.md"
 APPLE2 = ROOT / "src/machines/6502/apple2.md"
 COCO = ROOT / "src/machines/6809/coco.md"
-MACHINES = {ALTAIR: "machines/altair-8800/", APPLE2: "machines/apple-ii-plus/", COCO: "machines/color-computer/"}
+XT = ROOT / "src/machines/8088/pc-xt.md"
+MACHINES = {
+    ALTAIR: "machines/altair-8800/",
+    APPLE2: "machines/apple-ii-plus/",
+    COCO: "machines/color-computer/",
+    XT: "machines/ibm-pc-xt/",
+}
 
 
 def media_record(source):

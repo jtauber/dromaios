@@ -86,6 +86,7 @@ export class XtIo implements MemoryConnection {
   get irq(): boolean { return this.#pic.irq(); }
   get nmiPending(): boolean { return this.#system.nmiPending(); }
   get keyboardPending(): boolean { return this.#keyboard.irq(); }
+  get keyboardSelfTesting(): boolean { return this.#keyboard.selfTesting(); }
   get keyboardData(): number { return this.#keyboard.data(); }
   get timer2Gate(): boolean { return Boolean(this.#ppi.driveB() & 1); }
   get speakerData(): boolean { return Boolean(this.#ppi.driveB() & 2); }

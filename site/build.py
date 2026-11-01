@@ -20,7 +20,7 @@ from check import check_site
 from diagrams import state_diagram
 from lessons import BASIC_LESSONS, LESSON_GROUPS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
-from machines import ALTAIR, APPLE2, COCO, MACHINES, media_record, rom_container_record
+from machines import ALTAIR, APPLE2, COCO, XT, MACHINES, media_record, rom_container_record
 from apple2_rom import APPLE2_ROM, explorer_catalogue
 from coco_rom import coco_annotations
 from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
@@ -84,11 +84,13 @@ def build(base):
     site.set_global("apple2_script", f"{interactive}/site/interactive/apple2-page.js")
     site.set_global("apple2_lab_script", f"{interactive}/site/interactive/apple2-laboratory.js")
     site.set_global("coco_lab_script", f"{interactive}/site/interactive/coco-laboratory.js")
+    site.set_global("xt_lab_script", f"{interactive}/site/interactive/xt-laboratory.js")
     site.write_output("assets/highlight.css", HtmlFormatter(style="friendly").get_style_defs(".code-block"))
     site.add_hash("assets/style.css")
     site.add_hash("assets/laboratory.css")
     site.add_hash("assets/workspace.css")
     site.add_hash("assets/coco.css")
+    site.add_hash("assets/xt.css")
     site.set_global("chapters", chapters)
     site.set_global("lesson_groups", lesson_groups)
     site.set_global("lesson_count", len(lessons))
@@ -134,13 +136,26 @@ def build(base):
     }
     site.render_template("apple2.html", f"{apple2['apple2_url']}index.html", apple2)
     site.render_template("apple2-laboratory.html", f"{apple2['apple2_lab_url']}index.html", {**apple2, "title": "Apple II Plus laboratory"})
-    coco = {**render_guide(COCO), "coco_url": MACHINES[COCO], "coco_lab_url": f"{MACHINES[COCO]}laboratory/"}
-    site.render_template("coco.html", f"{coco['coco_url']}index.html", coco)
+    def machine_guide(source, processor, short_name, description):
+        url = MACHINES[source]
+        lab_url = f"{url}laboratory/"
+        site.render_template("machine-guide.html", f"{url}index.html", {
+            **render_guide(source), "processor": processor, "short_name": short_name,
+            "lab_url": lab_url, "description": description,
+        })
+        return lab_url
+
+    coco_lab = machine_guide(COCO, "Motorola 6809", "CoCo",
+                             "Explore the TRS-80 Color Computer's executable specification and run Color BASIC in its laboratory.")
     coco_instructions = json.loads(subprocess.run(["node", "site/coco-instructions.ts"], cwd=ROOT,
                                                   check=True, capture_output=True, text=True).stdout)
-    site.render_template("coco-laboratory.html", f"{coco['coco_lab_url']}index.html",
-                         {**coco, "title": "Color Computer laboratory", "coco_instructions": coco_instructions,
+    site.render_template("coco-laboratory.html", f"{coco_lab}index.html",
+                         {"coco_url": MACHINES[COCO], "title": "Color Computer laboratory", "coco_instructions": coco_instructions,
                           "coco_rom_guides": coco_annotations(COCO.read_text(), coco_instructions["romImages"], coco_instructions)})
+    xt_lab = machine_guide(XT, "Intel 8088", "XT",
+                           "Explore the IBM PC/XT’s executable specification and run ROM BASIC in its laboratory.")
+    site.render_template("xt-laboratory.html", f"{xt_lab}index.html",
+                         {"xt_url": MACHINES[XT], "title": "IBM PC/XT laboratory"})
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):
@@ -170,7 +185,7 @@ def build(base):
         "hero_diagram": diagram(state_diagram(chapters[0]["state"], width=400), "8008-state-compact"),
     })
     check_site(site.output_dir, base)
-    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters + {len(MACHINES)} machine guides + Apple II and CoCo laboratories in {site.output_dir} (base {base}).")
+    print(f"Built home + lesson index + {len(lessons)} introductory lessons + {len(chapters)} CPU chapters + {len(MACHINES)} machine guides + Apple II, CoCo, and XT laboratories in {site.output_dir} (base {base}).")
 
 
 if __name__ == "__main__":

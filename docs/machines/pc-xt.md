@@ -25,8 +25,9 @@ original diskette POST through IRQ6; original INT 13h reads time out without
 DMA transfers, with saved continuation checked. Timed keyboard self-test delivery
 also passes the second keyboard reset. Original firmware completes POST,
 falls back from an empty drive, and runs [repeatable ROM BASIC sessions](../../src/machines/8088/pc-xt.md#rom-basic-sessions)
-with stored programs and native keyboard input. The laboratory and disk-image
-boot remain ahead. The reference's DOS
+with stored programs and native keyboard input. The
+[first laboratory](../../src/machines/8088/pc-xt.md#using-the-laboratory) runs
+that session in the browser. The reference's DOS
 boot works through JavaScript BIOS services; it does not demonstrate original-ROM
 startup or a working floppy controller. Native ROM BASIC is the first milestone;
 DOS remains a separate milestone.
@@ -233,8 +234,7 @@ any expected diagnostics of the selected configuration explicitly.
 The [executable session contract](../../src/machines/8088/pc-xt.md#rom-basic-sessions)
 owns the headless acceptance programs, editing and break behavior, firmware warm
 boot versus CPU reset and power-on, and saved-program/input replay. The browser
-laboratory must exercise the same path for typed and pasted input, release held
-keys on focus loss, and preserve the current session when rejecting files.
+laboratory uses the same receiver for typing, paste, and restart chords.
 
 ### 3. Shared laboratory
 
@@ -276,12 +276,10 @@ AT/286 and later x86 remain separate CPU and machine projects.
 
 ## Next implementation slice
 
-Build the first shared laboratory around the accepted ROM BASIC session:
-load the verified local firmware, show CGA text, and run, pause, step, type,
-and paste through the native board. Make host key releases, including focus
-loss and keyboard reset, and saving pending input part of that first slice.
-Then add the 8088 inspection tools above. DMA data transfers and page registers
-belong with the later native disk milestone.
+Extend the XT laboratory with 8088 registers, disassembly and instruction
+inspection. Start with both CS:IP and its physical address. Then adapt memory
+navigation and breakpoints to the 20-bit address space. DMA data transfers and
+page registers belong with the native disk milestone.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

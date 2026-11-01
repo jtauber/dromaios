@@ -12,7 +12,7 @@ inserted, the BIOS's own timeout leads to ROM BASIC C1.10. BASIC prints its
 prompt and accepts immediate commands and stored programs through the keyboard receiver and IRQ1.
 No BIOS service is replaced by host code and no BIOS data area is preloaded.
 The [session checks](#rom-basic-sessions) cover editing, Ctrl-Break, warm boot, and saved input.
-A browser laboratory and disk-image transfers remain ahead.
+The [browser laboratory](#using-the-laboratory) runs this machine with locally supplied ROMs.
 
 ## Physical storage and firmware
 
@@ -279,9 +279,8 @@ do not restart the display.
 The pure [text renderer](pc-xt/video.ts), `renderXtTextFrame(machine)`, returns
 a detached 320×200 or 640×200 array of RGBI colour indices. It reads physical
 video RAM and the character ROM without CPU bus accesses or elapsed time.
-`cgaColours` supplies the 16-colour monitor palette. Presentation code can scale
-40-column pixels to the same physical screen width; a browser display is not
-part of this slice. The renderer rejects unsupported profiles and a missing
+`cgaColours` supplies the 16-colour monitor palette. The laboratory fits both
+widths to a 4:3 monitor. The renderer rejects unsupported profiles and a missing
 font when video is enabled, and returns black when configured video is disabled.
 
 ### Original BIOS text services
@@ -402,6 +401,33 @@ pre-reset queue or a browser's key-release policy.
 By contrast, CPU-only reset returns to physical `FFFF0` and clears IF, preserving
 the general registers, RAM, video, devices, pending key, and clock. Fresh power-on starts at the
 same vector with zeroed RAM/video, inactive devices, and oscillator time zero.
+
+## Using the laboratory
+
+In **Firmware**, choose the 8 KiB XT BIOS dated 11/08/82, the 32 KiB IBM BASIC
+C1.10 ROM, and the 8 KiB IBM MDA/CGA character ROM. Each file is checked against
+the identity in this chapter and remembered locally. Press **Run**. The first
+part of POST runs with video disabled, so the screen takes time to appear.
+The address and emulated seconds in **Execution** show the board advancing.
+With its drive empty the XT boots into BASIC.
+
+Click the screen at `Ok`. Paste the three-line [program above](#rom-basic-sessions),
+including a final Enter, then type `LIST` and `RUN`. To resume later, pause and
+choose **Save snapshot**. The checkpoint includes RAM, CGA storage, CPU, board
+devices, and any undelivered keyboard input. On a later visit, restore it with
+the same three ROMs loaded. **Step** advances one timed CPU boundary.
+
+The browser maps US physical keys to XT makes and breaks. Tab moves focus out
+of the screen. Leaving the screen releases held keys, and leaving the window
+also pauses execution. Pasting supports US keyboard text and line breaks.
+It paces characters by the emulated oscillator and allows extra time after
+Enter for BASIC to scroll. The paste position and delay survive a checkpoint.
+
+**Ctrl-Break** and **Ctrl-Alt-Del** send the corresponding XT key chords through
+the receiver. When the BIOS resets the keyboard, its self-test takes precedence
+and the host discards typing and releases queued before that reset. This keeps
+a stale release from reaching POST's stuck-key check. **Reset CPU** preserves
+RAM and devices. **Fresh power-on** starts a new machine with the loaded ROMs.
 
 [intel]: https://www.ardent-tool.com/CPU/docs/Intel/808x/manuals/9800722-03_alt.pdf
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

@@ -5,7 +5,7 @@ the processor models and executable specifications; it is credited alongside
 the site’s other tools, Ryland and Sauvignon.
 
 Ryland builds the home page, the lesson index, the introductory lessons, one
-guide per processor, and the Altair, Apple II Plus, and Color Computer machine
+guide per processor, and the Altair, Apple II Plus, Color Computer, and IBM PC/XT machine
 guides from executable specifications. Sauvignon renders both
 architecture diagrams and state maps
 derived from the CPU compiler. Pages use ordinary HTML, CSS, and SVG, with
@@ -26,6 +26,16 @@ The build uses this catalogue both to render the lesson pages and to populate
 catalogue in their intended learning order; the shared navigation supplies their
 neighbors. BASIC lessons use the Markdown format below; earlier lessons retain
 their individual templates. The index works without JavaScript.
+
+## IBM PC/XT laboratory
+
+`/machines/ibm-pc-xt/` publishes the [XT machine guide](../src/machines/8088/pc-xt.md).
+Its [laboratory](../src/machines/8088/pc-xt.md#using-the-laboratory) uses the
+shared docking workspace, execution controller, and verified ROM loader.
+`xt-session.ts` owns the native board and keyboard between draws. The display
+reads the CGA frame, and the keyboard delivers scan codes at timed CPU boundaries.
+The [session checks](../src/machines/8088/pc-xt.md#rom-basic-sessions) give a
+program to try after POST and the results to expect from editing and running it.
 
 ## Color Computer laboratory
 
