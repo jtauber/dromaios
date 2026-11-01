@@ -484,6 +484,55 @@ Check a RAM watch after restoration to verify that it follows the restored
 hardware. Panel updates and navigation use observed state and perform no guest
 bus or port accesses.
 
+### Changes and watched RAM history
+
+**Changes** uses the shared laboratory log. Each retained event identifies its
+original CS:IP and 20-bit physical address, fetched instruction bytes, and
+register, flag, and stored-byte changes. Relative branch targets are decoded
+from that captured segment pair. The **CS:IP** filter covers both fields of the
+logical instruction pointer. External interrupts, pending traps, and halted
+boundaries retain their own identity rather than borrowing the instruction at
+that address. Each REP iteration is a separate native boundary.
+
+Memory changes come from storage observers, including conventional RAM and CGA
+RAM. The two CGA windows share storage, so changes name its first physical
+window at `B8000`, including writes made through the `BC000` alias. Unchanged
+stores, ROM writes, and port I/O do not appear as memory changes. Reading or
+repainting the log does not read devices. A failed boundary keeps its completed
+changes and is marked interrupted.
+
+The log retains the newest 500 boundaries. **Record changes** pauses capture;
+**Live** pauses rendering during Run. Closing the panel does not stop capture.
+Filters affect presentation only. Clear log restarts its numbering without
+clearing watched-memory history.
+
+In **Debugger**, each configured RAM write watch has a **History** button. Its
+checkbox controls stopping; both enabled and disabled watches retain their last
+256 writes, including unchanged values and interrupt stack writes. History
+continues with Changes recording paused, Live off, or the panel hidden. It
+excludes reads, CGA RAM, ROM, port I/O, and host edits. A failed boundary does
+not append a completed watch event. Removing a watch clears that watch's
+history. Clear all clears all retained watch events, leaving the watches set.
+
+A history entry links the written physical byte to Memory and the writer's
+captured CS:IP to Disassembly. Disassembly then browses current storage at that
+logical location; **Follow CS:IP** returns to the running CPU. The history's
+instruction text continues to use the original fetched bytes even if the
+program has since changed them.
+
+The **BIOS data byte** selector uses the chapter's workspace labels below.
+These follow the original listing's keyboard and timer data area at segment
+`0040` (appendix A, pages A-3–A-4). Word labels offer their low and high bytes
+separately, with `+1` identifying the high byte. The addresses describe the
+selected firmware's layout; POST and its interrupt handlers initialize and
+maintain the values. For example, after booting, watch `KB_FLAG`, `BUFFER_TAIL`,
+and `TIMER_LOW`, disable stopping, then type while running. Their histories
+show the BIOS's keyboard and timer stores. [IBM Technical Reference][ibm]
+
+Reset CPU, fresh power-on, restoration, and successful ROM replacement clear
+both histories while preserving stop preferences and recording controls.
+These debugging observations are not part of a saved hardware checkpoint.
+
 ### Following reset and early POST
 
 The **Instruction** panel previews the next native CPU boundary on private CPU,
@@ -534,6 +583,14 @@ a return instruction before establishing a working RAM stack.
     {"address": "FE0D7", "name": "C11", "description": "Check the BIOS checksum result and continue to DMA/timer initialization when ZF is set."}
   ],
   "labels": [
+    {"address": "00417", "name": "KB_FLAG", "scope": "workspace", "description": "0040:0017. Keyboard shift and toggle flags, maintained by the BIOS IRQ1 routine."},
+    {"address": "00418", "name": "KB_FLAG_1", "scope": "workspace", "description": "0040:0018. Secondary keyboard status, including held toggle keys and the suspend state."},
+    {"address": "0041A", "name": "BUFFER_HEAD", "scope": "workspace", "bytes": 2, "description": "0040:001A. Little-endian offset of the next keyboard entry to read, relative to segment 0040."},
+    {"address": "0041C", "name": "BUFFER_TAIL", "scope": "workspace", "bytes": 2, "description": "0040:001C. Little-endian offset of the next free keyboard entry. Equal head and tail offsets mean an empty buffer."},
+    {"address": "0041E", "name": "KB_BUFFER", "scope": "workspace", "bytes": 2, "description": "0040:001E. First word of the 16-word keyboard ring. The low byte is the character code and the high byte is its scan code; one slot remains empty."},
+    {"address": "0046C", "name": "TIMER_LOW", "scope": "workspace", "bytes": 2, "description": "0040:006C. Low little-endian word of the BIOS tick count, updated by IRQ0."},
+    {"address": "0046E", "name": "TIMER_HIGH", "scope": "workspace", "bytes": 2, "description": "0040:006E. High little-endian word of the BIOS tick count. TIMER_HIGH:TIMER_LOW forms one 32-bit counter."},
+    {"address": "00470", "name": "TIMER_OFL", "scope": "workspace", "description": "0040:0070. BIOS midnight rollover flag, reported and cleared when the clock is read through INT 1Ah."},
     {"address": "FE016", "name": "C1", "scope": "rom", "description": "ROM word D7 E0 used as the return address for the first checksum. SS:SP points here before the jump."}
   ],
   "notes": [

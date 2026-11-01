@@ -31,9 +31,15 @@ export function formatXtDebugAddress(point: Target): string {
   return point.space ? `${point.space} · physical $${hex(point.address, 5)}` : `physical $${hex(point.address, 5)}`;
 }
 
+export function xtLogicalLocation(location: DebugLocation): { readonly cs: number; readonly ip: number } | undefined {
+  const match = /^CS:IP ([0-9A-F]{4}):([0-9A-F]{4})$/.exec(location.space ?? "");
+  if (!match) return undefined;
+  const cs = parseInt(match[1]!, 16), ip = parseInt(match[2]!, 16);
+  return physical8088(cs, ip) === location.address ? { cs, ip } : undefined;
+}
+
 function acceptsLogicalSpace(space: string, address: number): boolean {
-  const match = /^CS:IP ([0-9A-F]{4}):([0-9A-F]{4})$/.exec(space);
-  return match !== null && physical8088(parseInt(match[1]!, 16), parseInt(match[2]!, 16)) === address;
+  return xtLogicalLocation({ space, address }) !== undefined;
 }
 
 export function decodeXtBreakpoints(saved: string | null): readonly InstructionBreakpoint[] {

@@ -26,7 +26,7 @@ export interface ChangeEntry {
 }
 
 /** Register widths and flags belong to the generated state description. Derived aliases are not logged twice. */
-export function processorChanges(fields: StateFields, before: object, after: object): RecordedChange[] {
+export function processorChanges(fields: StateFields, before: object, after: object, counters: readonly string[] = ["pc"]): RecordedChange[] {
   const changes: RecordedChange[] = [];
   function visit(fields: StateFields, before: object, after: object, prefix = ""): void {
     for (const [name, field] of Object.entries(fields)) {
@@ -34,7 +34,7 @@ export function processorChanges(fields: StateFields, before: object, after: obj
       if (field.kind === "group") {
         if (old && value && typeof old === "object" && typeof value === "object") visit(field.fields, old, value, name === "flags" ? "" : `${prefix}${name}.`);
       } else if ((field.kind === "unsigned" || field.kind === "flag") && old !== value) {
-        changes.push({ kind: field.kind === "flag" ? "flag" : name === "pc" ? "pc" : "register", target: `${prefix}${name}`.toUpperCase(),
+        changes.push({ kind: field.kind === "flag" ? "flag" : counters.includes(name) ? "pc" : "register", target: `${prefix}${name}`.toUpperCase(),
           before: Number(old), after: Number(value), width: field.kind === "flag" ? 1 : Math.ceil(field.bits / 4) });
       }
     }
@@ -45,6 +45,7 @@ export function processorChanges(fields: StateFields, before: object, after: obj
 /** Bounded boundary history. Physical writes are observed once, independently of recording and display refresh. */
 export function createChangeLog<State extends object, Record extends ChangeBoundary<State>, Write extends StorageWrite>(adapter: {
   readonly state: StateFields;
+  readonly counters?: readonly string[];
   readonly snapshot: () => State;
   readonly location: (state: State) => DebugLocation;
   readonly event: (record: Record) => string | undefined;
@@ -94,7 +95,7 @@ export function createChangeLog<State extends object, Record extends ChangeBound
           const instruction = record ? record.instruction : { address: caller!.address, bytes: [] };
           append({ source: "cpu", sequence, caller, instruction: instruction ? { address: instruction.address, bytes: [...instruction.bytes] } : undefined,
             event: record && adapter.event(record), outcome: record?.outcome ?? "interrupted",
-            changes: [...processorChanges(adapter.state, before, record?.after ?? adapter.snapshot()), ...changes.map(memoryChange)] });
+            changes: [...processorChanges(adapter.state, before, record?.after ?? adapter.snapshot(), adapter.counters), ...changes.map(memoryChange)] });
         }
       }
     },

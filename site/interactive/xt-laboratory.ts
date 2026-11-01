@@ -17,13 +17,16 @@ import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
 import { createXtScreen } from "./xt-screen.js";
 import { decodeXtCheckpoint, encodeXtCheckpoint, xtCheckpointKey } from "./xt-checkpoint.js";
-import { createXtDebugger, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
+import { createXtDebugger, formatXtDebugAddress, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
 import { createXtDebuggerView } from "./xt-debugger-view.js";
 import { previewXtInstruction } from "./xt-instruction-preview.js";
 import { createXtInstructionView } from "./xt-instruction-view.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
 import type { RomGuide } from "./rom-guide.js";
 import { createXtRomAnnotations, xtCheckpointPosition } from "./xt-rom-guide.js";
+import { createXtChangeLog, createXtWatchHistory, xtHistoryAssembly, xtStorageLabel } from "./xt-history.js";
+import { createChangeLogView } from "./change-log-view.js";
+import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-xt-laboratory]")) mount(root);
 
@@ -42,7 +45,7 @@ function mount(root: HTMLElement): void {
   const guide: RomGuide = JSON.parse(at("xt-rom-guide").textContent!);
   const annotations = createXtRomAnnotations(guide);
   const showRegisters = createXtRegisterView(registers);
-  const showCode = createXtCodeView(code, catalogue, annotations);
+  const showCode = createXtCodeView(code, catalogue, annotations, () => refresh("code"));
   const showInstruction = createXtInstructionView(instruction, browseMemory);
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
@@ -52,6 +55,14 @@ function mount(root: HTMLElement): void {
     ],
   });
   const updates = createPanelUpdates(root, id => refresh(id), "dromaios:inspectors:xt:live");
+  const changeLog = createChangeLogView(root, () => session.machine, machine => createXtChangeLog(machine, catalogue.storage),
+    (instruction, caller) => xtHistoryAssembly(catalogue.cpu, caller!, instruction.bytes), { location: formatXtDebugAddress })!;
+  const watchHistory = createXtWatchHistory();
+  const watchView = createMemoryWatchHistoryView(root, watchHistory, {
+    addressWidth: 5, location: formatXtDebugAddress, storageLabel: xtStorageLabel,
+    assembly: entry => xtHistoryAssembly(catalogue.cpu, entry.caller, entry.bytes), browseMemory,
+    browseCode(location) { showCode.browse(location); workspace.show("code"); },
+  })!;
   const slots = [...root.querySelectorAll<HTMLElement>("[data-slot]")].map(panel => {
     const id = panel.dataset.slot as XtRomSlot;
     return { id, file: panel.querySelector("input")!, load: panel.querySelector<HTMLButtonElement>("[data-load]")!,
@@ -61,7 +72,12 @@ function mount(root: HTMLElement): void {
   });
   let loading = true, saved = false, lastDraw = -Infinity;
   const execution = createExecutionController({
-    step: () => debug.capture(() => session.step()), canStep: () => session.ready && !loading,
+    step() {
+      const caller = xtDebugLocation(session.machine.cpu.snapshot()), log = changeLog.current();
+      const record = log.capture(() => debug.capture(() => session.step()));
+      watchHistory.observe(record, caller, debug.watchpoints, log.memoryWrites(record));
+      return record;
+    }, canStep: () => session.ready && !loading,
     pauseBeforeStep: debug.beforeStep,
     onChange: refresh, batchSize: 8192,
     schedule(callback, ms) { const id = window.setTimeout(callback, ms); return () => window.clearTimeout(id); },
@@ -70,6 +86,8 @@ function mount(root: HTMLElement): void {
   const debugView = createXtDebuggerView(root, debug, {
     ramMaximum: session.machine.ram.size - 1, changed: refresh,
     memory: browseMemory,
+    labels: guide.labels, history: address => watchView.select({ address }),
+    watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
   });
   function browseMemory(address: number): void { memory.browse(address); workspace.show("memory"); }
   function runTo(text: string): void {
@@ -119,7 +137,7 @@ function mount(root: HTMLElement): void {
         showRegisters(cpu, execution.error ? undefined : execution.records.at(-1)?.before);
       }
       if (code.getClientRects().length && (requested === "code" || updates.shouldUpdate("code", running))) {
-        showCode(session.machine, cpu, execution.records);
+        showCode.refresh(session.machine, cpu, execution.records);
       }
       if (instruction.getClientRects().length && (requested === "instruction" || updates.shouldUpdate("instruction", running))) {
         showInstruction(previewXtInstruction(session, catalogue));
@@ -129,6 +147,10 @@ function mount(root: HTMLElement): void {
           sp: physical8088(cpu.ss, cpu.sp),
         });
       }
+      for (const [id, show] of [["log", changeLog.refresh], ["debugger", watchView.refresh]] as const) {
+        if (root.querySelector<HTMLElement>(`[data-workspace-panel="${id}"]`)!.getClientRects().length
+          && (requested === id || updates.shouldUpdate(id, running))) show();
+      }
     }
   }
   function act(work: () => void) {
@@ -136,11 +158,14 @@ function mount(root: HTMLElement): void {
     catch (error) { message.textContent = error instanceof Error ? error.message : String(error); }
     refresh();
   }
+  function resetTools(): void {
+    execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset();
+  }
   button("run").onclick = () => { debug.run(); message.textContent = ""; execution.run(); screen.focus(); };
   button("pause").onclick = () => { debug.pause(); execution.stop(); };
   button("step").onclick = () => { debug.step(); execution.step(); };
-  button("reset").onclick = () => act(() => { execution.reset(); session.resetCpu(); debug.reset(); memory.reset(); });
-  button("power").onclick = () => act(() => { execution.reset(); session.powerOn(); debug.reset(); memory.reset(); });
+  button("reset").onclick = () => act(() => { session.resetCpu(); resetTools(); });
+  button("power").onclick = () => act(() => { session.powerOn(); resetTools(); });
   button("break").onclick = () => act(() => session.keyboard.chord(["ControlLeft", "ScrollLock"]));
   button("warm").onclick = () => act(() => session.keyboard.chord(["ControlLeft", "AltLeft", "Delete"]));
 
@@ -168,7 +193,7 @@ function mount(root: HTMLElement): void {
   button("restore").onclick = () => act(() => {
     const value = localStorage.getItem(xtCheckpointKey);
     if (value === null) throw new Error("No saved XT checkpoint.");
-    session.restore(decodeXtCheckpoint(value)); execution.reset(); debug.reset(); memory.reset();
+    session.restore(decodeXtCheckpoint(value)); resetTools();
     message.textContent = "Session restored and paused.";
   });
   button("remove").onclick = () => act(() => {
@@ -182,7 +207,7 @@ function mount(root: HTMLElement): void {
       loading = true; message.textContent = `Checking ${file.name}…`; refresh();
       try {
         const media = await slot.storage.prepare(file);
-        session.install(slot.id, media.rom.image); slot.status.textContent = media.rom.name + " · verified";
+        session.install(slot.id, media.rom.image); resetTools(); slot.status.textContent = media.rom.name + " · verified";
         try { slot.storage.remember(media.stored); slot.remembered = true; message.textContent = "ROM loaded and remembered."; }
         catch { slot.remembered = false; message.textContent = "ROM loaded for this visit. Browser storage is unavailable."; }
       } catch (error) { message.textContent = error instanceof Error ? error.message : String(error); }

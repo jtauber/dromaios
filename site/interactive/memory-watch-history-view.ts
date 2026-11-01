@@ -13,8 +13,11 @@ export function createMemoryWatchHistoryView<Write extends StorageWrite>(root: H
     readonly storageLabel: (write: Write) => string;
     readonly browseCode: (location: DebugLocation) => string | undefined;
     readonly browseMemory: (address: number) => void;
+    readonly addressWidth?: number;
+    readonly location?: (location: DebugLocation) => string;
   }) {
   const { browseCode, browseMemory } = options;
+  const addressText = (address: number) => "$" + hex(address, options.addressWidth ?? 4);
   const panel = root.querySelector<HTMLElement>("[data-watch-history]");
   if (!panel) return undefined;
   const heading = panel.querySelector<HTMLElement>("[data-watch-history-heading]")!;
@@ -23,7 +26,7 @@ export function createMemoryWatchHistoryView<Write extends StorageWrite>(root: H
   let selected: MemoryRange | undefined;
   function refresh(): void {
     if (!selected) return;
-    const range = `$${hex(selected.address)}${selected.bytes === 2 ? `–${hex(selected.address + 1)}` : ""}`;
+    const range = `${addressText(selected.address)}${selected.bytes === 2 ? `–${addressText(selected.address + 1)}` : ""}`;
     heading.textContent = `History · ${range}`;
     const entries = history.entries(selected);
     const { captured, discarded } = history.counts(selected);
@@ -35,14 +38,15 @@ export function createMemoryWatchHistoryView<Write extends StorageWrite>(root: H
       const row = document.createElement("div"), title = document.createElement("div"), detail = document.createElement("div");
       row.className = "lab-device-event"; title.className = "lab-device-transfer"; detail.className = "lab-hint";
       const assembly = entry.event ?? options.assembly(entry);
+      const location = options.location?.(entry.caller) ?? addressText(entry.caller.address);
       const code = memoryLink(entry.caller.address, () => {
         const notice = browseCode(entry.caller);
         if (notice) status.textContent = notice;
-      });
+      }, location);
       code.title = `Browse ${assembly} · observed ${entry.caller.space}`;
-      code.setAttribute("aria-label", `Browse ${entry.event ? "interrupted PC" : "instruction"} $${hex(entry.caller.address)} from watch history`);
+      code.setAttribute("aria-label", `Browse ${entry.event ? "interrupted PC" : "instruction"} ${location} from watch history`);
       const value = entry.storage ? `$${hex(entry.storage.before, 2)} → $${hex(entry.storage.after, 2)}` : `$${hex(entry.value, 2)}`;
-      title.append(code, `  ${entry.kind === "read" ? "READ" : "WRITE"} `, memoryLink(entry.address, browseMemory), `  ${value}`);
+      title.append(code, `  ${entry.kind === "read" ? "READ" : "WRITE"} `, memoryLink(entry.address, browseMemory, addressText(entry.address)), `  ${value}`);
       detail.textContent = `#${entry.sequence} · ${assembly}` + (entry.storage
         ? ` · ${options.storageLabel(entry.storage)}`
         : entry.kind === "write" ? " · bus value; no physical RAM write observed" : " · captured bus value");

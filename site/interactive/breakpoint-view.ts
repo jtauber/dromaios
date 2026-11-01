@@ -52,7 +52,7 @@ export function createBreakpointView(panel: HTMLElement | null, options: {
       row.append(label);
       if (options.history) {
         const history = document.createElement("button"); history.type = "button"; history.textContent = "History";
-        history.setAttribute("aria-label", `History for watch at $${hex(point.address)}`);
+        history.setAttribute("aria-label", `History for watch at ${options.formatAddress ? name : "$" + hex(point.address)}`);
         history.addEventListener("click", () => options.history!(point.address)); row.append(history);
       }
       row.append(remove); output.append(row);
@@ -78,6 +78,7 @@ export function createBreakpointView(panel: HTMLElement | null, options: {
   const applicable = (address: number, space?: string) => values().filter(point => point.address === address && (point.space === undefined || point.space === space));
   render();
   return {
+    add,
     at(address: number, space?: string): InstructionBreakpoint | undefined {
       const points = applicable(address, space); return points.find(point => point.enabled) ?? points[0];
     },

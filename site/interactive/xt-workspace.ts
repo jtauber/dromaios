@@ -1,22 +1,33 @@
 import { decodeWorkspaceState, encodeWorkspaceState } from "./workspace/state.js";
-import { groups, movePanel, normalizeSplit, openPanel, panelGroup } from "./workspace/layout.js";
+import { activatePanel, collapseGroup, groups, movePanel, normalizeSplit, openPanel, panelGroup } from "./workspace/layout.js";
 import type { LayoutNode, Split, TabGroup, WorkspaceLayout } from "./workspace/layout.js";
 
 const group = (id: string): TabGroup => ({ kind: "tabs", id: "xt-" + id, active: id, panels: [id], collapsed: false });
 const area = (weight: number, node: LayoutNode) => ({ weight, node });
 const column = (id: string, ...items: Split["items"]): Split => ({ id, kind: "split", axis: "vertical", items });
 const tools = column("xt-inspectors", area(.31, group("registers")), area(.40, group("code")), area(.29, group("memory")));
-export const xtWorkspaceKey = "dromaios:workspace:xt:5";
-export const xtDefaultLayout: WorkspaceLayout = { root: { kind: "split", id: "xt-columns", axis: "horizontal", items: [
+export const xtWorkspaceKey = "dromaios:workspace:xt:6";
+function addChanges(layout: WorkspaceLayout): WorkspaceLayout {
+  const destination = panelGroup(layout, "code") ?? groups(layout)[0];
+  if (!destination) return openPanel(layout, "log");
+  return collapseGroup(activatePanel(movePanel(layout, "log", { group: destination.id, side: "tab" }), destination.active), destination.id, destination.collapsed);
+}
+export const xtDefaultLayout: WorkspaceLayout = addChanges({ root: { kind: "split", id: "xt-columns", axis: "horizontal", items: [
   area(.42, column("xt-console", area(.50, group("screen")), area(.22, group("execution")), area(.28, group("instruction")))),
   area(.36, tools),
   area(.22, column("xt-session", area(.40, group("rom")),
     area(.40, { ...group("debugger"), panels: ["debugger", "walkthrough"], active: "walkthrough" }), area(.20, group("snapshot")))),
-] } };
+] } });
 
 /** Add new tools once per version, preserving existing tabs, hidden panels and relative sizes. */
 export function migrateXtWorkspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }): void {
   if (storage.getItem(xtWorkspaceKey) !== null) return;
+  const version5 = storage.getItem("dromaios:workspace:xt:5");
+  if (version5 !== null) {
+    const old = decodeWorkspaceState(version5, ["screen", "execution", "rom", "snapshot", "registers", "code", "memory", "debugger", "instruction", "walkthrough"]);
+    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(addChanges(old)));
+    return;
+  }
   function addDebugger(layout: WorkspaceLayout): WorkspaceLayout {
     const destination = panelGroup(layout, "rom") ?? panelGroup(layout, "snapshot");
     return destination ? movePanel(layout, "debugger", { group: destination.id, side: "below" }) : openPanel(layout, "debugger");
@@ -27,7 +38,7 @@ export function migrateXtWorkspace(storage: { getItem(key: string): string | nul
     const debuggerGroup = panelGroup(layout, "debugger");
     const guideDestination = debuggerGroup ?? groups(layout)[0];
     layout = guideDestination ? movePanel(layout, "walkthrough", { group: guideDestination.id, side: debuggerGroup ? "tab" : "below" }) : openPanel(layout, "walkthrough");
-    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(layout));
+    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(addChanges(layout)));
   }
   const version4 = storage.getItem("dromaios:workspace:xt:4");
   if (version4 !== null) {

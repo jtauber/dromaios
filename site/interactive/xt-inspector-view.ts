@@ -5,6 +5,8 @@ import { readXtStorage, xtCodeRows } from "./xt-inspection.js";
 import type { XtBoundary, XtCatalogue } from "./xt-inspection.js";
 import type { XtMachine } from "./xt-session.js";
 import type { createXtRomAnnotations } from "./xt-rom-guide.js";
+import type { DebugLocation } from "./instruction-debugger.js";
+import { xtLogicalLocation } from "./xt-debugger.js";
 
 export function createXtRegisterView(panel: HTMLElement) {
   const numbers = panel.querySelector<HTMLElement>(".lab-registers")!, flags = panel.querySelector<HTMLElement>(".lab-flags")!;
@@ -40,11 +42,15 @@ export function createXtRegisterView(panel: HTMLElement) {
   };
 }
 
-export function createXtCodeView(panel: HTMLElement, catalogue: XtCatalogue, annotations: ReturnType<typeof createXtRomAnnotations>) {
+export function createXtCodeView(panel: HTMLElement, catalogue: XtCatalogue, annotations: ReturnType<typeof createXtRomAnnotations>, changed: () => void) {
   const body = panel.querySelector("tbody")!, status = panel.querySelector<HTMLElement>("[data-code-status]")!;
-  return (machine: XtMachine, state: Cpu8088Snapshot, records: readonly XtBoundary[]) => {
-    const rows = xtCodeRows(catalogue.cpu, state, address => readXtStorage(machine, catalogue.storage, address), records);
+  const follow = panel.querySelector<HTMLButtonElement>("[data-code-follow]")!;
+  let browsing: { readonly cs: number; readonly ip: number } | undefined;
+  follow.onclick = () => { browsing = undefined; changed(); };
+  function refresh(machine: XtMachine, state: Cpu8088Snapshot, records: readonly XtBoundary[]): void {
+    const rows = xtCodeRows(catalogue.cpu, browsing ?? state, address => readXtStorage(machine, catalogue.storage, address), browsing ? [] : records);
     body.replaceChildren(...rows.map(({ row, kind }) => {
+      if (browsing) kind = row.cs === state.cs && row.ip === state.ip ? "current" : "ahead";
       const tr = document.createElement("tr");
       const annotation = annotations.annotate(row, machine.bios.loaded);
       tr.classList.add("is-" + kind);
@@ -61,6 +67,15 @@ export function createXtCodeView(panel: HTMLElement, catalogue: XtCatalogue, ann
       const note = tr.insertCell(); note.className = "lab-rom-note"; note.textContent = annotation.note ?? "";
       return tr;
     }));
-    status.textContent = state.halted ? "Halted · CS:IP points past HLT" : state.waiting ? "Waiting for TEST" : "Following CS:IP";
+    follow.hidden = !browsing;
+    status.textContent = browsing ? `Browsing ${logical8088(browsing.cs, browsing.ip)} · current storage`
+      : state.halted ? "Halted · CS:IP points past HLT" : state.waiting ? "Waiting for TEST" : "Following CS:IP";
+  }
+  return { refresh, reset(): void { browsing = undefined; },
+    browse(location: DebugLocation): void {
+      browsing = xtLogicalLocation(location);
+      if (!browsing) throw new Error("The captured code location has no valid CS:IP pair.");
+      changed();
+    },
   };
 }

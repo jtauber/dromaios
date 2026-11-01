@@ -45,7 +45,7 @@
       <pre class="basic-readout" data-pointers aria-label="Logical and physical pointers"></pre>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="code" data-panel-title="Disassembly" data-panel-live="true">
-      <p class="basic-readout" data-code-status></p>
+      <div class="basic-controls"><p class="basic-readout" data-code-status></p><button type="button" data-code-follow hidden>Follow CS:IP</button></div>
       <table class="lab-code" aria-label="Intel 8088 disassembly">
         <thead><tr><th aria-label="Execution"></th><th>Routine</th><th>CS:IP</th><th>Physical</th><th>Bytes</th><th>Instruction</th><th>Destination</th><th>BIOS note</th></tr></thead>
         <tbody></tbody>
@@ -62,7 +62,7 @@
         <p class="lab-hint">Physical 00000–FFFFF · enter hex or segment:offset · -- means no storage</p>
       </div>
     </section>
-    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="debugger" data-panel-title="Debugger">
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="debugger" data-panel-title="Debugger" data-panel-live="true">
       <form class="basic-controls" data-run-to-form>
         <label>Run to <input data-run-to-address aria-label="Run-to address" placeholder="F000:E05B" spellcheck="false" maxlength="32"></label>
         <button type="submit" data-run-to disabled>Run to address</button>
@@ -78,9 +78,15 @@
         <form class="basic-controls"><input name="address" aria-label="RAM watchpoint address" placeholder="00417 or 0040:0017" spellcheck="false" maxlength="32"><button type="submit">Add watchpoint</button></form>
         <div data-stop-rows></div><p class="basic-message" data-stop-status role="status"></p>
       </div>
+      <div class="basic-controls" data-bios-byte-controls><label>BIOS data byte <select data-bios-byte aria-label="BIOS data byte"></select></label>
+        <button type="button" data-bios-byte-memory>Browse</button><button type="button" data-bios-byte-watch>Watch byte</button></div>
+      <p class="lab-hint" data-bios-byte-description></p>
       <p class="lab-hint">Watches stop after a write to RAM 00000–9FFFF, including unchanged values. Segment:offset entries select a physical RAM byte.</p>
       <p class="basic-message" data-debugger-status></p>
       <button type="button" data-watchpoint-memory hidden>Show written byte in Memory</button>
+      {% with watch_history_help='Oldest first. Captures conventional RAM writes to all configured watches, including unchanged stores and interrupt entry. The checkboxes enable stopping; disabled watches still record history. Live and Changes recording do not control capture. Removing a watch clears its history. Reset, power-on, restoration, and ROM replacement clear all history. Code links use the captured CS:IP but browse current storage. Reads, CGA RAM, ROM, and port I/O are excluded.' %}
+        {% include "instruments/watch-history.html" %}
+      {% endwith %}
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="walkthrough" data-panel-title="Walkthrough" data-rom-walkthrough>
       <label>ROM walkthrough <select data-walkthrough-choice aria-label="ROM walkthrough"></select></label>
@@ -96,6 +102,9 @@
       <p class="basic-readout" data-walkthrough-reference-text></p>
       <p><a href="{{ calc_url(xt_url) }}#following-reset-and-early-post" target="_blank" rel="noopener">Read the BIOS guide ↗</a></p>
     </section>
+    {% with log_memory_detail='including CGA RAM at its first physical window (B8000); BC000 aliases name the same stored bytes', log_ram_edits=false, log_pc_label='CS:IP' %}
+      {% include "instruments/change-log.html" %}
+    {% endwith %}
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-title="Firmware">
       <p>Load the three ROMs, then press <strong>Run</strong>. The XT checks 640 KiB of RAM and the empty drive before BASIC displays <samp>Ok</samp>.</p>
       {% for id, name, size in [('bios','XT BIOS · 11/08/82','8 KiB'),('basic','IBM BASIC · C1.10','32 KiB'),('font','IBM MDA/CGA character ROM','8 KiB')] %}

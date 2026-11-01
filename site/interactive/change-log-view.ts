@@ -1,4 +1,5 @@
 import type { CapturedInstruction, ChangeEntry } from "./change-log.js";
+import type { DebugLocation } from "./instruction-debugger.js";
 
 const hex = (value: number, width = 4) => value.toString(16).toUpperCase().padStart(width, "0");
 interface ChangeLog {
@@ -13,7 +14,8 @@ interface ChangeLog {
 
 /** The same recording controls and presentation for any machine's boundary log. */
 export function createChangeLogView<Machine, Log extends ChangeLog>(root: HTMLElement, machine: () => Machine,
-  createLog: (machine: Machine) => Log, assembly: (instruction: CapturedInstruction) => string) {
+  createLog: (machine: Machine) => Log, assembly: (instruction: CapturedInstruction, caller?: DebugLocation) => string,
+  options: { readonly location?: (location: DebugLocation) => string } = {}) {
   const panel = root.querySelector<HTMLElement>("[data-change-log]");
   if (!panel) return undefined;
   const recording = panel.querySelector<HTMLInputElement>("[data-log-recording]")!;
@@ -36,8 +38,9 @@ export function createChangeLogView<Machine, Log extends ChangeLog>(root: HTMLEl
       let title = "User RAM edit";
       if (entry.source === "cpu") {
         const instruction = entry.instruction;
-        title = instruction ? `$${hex(instruction.address)}  ${instruction.bytes.length ? assembly(instruction) : "Incomplete instruction"}`
-          : `${entry.event ?? "CPU boundary"} at PC $${hex(entry.caller!.address)}`;
+        const location = entry.caller && options.location?.(entry.caller);
+        title = instruction ? `${location ?? "$" + hex(instruction.address)}  ${instruction.bytes.length ? assembly(instruction, entry.caller) : "Incomplete instruction"}`
+          : `${entry.event ?? "CPU boundary"} at ${location ?? "PC $" + hex(entry.caller!.address)}`;
         if (entry.outcome !== "executed") title += ` [${entry.outcome}]`;
       }
       lines.push(`#${entry.sequence}  ${title}`,

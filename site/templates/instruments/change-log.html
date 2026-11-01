@@ -5,7 +5,7 @@
         <label><input type="checkbox" data-log-filter="register" checked> Registers</label>
         <label><input type="checkbox" data-log-filter="flag" checked> Flags</label>
         <label><input type="checkbox" data-log-filter="memory" checked> Memory</label>
-        <label><input type="checkbox" data-log-filter="pc" checked> PC</label>
+        <label><input type="checkbox" data-log-filter="pc" checked> {{ log_pc_label | default("PC") }}</label>
       </fieldset>
       <p data-log-status class="lab-hint">Recording · 0 / 500 events retained</p>
       <p class="lab-hint">CPU address or user action · before → after · newest first</p>

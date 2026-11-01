@@ -275,10 +275,11 @@ AT/286 and later x86 remain separate CPU and machine projects.
 
 ## Next implementation slice
 
-The shared debugger now distinguishes logical CS:IP breakpoints from physical
-aliases and observes conventional RAM writes. Add Instruction explanations
-and BIOS annotations to make the reset and POST paths easier to follow.
-DMA data transfers and page registers belong with the native disk milestone.
+The laboratory now has segmented inspection, Instruction previews, a BIOS
+walkthrough, and shared change/watch histories. The next hardware slice is a
+read-only 360 KiB disk through DMA channel 2, page registers, the diskette
+controller, and IRQ6. Follow the original INT 13h handler toward the DOS
+acceptance above; keep device behavior and transfer limits in their chapters.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

@@ -50,7 +50,11 @@ and absent storage stop prediction; missing timing is reported explicitly.
 The chapter also owns the byte-checked BIOS notes and
 [reset-to-checksum walkthrough](../src/machines/8088/pc-xt.md#following-reset-and-early-post).
 Its five-digit physical annotations and exact CS:IP checkpoints use the shared
-ROM guide validator and walkthrough view.
+ROM guide validator and walkthrough view. `xt-history.ts` adapts the shared
+change log and memory-watch history to captured CS:IP, RAM, and aliased CGA
+storage. Their views accept machine address formatting while retaining the
+existing Apple II and CoCo defaults. The chapter owns BIOS workspace labels
+and the [history contracts](../src/machines/8088/pc-xt.md#changes-and-watched-ram-history).
 The [session checks](../src/machines/8088/pc-xt.md#rom-basic-sessions) give a
 program to try after POST and the results to expect from editing and running it.
 
