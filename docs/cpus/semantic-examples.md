@@ -894616,7 +894616,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 CBW
 
-AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
+AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. AAM takes 83 clocks. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
 instruction timing: 0002:u16 CPU clocks
@@ -894628,7 +894628,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 CWD
 
-AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
+AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. AAM takes 83 clocks. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
 instruction timing: 0005:u16 CPU clocks
@@ -895745,13 +895745,14 @@ Flags preserved throughout: none.
 
 ### 8088 AAM
 
-AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
+AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. AAM takes 83 clocks. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
 radix:u8 := fetch byte
 when not(equal(radix, 0A:u8)) {
   return outcome "opcode"; no later effects
 }
+instruction timing: 0053:u16 CPU clocks
 low:u8 := source "low byte of AX" {
   word:u16 := read AX
   yield lowByte(word)
@@ -895775,7 +895776,7 @@ Flags preserved throughout: CF, AF, TF, IF, DF, OF.
 
 ### 8088 AAD
 
-AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
+AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. AAM takes 83 clocks. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
 radix:u8 := fetch byte
@@ -953485,6 +953486,18 @@ LEA (`1000 1101`) resolves a memory address and writes its sixteen-bit offset wi
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
+ea:u16 := source "8088 effective-address calculation" {
+  postbyte:u8 := postbyte
+  mode := bitAnd(postbyte, C0:u8)
+  code := bitAnd(postbyte, 07:u8)
+  paired:flag := lessThan(code, 04:u8, unsigned)
+  slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+  base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+  displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+  direct:flag := and(isZero(mode), equal(code, 06:u8))
+  yield select(direct, 0006:u16, displaced)
+}
+instruction timing: addWrap(0002:u16, ea) CPU clocks when not(equal(bitAnd(postbyte, C0:u8), C0:u8)); otherwise timing unavailable
 match byte postbyte {
   case (byte & B8) = 00 {
     pointer:u32 := source "capture a logical memory address" {
@@ -1014281,29 +1014294,130 @@ The stack action decrements live SP before reading SS and the new SP, then write
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
-operation := bits(postbyte, 5, 3)
-nearJump:flag := equal(operation, 4:u3)
-push:flag := equal(operation, 6:u3)
-registerCost := select(push, 000F:u16, select(nearJump, 000B:u16, 0002:u16))
-memoryCost := select(push, 0018:u16, select(nearJump, 0016:u16, 0017:u16))
-cost:u16 := source "register cost or memory cost plus EA" {
-  postbyte:u8 := postbyte
-  registerCost:u16 := registerCost
-  memoryCost:u16 := memoryCost
-  ea:u16 := source "8088 effective-address calculation" {
-    postbyte:u8 := postbyte
-    mode := bitAnd(postbyte, C0:u8)
-    code := bitAnd(postbyte, 07:u8)
-    paired:flag := lessThan(code, 04:u8, unsigned)
-    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
-    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
-    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
-    direct:flag := and(isZero(mode), equal(code, 06:u8))
-    yield select(direct, 0006:u16, displaced)
+cost:u16 := match byte postbyte {
+  case (byte & 30) = 00 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0002:u16
+      memoryCost:u16 := 0017:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
   }
-  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+  case (byte & 38) = 10 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0014:u16
+      memoryCost:u16 := 001D:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 18 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0000:u16
+      memoryCost:u16 := 0035:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 20 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 000B:u16
+      memoryCost:u16 := 0016:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 28 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0000:u16
+      memoryCost:u16 := 0020:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 30 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 000F:u16
+      memoryCost:u16 := 0018:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  otherwise return outcome "unsupported"; no later effects
 }
-instruction timing: cost CPU clocks when or(push, or(nearJump, lessThan(operation, 2:u3, unsigned))); otherwise timing unavailable
+instruction timing: cost CPU clocks when not(isZero(cost)); otherwise timing unavailable
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {

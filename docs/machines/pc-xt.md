@@ -14,7 +14,7 @@ adds the 8237A register file, timer-to-DMA request latch, and four-clock refresh
 grants. Instruction-driven time passes isolated original BIOS counter, DMA
 register/refresh, and interrupt timing checks. The executable
 [PC/XT machine chapter](../../src/machines/8088/pc-xt.md) now owns the firmware
-map, board check/NMI controls, and native startup through ROM BASIC.
+map, board check/NMI controls, and native startup into ROM BASIC or MS-DOS.
 The original BIOS tests base RAM, discovers 640 KiB, installs
 its vectors, receives the keyboard self-test response through IRQ1, and passes
 CGA initialization, video-memory and retrace checks. CGA text rendering uses
@@ -27,10 +27,9 @@ also passes the second keyboard reset. Original firmware completes POST,
 falls back from an empty drive, and runs [repeatable ROM BASIC sessions](../../src/machines/8088/pc-xt.md#rom-basic-sessions)
 with stored programs and native keyboard input. The
 [first laboratory](../../src/machines/8088/pc-xt.md#using-the-laboratory) runs
-that session in the browser. The reference's DOS
-boot works through JavaScript BIOS services; it does not demonstrate original-ROM
-startup or a working floppy controller. Native ROM BASIC is the first milestone;
-DOS remains a separate milestone.
+that session in the browser. With the selected 360 KiB disk inserted, the
+[native cold-boot test](../../src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
+reaches the DOS prompt and runs `VER` and `DIR`.
 
 ## Selected first configuration
 
@@ -134,6 +133,7 @@ identify exact bytes rather than accepting a filename as proof of version.
 | [XT BIOS, 11/08/82][bios-image] | 8,192 | `2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2` |
 | [IBM ROM BASIC C1.10][basic-image] | 32,768 | `3033d1a54c99d7e2aa1fc7c8c2e51a56ae1b61bf4e70e8aa580f43c43e37a63e` |
 | [IBM MDA/CGA character ROM][font-image] | 8,192 | `37527f661580e5a09710051cec67422abfadf31c61b841537a91e7f27be19304` |
+| Microsoft MS-DOS 3.30 Disk 1 (`MS330PP01`) | 368,640 | `d79f283ebd2cd68e8dede44ed876da13c25024f7000bcb576177820388c424f4` |
 | Reference `disks/Dos3.3.img` (NEC MS-DOS 3.30) | 1,474,560 | `dcde53d1a4e4c1abed2d30f05a4674730eac14f4504924b83c97262d0f8c58d2` |
 
 The [executable machine map](../../src/machines/8088/pc-xt.md#physical-storage-and-firmware)
@@ -142,11 +142,9 @@ image binding. The [ROM layout notes][rom-layout] distinguish the selected
 arrangement from later 64 KiB XT firmware.
 
 The [CGA chapter](../../src/components/devices/specifications/ibm-cga.md) describes
-the selected font bank and supported text profile. The remaining fixture gate
-is a pinned, IBM-compatible **360 KiB DOS boot disk**. Select the DOS edition,
-bytes, boot files, and expected transcript before claiming DOS acceptance. Do not relabel
-or resize the reference's NEC image to fit the drive. The reference's
-`ultima5.img` is also 1,474,560 bytes. Select compatible game media separately
+the selected font bank and supported text profile. The native DOS session uses
+the original geometry of the Microsoft disk. The reference's NEC disk and
+`ultima5.img` are both 1,474,560 bytes. Select compatible game media separately
 for the [Ultima V milestone](#5-ultima-v-on-the-xt).
 
 ## Native implementation boundaries
@@ -257,12 +255,12 @@ shared address and execution interfaces.
 
 ### 4. DOS through the diskette controller
 
-Use the pinned 360 KiB fixture to boot from the original ROM through the real
-INT 13h handler, controller commands, IRQ6, and DMA channel 2. Require a DOS
-prompt, `VER`, `DIR`, `TYPE` of a known text file, and a small known COM program
-that returns to DOS. Assert transferred bytes and the actual device path, not
-just the screen. Test empty drive, invalid sector, write protection, reset, and
-snapshot continuation during an in-flight transfer.
+The [cold-boot session](../../src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
+passes the prompt, `VER` and `DIR` checks through the original INT 13h handler,
+IRQ6 and DMA channel 2. To finish the read-only checkpoint, `TYPE` a known text
+file and run a small known COM program that returns to DOS. Retain coverage of
+empty-drive and invalid-sector errors, write protection, reset, and snapshot
+continuation during an in-flight transfer.
 
 Begin with explicitly write-protected images. Writable media is a subsequent
 checkpoint: create/read/delete a file, export and reload the changed image, and
@@ -288,10 +286,11 @@ in the EGA laboratory.
 
 ## Next implementation slice
 
-Pin a compatible 360 KiB DOS disk, including its boot files and expected
-transcript. Cold-boot it through the original INT 19h bootstrap. Trace the
-loader’s first reads after it gains control at `0000:7C00` and work toward
-the [DOS acceptance checkpoint](#4-dos-through-the-diskette-controller).
+Use a reproducible 360 KiB data disk with a known text file and a small COM
+program. After the verified DOS boot, exchange disks in drive A, check the
+file's contents with `TYPE`, then launch the COM program and verify its output
+and return to `A>`. This completes the read-only portion of the
+[DOS acceptance checkpoint](#4-dos-through-the-diskette-controller).
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

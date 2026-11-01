@@ -53,8 +53,8 @@ test("8088 effective addresses agree with native reads across every memory ModR/
   assert.match(direct.addressing.join("\n"), /DS:1234 = 0000:1234 → physical \$01234/);
   const lea = previewXtInstruction(fixture([0x8d, 0x46, 0xff], { bp: 0 }), catalogue);
   assert.match(lea.addressing.join("\n"), /→ FFFF.*\nLEA uses the offset alone/);
-  assert.equal(lea.timingUnavailable, true);
-  assert.equal(lea.record, undefined); // LEA has no timed model on the XT yet.
+  assert.equal(lea.record?.after.ax, 0xffff);
+  assert.deepEqual(lea.accesses.map(access => access.address), [0x2000, 0x2001, 0x2002]);
   const noMemory = decode8088(catalogue.cpu, 0, 0, i => [0x8b, 0xc4][i]);
   assert.deepEqual(explain8088Address(fixture([]).machine.cpu.snapshot(), noMemory), []);
 });

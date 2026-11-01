@@ -1,18 +1,19 @@
 # IBM PC/XT: native firmware startup
 
 This executable chapter assembles the selected IBM 5160 board around the
-[8088](../../components/cpus/specifications/8088.md). The current acceptance target
-is **a repeatable ROM BASIC programming session**, using the original
-11/08/82 BIOS. The CPU tests itself, tests DMA and the first 16 KiB of RAM,
-discovers 640 KiB, initializes its interrupt vectors, and resets the XT keyboard.
+[8088](../../components/cpus/specifications/8088.md). The original 11/08/82 BIOS can start
+ROM BASIC or boot MS-DOS 3.30 from drive A. During POST, the CPU tests itself,
+DMA and the first 16 KiB of RAM. It discovers 640 KiB, initializes its interrupt
+vectors, and resets the XT keyboard.
 It then programs CGA, tests video RAM and retrace status, and clears the display.
-The continuation tests RAM and the empty diskette drive's reset and seeks,
-passes the second keyboard reset, and attempts a disk boot. With no disk
+The BIOS tests the remaining RAM, resets and seeks the diskette drive, resets
+the keyboard a second time, and attempts a disk boot. With no disk
 inserted, the BIOS's own timeout leads to ROM BASIC C1.10. BASIC prints its
 prompt and accepts immediate commands and stored programs through the keyboard receiver and IRQ1.
 No BIOS service is replaced by host code and no BIOS data area is preloaded.
 The [session checks](#rom-basic-sessions) cover editing, Ctrl-Break, warm boot, and saved input.
-With media inserted, the BIOS can [read a floppy sector through DMA](#reading-a-diskette-through-int-13h).
+With the DOS disk inserted before power-on, the BIOS loads the boot sector through DMA
+and [starts the command interpreter](#cold-booting-ms-dos-330).
 The [browser laboratory](#using-the-laboratory) runs this machine with locally supplied ROMs.
 
 ## Physical storage and firmware
@@ -290,6 +291,39 @@ to `0000:7C00`, and executes the first instruction from the sector. The ROM’s
 default diskette parameter table at `F000:EFC7` sets EOT to eight. The disk
 image has nine sectors per track. The controller uses the EOT supplied in each
 command, which matters when following a DOS loader beyond the boot sector.
+
+## Cold-booting MS-DOS 3.30
+
+Drive A takes Microsoft MS-DOS 3.30 Disk 1, volume `MS330PP01`. This
+write-protected 360 KiB FAT12 image has 40 cylinders, two heads and nine
+512-byte sectors per track. The root directory contains the hidden system
+files `IO.SYS` and `MSDOS.SYS`, and the command interpreter `COMMAND.COM`.
+The [media identity table](../../../docs/machines/pc-xt.md#firmware-and-media-identity)
+gives the SHA-256 for this edition.
+
+The [cold-boot test](../../../tests/machines/8088/pc-xt/rom-dos.test.ts)
+inserts the disk before power-on and runs the original BIOS from reset. All
+512 bytes transferred by DMA channel 2 must match sector one at physical
+`07C00`. The PIC delivers IRQ6 and the BIOS jumps to `0000:7C00`.
+
+The boot sector asks the BIOS for cylinder 0, head 0, sector 6. That read
+places the first root directory sector at physical `00500`, with the entry
+for `IO.SYS` first. The next read starts at cylinder 0, head 1, sector 4.
+It puts the first six sectors of `IO.SYS` at `00700`. DOS continues loading
+from disk until its command interpreter takes input. Press Enter at the date
+and time prompts to accept the defaults.
+
+| At the keyboard | What appears on the CGA display |
+| --- | --- |
+| `VER` at the first `A>` prompt | `MS-DOS Version 3.30`, followed by another `A>`. |
+| `DIR` | Volume `MS330PP01`, directory `A:\`, 34 files, 5,120 bytes free, then `A>`. |
+
+The test sends make and break codes through the XT keyboard. It reads completed
+lines from CGA memory before they scroll away and compares every listed name
+and size, in order, with the image's root directory. To run it, set
+`XT_BIOS_ROM`, `XT_BASIC_ROM` and `XT_DOS_DISK` to the three local files,
+then use `npm test`. With current compiled output, the focused check is
+`node --test dist/tests/machines/8088/pc-xt/rom-dos.test.js`.
 
 ## CGA text output
 

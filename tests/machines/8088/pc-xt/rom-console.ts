@@ -36,7 +36,7 @@ export function scanCodes(text: string): number[] {
 interface RunOptions {
   readonly batchSize?: number;
   readonly limit?: number;
-  readonly until?: (boundaries: number) => boolean;
+  readonly until?: (boundaries: number, record: ReturnType<typeof stepTimedXtCpu>["record"]) => boolean;
 }
 
 /** Offer only completed bytes; an inhibited or full receiver leaves the next byte with the host. */
@@ -52,10 +52,10 @@ export function runInput(machine: Machine, bytes: readonly number[], options: Ru
       if (record.outcome !== "executed" && record.outcome !== "accepted") {
         assert.fail(`Firmware ${record.outcome} at ${record.before.pc.toString(16)}`);
       }
-      if (offset === bytes.length && !machine.io.keyboardPending && until(boundaries)) return { boundaries, keyboardInterrupts };
+      if (offset === bytes.length && !machine.io.keyboardPending && until(boundaries, record)) return { boundaries, keyboardInterrupts };
     }
   }
-  assert.fail(`ROM BASIC exceeded ${limit} boundaries at ${machine.cpu.snapshot().pc.toString(16)}: ${screen(machine).join("\n")}`);
+  assert.fail(`XT console exceeded ${limit} boundaries at ${machine.cpu.snapshot().pc.toString(16)}: ${screen(machine).join("\n")}`);
 }
 
 export function enterLine(machine: Machine, text: string) {

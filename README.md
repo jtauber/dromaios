@@ -103,8 +103,10 @@ The [IBM PC/XT](docs/machines/pc-xt.md) now runs original firmware through POST
 and empty-drive bootstrap into ROM BASIC on the existing 8088. Native keyboard
 input edits, lists, and runs stored programs, with Ctrl-Break, firmware warm boot,
 and repeatable [saved sessions](src/machines/8088/pc-xt.md#rom-basic-sessions).
-Its [laboratory](src/machines/8088/pc-xt.md#using-the-laboratory) adds local firmware loading,
-CGA text, keyboard input, and checkpoints.
+With a 360 KiB system disk, the XT
+[cold-boots MS-DOS 3.30](src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
+and runs `VER` and `DIR`. Its [laboratory](src/machines/8088/pc-xt.md#using-the-laboratory)
+adds local firmware loading, CGA text, keyboard input, and checkpoints.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)

@@ -6,7 +6,7 @@ import { create8088PcXt, romImages } from "../../../../src/machines/generated/80
 import { RomImage } from "../../../../src/machines/rom-image.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
 
-import { enterLine, expectLastRows, runInput, scanCodes, screen, waitingForKey } from "./rom-basic-input.js";
+import { enterLine, expectLastRows, runInput, scanCodes, screen, waitingForKey } from "./rom-console.js";
 
 type Machine = ReturnType<typeof create8088PcXt>;
 type Snapshot = ReturnType<Machine["snapshot"]>;
