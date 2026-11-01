@@ -34,6 +34,7 @@
       <div class="basic-controls">{% for name, label in [('run','Run'),('pause','Pause'),('step','Step'),('break','Ctrl-Break'),('warm','Ctrl-Alt-Del'),('reset','Reset CPU'),('power','Fresh power-on')] %}
         <button type="button" data-{{ name }} disabled>{{ label }}</button>{% endfor %}</div>
       <p class="basic-readout" data-execution>Paused</p>
+      <p class="basic-message" data-debugger-status></p>
       <p class="basic-message" data-error role="alert"></p>
       <p class="basic-message" data-message role="status"></p>
       <details><summary>Using the keyboard</summary><p class="lab-hint">At BASIC’s Ok prompt, type PRINT 2+3 and press Enter. You can paste several lines at once. Ctrl-Break interrupts a running BASIC program. Ctrl-Alt-Del sends the XT restart chord.</p></details>
@@ -54,6 +55,26 @@
         <div class="lab-memory-scroll" data-memory-scroll><div class="lab-memory-space" data-memory-space><pre data-memory-output aria-label="Observed XT memory"></pre></div></div>
         <p class="lab-hint">Physical 00000–FFFFF · enter hex or segment:offset · -- means no storage</p>
       </div>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="debugger" data-panel-title="Debugger">
+      <form class="basic-controls" data-run-to-form>
+        <label>Run to <input data-run-to-address aria-label="Run-to address" placeholder="F000:E05B" spellcheck="false" maxlength="32"></label>
+        <button type="submit" data-run-to disabled>Run to address</button>
+      </form>
+      <p class="lab-hint">Enter a physical address such as FE05B to match every segment alias, or F000:E05B to match that exact CS:IP.</p>
+      <div data-xt-breakpoints>
+        <h2>Breakpoints<span data-stop-count></span></h2>
+        <form class="basic-controls"><input name="address" aria-label="Breakpoint address" placeholder="Physical or CS:IP" spellcheck="false" maxlength="32"><button type="submit">Add breakpoint</button></form>
+        <div data-stop-rows></div><p class="basic-message" data-stop-status role="status"></p>
+      </div>
+      <div data-xt-watchpoints>
+        <h2>RAM write watchpoints<span data-stop-count></span></h2>
+        <form class="basic-controls"><input name="address" aria-label="RAM watchpoint address" placeholder="00417 or 0040:0017" spellcheck="false" maxlength="32"><button type="submit">Add watchpoint</button></form>
+        <div data-stop-rows></div><p class="basic-message" data-stop-status role="status"></p>
+      </div>
+      <p class="lab-hint">Watches stop after a write to RAM 00000–9FFFF, including unchanged values. Segment:offset entries select a physical RAM byte.</p>
+      <p class="basic-message" data-debugger-status></p>
+      <button type="button" data-watchpoint-memory hidden>Show written byte in Memory</button>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-title="Firmware">
       <p>Load the three ROMs, then press <strong>Run</strong>. The XT checks 640 KiB of RAM and the empty drive before BASIC displays <samp>Ok</samp>.</p>

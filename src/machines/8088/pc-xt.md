@@ -447,6 +447,45 @@ Reset, fresh power-on, and restoration clear its change comparison.
 Register and flag highlights compare the two snapshots
 from the latest CPU boundary. Inspection leaves the board clock and devices alone.
 
+### Debugging execution
+
+In **Debugger**, enter `F000:E05B` under **Run to** from fresh power-on.
+Execution stops at that exact CS:IP after the reset jump and before CLI.
+Entering `FE05B` matches any segment alias of the same physical byte.
+The same notation applies to persistent **Breakpoints**. At reset, `FFFF0`
+and `FFFF:0000` both match. `F000:FFF0` names the same bytes but a different
+CS:IP, so it does not match the reset state. Both stop reports include logical
+and physical addresses. Breakpoint checks observe CPU state before the next
+timed boundary, preserving pending input, interrupt requests, and board time.
+
+**Run** after a breakpoint crosses its current encounter once. A loop back
+stops again. **Step** crosses the current breakpoint and completes one native
+CPU boundary. An unfinished REP keeps CS:IP at its first prefix, so continuing
+from a breakpoint there executes one more element before the next encounter.
+**Run to** is a temporary request with a limit of 2,000,000 boundaries.
+Breakpoints, watchpoints, Pause, and execution errors end that request early.
+An already-reached target stops immediately, and an unreachable target reports
+the limit. Halted or waiting boundaries also count toward it.
+
+**RAM write watchpoints** select physical bytes in `00000–9FFFF`. An entry such
+as `0040:0017` selects physical `00417`, through any segment alias. A watch
+reports the first watched store with its before/after byte and originating
+CS:IP, including a store of the same value. It stops after the complete CPU
+boundary, so both bytes of a word store or all six bytes of an interrupt frame
+are complete. REP stops after the watched element. External interrupt writes
+are identified as interrupt entry. **Show written byte in Memory** selects the
+captured address. These watches observe conventional RAM stores during CPU
+execution. Video, ROM, I/O, reads, and host edits are outside their scope.
+
+Each list holds up to 64 enabled or disabled stops and is remembered separately
+from machine checkpoints. Reset, fresh power-on, and checkpoint restoration
+clear the stop report and any temporary request while retaining these lists.
+Check a RAM watch after restoration to verify that it follows the restored
+hardware. Panel updates and navigation use observed state and perform no guest
+bus or port accesses.
+
+### Keyboard and restart controls
+
 The browser maps US physical keys to XT makes and breaks. Tab moves focus out
 of the screen. Leaving the screen releases held keys, and leaving the window
 also pauses execution. Pasting supports US keyboard text and line breaks.

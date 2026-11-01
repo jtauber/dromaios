@@ -17,6 +17,8 @@ import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
 import { createXtScreen } from "./xt-screen.js";
 import { decodeXtCheckpoint, encodeXtCheckpoint, xtCheckpointKey } from "./xt-checkpoint.js";
+import { createXtDebugger, parseXtDebugAddress } from "./xt-debugger.js";
+import { createXtDebuggerView } from "./xt-debugger-view.js";
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-xt-laboratory]")) mount(root);
 
@@ -26,6 +28,7 @@ function mount(root: HTMLElement): void {
   const screen = at("screen"), message = at("message"), status = at("execution");
   const display = createXtScreen(root.querySelector("canvas")!, at("screen-text"), at("screen-notice"));
   const session = createXtSession();
+  const debug = createXtDebugger(() => session.machine);
   const registers = root.querySelector<HTMLElement>('[data-workspace-panel="registers"]')!;
   const code = root.querySelector<HTMLElement>('[data-workspace-panel="code"]')!;
   const memoryPanel = root.querySelector<HTMLElement>('[data-workspace-panel="memory"]')!;
@@ -49,15 +52,29 @@ function mount(root: HTMLElement): void {
   });
   let loading = true, saved = false, lastDraw = -Infinity;
   const execution = createExecutionController({
-    step: () => session.step(), canStep: () => session.ready && !loading,
+    step: () => debug.capture(() => session.step()), canStep: () => session.ready && !loading,
+    pauseBeforeStep: debug.beforeStep,
     onChange: refresh, batchSize: 8192,
     schedule(callback, ms) { const id = window.setTimeout(callback, ms); return () => window.clearTimeout(id); },
   });
   execution.setDelay(1);
+  const debugView = createXtDebuggerView(root, debug, {
+    ramMaximum: session.machine.ram.size - 1, changed: refresh,
+    memory: address => { memory.browse(address); workspace.show("memory"); },
+  });
+  const target = at<HTMLInputElement>("run-to-address");
+  at<HTMLFormElement>("run-to-form").onsubmit = event => {
+    event.preventDefault();
+    if (!session.ready || loading || execution.running || execution.error) return;
+    try { debug.runTo(parseXtDebugAddress(target.value)); message.textContent = ""; execution.run(); }
+    catch (cause) { target.setCustomValidity((cause as Error).message); target.reportValidity(); }
+  };
+  target.oninput = () => target.setCustomValidity("");
 
   function refresh(requested?: string): void {
     const running = execution.running, ready = session.ready && !loading, runnable = ready && !execution.error;
     button("run").disabled = button("step").disabled = !runnable || running;
+    button("run-to").disabled = target.disabled = !runnable || running;
     button("pause").disabled = !running;
     button("reset").disabled = button("power").disabled = !ready || running;
     button("break").disabled = button("warm").disabled = !runnable;
@@ -72,6 +89,7 @@ function mount(root: HTMLElement): void {
       session.keyboard.queuedBytes ? `${session.keyboard.queuedBytes} scan bytes queued` : "",
       session.keyboard.pasteRemaining ? `${session.keyboard.pasteRemaining} characters to paste` : ""].filter(Boolean).join(" · ");
     at("error").textContent = execution.error ?? "";
+    debugView.refresh(running);
     const now = performance.now();
     if (requested || !running || now - lastDraw >= 65) {
       lastDraw = now;
@@ -94,11 +112,11 @@ function mount(root: HTMLElement): void {
     catch (error) { message.textContent = error instanceof Error ? error.message : String(error); }
     refresh();
   }
-  button("run").onclick = () => { message.textContent = ""; execution.run(); screen.focus(); };
-  button("pause").onclick = () => execution.stop();
-  button("step").onclick = () => execution.step();
-  button("reset").onclick = () => act(() => { execution.reset(); session.resetCpu(); memory.reset(); });
-  button("power").onclick = () => act(() => { execution.reset(); session.powerOn(); memory.reset(); });
+  button("run").onclick = () => { debug.run(); message.textContent = ""; execution.run(); screen.focus(); };
+  button("pause").onclick = () => { debug.pause(); execution.stop(); };
+  button("step").onclick = () => { debug.step(); execution.step(); };
+  button("reset").onclick = () => act(() => { execution.reset(); session.resetCpu(); debug.reset(); memory.reset(); });
+  button("power").onclick = () => act(() => { execution.reset(); session.powerOn(); debug.reset(); memory.reset(); });
   button("break").onclick = () => act(() => session.keyboard.chord(["ControlLeft", "ScrollLock"]));
   button("warm").onclick = () => act(() => session.keyboard.chord(["ControlLeft", "AltLeft", "Delete"]));
 
@@ -114,7 +132,7 @@ function mount(root: HTMLElement): void {
     event.preventDefault(); act(() => session.keyboard.paste(event.clipboardData?.getData("text/plain") ?? ""));
   });
   screen.addEventListener("blur", () => session.keyboard.releaseHeld());
-  function leaveWindow() { session.keyboard.releaseHeld(); execution.stop(); }
+  function leaveWindow() { session.keyboard.releaseHeld(); if (execution.running) debug.pause(); execution.stop(); }
   window.addEventListener("blur", leaveWindow);
   window.addEventListener("pagehide", leaveWindow);
   document.addEventListener("visibilitychange", () => { if (document.hidden) leaveWindow(); });
@@ -126,7 +144,7 @@ function mount(root: HTMLElement): void {
   button("restore").onclick = () => act(() => {
     const value = localStorage.getItem(xtCheckpointKey);
     if (value === null) throw new Error("No saved XT checkpoint.");
-    session.restore(decodeXtCheckpoint(value)); execution.reset(); memory.reset();
+    session.restore(decodeXtCheckpoint(value)); execution.reset(); debug.reset(); memory.reset();
     message.textContent = "Session restored and paused.";
   });
   button("remove").onclick = () => act(() => {

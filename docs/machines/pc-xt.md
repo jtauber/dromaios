@@ -275,9 +275,9 @@ AT/286 and later x86 remain separate CPU and machine projects.
 
 ## Next implementation slice
 
-Registers, Disassembly, and the 20-bit Memory panel follow the reset jump
-in both logical and physical addresses. Add breakpoints that distinguish
-a specific CS:IP from its physical aliases.
+The shared debugger now distinguishes logical CS:IP breakpoints from physical
+aliases and observes conventional RAM writes. Add Instruction explanations
+and BIOS annotations to make the reset and POST paths easier to follow.
 DMA data transfers and page registers belong with the native disk milestone.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

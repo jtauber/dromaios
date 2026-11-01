@@ -40,6 +40,10 @@ storage ranges it can inspect, including the video and BASIC aliases.
 Memory uses the shared scrolling inspector with a 1 MiB image, physical or
 segment:offset address entry, and CS:IP/SS:SP follow choices. Existing 16-bit
 inspectors retain their default address range and controls.
+`xt-debugger.ts` adapts logical/physical execution addresses to the shared
+debugger policy and stop editor. Its RAM write capture is shared with CoCo.
+Stop preferences live separately from hardware checkpoints, and the machine
+chapter owns the address-matching and boundary contracts.
 The [session checks](../src/machines/8088/pc-xt.md#rom-basic-sessions) give a
 program to try after POST and the results to expect from editing and running it.
 

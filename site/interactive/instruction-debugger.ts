@@ -116,14 +116,17 @@ export function createInstructionDebugger(budget = 2_000_000) {
 }
 
 /** Preferences contain addresses and mapping filters, never machine state. */
-export function decodeInstructionBreakpoints(saved: string | null, spaces: readonly string[], maximumAddress: number): readonly InstructionBreakpoint[] {
+export function decodeInstructionBreakpoints(saved: string | null,
+  spaces: readonly string[] | ((space: string, address: number) => boolean), maximumAddress: number): readonly InstructionBreakpoint[] {
+  const acceptsSpace = typeof spaces === "function" ? spaces : (space: string) => spaces.includes(space);
   try {
     const values: unknown = JSON.parse(saved ?? "[]");
     if (!Array.isArray(values) || values.length > 64) return [];
     const seen = new Set<string>();
     return values.filter((value): value is InstructionBreakpoint => {
       if (!value || typeof value !== "object" || !Number.isSafeInteger(value.address) || value.address < 0 || value.address > maximumAddress
-        || typeof value.enabled !== "boolean" || value.space !== undefined && !spaces.includes(value.space)) return false;
+        || typeof value.enabled !== "boolean" || value.space !== undefined
+          && (typeof value.space !== "string" || !acceptsSpace(value.space, value.address))) return false;
       const key = `${value.address}:${value.space ?? ""}`;
       if (seen.has(key)) return false;
       seen.add(key); return true;

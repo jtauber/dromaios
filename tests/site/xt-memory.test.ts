@@ -69,8 +69,8 @@ test("XT version-2 layouts gain Memory once and retain deliberately hidden and t
   const saved = new Map([["dromaios:workspace:xt:2", encodeWorkspaceState(old)]]);
   const storage = { getItem: (key: string) => saved.get(key) ?? null, setItem: (key: string, text: string) => saved.set(key, text) };
   migrateXtWorkspace(storage);
-  const next = decodeWorkspaceState(saved.get(xtWorkspaceKey)!, ["code", "snapshot", "memory"]);
-  assert.deepEqual(groups(next).map(group => group.panels), [["code", "snapshot"], ["memory"]]);
+  const next = decodeWorkspaceState(saved.get(xtWorkspaceKey)!, ["code", "snapshot", "memory", "debugger"]);
+  assert.deepEqual(groups(next).map(group => group.panels), [["code", "snapshot"], ["debugger"], ["memory"]]);
   assert.deepEqual(groups(next)[0], old.root);
   saved.set(xtWorkspaceKey, encodeWorkspaceState(old));
   migrateXtWorkspace(storage);

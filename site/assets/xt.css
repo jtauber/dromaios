@@ -2,6 +2,9 @@
 .xt-laboratory .lab-tool-registers .lab-flags { grid-template-columns: repeat(9, 1fr); max-width: 320px; }
 .xt-laboratory [data-pointers] { margin-top: 12px; }
 .xt-laboratory .lab-memory-address input { width: 96px; }
+.xt-laboratory [data-workspace-panel=debugger] h2 { font-size: 13px; margin: 14px 0 6px; }
+.xt-laboratory [data-workspace-panel=debugger] input:not([type=checkbox]) { width: 170px; }
+.xt-laboratory [data-run-to-form] { align-items: end; }
 .xt-laboratory .lab-tool-screen .lab-panel-body { grid-template-rows: minmax(100px, 1fr) auto; }
 .xt-monitor { width: min(100cqw, calc(100cqh * 4 / 3)); aspect-ratio: 4 / 3; position: relative; background: #000; }
 .xt-monitor canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }

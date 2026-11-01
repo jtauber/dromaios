@@ -1,5 +1,6 @@
 import { decodeInstructionBreakpoints } from "./instruction-debugger.js";
 import type { InstructionBreakpoint } from "./instruction-debugger.js";
+import { parseMemoryAddress } from "./memory-window.js";
 
 const hex = (address: number) => address.toString(16).toUpperCase().padStart(4, "0");
 
@@ -10,6 +11,9 @@ export function createBreakpointView(panel: HTMLElement | null, options: {
   readonly maximum: number;
   readonly spaces?: readonly { readonly value: string; readonly label: string; readonly accepts: (address: number) => boolean }[];
   readonly defaultSpace?: (address: number, space: string | undefined) => string | undefined;
+  readonly parseAddress?: (text: string) => { readonly address: number; readonly space?: string };
+  readonly formatAddress?: (point: InstructionBreakpoint) => string;
+  readonly decode?: (saved: string | null) => readonly InstructionBreakpoint[];
   readonly values: () => readonly InstructionBreakpoint[];
   readonly set: (values: readonly InstructionBreakpoint[]) => void;
   readonly changed: () => void;
@@ -21,7 +25,8 @@ export function createBreakpointView(panel: HTMLElement | null, options: {
   const scope = form.querySelector<HTMLSelectElement>("[name=scope]");
   const output = panel.querySelector<HTMLElement>("[data-stop-rows]")!, status = panel.querySelector<HTMLElement>("[data-stop-status]")!;
   const count = panel.querySelector<HTMLElement>("[data-stop-count]");
-  try { set(decodeInstructionBreakpoints(localStorage.getItem(key), spaces.map(space => space.value), maximum)); }
+  try { set(options.decode ? options.decode(localStorage.getItem(key))
+    : decodeInstructionBreakpoints(localStorage.getItem(key), spaces.map(space => space.value), maximum)); }
   catch { status.textContent = "Browser storage is unavailable; these stops work for this visit."; }
   function save(points: readonly InstructionBreakpoint[]): void {
     if (points.length > 64) throw new Error(`Keep at most 64 ${kind}s.`);
@@ -36,7 +41,8 @@ export function createBreakpointView(panel: HTMLElement | null, options: {
     for (const point of points) {
       const row = document.createElement("div"), label = document.createElement("label"), enabled = document.createElement("input");
       row.className = "lab-breakpoint-row"; enabled.type = "checkbox"; enabled.checked = point.enabled;
-      const name = `$${hex(point.address)}` + (spaces.length ? ` · ${spaces.find(space => space.value === point.space)?.label ?? "any mapping"}` : "");
+      const name = options.formatAddress?.(point) ?? `$${hex(point.address)}`
+        + (spaces.length ? ` · ${spaces.find(space => space.value === point.space)?.label ?? "any mapping"}` : "");
       enabled.setAttribute("aria-label", `Enable ${kind} at ${name}`);
       enabled.addEventListener("change", () => save(points.map(item => item === point ? { ...point, enabled: enabled.checked } : item)));
       label.append(enabled, name);
@@ -61,11 +67,10 @@ export function createBreakpointView(panel: HTMLElement | null, options: {
   form.addEventListener("submit", event => {
     event.preventDefault();
     try {
-      const text = input.value.trim().replace(/^\$|^0x/i, ""), address = parseInt(text, 16);
-      if (!/^[0-9a-f]{1,4}$/i.test(text) || address > maximum) throw new Error(`Enter a hexadecimal address from 0000 to ${hex(maximum)}.`);
+      const point = options.parseAddress?.(input.value) ?? { address: parseMemoryAddress(input.value, maximum) };
       const space = spaces.find(space => space.value === scope?.value);
-      if (space && !space.accepts(address)) throw new Error(`$${hex(address)} cannot use the ${space.label} filter.`);
-      add(address, space?.value); input.value = "";
+      if (space && !space.accepts(point.address)) throw new Error(`$${hex(point.address)} cannot use the ${space.label} filter.`);
+      add(point.address, point.space ?? space?.value); input.value = "";
     } catch (cause) { input.setCustomValidity((cause as Error).message); input.reportValidity(); }
   });
   input.addEventListener("input", () => input.setCustomValidity(""));
