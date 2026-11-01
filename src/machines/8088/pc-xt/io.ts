@@ -33,16 +33,22 @@ export interface XtIoSnapshot {
   readonly disketteImage: readonly number[] | null;
 }
 
-/** Freeze an owned copy so a checkpoint can retain the inserted disk across eject or replacement. */
+export const xtDisketteSize = 40 * 2 * 9 * 512;
+const ownedDiskettes = new WeakSet<readonly number[]>();
+
+/** Copy external bytes once. In-memory checkpoints and instruction previews can share the frozen disk. */
 function readDiskette(bytes: Uint8Array | readonly number[]): readonly number[] {
-  if ((!Array.isArray(bytes) && !(bytes instanceof Uint8Array)) || bytes.length !== 40 * 2 * 9 * 512) {
+  if (Array.isArray(bytes) && ownedDiskettes.has(bytes)) return bytes;
+  if ((!Array.isArray(bytes) && !(bytes instanceof Uint8Array)) || bytes.length !== xtDisketteSize) {
     throw new RangeError("XT diskette requires a raw 360 KiB image.");
   }
-  return Object.freeze(Array.from({ length: bytes.length }, (_, index) => {
+  const image = Object.freeze(Array.from({ length: bytes.length }, (_, index) => {
     const byte = bytes[index]!;
     checkUnsigned("XT diskette byte", byte, 255);
     return byte;
   }));
+  ownedDiskettes.add(image);
+  return image;
 }
 
 /** Empty-drive checkpoints used a two-byte result queue and had no DMA page or media. */
@@ -124,6 +130,7 @@ export class XtIo implements MemoryConnection {
   get timer2Gate(): boolean { return Boolean(this.#ppi.driveB() & 1); }
   get speakerData(): boolean { return Boolean(this.#ppi.driveB() & 2); }
   get speakerLevel(): boolean { return this.speakerData && this.#pit.output(2); }
+  get disketteMotorOn(): boolean { return this.#diskette.motorOn(); }
   get refreshOutput(): boolean { return this.#pit.output(1); }
   get oscillatorTicks(): number { return this.#clock.ticks; }
 
@@ -171,7 +178,7 @@ export class XtIo implements MemoryConnection {
   }
 
   /** Insert a write-protected raw disk, or eject it. Validate a replacement before removing the old disk. */
-  setDiskette(bytes: Uint8Array | null): void {
+  setDiskette(bytes: Uint8Array | readonly number[] | null): void {
     const image = bytes === null ? null : readDiskette(bytes);
     if (this.#disketteImage !== null) this.#diskette.setMedia(false);
     this.#disketteImage = image;

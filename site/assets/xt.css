@@ -12,3 +12,11 @@
 .xt-socket { padding: 8px 0; border-top: 1px solid var(--line); }
 .xt-socket h2 { margin: 0 0 6px; font-size: 13px; }
 .xt-socket small { font-weight: normal; color: var(--muted); }
+
+.xt-drive-status { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin-bottom: 6px; font: 12px var(--mono); }
+.xt-drive-status [data-disk-name] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xt-motor { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; color: var(--muted); }
+.xt-motor::before { content: ""; width: 9px; height: 6px; border: 1px solid #6c7784; background: #222b36; border-radius: 2px; }
+.xt-motor.is-on::before { background: #ffae55; border-color: #ffc888; }
+.xt-drive small { color: var(--muted); }
+.xt-drive [data-disk-message]:empty { display: none; }

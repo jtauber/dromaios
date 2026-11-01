@@ -66,9 +66,15 @@ state {
   latch INTERRUPT
 }
 
+source motorOn "Drive A motor enable on DOR bit 4" : flag {
+  dor = register DOR
+  return bit(dor, 4)
+}
+
 source driveSelected "The DOR selects the connected drive only with its motor enabled" : flag {
   dor = register DOR
-  return and(zero(and(dor, u8(3))), bit(dor, 4))
+  motor = source motorOn()
+  return and(zero(and(dor, u8(3))), motor)
 }
 
 source trackZero "Only the selected physical drive can assert track zero" : flag {
@@ -608,6 +614,7 @@ interface IbmXtDiskette {
   input advanceMicroseconds
   input setMedia
   input acknowledgeByte
+  view motorOn
   view dreq
   view mediaOffset
   view irq

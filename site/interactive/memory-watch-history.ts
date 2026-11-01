@@ -46,11 +46,12 @@ export function createMemoryWatchHistory<Write extends StorageWrite>(capacity = 
       return Array.from({ length: entries.length }, (_, index) => entries[(cursor + index) % entries.length]!)
         .filter(entry => memoryRangeIncludes(watch, entry.address));
     },
-    observe(boundary: WatchBoundary, watches: readonly MemoryRange[], transfers: readonly WatchTransfer<Write>[]): void {
+    observe(boundary: WatchBoundary | (() => WatchBoundary), watches: readonly MemoryRange[], transfers: readonly WatchTransfer<Write>[]): void {
       sequence++; configure(watches);
       for (const transfer of transfers) {
         const matching = watches.filter(watch => memoryRangeIncludes(watch, transfer.address));
         if (!matching.length) continue;
+        if (typeof boundary === "function") boundary = boundary();
         const entry: WatchAccess<Write> = { ...boundary, caller: { ...boundary.caller }, bytes: [...boundary.bytes], sequence, ...transfer,
           ...(transfer.storage && { storage: { ...transfer.storage } }) };
         for (const watch of matching) {

@@ -106,7 +106,8 @@ and repeatable [saved sessions](src/machines/8088/pc-xt.md#rom-basic-sessions).
 With a 360 KiB system disk, the XT
 [cold-boots MS-DOS 3.30](src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
 and runs `VER` and `DIR`. Its [laboratory](src/machines/8088/pc-xt.md#using-the-laboratory)
-adds local firmware loading, CGA text, keyboard input, and checkpoints.
+adds local firmware loading, CGA text, keyboard input, and a drive A whose
+mounted disk is included in session checkpoints.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)

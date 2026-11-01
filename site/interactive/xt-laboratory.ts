@@ -1,4 +1,5 @@
 import { romImages } from "../../src/machines/generated/8088/pc-xt.js";
+import { xtDisketteSize } from "../../src/machines/8088/pc-xt/io.js";
 import { xtOscillatorHz } from "../../src/machines/8088/pc-xt/clock.js";
 import { createExecutionController } from "./execution-controller.js";
 import { readRomFile } from "./rom-file.js";
@@ -70,12 +71,14 @@ function mount(root: HTMLElement): void {
       storage: romFileStorage(() => localStorage, "dromaios:xt-rom:" + id + ":v1", romImages[id].size,
         file => readRomFile(file, romImages[id])), remembered: false };
   });
-  let loading = true, saved = false, lastDraw = -Infinity;
+  const diskFile = at<HTMLInputElement>("disk-file"), diskName = at("disk-name"), motor = at("disk-motor");
+  const diskMessage = at("disk-message");
+  let loading = true, readingDisk = false, saved = false, lastDraw = -Infinity;
   const execution = createExecutionController({
     step() {
-      const caller = xtDebugLocation(session.machine.cpu.snapshot()), log = changeLog.current();
+      const log = changeLog.current();
       const record = log.capture(() => debug.capture(() => session.step()));
-      watchHistory.observe(record, caller, debug.watchpoints, log.memoryWrites(record));
+      watchHistory.observe(record, debug.watchpoints, log.memoryWrites(record));
       return record;
     }, canStep: () => session.ready && !loading,
     pauseBeforeStep: debug.beforeStep,
@@ -114,12 +117,23 @@ function mount(root: HTMLElement): void {
     button("run").disabled = button("step").disabled = !runnable || running;
     button("run-to").disabled = target.disabled = !runnable || running;
     button("pause").disabled = !running;
-    button("reset").disabled = button("power").disabled = !ready || running;
+    button("reset").disabled = button("power").disabled = button("quick").disabled = !ready || running || readingDisk;
     button("break").disabled = button("warm").disabled = !runnable;
-    button("save").disabled = !ready || running;
-    button("restore").disabled = !ready || running || !saved;
+    button("save").disabled = !ready || running || readingDisk;
+    button("restore").disabled = !ready || running || readingDisk || !saved;
     button("remove").disabled = loading || running || !saved;
-    for (const slot of slots) { slot.load.disabled = loading || running; slot.forget.disabled = loading || running || !slot.remembered; }
+    for (const slot of slots) { slot.load.disabled = loading || readingDisk || running; slot.forget.disabled = loading || running || !slot.remembered; }
+
+    button("disk-insert").disabled = loading || readingDisk;
+    button("disk-eject").disabled = loading || readingDisk || session.diskName === null;
+    const name = session.diskName ?? "Empty";
+    if (diskName.textContent !== name) { diskName.textContent = name; diskName.title = name; }
+    at("disk-protection").hidden = session.diskName === null;
+    const motorOn = session.machine.io.disketteMotorOn;
+    if (motorOn !== motor.classList.contains("is-on")) {
+      motor.classList.toggle("is-on", motorOn);
+      motor.textContent = motorOn ? "Motor on" : "Motor off";
+    }
 
     const cpu = session.machine.cpu.snapshot(), seconds = session.machine.io.oscillatorTicks / xtOscillatorHz;
     status.textContent = [running ? "Running" : ready ? "Paused" : "Waiting for firmware",
@@ -161,11 +175,17 @@ function mount(root: HTMLElement): void {
   function resetTools(): void {
     execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset();
   }
-  button("run").onclick = () => { debug.run(); message.textContent = ""; execution.run(); screen.focus(); };
+  function run(): void { debug.run(); message.textContent = ""; execution.run(); screen.focus(); }
+  function powerOn(start: "cold" | "quick"): void {
+    session.powerOn(start); diskMessage.textContent = ""; resetTools();
+    if (start === "quick") run();
+  }
+  button("run").onclick = run;
   button("pause").onclick = () => { debug.pause(); execution.stop(); };
   button("step").onclick = () => { debug.step(); execution.step(); };
   button("reset").onclick = () => act(() => { session.resetCpu(); resetTools(); });
-  button("power").onclick = () => act(() => { session.powerOn(); resetTools(); });
+  button("power").onclick = () => act(() => powerOn("cold"));
+  button("quick").onclick = () => act(() => powerOn("quick"));
   button("break").onclick = () => act(() => session.keyboard.chord(["ControlLeft", "ScrollLock"]));
   button("warm").onclick = () => act(() => session.keyboard.chord(["ControlLeft", "AltLeft", "Delete"]));
 
@@ -181,7 +201,11 @@ function mount(root: HTMLElement): void {
     event.preventDefault(); act(() => session.keyboard.paste(event.clipboardData?.getData("text/plain") ?? ""));
   });
   screen.addEventListener("blur", () => session.keyboard.releaseHeld());
-  function leaveWindow() { session.keyboard.releaseHeld(); if (execution.running) debug.pause(); execution.stop(); }
+  function leaveWindow() {
+    session.keyboard.releaseHeld();
+    if (execution.running) debug.pause("The laboratory lost focus. Choose Run to continue.");
+    execution.stop();
+  }
   window.addEventListener("blur", leaveWindow);
   window.addEventListener("pagehide", leaveWindow);
   document.addEventListener("visibilitychange", () => { if (document.hidden) leaveWindow(); });
@@ -193,12 +217,25 @@ function mount(root: HTMLElement): void {
   button("restore").onclick = () => act(() => {
     const value = localStorage.getItem(xtCheckpointKey);
     if (value === null) throw new Error("No saved XT checkpoint.");
-    session.restore(decodeXtCheckpoint(value)); resetTools();
+    session.restore(decodeXtCheckpoint(value)); diskMessage.textContent = ""; resetTools();
     message.textContent = "Session restored and paused.";
   });
   button("remove").onclick = () => act(() => {
     localStorage.removeItem(xtCheckpointKey); saved = false; at("saved").textContent = "No checkpoint saved.";
   });
+
+  button("disk-insert").onclick = () => diskFile.click();
+  diskFile.onchange = async () => {
+    const file = diskFile.files?.[0];
+    if (!file || loading || readingDisk) return;
+    readingDisk = true; diskMessage.textContent = ""; refresh();
+    try {
+      if (file.size !== xtDisketteSize) throw new Error("Choose a raw 360 KiB disk image (368,640 bytes).");
+      session.insertDisk(file.name, new Uint8Array(await file.arrayBuffer()));
+    } catch (cause) { diskMessage.textContent = cause instanceof Error ? cause.message : String(cause); }
+    finally { diskFile.value = ""; readingDisk = false; refresh(); }
+  };
+  button("disk-eject").onclick = () => act(() => { session.ejectDisk(); diskMessage.textContent = ""; });
 
   for (const slot of slots) {
     slot.load.onclick = () => slot.file.click();

@@ -77,18 +77,17 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
       const point = validate([{ ...target, enabled: true }], 0xfffff, true)[0]!;
       hit = undefined; policy.runTo(location(), point.address, point.space);
     },
-    pause(): void { policy.pause(location()); },
-    beforeStep(): boolean { return policy.beforeStep(location()); },
+    pause(detail?: string): void { policy.pause(location(), detail); },
+    beforeStep(): boolean { return policy.beforeStep(location); },
     capture(step: () => Boundary): Boundary {
-      const caller = location();
       try {
         const { record, write } = writes.capture(step);
         if (record.outcome === "unsupported") policy.fail(location(), "Unsupported instruction.");
         else {
           policy.observeBoundary();
           if (write) {
-            hit = { ...write, caller, record };
-            policy.watchpoint(location(), describeXtWriteHit(hit));
+            hit = { ...write, caller: xtDebugLocation(record.before), record };
+            policy.watchpoint(xtDebugLocation(record.after), describeXtWriteHit(hit));
           } else if (policy.request === "step") policy.beforeStep(location());
         }
         return record;

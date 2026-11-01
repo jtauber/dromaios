@@ -506,16 +506,39 @@ same vector with zeroed RAM/video, inactive devices, and oscillator time zero.
 
 In **Firmware**, choose the 8 KiB XT BIOS dated 11/08/82, the 32 KiB IBM BASIC
 C1.10 ROM, and the 8 KiB IBM MDA/CGA character ROM. Each file is checked against
-the identity in this chapter and remembered locally. Press **Run**. The first
-part of POST runs with video disabled, so the screen takes time to appear.
-The address and emulated seconds in **Execution** show the board advancing.
-With its drive empty the XT boots into BASIC.
+the identity in this chapter and remembered locally. The disk in drive A
+determines what boots.
 
-Click the screen at `Ok`. Paste the three-line [program above](#rom-basic-sessions),
-including a final Enter, then type `LIST` and `RUN`. To resume later, pause and
-choose **Save snapshot**. The checkpoint includes RAM, CGA storage, CPU, board
-devices, and any undelivered keyboard input. On a later visit, restore it with
-the same three ROMs loaded. **Step** advances one timed CPU boundary.
+- **ROM BASIC.** Leave **Drive A** empty and press **Run**. At `Ok`, click the
+  screen, paste the [three-line program](#rom-basic-sessions) with a final Enter,
+  then type `LIST` and `RUN`.
+- **DOS.** In **Drive A**, choose **Insert…** and select the raw 360 KiB
+  [MS-DOS 3.30 system disk](#cold-booting-ms-dos-330). Its filename appears in
+  the panel. Choose **Fresh power-on**, then **Run**. Click the screen and press
+  Enter at each date and time prompt. At `A>`, try `VER` and `DIR`.
+
+The first part of POST runs with video disabled. The address and emulated
+seconds in **Execution** show the board advancing. **Step** advances one timed
+CPU boundary.
+
+For a shorter startup, choose **Quick boot** in Execution. It starts fresh RAM
+and devices, keeps the mounted disk, and sets the BIOS warm-start word at
+`0040:0072` to `1234h` before running from the reset vector. The original
+BIOS then takes its own warm POST path, skipping the long RAM pattern test.
+**Fresh power-on** and **Run** perform the full diagnostic.
+
+To [exchange disks at the DOS prompt](#changing-disks-at-the-dos-prompt), let
+the XT run until Drive A shows **Motor off**, then choose **Insert…** again.
+The motor light follows the XT's drive control register. Selecting a file of
+the wrong size leaves the current disk in place. Disks are write-protected.
+**Eject** leaves the drive empty. **Fresh power-on** clears RAM and resets the
+controller while leaving the current disk in the drive.
+
+To resume later, pause and choose **Save snapshot**. On a later visit, choose
+**Restore snapshot** with the same three ROMs loaded. The checkpoint restores
+the CPU, RAM, screen, board devices, and pending keyboard input. It also
+restores the saved disk's name and contents, even if you have since ejected it
+or inserted another disk. A checkpoint saved with an empty drive restores it empty.
 
 From fresh power-on, **Disassembly** shows `EA 5B E0 00 F0` at `FFFF:0000`
 (physical `FFFF0`). The far jump takes its offset from the first word and its
@@ -761,7 +784,8 @@ Enter for BASIC to scroll. The paste position and delay survive a checkpoint.
 the receiver. When the BIOS resets the keyboard, its self-test takes precedence
 and the host discards typing and releases queued before that reset. This keeps
 a stale release from reaching POST's stuck-key check. **Reset CPU** preserves
-RAM and devices. **Fresh power-on** starts a new machine with the loaded ROMs.
+RAM and devices. **Fresh power-on** starts a new machine with the loaded ROMs
+and any disk in drive A.
 
 [intel]: https://www.ardent-tool.com/CPU/docs/Intel/808x/manuals/9800722-03_alt.pdf
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

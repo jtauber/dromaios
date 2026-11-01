@@ -1,6 +1,8 @@
+import { xtDisketteSize } from "../../src/machines/8088/pc-xt/io.js";
 import { checkMachineSnapshot } from "../../src/machines/snapshot.js";
 import type { XtSessionState } from "./xt-session.js";
 
+// Keep the storage slot stable so earlier browser checkpoints remain discoverable.
 export const xtCheckpointKey = "dromaios:ibm-xt:checkpoint:v1";
 
 function pack(bytes: readonly number[]): string {
@@ -8,22 +10,33 @@ function pack(bytes: readonly number[]): string {
   for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.slice(i, i + 8192));
   return btoa(binary);
 }
-function unpack(value: unknown, size: number): number[] {
-  if (typeof value !== "string" || value.length !== Math.ceil(size / 3) * 4) throw new Error("Incorrect XT checkpoint memory size.");
+function unpack(value: unknown, size: number, field = "memory"): number[] {
+  if (typeof value !== "string" || value.length !== Math.ceil(size / 3) * 4) throw new Error(`Incorrect XT checkpoint ${field} size.`);
   const bytes = atob(value);
-  if (bytes.length !== size) throw new Error("Incomplete XT checkpoint memory.");
+  if (bytes.length !== size) throw new Error(`Incomplete XT checkpoint ${field}.`);
   return Array.from(bytes, char => char.charCodeAt(0));
 }
 
-/** Keep the two RAM arrays compact enough for browser storage. ROM sockets contain identities only. */
-export function encodeXtCheckpoint({ hardware, keyboard }: XtSessionState): string {
-  return JSON.stringify({ version: 1, machine: "ibm-pc-xt", hardware: { ...hardware, ram: pack(hardware.ram), video: pack(hardware.video) }, keyboard });
+/** RAM, video and the optional write-protected disk each have one packed copy. */
+export function encodeXtCheckpoint({ hardware, keyboard, diskName }: XtSessionState): string {
+  const { io } = hardware;
+  return JSON.stringify({ version: 2, machine: "ibm-pc-xt", keyboard, diskName, hardware: {
+    ...hardware, ram: pack(hardware.ram), video: pack(hardware.video),
+    io: { ...io, disketteImage: io.disketteImage && pack(io.disketteImage) },
+  } });
 }
 export function decodeXtCheckpoint(text: string): XtSessionState {
-  if (text.length > 1_100_000) throw new Error("XT checkpoint is too large.");
+  if (text.length > 1_100_000 + xtDisketteSize / 3 * 4) throw new Error("XT checkpoint is too large.");
   const data = JSON.parse(text);
-  checkMachineSnapshot(data, ["version", "machine", "hardware", "keyboard"]);
-  if (data.version !== 1 || data.machine !== "ibm-pc-xt") throw new Error("This checkpoint belongs to a different machine or version.");
+  if (data?.machine !== "ibm-pc-xt" || (data.version !== 1 && data.version !== 2)) {
+    throw new Error("This checkpoint belongs to a different machine or version.");
+  }
+  const legacy = data.version === 1;
+  checkMachineSnapshot(data, legacy ? ["version", "machine", "hardware", "keyboard"] : ["version", "machine", "hardware", "keyboard", "diskName"]);
   const hardware = { ...data.hardware, ram: unpack(data.hardware?.ram, 0xa0000), video: unpack(data.hardware?.video, 0x4000) };
-  return { hardware, keyboard: data.keyboard };
+  // The version-1 laboratory always had an empty drive. Its oldest board snapshots predate disketteImage.
+  if (legacy) return { hardware, keyboard: data.keyboard, diskName: null };
+  const disk = hardware.io?.disketteImage;
+  if (disk !== null) hardware.io = { ...hardware.io, disketteImage: unpack(disk, xtDisketteSize, "disk") };
+  return { hardware, keyboard: data.keyboard, diskName: data.diskName };
 }

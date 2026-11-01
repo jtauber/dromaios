@@ -26,8 +26,8 @@ through DMA channel 2 and IRQ6. Timed keyboard self-test delivery
 also passes the second keyboard reset. Original firmware completes POST,
 falls back from an empty drive, and runs [repeatable ROM BASIC sessions](../../src/machines/8088/pc-xt.md#rom-basic-sessions)
 with stored programs and native keyboard input. The
-[first laboratory](../../src/machines/8088/pc-xt.md#using-the-laboratory) runs
-that session in the browser. With the selected 360 KiB disk inserted, the
+[laboratory](../../src/machines/8088/pc-xt.md#using-the-laboratory) runs
+that session in the browser or boots from a local 360 KiB disk in drive A. The
 [native cold-boot test](../../src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
 reaches the DOS prompt and runs `VER` and `DIR`.
 
@@ -262,6 +262,9 @@ continues with a disk exchange in drive A. DOS displays the new disk's text
 file with `TYPE`, loads and runs its COM program, and accepts `DIR` after the
 program exits. Device checks also cover empty-drive and invalid-sector errors,
 write protection, reset, and snapshot continuation during a transfer.
+The laboratory displays the inserted filename and motor state. Fresh power-on
+retains the inserted disk, and restoring a checkpoint returns both the saved
+disk and the controller to their positions in the session.
 
 Begin with explicitly write-protected images. Writable media is a subsequent
 checkpoint: create/read/delete a file, export and reload the changed image, and
@@ -287,11 +290,11 @@ in the EGA laboratory.
 
 ## Next implementation slice
 
-Expose drive A in the XT laboratory. Show the mounted disk's name and drive
-light alongside Insert and Eject controls for a local 360 KiB image. Verify the same cold boot
-and disk exchange in the browser and restore a checkpoint with the correct
-disk mounted. Then extend the controller to writable media for the
-[DOS file and save checks](#4-dos-through-the-diskette-controller).
+Implement sector writes through the XT BIOS and DMA channel 2. Use a disposable
+data disk for the [DOS file checks](#4-dos-through-the-diskette-controller):
+create a file, read it back, export and reload the changed image, then delete the
+file. Verify the exported sectors independently and retain write protection for
+the original system disk.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

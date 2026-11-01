@@ -8,7 +8,7 @@ import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/8088/pc-xt.js";
 import { createXtSession, stepXtSessionCpu } from "../../site/interactive/xt-session.js";
 import { createXtChangeLog, createXtWatchHistory, xtHistoryAssembly } from "../../site/interactive/xt-history.js";
-import { createXtDebugger, xtDebugLocation, xtLogicalLocation } from "../../site/interactive/xt-debugger.js";
+import { createXtDebugger, xtLogicalLocation } from "../../site/interactive/xt-debugger.js";
 import { decodeWorkspaceState, encodeWorkspaceState } from "../../site/interactive/workspace/state.js";
 import { groups } from "../../site/interactive/workspace/layout.js";
 import { migrateXtWorkspace, xtWorkspaceKey } from "../../site/interactive/xt-workspace.js";
@@ -22,8 +22,8 @@ function fixture(bytes: readonly number[], state: Partial<Cpu8088State> = {}, ca
   bytes.forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
   const log = createXtChangeLog(machine, catalogue.storage, capacity), history = createXtWatchHistory(2), debug = createXtDebugger(() => machine);
   const step = () => {
-    const caller = xtDebugLocation(machine.cpu.snapshot()), record = log.capture(() => debug.capture(() => stepXtSessionCpu(machine, session.keyboard)));
-    history.observe(record, caller, debug.watchpoints, log.memoryWrites(record)); return record;
+    const record = log.capture(() => debug.capture(() => stepXtSessionCpu(machine, session.keyboard)));
+    history.observe(record, debug.watchpoints, log.memoryWrites(record)); return record;
   };
   return { session, machine, log, history, debug, step };
 }

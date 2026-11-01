@@ -47,10 +47,10 @@ export function createXtChangeLog(machine: XtMachine, regions: readonly XtStorag
 export function createXtWatchHistory(capacity = 256) {
   const history = createMemoryWatchHistory<XtStorageWrite>(capacity);
   return { ...history,
-    observe(record: Boundary, caller: DebugLocation, watches: readonly MemoryRange[], writes: readonly XtStorageWrite[]): void {
+    observe(record: Boundary, watches: readonly MemoryRange[], writes: readonly XtStorageWrite[]): void {
       if (record.outcome !== "executed" && record.outcome !== "accepted") return;
       const event = xtBoundaryEvent(record);
-      history.observe({ caller, bytes: record.instruction?.bytes ?? [], ...(event && { event: `${event} · ${record.outcome}` }) }, watches,
+      history.observe(() => ({ caller: xtDebugLocation(record.before), bytes: record.instruction?.bytes ?? [], ...(event && { event: `${event} · ${record.outcome}` }) }), watches,
         writes.filter(write => write.storage === "ram").map(storage => ({ address: storage.address, value: storage.after, kind: "write" as const, storage })));
     },
   };

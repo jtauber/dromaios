@@ -81,8 +81,10 @@ export function createInstructionDebugger(budget = 2_000_000) {
     watchpoint(location: DebugLocation, detail: string): void { finish("watchpoint", location, detail); },
     fail(location: DebugLocation, detail: string): void { frames.length = 0; trackingNote = "Execution failed; earlier callers are no longer tracked."; finish("error", location, detail); },
     reset(): void { frames.length = 0; trackingNote = undefined; plan = undefined; stop = undefined; skip = undefined; completed = false; },
-    beforeStep(location: DebugLocation): boolean {
+    beforeStep(current: DebugLocation | (() => DebugLocation)): boolean {
       if (stop) return true;
+      if (!plan && !breakpoints.length) { skip = undefined; return false; }
+      const location = typeof current === "function" ? current() : current;
       const bypass = skip !== undefined && sameLocation(skip, location); skip = undefined;
       if (!bypass && breakpoints.some(point => point.enabled && matches(point, location))) finish("breakpoint", location);
       else if (plan?.kind === "target" && matches(plan, location)) finish("target", location);
