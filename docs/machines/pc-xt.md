@@ -5,7 +5,7 @@ laboratory. Use **dromaios-pc** as the primary implementation reference and
 IBM's hardware documentation as the authority. Retain Dromaios's generated
 [8088](../../src/components/cpus/specifications/8088.md); a new CPU is not required.
 
-**Status, 2026-11-01:** reference audit complete; the first native
+**Status, 2026-11-02:** the first native
 [keyboard-interrupt example](../../src/machines/8088/xt-keyboard.md) connects
 the generated 8088, PIC, PPI, and keyboard receiver. The
 [timer example](../../src/machines/8088/xt-timer.md) adds the 8253, saved
@@ -30,7 +30,9 @@ with stored programs and native keyboard input. The
 [laboratory](../../src/machines/8088/pc-xt.md#using-the-laboratory) runs
 that session in the browser or boots from a local 360 KiB disk in drive A. The
 [native cold-boot test](../../src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
-reaches the DOS prompt and runs `VER` and `DIR`.
+reaches the DOS prompt and runs `VER` and `DIR`. DOS also loads
+[Ultima V from a 360 KiB disk](pc-xt-ultima-v.md#native-launch).
+The game reaches its graphics menu on the reference emulator.
 
 ## Selected first configuration
 
@@ -86,8 +88,9 @@ not authority for hardware behavior.
 ### Executed checks
 
 Temporary Node.js 24 harnesses loaded an archive of the unmodified pinned
-source. These were headless checks; they did not exercise browser controls,
-canvas rendering, Windows, or Ultima.
+source. The initial checks below exercised the CPU, devices, and DOS. A
+[later game trace](pc-xt-ultima-v.md#reference-launch) inspected the EGA planes
+directly. Browser controls, canvas rendering, and Windows were outside both runs.
 
 - The reference's [`node test.js` suite][ref-tests] passed **168 unit tests and
   six demo smoke tests**.
@@ -145,8 +148,9 @@ arrangement from later 64 KiB XT firmware.
 The [CGA chapter](../../src/components/devices/specifications/ibm-cga.md) describes
 the selected font bank and supported text profile. The native DOS session uses
 the original geometry of the Microsoft disk. The reference's NEC disk and
-`ultima5.img` are both 1,474,560 bytes. Select compatible game media separately
-for the [Ultima V milestone](#5-ultima-v-on-the-xt).
+`ultima5.img` are both 1,474,560 bytes. The
+[Ultima V media inventory](pc-xt-ultima-v.md#media) identifies the executable
+and the files used to make a 360 KiB launch disk.
 
 ## Native implementation boundaries
 
@@ -276,14 +280,9 @@ from the reinserted copy.
 
 ### 5. Ultima V on the XT
 
-The [reference architecture][ref-architecture] records Ultima V running on the
-8088 with EGA graphics and disk saves. Our reference audit reproduced the DOS
-session only. Use the same game as the target for the native XT laboratory.
-
-Choose a DOS release of the game, record the disk identities and launch
-command, and specify the EGA adapter and its firmware. Use the working CGA
-configuration for the preceding DOS checkpoint. Verify the following session
-in the EGA laboratory.
+The [launch audit and EGA acceptance checks](pc-xt-ultima-v.md) pin the game
+and adapter ROM, trace the reference menu, and identify where the native XT
+currently stops. Use these milestones for the EGA laboratory.
 
 1. Boot DOS through the XT BIOS and launch Ultima V from the guest prompt.
 2. Reach the title screen, enter Britannia, and use the XT keyboard to move the
@@ -293,10 +292,9 @@ in the EGA laboratory.
 
 ## Next implementation slice
 
-Identify the DOS release and disk set for the [Ultima V session](#5-ultima-v-on-the-xt).
-Record its launch command and the first display mode it requests. Use that
-evidence and the reference machine to select the first EGA firmware and
-display checks.
+Support the [8088 stack alignment instruction used by the game](pc-xt-ultima-v.md#native-launch),
+then repeat the DOS launch to the display probe. The first EGA milestone is
+for the XT BIOS to call the adapter ROM and for that ROM to install INT 10h.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/
