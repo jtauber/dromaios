@@ -43,9 +43,9 @@ export function createXtSession(initial: Bindings = { bios: null, basic: null, f
     get keyboard() { return keyboard; },
     get ready() { return ready(); },
     get diskName() { return diskName; },
-    insertDisk(name: string, bytes: Uint8Array) {
+    insertDisk(name: string, bytes: Uint8Array, { writable = false } = {}) {
       checkDiskName(name);
-      machine.io.setDiskette(bytes);
+      machine.io.setDiskette(bytes, { writable });
       diskName = name;
     },
     ejectDisk() { machine.io.setDiskette(null); diskName = null; },

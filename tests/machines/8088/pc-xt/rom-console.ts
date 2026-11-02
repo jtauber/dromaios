@@ -19,17 +19,19 @@ export function waitingForKey(machine: Machine): boolean {
 
 // Only the keys in these acceptance programs, in physical order on IBM's 83-key keyboard.
 const makeCode = new Map([[" ", 0x39], ["\n", 0x1c], ["\b", 0x0e]]);
+const shiftKey = new Map([["+", "="], [">", "."], [":", ";"]]);
 for (const [first, row] of [[0x02, "1234567890-="], [0x10, "QWERTYUIOP"],
-  [0x1e, "ASDFGHJKL"], [0x2c, "ZXCVBNM,."]] as const) {
+  [0x1e, "ASDFGHJKL;"], [0x2c, "ZXCVBNM,."]] as const) {
   [...row].forEach((key, index) => makeCode.set(key, first + index));
 }
 
 export function scanCodes(text: string): number[] {
   return [...text].flatMap(key => {
-    const make = makeCode.get(key === "+" ? "=" : key);
+    const shifted = shiftKey.get(key);
+    const make = makeCode.get(shifted ?? key);
     assert.notEqual(make, undefined, `No XT test key for ${JSON.stringify(key)}`);
     const press = [make!, make! | 0x80];
-    return key === "+" || /[A-Z]/.test(key) ? [0x2a, ...press, 0xaa] : press;
+    return shifted || /[A-Z]/.test(key) ? [0x2a, ...press, 0xaa] : press;
   });
 }
 

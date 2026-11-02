@@ -120,8 +120,10 @@
     </section>
     <section class="lab-tool lab-panel-body lab-scroll xt-drive" data-workspace-panel="drive" data-panel-title="Drive A" data-panel-detail="360 KiB">
       <div class="xt-drive-status"><span data-disk-name>Empty</span><span class="xt-motor" data-disk-motor title="Wait for the motor to stop before exchanging DOS disks.">Motor off</span></div>
-      <div class="basic-controls"><button type="button" data-disk-insert disabled>Insert…</button>
+      <div class="basic-controls"><button type="button" data-disk-insert disabled title="Mount a write-protected image">Insert…</button>
+        <button type="button" data-disk-writable disabled>Insert writable copy…</button>
         <input type="file" hidden data-disk-file accept=".img,.ima,.dsk" aria-label="360 KiB drive A image">
+        <button type="button" data-disk-export disabled title="Download the mounted image when the drive motor is off">Export disk image</button>
         <button type="button" data-disk-eject disabled>Eject</button><small data-disk-protection hidden>Write-protected</small></div>
       <p class="basic-message" data-disk-message role="status"></p>
     </section>

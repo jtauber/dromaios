@@ -151,13 +151,14 @@ test("XT browser checkpoint restores the saved disk and pending DMA byte over di
 
 test("XT fresh power-on retains the write permission restored from a checkpoint", () => {
   const session = createXtSession(), disk = new Uint8Array(360 * 1024);
-  session.insertDisk("scratch.img", disk);
-  session.machine.io.setDiskette(disk, { writable: true });
+  session.insertDisk("scratch.img", disk, { writable: true });
   const checkpoint = encodeXtCheckpoint(session.snapshot());
   session.ejectDisk(); session.restore(decodeXtCheckpoint(checkpoint));
   assert.equal(session.machine.io.disketteWritable, true);
   session.powerOn(); assert.equal(session.machine.io.disketteWritable, true);
   assert.equal(session.diskName, "scratch.img");
+  session.insertDisk("system.img", disk);
+  assert.equal(session.machine.io.disketteWritable, false);
 });
 
 test("restoring a version-1 empty-drive XT checkpoint ejects the current disk", () => {

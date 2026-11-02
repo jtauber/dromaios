@@ -32,7 +32,7 @@ const examples: readonly [readonly number[], number][] = [
   [[0xfa], 2], [[0xfb], 2], [[0xfc], 2], [[0xfd], 2], [[0x9e], 4], [[0x9f], 4],
   [[0xcc], 72], [[0xcd, 3], 71], [[0xcf], 36], [[0xeb, 0], 15],
   [[0x26, 0x3e, 0xa1, 0, 2], 18], [[0xf0, 0x01, 6, 0, 2], 32],
-  [[0xd4, 10], 83], [[0x8d, 6, 0, 2], 8], [[0x8d, 0x46, 0xff], 11],
+  [[0xd4, 10], 83], [[0xd5, 10], 60], [[0x8d, 6, 0, 2], 8], [[0x8d, 0x46, 0xff], 11],
   [[0xff, 0xd3], 20], [[0xff, 0x16, 0, 2], 35], [[0xff, 0x1e, 0, 2], 59],
   [[0xff, 0x2e, 0, 2], 38], [[0x2e, 0xff, 0x6f, 1], 43],
   [[0xff, 0xe0], 11], [[0xff, 0x26, 0, 2], 28], [[0x2e, 0xff, 0xa4, 0, 2], 33],
@@ -209,8 +209,8 @@ test("8088 unary timing includes both word transfers and preserves NOT/NEG seman
   }
 });
 
-test("reserved indirect transfers, register LEA and undocumented AAM radices have no timed effects", () => {
-  for (const code of [[0xff, 0xd8], [0xff, 0xe8], [0xff, 0x3e, 0, 2], [0x8d, 0xc0], [0xd4, 0]]) {
+test("reserved indirect transfers, register LEA and undocumented AAM/AAD radices have no timed effects", () => {
+  for (const code of [[0xff, 0xd8], [0xff, 0xe8], [0xff, 0x3e, 0, 2], [0x8d, 0xc0], [0xd4, 0], [0xd5, 0]]) {
     const { cpu, ram } = fixture(code), before = cpu.snapshot();
     ram.observeWrites(() => assert.fail("Invalid encoding wrote memory"));
     assert.throws(() => cpu.stepTimed(), InstructionTimingUnavailable);

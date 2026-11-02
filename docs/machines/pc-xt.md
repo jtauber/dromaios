@@ -269,8 +269,10 @@ disk and the controller to their positions in the session.
 
 The [BIOS sector-write check](../../src/machines/8088/pc-xt.md#writing-a-diskette-through-int-13h)
 writes to a disposable image, reads the sector back, and verifies that a
-protected disk rejects the write without a DMA transfer. The remaining DOS
-checks exercise guest filesystem operations on a writable data disk.
+protected disk rejects the write without a DMA transfer. The
+[DOS file check](../../src/machines/8088/pc-xt.md#saving-a-dos-file-across-a-fresh-boot)
+creates a file, exports the disk, reads it after a fresh boot, and deletes it
+from the reinserted copy.
 
 ### 5. Ultima V on the XT
 
@@ -291,10 +293,10 @@ in the EGA laboratory.
 
 ## Next implementation slice
 
-Boot the protected system disk, swap in a writable data disk, and use DOS to
-create and read a file. Export the changed image, reload it in a fresh session,
-and use DOS to read and delete the file. Check the FAT, directory entry, and
-file data independently in the exported image.
+Identify the DOS release and disk set for the [Ultima V session](#5-ultima-v-on-the-xt).
+Record its launch command and the first display mode it requests. Use that
+evidence and the reference machine to select the first EGA firmware and
+display checks.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

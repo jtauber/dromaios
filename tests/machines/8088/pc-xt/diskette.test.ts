@@ -131,8 +131,14 @@ test("XT disk writes require a channel-2 memory read and pad only the final sect
   assert.equal(io.serviceDma(memory), undefined);
   assert.deepEqual(Array.from({ length: 7 }, () => ports.readPort(0x3f5)), [0, 0, 0, 0, 0, 3, 2]);
   const expected = disk.slice(); expected.set([0x71, 0x42], 512); expected.fill(0, 514, 1024);
-  assert.deepEqual(Uint8Array.from(io.snapshot().disketteImage!), expected);
+  const exported = io.exportDiskette();
+  assert.deepEqual(exported, expected);
+  exported[512] = 0;
+  assert.equal(io.snapshot().disketteImage![512], 0x71);
+  assert.equal(disk[512], 0xee);
   assert.equal(pending.disketteImage![512], 0xee); assert.equal(partial.disketteImage![513], 0xee);
+  io.setDiskette(null);
+  assert.throws(() => io.exportDiskette(), /empty/);
 });
 
 test("XT restores empty-drive checkpoints written before the media and DMA-page fields existed", () => {

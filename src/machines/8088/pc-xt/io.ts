@@ -174,6 +174,12 @@ export class XtIo implements MemoryConnection {
     this.#updateWiring();
   }
 
+  /** Return the current raw sectors in a detached buffer suitable for a .img file. */
+  exportDiskette(): Uint8Array<ArrayBuffer> {
+    if (!this.#disketteImage) throw new Error("Drive A is empty.");
+    return Uint8Array.from(this.#disketteImage.snapshot());
+  }
+
   /** Called only from the CPU's accepted INTR callback. */
   acknowledge(): number {
     const vector = this.#pic.vector();

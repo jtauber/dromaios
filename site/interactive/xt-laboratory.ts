@@ -73,7 +73,7 @@ function mount(root: HTMLElement): void {
   });
   const diskFile = at<HTMLInputElement>("disk-file"), diskName = at("disk-name"), motor = at("disk-motor");
   const diskMessage = at("disk-message");
-  let loading = true, readingDisk = false, saved = false, lastDraw = -Infinity;
+  let loading = true, readingDisk = false, writableCopy = false, saved = false, lastDraw = -Infinity;
   const execution = createExecutionController({
     step() {
       const log = changeLog.current();
@@ -124,7 +124,7 @@ function mount(root: HTMLElement): void {
     button("remove").disabled = loading || running || !saved;
     for (const slot of slots) { slot.load.disabled = loading || readingDisk || running; slot.forget.disabled = loading || running || !slot.remembered; }
 
-    button("disk-insert").disabled = loading || readingDisk;
+    button("disk-insert").disabled = button("disk-writable").disabled = loading || readingDisk;
     button("disk-eject").disabled = loading || readingDisk || session.diskName === null;
     const name = session.diskName ?? "Empty";
     if (diskName.textContent !== name) { diskName.textContent = name; diskName.title = name; }
@@ -132,6 +132,7 @@ function mount(root: HTMLElement): void {
     protection.hidden = session.diskName === null;
     if (protection.textContent !== mode) protection.textContent = mode;
     const motorOn = session.machine.io.disketteMotorOn;
+    button("disk-export").disabled = loading || readingDisk || session.diskName === null || motorOn;
     if (motorOn !== motor.classList.contains("is-on")) {
       motor.classList.toggle("is-on", motorOn);
       motor.textContent = motorOn ? "Motor on" : "Motor off";
@@ -226,18 +227,29 @@ function mount(root: HTMLElement): void {
     localStorage.removeItem(xtCheckpointKey); saved = false; at("saved").textContent = "No checkpoint saved.";
   });
 
-  button("disk-insert").onclick = () => diskFile.click();
+  button("disk-insert").onclick = () => { writableCopy = false; diskFile.click(); };
+  button("disk-writable").onclick = () => { writableCopy = true; diskFile.click(); };
   diskFile.onchange = async () => {
     const file = diskFile.files?.[0];
     if (!file || loading || readingDisk) return;
     readingDisk = true; diskMessage.textContent = ""; refresh();
     try {
       if (file.size !== xtDisketteSize) throw new Error("Choose a raw 360 KiB disk image (368,640 bytes).");
-      session.insertDisk(file.name, new Uint8Array(await file.arrayBuffer()));
+      session.insertDisk(file.name, new Uint8Array(await file.arrayBuffer()), { writable: writableCopy });
     } catch (cause) { diskMessage.textContent = cause instanceof Error ? cause.message : String(cause); }
     finally { diskFile.value = ""; readingDisk = false; refresh(); }
   };
   button("disk-eject").onclick = () => act(() => { session.ejectDisk(); diskMessage.textContent = ""; });
+  button("disk-export").onclick = () => act(() => {
+    if (!session.diskName || session.machine.io.disketteMotorOn) return;
+    const link = document.createElement("a");
+    link.download = session.diskName.replace(/(?:-saved)?\.(?:img|ima|dsk)$/i, "") + "-saved.img";
+    const url = URL.createObjectURL(new Blob([session.machine.io.exportDiskette()], { type: "application/octet-stream" }));
+    link.href = url;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    diskMessage.textContent = `Exported ${link.download}.`;
+  });
 
   for (const slot of slots) {
     slot.load.onclick = () => slot.file.click();

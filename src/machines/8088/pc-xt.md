@@ -331,8 +331,9 @@ The boot sector asks the BIOS for cylinder 0, head 0, sector 6. That read
 places the first root directory sector at physical `00500`, with the entry
 for `IO.SYS` first. The next read starts at cylinder 0, head 1, sector 4.
 It puts the first six sectors of `IO.SYS` at `00700`. DOS continues loading
-from disk until its command interpreter takes input. Press Enter at the date
-and time prompts to accept the defaults.
+from disk until its command interpreter takes input. Enter a date and time, or
+press Enter at each prompt to accept the defaults. To read a two-digit field,
+DOS uses the 8088's `AAD` instruction to combine the tens and units.
 
 | At the keyboard | What appears on the CGA display |
 | --- | --- |
@@ -378,7 +379,43 @@ with `AX=4C00h` to exit with status zero. [The MS-DOS Encyclopedia, section II](
 
 The acceptance test issues one more `DIR` after the program exits. The
 interpreter must list volume `DROMAIOS`, its two files and 360,448 bytes free.
-Both disks stay write-protected throughout the session.
+Both disks stay write-protected for these commands.
+
+### Saving a DOS file across a fresh boot
+
+At the `A>` prompt, wait for **Motor off**. Choose **Insert writable copy…**
+in Drive A and select the [`DROMAIOS` data disk](#changing-disks-at-the-dos-prompt).
+DOS can now change the copy in the drive. The file you selected keeps its
+original bytes. If the file picker paused the XT, choose **Run**. Click the
+screen and type these commands.
+
+```text
+A>ECHO HELLO>SAVE.TXT
+A>TYPE SAVE.TXT
+HELLO
+```
+
+The `>` sends the output of `ECHO` to a file. DOS creates a directory entry
+for `SAVE.TXT` and allocates one 1,024-byte cluster. The file's seven bytes
+are `HELLO` followed by carriage return and line feed. Both copies of the FAT
+mark that cluster as the end of the file.
+
+1. Leave the XT running until **Motor off**, then choose **Export disk image**.
+   This downloads a raw 360 KiB `.img` containing the current sectors.
+2. Pause the XT. Choose **Insert…** and select the MS-DOS **system** disk.
+   Choose **Fresh power-on**, then **Run**. Press Enter at the date and time prompts.
+3. At `A>`, wait for **Motor off**, then use **Insert writable copy…** to
+   mount the **exported data disk**. `DIR` shows three files and 359,424 bytes
+   free. `TYPE SAVE.TXT` prints `HELLO` from the exported sectors.
+4. Type `DEL SAVE.TXT`, then `DIR`. The two original files remain and free
+   space returns to 360,448 bytes. The download still contains `SAVE.TXT`.
+
+The [DOS acceptance test](../../../tests/machines/8088/pc-xt/rom-dos.test.ts)
+boots the original BIOS and MS-DOS twice. Between boots it independently
+checks the directory entry's date, hour and minute against the values typed
+at startup, reads the allocated cluster in both FATs, and verifies the seven
+data bytes. After deletion it checks that DOS marked the entry deleted and
+freed the cluster.
 
 ## CGA text output
 
@@ -552,7 +589,8 @@ To [exchange disks at the DOS prompt](#changing-disks-at-the-dos-prompt), let
 the XT run until Drive A shows **Motor off**, then choose **Insert…** again.
 The motor light follows the XT's drive control register. Selecting a file of
 the wrong size leaves the current disk in place. **Insert…** mounts the file
-write-protected.
+write-protected. Use **Insert writable copy…** and **Export disk image** to
+[save files from DOS](#saving-a-dos-file-across-a-fresh-boot).
 **Eject** leaves the drive empty. **Fresh power-on** clears RAM and resets the
 controller while leaving the current disk in the drive.
 

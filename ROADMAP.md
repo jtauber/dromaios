@@ -276,8 +276,8 @@ walkthrough, and shared change/watch histories. The board also
 [cold-boots MS-DOS 3.30 from a 360 KiB floppy](src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
 and runs `VER` and `DIR`. After a [disk exchange](src/machines/8088/pc-xt.md#changing-disks-at-the-dos-prompt),
 DOS can display a text file and run a COM program. The laboratory's drive A
-accepts local disks and includes the mounted disk in its checkpoints. Next,
-writable media will let DOS create files and preserve them in an exported image.
+accepts local disks and includes the mounted disk in its checkpoints. DOS can
+[create a file on a writable copy and read it after exporting the image and booting afresh](src/machines/8088/pc-xt.md#saving-a-dos-file-across-a-fresh-boot).
 The software goal beyond DOS is a [playable Ultima V session](docs/machines/pc-xt.md#5-ultima-v-on-the-xt)
 with EGA graphics, keyboard control, and a game save that survives a fresh boot.
 Introduce further abstractions through concrete requirements.

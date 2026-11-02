@@ -59,7 +59,7 @@ function consoleUntil(machine: Machine, input: string, prompt: string, expectedL
 }
 
 // Wait for DOS to echo each key so long commands cannot overrun the BIOS typeahead buffer.
-function dosCommand(machine: Machine, command: string, expectedLine: string) {
+function dosCommand(machine: Machine, command: string, expectedLine = "A>" + command) {
   let echo = "A>";
   for (const key of command) {
     echo += key;
@@ -80,35 +80,68 @@ function checkDirectory(machine: Machine, disk: Buffer, volume: string, totals: 
   assert.deepEqual(files, visibleRootFiles(disk));
 }
 
-test("original XT boots MS-DOS 3.30, lists the system disk, then reads and runs files from a replacement disk", {
+function bootDos(bindings: Parameters<typeof create8088PcXt>[0], systemDisk: Buffer, { date = "", time = "" } = {}) {
+  const machine = create8088PcXt(bindings);
+  machine.io.setDiskette(systemDisk);
+  machine.reset();
+  runToBootSector(machine, systemDisk);
+  consoleUntil(machine, "", "Enter new date (mm-dd-yy):");
+  consoleUntil(machine, date + "\n", "Enter new time:");
+  consoleUntil(machine, time + "\n", "A>", "Microsoft(R) MS-DOS(R)  Version 3.30");
+  return machine;
+}
+
+function waitForMotorOff(machine: Machine) {
+  // DOS can still trust the old FAT while the motor is running. Let the BIOS timer stop it.
+  if (machine.io.disketteMotorOn) runInput(machine, [], { limit: 2_000_000, until: () => !machine.io.disketteMotorOn });
+}
+
+// Inspect this 360 KiB image independently of DOS. Each packed FAT12 entry shares a byte with its neighbor.
+function fatEntry(disk: Buffer, cluster: number) {
+  const fat = disk.subarray(512, 3 * 512);
+  assert.deepEqual(fat, disk.subarray(3 * 512, 5 * 512));
+  const pair = fat.readUInt16LE(Math.floor(cluster * 3 / 2));
+  return cluster % 2 === 0 ? pair & 0xfff : pair >>> 4;
+}
+
+function checkSavedFile(dataDisk: Buffer, exported: Buffer) {
+  assert.equal(exported.length, dataDisk.length);
+  assert.deepEqual(visibleRootFiles(exported), [...visibleRootFiles(dataDisk), ["SAVE", "TXT", 7]]);
+  const entry = 5 * 512 + 3 * 32; // First unused entry after the volume label, README and HELLO.
+  assert.equal(dataDisk[entry], 0);
+  assert.equal(exported.toString("ascii", entry, entry + 11), "SAVE    TXT");
+  // The timestamp comes from the date and time typed at the first boot.
+  // DOS stores year since 1980, month and day, and counts seconds in two-second units.
+  assert.equal(exported.readUInt16LE(entry + 24), (1986 - 1980) << 9 | 11 << 5 | 2);
+  assert.equal(exported.readUInt16LE(entry + 22) >>> 5, 12 << 6 | 34);
+  const cluster = exported.readUInt16LE(entry + 26);
+  assert.ok(cluster >= 2 && cluster < 356); // 354 data clusters of two sectors each.
+  assert.equal(fatEntry(dataDisk, cluster), 0);
+  assert.ok(fatEntry(exported, cluster) >= 0xff8);
+  const start = (12 + (cluster - 2) * 2) * 512;
+  assert.deepEqual(exported.subarray(start, start + 7), Buffer.from("HELLO\r\n"));
+  return { entry, cluster };
+}
+
+test("original XT boots DOS, runs files from a replacement disk, and preserves a DOS-created file across a fresh boot", {
   skip: !(XT_BIOS_ROM && XT_BASIC_ROM && XT_DOS_DISK) && "Set XT_BIOS_ROM, XT_BASIC_ROM and XT_DOS_DISK to the selected images.",
 }, async () => {
   const digest = async (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
   const disk = readFileSync(XT_DOS_DISK!);
   assert.equal(disk.length, 360 * 1024);
   assert.equal(await digest(disk), diskHash, "Expected Microsoft MS-DOS 3.30 Disk 1 (MS330PP01)");
-  const machine = create8088PcXt({
+  const bindings = {
     bios: await RomImage.verify(readFileSync(XT_BIOS_ROM!), romImages.bios, digest),
     basic: await RomImage.verify(readFileSync(XT_BASIC_ROM!), romImages.basic, digest),
     font: null,
-  });
-  machine.io.setDiskette(disk);
-  machine.reset();
-  runToBootSector(machine, disk);
-  consoleUntil(machine, "", "Enter new date (mm-dd-yy):");
-  consoleUntil(machine, "\n", "Enter new time:");
-  consoleUntil(machine, "\n", "A>", "Microsoft(R) MS-DOS(R)  Version 3.30");
+  };
+  const machine = bootDos(bindings, disk, { date: "11-02-86", time: "12:34:00" });
 
   const version = dosCommand(machine, "VER", "MS-DOS Version 3.30");
   assert.ok(version.includes("A>VER"));
   checkDirectory(machine, disk, "MS330PP01", "34 File(s) 5120 bytes free");
 
-  // On the original drive DOS can still trust the old FAT while the motor is running.
-  // Let the BIOS timer interrupt turn drive A off before opening the drive door.
-  if (machine.io.snapshot().diskette.dor & 0x10) {
-    runInput(machine, [], { limit: 2_000_000, until: (_, { accesses }) =>
-      accesses.some(access => access.kind === "output" && access.port === 0x3f2 && (access.value & 0x10) === 0) });
-  }
+  waitForMotorOff(machine);
   const dataDisk = makeXtDataDisk();
   machine.io.setDiskette(dataDisk);
   const readme = dosCommand(machine, "TYPE README.TXT", "DOS read this file from drive A.");
@@ -116,4 +149,25 @@ test("original XT boots MS-DOS 3.30, lists the system disk, then reads and runs 
   const hello = dosCommand(machine, "HELLO.COM", "Hello from HELLO.COM on drive A.");
   assert.deepEqual(hello, ["A>HELLO.COM", "Hello from HELLO.COM on drive A.", ""]);
   checkDirectory(machine, dataDisk, "DROMAIOS", "2 File(s) 360448 bytes free");
+
+  waitForMotorOff(machine);
+  machine.io.setDiskette(dataDisk, { writable: true });
+  dosCommand(machine, "ECHO HELLO>SAVE.TXT");
+  dosCommand(machine, "TYPE SAVE.TXT", "HELLO");
+  waitForMotorOff(machine);
+  const exported = Buffer.from(machine.io.exportDiskette());
+  const { entry, cluster } = checkSavedFile(dataDisk, exported);
+
+  // A second cold boot has new RAM, devices and DOS buffers. Only the raw sectors cross over.
+  const fresh = bootDos(bindings, disk);
+  waitForMotorOff(fresh);
+  fresh.io.setDiskette(exported, { writable: true });
+  checkDirectory(fresh, exported, "DROMAIOS", "3 File(s) 359424 bytes free");
+  dosCommand(fresh, "TYPE SAVE.TXT", "HELLO");
+  dosCommand(fresh, "DEL SAVE.TXT");
+  checkDirectory(fresh, dataDisk, "DROMAIOS", "2 File(s) 360448 bytes free");
+  const deleted = Buffer.from(fresh.io.exportDiskette());
+  assert.equal(deleted[entry], 0xe5);
+  assert.equal(fatEntry(deleted, cluster), 0);
+  assert.equal(exported[entry], 0x53); // Deleting from the reinserted copy preserves the export.
 });

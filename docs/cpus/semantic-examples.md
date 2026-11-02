@@ -894616,7 +894616,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 CBW
 
-AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. AAM takes 83 clocks. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
+AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder in 83 clocks. AAD combines AH × 10 + AL into AL and clears AH in 60 clocks. Both set ZF/SF/PF from the new AL. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
 instruction timing: 0002:u16 CPU clocks
@@ -894628,7 +894628,7 @@ Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 CWD
 
-AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. AAM takes 83 clocks. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
+AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder in 83 clocks. AAD combines AH × 10 + AL into AL and clears AH in 60 clocks. Both set ZF/SF/PF from the new AL. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
 instruction timing: 0005:u16 CPU clocks
@@ -895745,7 +895745,7 @@ Flags preserved throughout: none.
 
 ### 8088 AAM
 
-AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. AAM takes 83 clocks. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
+AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder in 83 clocks. AAD combines AH × 10 + AL into AL and clears AH in 60 clocks. Both set ZF/SF/PF from the new AL. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
 radix:u8 := fetch byte
@@ -895776,13 +895776,14 @@ Flags preserved throughout: CF, AF, TF, IF, DF, OF.
 
 ### 8088 AAD
 
-AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder; AAD combines AH × 10 + AL and clears AH. AAM takes 83 clocks. After writing AX, both reread AL for ZF/SF/PF. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
+AAM/AAD (`1101 010 d`) require the documented `$0A` radix before accessing AX. AAM splits AL into quotient and remainder in 83 clocks. AAD combines AH × 10 + AL into AL and clears AH in 60 clocks. Both set ZF/SF/PF from the new AL. CBW and CWD (`1001 100 s`) extend AL's sign to AX or AX's sign to DX without flag effects.
 
 ```text
 radix:u8 := fetch byte
 when not(equal(radix, 0A:u8)) {
   return outcome "opcode"; no later effects
 }
+instruction timing: 003C:u16 CPU clocks
 low:u8 := source "low byte of AX" {
   word:u16 := read AX
   yield lowByte(word)

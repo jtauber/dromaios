@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 
-/** Build the read-only DOS exercise disk with two one-cluster files and no external media. */
+/** Build the DOS exercise disk with two one-cluster files and no external media. */
 export function makeXtDataDisk(): Buffer {
   const sectorSize = 512;
   const disk = Buffer.alloc(720 * sectorSize);
