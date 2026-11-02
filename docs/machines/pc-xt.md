@@ -21,7 +21,8 @@ CGA initialization, video-memory and retrace checks. CGA text rendering uses
 the selected original character ROM. The original BIOS's text, cursor,
 page-selection, and scrolling services have timed acceptance tests, including
 restoration during a scroll. The adapter passes the original diskette POST and
-empty-drive timeout. With a write-protected disk, [original INT 13h reads a sector](../../src/machines/8088/pc-xt.md#reading-a-diskette-through-int-13h)
+empty-drive timeout. Original INT 13h [reads sectors](../../src/machines/8088/pc-xt.md#reading-a-diskette-through-int-13h)
+and [writes them to writable images](../../src/machines/8088/pc-xt.md#writing-a-diskette-through-int-13h)
 through DMA channel 2 and IRQ6. Timed keyboard self-test delivery
 also passes the second keyboard reset. Original firmware completes POST,
 falls back from an empty drive, and runs [repeatable ROM BASIC sessions](../../src/machines/8088/pc-xt.md#rom-basic-sessions)
@@ -266,10 +267,10 @@ The laboratory displays the inserted filename and motor state. Fresh power-on
 retains the inserted disk, and restoring a checkpoint returns both the saved
 disk and the controller to their positions in the session.
 
-Begin with explicitly write-protected images. Writable media is a subsequent
-checkpoint: create/read/delete a file, export and reload the changed image, and
-verify bytes independently. Host FAT helpers may inspect images but must not
-perform guest filesystem operations.
+The [BIOS sector-write check](../../src/machines/8088/pc-xt.md#writing-a-diskette-through-int-13h)
+writes to a disposable image, reads the sector back, and verifies that a
+protected disk rejects the write without a DMA transfer. The remaining DOS
+checks exercise guest filesystem operations on a writable data disk.
 
 ### 5. Ultima V on the XT
 
@@ -290,11 +291,10 @@ in the EGA laboratory.
 
 ## Next implementation slice
 
-Implement sector writes through the XT BIOS and DMA channel 2. Use a disposable
-data disk for the [DOS file checks](#4-dos-through-the-diskette-controller):
-create a file, read it back, export and reload the changed image, then delete the
-file. Verify the exported sectors independently and retain write protection for
-the original system disk.
+Boot the protected system disk, swap in a writable data disk, and use DOS to
+create and read a file. Export the changed image, reload it in a fresh session,
+and use DOS to read and delete the file. Check the FAT, directory entry, and
+file data independently in the exported image.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

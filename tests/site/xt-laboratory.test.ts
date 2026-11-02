@@ -85,6 +85,7 @@ test("XT drive A retains its owned disk across CPU reset and fresh power-on unti
   session.machine.ram.write(0x500, 0xaa); session.keyboard.paste("DIR\n");
   const mounted = session.machine.io.snapshot();
   assert.equal(mounted.disketteImage![0], 0xeb);
+  assert.equal(session.machine.io.disketteWritable, false);
   assert.throws(() => session.insertDisk("wrong.img", new Uint8Array(512)), /360 KiB/);
   assert.throws(() => session.insertDisk("", bytes), /filename/);
   session.resetCpu();
@@ -138,11 +139,25 @@ test("XT browser checkpoint restores the saved disk and pending DMA byte over di
   const live = session.machine;
   assert.throws(() => session.restore({ ...decoded, diskName: null }), /filename/);
   assert.equal(session.machine, live); assert.equal(session.diskName, "other.img");
-  session.restore(decoded);
+  // Mounted-disk checkpoints saved before writes were supported have no permission field.
+  const old = JSON.parse(text); delete old.hardware.io.diskette.writable;
+  session.restore(decodeXtCheckpoint(JSON.stringify(old)));
+  assert.equal(session.machine.io.disketteWritable, false);
   assert.equal(session.diskName, "data.img"); assert.equal(session.machine.io.disketteMotorOn, true);
   assert.deepEqual(session.machine.io.serviceDma(session.machine.memory), { channel: 2, address: 0x3001, value: 0x42, oscillatorTicks: 15 });
   assert.equal(session.machine.ram.read(0x3000), 0x41); assert.equal(session.machine.ram.read(0x3001), 0x42);
   session.powerOn(); assert.deepEqual(session.machine.io.snapshot().disketteImage, saved.hardware.io.disketteImage);
+});
+
+test("XT fresh power-on retains the write permission restored from a checkpoint", () => {
+  const session = createXtSession(), disk = new Uint8Array(360 * 1024);
+  session.insertDisk("scratch.img", disk);
+  session.machine.io.setDiskette(disk, { writable: true });
+  const checkpoint = encodeXtCheckpoint(session.snapshot());
+  session.ejectDisk(); session.restore(decodeXtCheckpoint(checkpoint));
+  assert.equal(session.machine.io.disketteWritable, true);
+  session.powerOn(); assert.equal(session.machine.io.disketteWritable, true);
+  assert.equal(session.diskName, "scratch.img");
 });
 
 test("restoring a version-1 empty-drive XT checkpoint ejects the current disk", () => {
@@ -154,7 +169,7 @@ test("restoring a version-1 empty-drive XT checkpoint ejects the current disk", 
   assert.deepEqual(session.snapshot(), saved);
 
   const { disketteImage, diskettePage, diskette, ...board } = legacy.hardware.io;
-  const { results, result_index, byte_us, byte_offset, media, ...controller } = diskette;
+  const { results, result_index, byte_us, byte_offset, media, writable, ...controller } = diskette;
   legacy.hardware.io = { ...board, diskette: { ...controller, result: 0, result_pcn: 0 } };
   session.insertDisk("later.img", new Uint8Array(360 * 1024));
   session.restore(decodeXtCheckpoint(JSON.stringify(legacy)));

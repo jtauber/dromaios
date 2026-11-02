@@ -128,7 +128,9 @@ function mount(root: HTMLElement): void {
     button("disk-eject").disabled = loading || readingDisk || session.diskName === null;
     const name = session.diskName ?? "Empty";
     if (diskName.textContent !== name) { diskName.textContent = name; diskName.title = name; }
-    at("disk-protection").hidden = session.diskName === null;
+    const protection = at("disk-protection"), mode = session.machine.io.disketteWritable ? "Writable" : "Write-protected";
+    protection.hidden = session.diskName === null;
+    if (protection.textContent !== mode) protection.textContent = mode;
     const motorOn = session.machine.io.disketteMotorOn;
     if (motorOn !== motor.classList.contains("is-on")) {
       motor.classList.toggle("is-on", motorOn);

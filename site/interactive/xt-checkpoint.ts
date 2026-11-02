@@ -17,7 +17,7 @@ function unpack(value: unknown, size: number, field = "memory"): number[] {
   return Array.from(bytes, char => char.charCodeAt(0));
 }
 
-/** RAM, video and the optional write-protected disk each have one packed copy. */
+/** RAM, video and the mounted disk each have one packed copy. */
 export function encodeXtCheckpoint({ hardware, keyboard, diskName }: XtSessionState): string {
   const { io } = hardware;
   return JSON.stringify({ version: 2, machine: "ibm-pc-xt", keyboard, diskName, hardware: {

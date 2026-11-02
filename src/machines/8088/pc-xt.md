@@ -292,6 +292,27 @@ default diskette parameter table at `F000:EFC7` sets EOT to eight. The disk
 image has nine sectors per track. The controller uses the EOT supplied in each
 command, which matters when following a DOS loader beyond the boot sector.
 
+## Writing a diskette through INT 13h
+
+Insert a disposable data disk with `io.setDiskette(bytes, { writable: true })`.
+The drive writes to its own copy. The original bytes and earlier checkpoints
+keep their contents. Disks inserted without that option are write-protected.
+
+For a one-sector write, the caller sets AH to `03`, AL to one, and ES:BX to
+the source buffer. The original BIOS programs channel 2 with mode byte `4A`
+(single DMA **read** from memory) and sends Write Data (`C5`) to the controller.
+Each DREQ2/DACK2 exchange moves one byte from RAM onto disk. Terminal count on
+the 512th byte completes the sector. IRQ6 wakes the BIOS to collect the seven
+result bytes. [IBM BIOS listing, appendix A][ibm]
+
+The [ROM acceptance test](../../../tests/machines/8088/pc-xt/rom-boot.test.ts)
+writes from `2000:7C00` to cylinder 2, head 1, sector 3, then uses INT 13h
+function `02` to read that sector back into `2000:8000`. It checks every DMA
+address and byte, compares the whole disk against the expected image, and
+resumes a checkpoint after byte 256 to the same final state. With protection
+enabled, Write Data reports Not Writable before requesting any bytes. The
+BIOS returns carry set and AH=`03`, and the disk stays intact.
+
 ## Cold-booting MS-DOS 3.30
 
 Drive A takes Microsoft MS-DOS 3.30 Disk 1, volume `MS330PP01`. This
@@ -530,14 +551,15 @@ BIOS then takes its own warm POST path, skipping the long RAM pattern test.
 To [exchange disks at the DOS prompt](#changing-disks-at-the-dos-prompt), let
 the XT run until Drive A shows **Motor off**, then choose **Insert…** again.
 The motor light follows the XT's drive control register. Selecting a file of
-the wrong size leaves the current disk in place. Disks are write-protected.
+the wrong size leaves the current disk in place. **Insert…** mounts the file
+write-protected.
 **Eject** leaves the drive empty. **Fresh power-on** clears RAM and resets the
 controller while leaving the current disk in the drive.
 
 To resume later, pause and choose **Save snapshot**. On a later visit, choose
 **Restore snapshot** with the same three ROMs loaded. The checkpoint restores
 the CPU, RAM, screen, board devices, and pending keyboard input. It also
-restores the saved disk's name and contents, even if you have since ejected it
+restores the saved disk's name, contents, and write permission, even if you have since ejected it
 or inserted another disk. A checkpoint saved with an empty drive restores it empty.
 
 From fresh power-on, **Disassembly** shows `EA 5B E0 00 F0` at `FFFF:0000`

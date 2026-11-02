@@ -58,9 +58,9 @@ export function createXtSession(initial: Bindings = { bios: null, basic: null, f
     },
     resetCpu() { machine.cpu.reset(); },
     powerOn(start: "cold" | "quick" = "cold") {
-      const disk = machine.io.snapshot().disketteImage;
+      const { disketteImage, diskette } = machine.io.snapshot();
       const next = freshMachine();
-      if (disk) next.io.setDiskette(disk);
+      if (disketteImage) next.io.setDiskette(disketteImage, { writable: diskette.writable });
       if (start === "quick") {
         // The 11/08/82 BIOS checks the Ctrl-Alt-Del signature at 0040:0072 during POST.
         next.ram.write(0x472, 0x34);

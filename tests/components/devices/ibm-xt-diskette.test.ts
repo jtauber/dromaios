@@ -130,7 +130,7 @@ test("XT controller reset cancels every protocol phase while retaining Specify a
 
 test("XT diskette rejects unsupported modes, commands, units, inputs and contradictory saved state", () => {
   const device = fixture();
-  for (const opcode of [5, 0x45, 0x4d, 0x51]) {
+  for (const opcode of [9, 0x49, 0x4d, 0x51]) {
     const before = device.snapshot(); assert.throws(() => command(device, opcode), RangeError); assert.deepEqual(device.snapshot(), before);
   }
   command(device, 3, 0xaf); const specify = device.snapshot();
@@ -186,4 +186,25 @@ test("XT protected media reports IDs and rejects missing sectors without a DMA r
   }
   command(device, 0x46, 0, 0, 0, 1, 2, 9, 0x2a, 0xff); device.advanceMicroseconds(32);
   device.reset(); assert.equal(device.dreq(), false); assert.equal(device.snapshot().media, true);
+});
+
+test("XT Write Data samples write protection before requesting bytes and when the drive signal changes", () => {
+  const device = fixture();
+  const writeSector = () => command(device, 0xc5, 0, 0, 0, 1, 2, 9, 0x2a, 0xff);
+  function expectProtected() {
+    assert.equal(device.dreq(), false); assert.equal(device.irq(), true);
+    assert.deepEqual(Array.from({ length: 7 }, () => device.read(3)), [0x40, 2, 0, 0, 0, 1, 2]);
+    assert.equal(device.irq(), false);
+  }
+  writeSector(); device.advanceMicroseconds(1000);
+  assert.equal(device.status(), 0x10); assert.equal(device.irq(), false);
+  device.setMedia(true); expectProtected();
+
+  device.mountMedia(true, true);
+  command(device, 4, 0); assert.equal(device.read(3), 0x30); // WP/2SIDE low, READY and track zero high.
+  writeSector(); device.advanceMicroseconds(32);
+  assert.equal(device.dreq(), true); assert.equal(device.writing(), true);
+  assert.throws(() => new IbmXtDiskette({ ...device.snapshot(), writable: false }), /Invalid/);
+  device.mountMedia(true, false); expectProtected();
+  device.mountMedia(true, true); device.reset(); assert.equal(device.writable(), true);
 });

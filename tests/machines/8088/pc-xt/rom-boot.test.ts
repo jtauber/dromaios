@@ -175,16 +175,19 @@ function caller(ax: number, cx = 1, dx = 0, es = 0): Machine {
     cs: 0x1000, ip: 0, ds: 0, es, ss: 0, sp: 0x8000,
     flags: { ...afterDiskettePost.cpu.flags, if: true, df: false },
   } });
-  [0xb8, ax & 255, ax >>> 8, 0xbb, 0, 0x7c, 0xb9, cx & 255, cx >>> 8, 0xba, dx & 255, dx >>> 8, 0xcd, 0x13, 0xf4]
-    .forEach((byte, index) => machine.ram.write(0x10000 + index, byte));
+  installCall(machine, 0, ax, 0x7c00, cx, dx);
   return machine;
 }
-function runCaller(machine: Machine, observe?: (machine: Machine, step: ReturnType<typeof stepTimedXtCpu>) => void): void {
+function installCall(machine: Machine, ip: number, ax: number, bx: number, cx: number, dx: number): void {
+  [0xb8, ax & 255, ax >>> 8, 0xbb, bx & 255, bx >>> 8, 0xb9, cx & 255, cx >>> 8, 0xba, dx & 255, dx >>> 8, 0xcd, 0x13, 0xf4]
+    .forEach((byte, index) => machine.ram.write(0x10000 + ip + index, byte));
+}
+function runCaller(machine: Machine, observe?: (machine: Machine, step: ReturnType<typeof stepTimedXtCpu>) => void, returnIp = 14): void {
   for (let step = 0; step < 1500000; step++) {
     const boundary = stepTimedXtCpu(machine), { record } = boundary;
     assert.ok(record.outcome === "executed" || record.outcome === "accepted");
     observe?.(machine, boundary);
-    if (record.after.cs === 0x1000 && record.after.ip === 14) return;
+    if (record.after.cs === 0x1000 && record.after.ip === returnIp) return;
   }
   assert.fail("Original INT 13h did not return within the instruction budget.");
 }
@@ -244,6 +247,54 @@ test("original XT INT 13h reads a complete sector through DMA2 and IRQ6 and resu
   assert.equal(end.io.dma.terminal & 4, 4); assert.equal(end.io.diskette.phase, 0);
   const resumed = create8088PcXt(bindings, midway); runCaller(resumed);
   assert.deepEqual(resumed.snapshot(), end);
+});
+
+test("original XT INT 13h writes exactly one sector through DMA2 and reads it into another buffer", optional, () => {
+  const machine = caller(0x0301, 0x0203, 0x0100, 0x2000); // C=2, H=1, R=3; ES:BX=2000:7C00.
+  const disk = new Uint8Array(360 * 1024).fill(0xa5), offset = 47 * 512;
+  const sector = Uint8Array.from({ length: 512 }, (_, i) => (i * 29 + (i >>> 8) + 3) & 255);
+  sector.forEach((byte, i) => machine.ram.write(0x27c00 + i, byte));
+  machine.io.setDiskette(disk, { writable: true });
+  const before = machine.io.snapshot().disketteImage!;
+  let transferred = 0, completionIrqs = 0, midway: Snapshot | undefined;
+  runCaller(machine, (current, { record, dma }) => {
+    if (dma?.channel === 2) {
+      assert.equal(dma.address, 0x27c00 + transferred); assert.equal(dma.value, sector[transferred]);
+      if (++transferred === 256) midway = current.snapshot();
+    }
+    if (transferred === 512 && record.outcome === "accepted" && record.vector === 14) completionIrqs++;
+  });
+  assert.equal(transferred, 512); assert.equal(completionIrqs, 1);
+  const end = machine.snapshot();
+  assert.equal(end.cpu.flags.cf, false); assert.equal(machine.cpu.snapshot().ah, 0); assert.equal(end.ram[0x441], 0);
+  assert.deepEqual(end.ram.slice(0x442, 0x449), [4, 0, 0, 2, 1, 4, 2]);
+  assert.equal(end.io.dma.mode[2], 0x48); assert.equal(end.io.dma.terminal & 4, 4);
+  assert.equal(end.io.dma.address[2], 0x7e00); assert.equal(end.io.dma.count[2], 0xffff);
+  const expected = new Uint8Array(disk.length).fill(0xa5); expected.set(sector, offset);
+  assert.deepEqual(Uint8Array.from(end.io.disketteImage!), expected);
+  assert.ok(disk.every(byte => byte === 0xa5)); assert.ok(before.every(byte => byte === 0xa5));
+  assert.ok(midway); assert.equal(midway.io.diskette.writable, true); assert.equal(midway.io.dma.count[2], 255);
+  assert.deepEqual(midway.io.disketteImage!.slice(offset, offset + 257), [...sector.slice(0, 256), 0xa5]);
+  const restored = create8088PcXt(bindings, midway); runCaller(restored);
+  assert.deepEqual(restored.snapshot(), end);
+
+  // Continue on the same drive. AH=02h fills a different ES:BX buffer from the written sector.
+  installCall(machine, 14, 0x0201, 0x8000, 0x0203, 0x0100);
+  runCaller(machine, undefined, 28);
+  assert.equal(machine.cpu.snapshot().flags.cf, false); assert.equal(machine.cpu.snapshot().ah, 0);
+  assert.deepEqual(machine.snapshot().ram.slice(0x28000, 0x28200), [...sector]);
+});
+
+test("original XT INT 13h reports BIOS error 03h on protected media without a channel-2 grant", optional, () => {
+  const machine = caller(0x0301);
+  const image = process.env.XT_DOS_DISK ? readFileSync(process.env.XT_DOS_DISK) : new Uint8Array(360 * 1024).fill(0xa5);
+  machine.io.setDiskette(image);
+  runCaller(machine, (_, { dma }) => assert.notEqual(dma?.channel, 2));
+  const end = machine.snapshot();
+  assert.equal(end.cpu.flags.cf, true); assert.equal(machine.cpu.snapshot().ah, 3); assert.equal(end.ram[0x441], 3);
+  assert.equal(end.ram[0x443], 2); // ST1.Not Writable
+  assert.equal(end.io.dma.count[2], 0x1ff);
+  assert.deepEqual(end.io.disketteImage, [...image]);
 });
 
 test("original XT bootstrap reads sector one and executes it at 0000:7C00", optional, () => {

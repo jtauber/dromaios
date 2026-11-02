@@ -6,14 +6,15 @@ status register at `3F4`, and sends command bytes or receives results at `3F5`.
 The adapter gates the controller's interrupt onto IRQ6 and its DMA request
 onto channel 2. These are separate from the PIC's interrupt acknowledgement.
 
-Drive 0 accepts a write-protected, 40-cylinder, double-sided MFM disk with
-nine 512-byte sectors per track. It starts empty.
+Drive 0 accepts a 40-cylinder, double-sided MFM disk with nine 512-byte sectors
+per track. It starts empty. Inserted disks can be write-protected.
 It supports Specify, Sense Drive Status, Recalibrate, Seek, Sense Interrupt
-Status, Read Data, and Read ID. Commands naming other logical drives, parallel
-seeks, non-DMA operation, and other defined transfer commands are explicitly
-outside this profile and rejected. Unknown controller commands return `80`.
-Read Data supplies one byte per DMA acknowledgement. The board owns the media
-bytes and memory bus. The controller owns the sector address and result phase.
+Status, Read Data, Write Data, and Read ID. Commands naming other logical
+drives, parallel seeks, non-DMA operation, and other defined transfer commands
+are outside this profile and rejected. Unknown controller commands return `80`.
+Each DMA acknowledgement moves one byte between memory and disk. The board
+owns the media bytes and memory bus. The controller owns the sector address
+and result phase.
 
 The [IBM schematic][ibm], D-46–D-47, is especially important: **READY is tied
 high**, and the controller's unit-select outputs are unconnected. The output
@@ -54,6 +55,7 @@ state {
   register RESULT_INDEX: 8
   register RESULT_LEFT: 8
   latch MEDIA
+  latch WRITABLE
   register BYTE_OFFSET: 16
   register BYTE_US: 8
   register INTERRUPT_STATUS: 8
@@ -69,6 +71,11 @@ state {
 source motorOn "Drive A motor enable on DOR bit 4" : flag {
   dor = register DOR
   return bit(dor, 4)
+}
+
+source writable "The mounted image accepts sector writes" : flag {
+  permission = latch WRITABLE
+  return permission
 }
 
 source driveSelected "The DOR selects the connected drive only with its motor enabled" : flag {
@@ -260,10 +267,10 @@ action senseInterrupt "Consume a pending controller completion, independently of
 
 ```
 
-## Reading a sector
+## Reading and writing sectors
 
-Read Data names a physical head and the four ID bytes to find on its track
-(cylinder, head, sector, size code). A flat image represents intact, numbered
+Read Data and Write Data name a physical head and the four ID bytes to find on
+its track (cylinder, head, sector, size code). A flat image represents intact, numbered
 sectors with ordinary data marks. The first sector on a track is numbered one.
 A failed ID comparison returns No Data. A mismatch on the cylinder also sets
 Wrong Cylinder. Read ID reports sector one as the first ID encountered. This
@@ -274,7 +281,15 @@ at 250 kbit/s. Each acknowledgement starts the next interval. Requests wait
 for service, so this timing omits lost-data overruns and inter-sector gaps.
 A masked channel or closed DMA gate cannot advance the byte position.
 As a sector-image convention, loss of the selected disk during transfer ends
-the command with No Data. The next disk cannot supply the tail of that sector.
+the command with No Data. Bytes already written remain on the old image.
+The replacement disk cannot supply or receive the tail of that sector.
+
+Write Data samples the drive's write-protect signal before requesting DMA.
+A protected disk returns abnormal termination in ST0 and Not Writable in ST1.
+On writable media, each DMA grant transfers one byte from memory to disk. If
+terminal count arrives early, the controller fills the rest of the sector with
+zeros. The sector-image model applies that padding on the final grant and omits
+the time needed to write the padding and CRC. [NEC Write Data command][nec-commands]
 
 At terminal count the controller reports the next sector ID. At the command’s
 end of track (EOT), that becomes sector one. With multi-track (MT) enabled,
@@ -283,7 +298,7 @@ the head stays selected and the cylinder advances. These result bytes describe
 the ID sequence. They do not step the physical head. [NEC command description, table 6][nec-commands]
 
 ```device
-action finishRead "Publish ST0, ST1, ST2 and the four ID bytes and raise the controller interrupt" (st1: 8, st2: 8) {
+action finishTransfer "Publish ST0, ST1, ST2 and the four ID bytes and raise the controller interrupt" (st1: 8, st2: 8) {
   selectByte = array PARAMETERS[u8(0)]
   c = array PARAMETERS[u8(1)]
   h = array PARAMETERS[u8(2)]
@@ -318,7 +333,22 @@ source sectorMatches "Compare the requested ID with the selected track on a 360 
   return and(bit(command, 6), and(id, and(not(zero(r)), lessThan(r, u8(10), unsigned))))
 }
 
-action findSector "Resolve a waiting read when a disk is under the selected head" {
+source writeDataCommand "Write Data permits MT and MFM in its two high bits" (byte: 8): flag {
+  return equal(and(byte, u8($3F)), u8(5))
+}
+
+source sectorCommand "Read Data also permits the SK bit" (byte: 8): flag {
+  write = source writeDataCommand(byte)
+  return or(write, equal(and(byte, u8($1F)), u8(6)))
+}
+
+source writing "The active command takes data from memory" : flag {
+  command = register COMMAND
+  result = source writeDataCommand(command)
+  return result
+}
+
+action findSector "Resolve a waiting command when a disk is under the selected head" {
   phase = register PHASE
   media = latch MEDIA
   selected = source driveSelected()
@@ -333,18 +363,26 @@ action findSector "Resolve a waiting read when a disk is under the selected head
       PARAMETERS[u8(3)] <- u8(1)
       PARAMETERS[u8(4)] <- u8(2)
     }
-    matches = source sectorMatches()
-    when not(matches) {
-      c = array PARAMETERS[u8(1)]
-      perform finishRead(u8(4), select(equal(c, cylinder), u8(0), u8($10)))
+    writing = source writing()
+    writable = latch WRITABLE
+    blocked: flag = and(writing, not(writable))
+    when blocked {
+      perform finishTransfer(u8(2), u8(0))
     }
-    when and(matches, readId) {
-      perform finishRead(u8(0), u8(0))
-    }
-    when and(matches, not(readId)) {
-      PHASE <- u8(4)
-      BYTE_US <- u8(32)
-      BYTE_OFFSET <- u16(0)
+    when not(blocked) {
+      matches = source sectorMatches()
+      when not(matches) {
+        c = array PARAMETERS[u8(1)]
+        perform finishTransfer(u8(4), select(equal(c, cylinder), u8(0), u8($10)))
+      }
+      when and(matches, readId) {
+        perform finishTransfer(u8(0), u8(0))
+      }
+      when and(matches, not(readId)) {
+        PHASE <- u8(4)
+        BYTE_US <- u8(32)
+        BYTE_OFFSET <- u16(0)
+      }
     }
   }
 }
@@ -393,7 +431,7 @@ action acknowledgeByte "Consume one DACK2 and sample terminal count on this tran
       }
       commandDone: flag = or(terminal, endCylinder)
       when commandDone {
-        perform finishRead(select(terminal, u8(0), u8($80)), u8(0))
+        perform finishTransfer(select(terminal, u8(0), u8($80)), u8(0))
       }
       when not(commandDone) {
         PHASE <- u8(3)
@@ -407,15 +445,28 @@ action sampleDrive "Retry an ID search when selection or media changes" {
   phase = register PHASE
   selected = source driveSelected()
   media = latch MEDIA
-  when and(equal(phase, u8(4)), not(and(selected, media))) {
-    perform finishRead(u8(4), u8(0))
+  when equal(phase, u8(4)) {
+    ready: flag = and(selected, media)
+    when not(ready) {
+      perform finishTransfer(u8(4), u8(0))
+    }
+    writing = source writing()
+    writable = latch WRITABLE
+    when and(ready, and(writing, not(writable))) {
+      perform finishTransfer(u8(2), u8(0))
+    }
   }
   perform findSector()
 }
 
-action setMedia "Sample the presence of a write-protected disk" (present: flag) {
+action mountMedia "Sample the presence and write permission of the disk" (present: flag, writable: flag) {
   MEDIA <- present
+  WRITABLE <- and(present, writable)
   perform sampleDrive()
+}
+
+action setMedia "Insert a write-protected disk or eject it" (present: flag) {
+  perform mountMedia(present, 0)
 }
 
 source writeControl "Apply motor, selection, interrupt gate, and active-low controller reset" (byte: 8): flag {
@@ -443,10 +494,11 @@ action executeCommand "Execute a complete supported command" {
   when equal(command, u8(4)) {
     atZero = source trackZero()
     media = latch MEDIA
+    writable = latch WRITABLE
     selected = source driveSelected()
     // WP/2SIDE share the drive signal on this adapter; READY is tied high.
     statusByte = or(and(first, u8(4)), select(atZero, u8($30), u8($20)))
-    perform beginResult(or(statusByte, select(and(media, selected), u8($48), u8(0))), u8(1))
+    perform beginResult(or(statusByte, select(and(and(media, selected), not(writable)), u8($48), u8(0))), u8(1))
   }
   when or(equal(command, u8(7)), equal(command, u8(15))) {
     pcn = register PCN
@@ -464,7 +516,8 @@ action executeCommand "Execute a complete supported command" {
       perform finishSeek(0)
     }
   }
-  when or(equal(and(command, u8($1F)), u8(6)), equal(and(command, u8($BF)), u8($0A))) {
+  transfer = source sectorCommand(command)
+  when or(transfer, equal(and(command, u8($BF)), u8($0A))) {
     PHASE <- u8(3)
     perform findSector()
   }
@@ -474,13 +527,13 @@ source commandLength "Count parameters; distinguish unsupported hardware operati
   code = and(byte, u8($1F))
   two: flag = or(equal(byte, u8(3)), equal(byte, u8(15)))
   one: flag = or(or(equal(byte, u8(4)), equal(byte, u8(7))), equal(and(byte, u8($BF)), u8($0A)))
-  read: flag = equal(code, u8(6))
+  transfer = source sectorCommand(byte)
   readTrack: flag = equal(and(byte, u8($9F)), u8(2))
-  write: flag = or(equal(and(byte, u8($3F)), u8(5)), equal(and(byte, u8($3F)), u8(9)))
+  writeDeleted: flag = equal(and(byte, u8($3F)), u8(9))
   format: flag = equal(and(byte, u8($BF)), u8($0D))
   scan: flag = or(equal(code, u8($11)), or(equal(code, u8($19)), equal(code, u8($1D))))
-  unsupported: flag = or(or(readTrack, write), or(or(format, scan), equal(code, u8($0C))))
-  return select(two, u8(2), select(one, u8(1), select(read, u8(8), select(unsupported, u8($FF), u8(0)))))
+  unsupported: flag = or(or(readTrack, writeDeleted), or(or(format, scan), equal(code, u8($0C))))
+  return select(two, u8(2), select(one, u8(1), select(transfer, u8(8), select(unsupported, u8($FF), u8(0)))))
 }
 
 source writeData "Accept a command byte only in the advertised host-to-controller phase" (byte: 8): flag {
@@ -586,15 +639,19 @@ source validState "Reject impossible phases, timers, head positions, and interru
   resetIdle: flag = and(zero(phase), and(not(busy), not(pending)))
   resetRange: flag = and(not(lessThan(u16(2048), reset, unsigned)), or(bit(dor, 2), zero(reset)))
   resetValid: flag = and(resetRange, or(and(bit(dor, 2), zero(reset)), resetIdle))
-  reading: flag = or(equal(and(command, u8($1F)), u8(6)), equal(and(command, u8($BF)), u8($0A)))
+  transfer = source sectorCommand(command)
+  searches: flag = or(transfer, equal(and(command, u8($BF)), u8($0A)))
   byte = register BYTE_OFFSET
   delay = register BYTE_US
   media = latch MEDIA
   selected = source driveSelected()
-  waiting: flag = and(not(and(media, selected)), and(reading, equal(received, expected)))
-  readValid: flag = or(not(equal(phase, u8(3))), and(waiting, not(pending)))
+  waiting: flag = and(not(and(media, selected)), and(searches, equal(received, expected)))
+  searchValid: flag = or(not(equal(phase, u8(3))), and(waiting, not(pending)))
   matches = source sectorMatches()
-  dataCommand: flag = and(equal(and(command, u8($1F)), u8(6)), equal(received, u8(8)))
+  writing = source writing()
+  writable = latch WRITABLE
+  canTransfer: flag = or(not(writing), writable)
+  dataCommand: flag = and(transfer, and(canTransfer, equal(received, u8(8))))
   active: flag = and(and(media, selected), and(dataCommand, and(matches, not(pending))))
   position: flag = and(lessThan(byte, u16(512), unsigned), not(lessThan(u8(32), delay, unsigned)))
   transferring: flag = equal(phase, u8(4))
@@ -603,7 +660,8 @@ source validState "Reject impossible phases, timers, head positions, and interru
   recalibrating = latch RECALIBRATING
   inward = latch INWARD
   modeValid: flag = and(not(bit(hlt, 0)), not(and(recalibrating, inward)))
-  return and(and(and(phaseValid, parametersValid), and(commandValid, resultValid)), and(and(headValid, seekValid), and(and(resetValid, readValid), and(modeValid, transferValid))))
+  mediaValid: flag = or(media, not(writable))
+  return and(and(and(phaseValid, parametersValid), and(commandValid, and(mediaValid, resultValid))), and(and(headValid, seekValid), and(and(resetValid, searchValid), and(modeValid, transferValid))))
 }
 
 interface IbmXtDiskette {
@@ -613,9 +671,12 @@ interface IbmXtDiskette {
   validate validState
   input advanceMicroseconds
   input setMedia
+  input mountMedia
   input acknowledgeByte
   view motorOn
+  view writable
   view dreq
+  view writing
   view mediaOffset
   view irq
   view status

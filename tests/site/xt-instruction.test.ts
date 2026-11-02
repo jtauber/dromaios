@@ -110,20 +110,25 @@ test("XT previews stop safely at ports, absent storage, WAIT, ESC and excessive 
   assert.deepEqual(empty.blocked, { kind: "read", address: 0xffff0 });
 });
 
-test("a pending XT diskette grant writes the preview overlay before the copied CPU reads it", () => {
-  const session = fixture([0xa0, 0, 0x30]); // MOV AL,[3000h]
-  const { io, ports, ram } = session.machine;
-  const disk = new Uint8Array(368640); disk[0] = 0xa7; io.setDiskette(disk);
-  ports.writePort(0x3f2, 0x1c); io.advanceOscillatorTicks(29324);
-  ports.writePort(0x3f5, 8); ports.readPort(0x3f5); ports.readPort(0x3f5);
-  for (const [port, byte] of [[4, 0], [4, 0x30], [5, 0xff], [5, 1], [11, 0x46], [10, 2]] as const) {
-    ports.writePort(port, byte);
-  }
-  for (const byte of [0xe6, 0, 0, 0, 1, 2, 9, 0x2a, 0xff]) ports.writePort(0x3f5, byte);
-  io.advanceOscillatorTicks(470);
-  const saved = io.snapshot(), preview = previewXtInstruction(session, catalogue);
-  assert.equal(preview.record?.after.al, 0xa7); assert.equal(ram.read(0x3000), 0);
-  assert.deepEqual(io.snapshot(), saved);
-  assert.deepEqual(stepXtSessionCpu(session.machine, session.keyboard), preview.record);
-  assert.equal(ram.read(0x3000), 0xa7);
-});
+for (const [direction, command, mode] of [["read", 0xe6, 0x46], ["write", 0xc5, 0x4a]] as const) {
+  test(`a pending XT disk ${direction} in an instruction preview leaves live RAM and media intact`, () => {
+    const session = fixture([0xa0, 0, 0x30]); // MOV AL,[3000h]
+    const { io, ports, ram } = session.machine;
+    const disk = new Uint8Array(368640); disk[0] = 0xa7;
+    io.setDiskette(disk, { writable: true }); ram.write(0x3000, 0x23);
+    ports.writePort(0x3f2, 0x1c); io.advanceOscillatorTicks(29324);
+    ports.writePort(0x3f5, 8); ports.readPort(0x3f5); ports.readPort(0x3f5);
+    for (const [port, byte] of [[4, 0], [4, 0x30], [5, 0xff], [5, 1], [11, mode], [10, 2]] as const) {
+      ports.writePort(port, byte);
+    }
+    for (const byte of [command, 0, 0, 0, 1, 2, 9, 0x2a, 0xff]) ports.writePort(0x3f5, byte);
+    io.advanceOscillatorTicks(470);
+    const saved = io.snapshot(), preview = previewXtInstruction(session, catalogue);
+    const transferred = direction === "read" ? 0xa7 : 0x23;
+    assert.equal(preview.record?.after.al, transferred); assert.equal(ram.read(0x3000), 0x23);
+    assert.equal(io.snapshot().disketteImage![0], 0xa7);
+    assert.deepEqual(io.snapshot(), saved);
+    assert.deepEqual(stepXtSessionCpu(session.machine, session.keyboard), preview.record);
+    assert.equal(ram.read(0x3000), transferred); assert.equal(io.snapshot().disketteImage![0], transferred);
+  });
+}

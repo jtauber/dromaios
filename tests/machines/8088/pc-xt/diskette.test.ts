@@ -101,12 +101,46 @@ test("XT channel 2 writes to the latched page, wraps within it and honors the BI
   assert.throws(() => new XtIo({ ...saved, disketteImage: null }), /match/);
 });
 
+test("XT disk writes require a channel-2 memory read and pad only the final sector on early TC", () => {
+  const { io, ports, memory } = fixture();
+  const disk = new Uint8Array(360 * 1024).fill(0xee);
+  io.setDiskette(disk, { writable: true });
+  ports.writePort(0x3f2, 0x1c); io.advanceOscillatorTicks(29324);
+  ports.writePort(0x3f5, 8); ports.readPort(0x3f5); ports.readPort(0x3f5);
+  memory.write(0x3ffff, 0x71); memory.write(0x30000, 0x42);
+  // Start with the wrong direction. The two-byte buffer wraps within DMA page 3.
+  for (const [port, byte] of [[4, 0xff], [4, 0xff], [5, 1], [5, 0], [0x81, 3], [11, 0x46]] as const) ports.writePort(port, byte);
+  for (const byte of [0xc5, 0, 0, 0, 2, 2, 9, 0x2a, 0xff]) ports.writePort(0x3f5, byte);
+  io.advanceOscillatorTicks(470);
+  assert.equal(io.serviceDma(memory), undefined); // Masked DREQ2.
+  ports.writePort(10, 2);
+  const pending = io.snapshot();
+  assert.throws(() => io.serviceDma(memory), /direction/); assert.deepEqual(io.snapshot(), pending);
+  ports.writePort(11, 0x4a);
+  assert.deepEqual(io.serviceDma(memory), { channel: 2, address: 0x3ffff, value: 0x71, oscillatorTicks: 15 });
+  const partial = io.snapshot();
+  assert.deepEqual(partial.disketteImage!.slice(512, 515), [0x71, 0xee, 0xee]);
+  const ejected = new XtIo(partial);
+  ejected.setDiskette(disk, { writable: true }); ejected.advanceOscillatorTicks(470);
+  assert.equal(ejected.serviceDma(memory), undefined);
+  assert.deepEqual([ejected.read(0xf5), ejected.read(0xf5)], [0x40, 4]); // No Data
+  assert.equal(ejected.snapshot().disketteImage![512], 0xee);
+
+  io.advanceOscillatorTicks(470);
+  assert.deepEqual(io.serviceDma(memory), { channel: 2, address: 0x30000, value: 0x42, oscillatorTicks: 15 });
+  assert.equal(io.serviceDma(memory), undefined);
+  assert.deepEqual(Array.from({ length: 7 }, () => ports.readPort(0x3f5)), [0, 0, 0, 0, 0, 3, 2]);
+  const expected = disk.slice(); expected.set([0x71, 0x42], 512); expected.fill(0, 514, 1024);
+  assert.deepEqual(Uint8Array.from(io.snapshot().disketteImage!), expected);
+  assert.equal(pending.disketteImage![512], 0xee); assert.equal(partial.disketteImage![513], 0xee);
+});
+
 test("XT restores empty-drive checkpoints written before the media and DMA-page fields existed", () => {
   const { io } = fixture();
   io.write(0xf2, 0x1c); io.advanceOscillatorTicks(29324); io.write(0xf5, 8);
   assert.equal(io.read(0xf5), 0xc0); // One unread Sense Interrupt result.
   const { disketteImage, diskettePage, diskette, ...board } = io.snapshot();
-  const { results, result_index, byte_us, byte_offset, media, ...controller } = diskette;
+  const { results, result_index, byte_us, byte_offset, media, writable, ...controller } = diskette;
   const old = { ...board, diskette: { ...controller, result: 0, result_pcn: 0 } };
   const restored = new XtIo(old as never);
   assert.equal(restored.read(0xf5), 0); assert.equal(restored.read(0xf4), 0x80);

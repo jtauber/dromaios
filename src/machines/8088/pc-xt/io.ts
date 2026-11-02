@@ -12,10 +12,13 @@ import { IbmXtSystemControl } from "../../../components/devices/generated/ibm-xt
 import type { IbmXtSystemControlSnapshot } from "../../../components/devices/generated/ibm-xt-system-control.ts";
 import { IbmXtDiskette } from "../../../components/devices/generated/ibm-xt-diskette.ts";
 import type { IbmXtDisketteSnapshot } from "../../../components/devices/generated/ibm-xt-diskette.ts";
+import { XtDisketteImage } from "./diskette-image.ts";
 import { XtClock } from "./clock.ts";
 import type { XtClockSnapshot } from "./clock.ts";
 import type { ByteMemoryConnection, MemoryConnection } from "../../../components/memory/connection.ts";
 import { checkUnsigned } from "../../../components/validation.ts";
+
+export { xtDisketteSize } from "./diskette-image.ts";
 
 export interface XtIoSnapshot {
   readonly pic: I8259aSnapshot;
@@ -33,37 +36,20 @@ export interface XtIoSnapshot {
   readonly disketteImage: readonly number[] | null;
 }
 
-export const xtDisketteSize = 40 * 2 * 9 * 512;
-const ownedDiskettes = new WeakSet<readonly number[]>();
-
-/** Copy external bytes once. In-memory checkpoints and instruction previews can share the frozen disk. */
-function readDiskette(bytes: Uint8Array | readonly number[]): readonly number[] {
-  if (Array.isArray(bytes) && ownedDiskettes.has(bytes)) return bytes;
-  if ((!Array.isArray(bytes) && !(bytes instanceof Uint8Array)) || bytes.length !== xtDisketteSize) {
-    throw new RangeError("XT diskette requires a raw 360 KiB image.");
-  }
-  const image = Object.freeze(Array.from({ length: bytes.length }, (_, index) => {
-    const byte = bytes[index]!;
-    checkUnsigned("XT diskette byte", byte, 255);
-    return byte;
-  }));
-  ownedDiskettes.add(image);
-  return image;
-}
-
 /** Empty-drive checkpoints used a two-byte result queue and had no DMA page or media. */
 function restoreDiskette(state: XtIoSnapshot): IbmXtDiskette {
   const controller = state.diskette;
   if (!Object.hasOwn(state, "disketteImage") && !Object.hasOwn(state, "diskettePage")
     && "result" in controller && "result_pcn" in controller && !Object.hasOwn(controller, "results")) {
-    return new IbmXtDiskette({ ...controller, media: false, byte_offset: 0, byte_us: 0, result_index: 0,
+    return new IbmXtDiskette({ ...controller, media: false, writable: false, byte_offset: 0, byte_us: 0, result_index: 0,
       results: [controller.result as number, controller.result_pcn as number, 0, 0, 0, 0, 0, 0] });
   }
   checkUnsigned("XT diskette DMA page", state.diskettePage, 15);
   if (controller.media !== (state.disketteImage !== null) || state.disketteImage === undefined) {
     throw new RangeError("XT diskette image does not match the drive.");
   }
-  return new IbmXtDiskette(controller);
+  // Earlier mounted-disk checkpoints predate writable media.
+  return new IbmXtDiskette(Object.hasOwn(controller, "writable") ? controller : { ...controller, writable: false });
 }
 
 /** XT device wiring, driven by explicit oscillator intervals and bus grants. */
@@ -81,7 +67,7 @@ export class XtIo implements MemoryConnection {
   readonly #system: IbmXtSystemControl;
   readonly #diskette: IbmXtDiskette;
   #diskettePage: number;
-  #disketteImage: readonly number[] | null;
+  #disketteImage: XtDisketteImage | null;
 
   constructor(state?: XtIoSnapshot) {
     if (state !== undefined && (!state.pic || !state.ppi || !state.keyboard || !state.pit || !state.clock || !state.dma || !state.system || !state.diskette
@@ -102,7 +88,7 @@ export class XtIo implements MemoryConnection {
     this.#system = new IbmXtSystemControl(state?.system);
     this.#diskette = state ? restoreDiskette(state) : new IbmXtDiskette();
     this.#diskettePage = state?.diskettePage ?? 0;
-    this.#disketteImage = state?.disketteImage == null ? null : readDiskette(state.disketteImage);
+    this.#disketteImage = state?.disketteImage == null ? null : new XtDisketteImage(state.disketteImage);
     checkUnsigned("XT equipment switches", this.#equipmentSwitches, 0xff);
     if (state !== undefined) {
       const pins = this.#ppi.driveB();
@@ -131,6 +117,7 @@ export class XtIo implements MemoryConnection {
   get speakerData(): boolean { return Boolean(this.#ppi.driveB() & 2); }
   get speakerLevel(): boolean { return this.speakerData && this.#pit.output(2); }
   get disketteMotorOn(): boolean { return this.#diskette.motorOn(); }
+  get disketteWritable(): boolean { return this.#diskette.writable(); }
   get refreshOutput(): boolean { return this.#pit.output(1); }
   get oscillatorTicks(): number { return this.#clock.ticks; }
 
@@ -148,7 +135,7 @@ export class XtIo implements MemoryConnection {
       ppi: this.#ppi.snapshot(), keyboard: this.#keyboard.snapshot(),
       equipmentSwitches: this.#equipmentSwitches, pit: this.#pit.snapshot(), clock: this.#clock.snapshot(),
       dma: this.#dma.snapshot(), refreshPending: this.#refreshPending, system: this.#system.snapshot(),
-      diskette: this.#diskette.snapshot(), diskettePage: this.#diskettePage, disketteImage: this.#disketteImage };
+      diskette: this.#diskette.snapshot(), diskettePage: this.#diskettePage, disketteImage: this.#disketteImage?.snapshot() ?? null };
   }
 
   read(address: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 13 | 0x20 | 0x21 | 0x40 | 0x41 | 0x42 | 0x60 | 0x61 | 0x62 | 0xf4 | 0xf5): number;
@@ -177,12 +164,13 @@ export class XtIo implements MemoryConnection {
     this.#updateWiring();
   }
 
-  /** Insert a write-protected raw disk, or eject it. Validate a replacement before removing the old disk. */
-  setDiskette(bytes: Uint8Array | readonly number[] | null): void {
-    const image = bytes === null ? null : readDiskette(bytes);
+  /** Insert a private copy of a raw disk (write-protected by default), or eject it. Validate a replacement before removing the old disk. */
+  setDiskette(bytes: Uint8Array | readonly number[] | null, { writable = false } = {}): void {
+    if (typeof writable !== "boolean") throw new TypeError("XT diskette write permission must be Boolean.");
+    const image = bytes === null ? null : new XtDisketteImage(bytes);
     if (this.#disketteImage !== null) this.#diskette.setMedia(false);
     this.#disketteImage = image;
-    if (image !== null) this.#diskette.setMedia(true);
+    if (image !== null) this.#diskette.mountMedia(true, writable);
     this.#updateWiring();
   }
 
@@ -243,13 +231,21 @@ export class XtIo implements MemoryConnection {
         throw new RangeError("XT refresh supports only channel-0 single reads.");
       }
     } else {
-      if (request !== 4 || !this.#disketteImage || !memory || !this.#dma.transferReady() || !this.#dma.writeTransfer()) {
-        throw new RangeError("XT diskette DMA requires channel-2 single writes and the board memory bus.");
+      const writing = this.#diskette.writing();
+      const directionMatches = writing ? this.#dma.readTransfer() : this.#dma.writeTransfer();
+      if (request !== 4 || !this.#disketteImage || !memory || !this.#dma.transferReady() || !directionMatches) {
+        throw new RangeError("XT diskette DMA requires the memory bus and channel 2 in the command's transfer direction.");
       }
       address |= this.#diskettePage << 16;
-      value = this.#disketteImage[this.#diskette.mediaOffset()]!;
-      memory.write(address, value);
-      this.#diskette.acknowledgeByte(this.#dma.terminalTransfer());
+      const offset = this.#diskette.mediaOffset(), terminal = this.#dma.terminalTransfer();
+      if (writing) {
+        value = memory.read(address);
+        this.#disketteImage.write(offset, value, terminal);
+      } else {
+        value = this.#disketteImage.read(offset);
+        memory.write(address, value);
+      }
+      this.#diskette.acknowledgeByte(terminal);
     }
     this.#dma.completeTransfer();
     this.#updateWiring(refresh);
