@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { Cpu8088 } from "../../../../src/components/cpus/generated/8088-cpu.js";
 import type { Cpu8088MemoryAccess } from "../../../../src/components/cpus/generated/8088-cpu.js";
 import { ObservedRam } from "../../../helpers/observed-ram.js";
-import { byteMoves, initialState, flags, snapshot, addition, checkStep, aluForms, aluResult, registerValue, replaceRegister, addressedState, addressingCases, memoryBytes, segments, address, put, wordBytes, dataReads, dataWrites, reject } from "./helpers.js";
+import { byteMoves, initialState, flags, snapshot, addition, checkStep, aluForms, immediateAluOpcodes, aluResult, registerValue, replaceRegister, addressedState, addressingCases, memoryBytes, segments, address, put, wordBytes, dataReads, dataWrites, reject } from "./helpers.js";
 
 test("8088 instruction fetching wraps IP within CS independently of twenty-bit physical wrap", () => {
   const ram = new ObservedRam(0x100000);
@@ -112,10 +112,9 @@ test("8088 ModR/M MOV does not read destinations and TEST never writes, across e
   }
 });
 
-test("8088 immediate ModR/M groups cover every documented operation and register, including every signed byte", () => {
+test("8088 immediate ModR/M groups cover every supported operation and register, including every signed byte", () => {
   const ram = new ObservedRam(0x100000);
-  for (const [name, , , , , , , group] of aluForms) for (const opcode of [0x80, 0x81, 0x82, 0x83]) {
-    if (opcode >= 0x82 && ["OR", "AND", "XOR"].includes(name)) continue;
+  for (const [name, , , , , , , group] of aluForms) for (const opcode of immediateAluOpcodes(name)) {
     const width = opcode % 2 === 0 ? 8 : 16;
     for (let rm = 0; rm < 8; rm++) for (let byte = 0; byte < 256; byte++) {
       const before = initialState({ flags: flags(byte + (rm % 2) * 256) });
@@ -130,8 +129,7 @@ test("8088 immediate ModR/M groups cover every documented operation and register
 
 test("8088 immediate ModR/M memory groups fetch complete encodings before read/modify/write and comparisons do not write", () => {
   const ram = new ObservedRam(0x100000);
-  for (const [name, , , , , , , group] of aluForms) for (const opcode of [0x80, 0x81, 0x82, 0x83]) {
-    if (opcode >= 0x82 && ["OR", "AND", "XOR"].includes(name)) continue;
+  for (const [name, , , , , , , group] of aluForms) for (const opcode of immediateAluOpcodes(name)) {
     const width = opcode % 2 === 0 ? 8 : 16;
     for (const form of addressingCases()) for (const immediate of [0, 1, 0x7f, 0x80, 0xff]) {
       const before = addressedState();
@@ -151,7 +149,7 @@ test("8088 immediate ModR/M memory groups fetch complete encodings before read/m
 
 test("8088 rejects unused 82/83 operation selectors after ModR/M only, with complete atomic state preservation", () => {
   const ram = new ObservedRam(0x100000);
-  for (const opcode of [0x82, 0x83]) for (const group of [1, 4, 6]) {
+  for (const [opcode, groups] of [[0x82, [1, 4, 6]], [0x83, [1, 6]]] as const) for (const group of groups) {
     for (let mode = 0; mode < 4; mode++) for (let rm = 0; rm < 8; rm++) {
       const before = initialState({ cs: 0xffff, ip: 0xffff });
       const modRM = mode * 64 + group * 8 + rm;

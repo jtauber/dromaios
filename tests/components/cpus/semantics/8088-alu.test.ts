@@ -6,7 +6,7 @@ import { actions as definitions } from "../../../../src/components/cpus/semantic
 import { cpu8088StateDescription } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
 import { describeInstruction } from "../../../../src/components/cpus/semantics/describe.js";
 import type { Cpu8088State } from "../../../../src/components/cpus/semantics/generated/state/8088.js";
-import { address, aluResult, byteMoves, flags, initialState, registerValue, replaceRegister, words } from "../8088/helpers.js";
+import { address, aluResult, immediateAluOpcodes, byteMoves, flags, initialState, registerValue, replaceRegister, words } from "../8088/helpers.js";
 import type { AluName } from "../8088/helpers.js";
 
 type Context = { fetchByte(): number; readByte(address: number): number; writeByte(address: number, value: number): void };
@@ -23,7 +23,7 @@ for (const width of [8, 16] as const) for (const operation of operations) {
   }
   for (const destination of [0, 1, 2, 3, 4, 5, 6, 7, "memory"] as const) {
     add(destination, "immediate", "immediate", width, destination);
-    if (width === 16 && ["ADD", "ADC", "SBB", "SUB", "CMP"].includes(operation)) add(destination, "signed", "signed", width, destination);
+    if (width === 16 && immediateAluOpcodes(operation).includes(0x83)) add(destination, "signed", "signed", width, destination);
   }
 }
 
@@ -52,11 +52,11 @@ function observed(state: Cpu8088State, effect: (name: string) => void): Cpu8088S
   });
 }
 
-test("8088 chapter ALU probes retain the 1631 resolved operand cases without unused TEST directions or signed logic", () => {
-  assert.equal(cases.length, 1631);
+test("8088 chapter ALU probes cover each supported resolved operand combination once", () => {
+  assert.equal(cases.length, 1640);
   const keys = cases.map(form => form.key).sort();
   assert.equal(new Set(keys).size, keys.length);
-  assert.equal(Object.keys(probes).filter(key => !key.startsWith("fetchAndStore")).length, 41);
+  assert.equal(Object.keys(probes).filter(key => !key.startsWith("fetchAndStore")).length, 42);
 });
 
 test("every 8088 ALU body preserves capture/flag/write order and precisely completed effects at every failure", () => {

@@ -292,8 +292,8 @@ currently stops. Use these milestones for the EGA laboratory.
 
 ## Next implementation slice
 
-Support the [8088 stack alignment instruction used by the game](pc-xt-ultima-v.md#native-launch),
-then repeat the DOS launch to the display probe. The first EGA milestone is
+Support the [sign-extended XOR used by the CGA driver](pc-xt-ultima-v.md#native-launch),
+then rerun the opening and inspect what the driver writes to video RAM. The first EGA milestone is
 for the XT BIOS to call the adapter ROM and for that ROM to install INT 10h.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf

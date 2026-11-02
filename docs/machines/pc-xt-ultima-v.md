@@ -1,10 +1,10 @@
 # Ultima V on the IBM PC/XT
 
 DOS can load *Ultima V: Warriors of Destiny* from a 360 KiB floppy on the
-[native XT](pc-xt.md). The first obstacle is in the game's startup code, before
-it probes the display. On the pinned [dromaios-pc reference][reference], the
-same executable reaches the title and main menu. The two runs give us separate
-checks for loading the program and drawing its first interactive screen.
+[native XT](pc-xt.md). The game selects the CGA driver, switches to graphics
+mode, and opens its title assets. Execution stops inside that driver. On the
+pinned [dromaios-pc reference][reference], the same executable reaches the
+title and main menu using EGA.
 
 ## Media
 
@@ -24,7 +24,7 @@ procedures in the [XT laboratory](../../src/machines/8088/pc-xt.md#using-the-lab
 - **Start automatically with `ULTIMA-BOOT.IMG`.** In **Drive A**, choose
   **Insert…**, select this image, then choose **Quick boot** under **Execution**.
   DOS displays `Starting Ultima V...` and runs the game from `AUTOEXEC.BAT`.
-  The native XT currently [stops during startup](#native-launch).
+  The native XT currently [stops in the CGA driver](#native-launch).
 - **Start from DOS with `ULTIMA-LAUNCH.IMG`.** Boot the
   [Microsoft MS-DOS 3.30 system disk](pc-xt.md#firmware-and-media-identity)
   first. At `A>`, wait for the motor to stop, insert `ULTIMA-LAUNCH.IMG`,
@@ -42,7 +42,7 @@ ULTIMA.16
 
 All eleven matched the corresponding files on the reference image byte for
 byte. The EGA run uses ten of them. The disk also includes the CGA driver so
-we can observe the native machine's automatic choice. The audited 360 KiB
+the same executable can select a driver for the native XT. The audited 360 KiB
 image has SHA-256 `ac357004a7a45c2c711229d43cd13253c5f010a3d16feaf95001b5adbe17592f`.
 Directory order, timestamps and formatting can give another copy a different
 image digest while retaining the same files.
@@ -95,24 +95,29 @@ both strips.
 
 ## Native launch
 
-The native run resumed a DOS prompt reached through the original XT BIOS,
-exchanged disks in drive A, and typed the command through IRQ1. DOS executed
-`A:\ULTIMA.EXE` and the game opened `DATA.OVL`. Both `ULTIMA` and `ULTIMA E`
-stopped at `0C6B:01B4` (physical `0C864` in this session). The bytes there
-are `83 E4 FE`, or `AND SP,FFFEh`, which aligns the stack to an even address.
+Booting `ULTIMA-BOOT.IMG` through the original XT BIOS starts the game from
+DOS. The instruction `83 E4 FE` at `0C6F:01B4` aligns the stack and advances
+IP to `01B7`. The [8088 immediate group][immediate] handles this encoding for
+all word registers and memory destinations.
 
-An independent cold boot with the same disk exchange reached the same address
-and bytes. On a cold boot of `ULTIMA-BOOT.IMG`, DOS ran `ULTIMA.EXE`
-automatically and the game opened `DATA.OVL`. The executable loaded four
-paragraphs higher and reached the same instruction at `0C6F:01B4`.
-Timed execution reports that instruction timing is unavailable, and ordinary
-single-step reports the instruction as unsupported. The underlying
-issue is the [8088 immediate-group definition][immediate]: it rejects the
-`83 /4` selector, following Intel's 1979 encoding table. The pinned
-[hardware fixtures][and-fixtures] include 138 unprefixed `83 E4 ib` cases.
-Their resulting SP values all match an AND with the sign-extended immediate.
-Cover that behavior in ordinary and timed execution, then rerun the same disk
-exchange to locate the game's display probe.
+| Checkpoint | What ran on the native XT |
+| --- | --- |
+| Driver selection | After opening `DATA.OVL` and `INTRO.OVL`, the game probes INT 10h with AH=`12`, BL=`10`, queries the video mode, and opens `CGA.DRV`. |
+| Graphics setup | At `9E03:058F` the driver requests mode `04h`. It calls the BIOS palette service twice and selects page zero. The mode byte at physical `00449` reads `04`. |
+| Opening assets | The game opens `IBM.CH`, `RUNES.CH`, `TITLE.BIT`, `BRITISH.BIT`, and `BRITISH.PTH`. Video RAM is still clear when execution stops. |
+| Next instruction | At `9E03:12B0` (physical `9F2E0`), the driver attempts `2E 83 36 BC 0F 01`, or `XOR WORD PTR CS:[0FBCh],1`. It would toggle bit zero of a word in the driver's segment. The model rejects the `83 /6` selector. |
+
+Cold boot, Quick boot, and typing `ULTIMA` after the disk exchange all reach
+the same XOR. Timed execution reports missing timing at the prefix byte. The
+next CPU check is the sign-extended XOR on a memory operand with a segment
+override. The title is still blank at this stop. The
+[CGA display](../../src/components/devices/specifications/ibm-cga.md) currently
+renders text.
+
+Typing `ULTIMA E` forces a different path on the same XT. The game opens
+`EGA.DRV` and issues INT 10h with AX=`000D`, `1002`, and `0500`, matching
+the reference calls. The native board has no EGA planes at `A0000` to receive
+the driver's drawing.
 
 ## Native EGA acceptance
 
@@ -142,7 +147,6 @@ exchange to locate the game's display probe.
 [origin]: https://www.mocagh.org/origin/u5-refcard-ibm.pdf
 [listings]: https://forum.winworldpc.com/discussion/8311/ibm-pc-tandy-1000-game-installation-file-listing-screenshot/p62#Comment_163559
 [immediate]: ../../src/components/cpus/specifications/8088.md#immediate-operation-groups
-[and-fixtures]: https://github.com/SingleStepTests/8088/blob/aea84484abc79d09639d855b7b0ab32bc9e4dbeb/v2/83.4.json.gz
 [switches]: https://www.minuszerodegrees.net/ibm_ega/IBM%20EGA%20-%20Installation%20Instructions.pdf
 [rom]: https://www.pcjs.org/machines/pcx86/ibm/video/ega/1984-09-13/IBM-EGA.json5
 [ega]: https://minuszerodegrees.net/oa/OA%20-%20IBM%20Enhanced%20Graphics%20Adapter.pdf

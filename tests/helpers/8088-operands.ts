@@ -5,7 +5,7 @@ import type { Cpu8088State } from "../../src/components/cpus/semantics/generated
 import { generateInstructions } from "../../src/components/cpus/semantics/generate.js";
 import { capture, perform, readSource, signExtend, value } from "../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition } from "../../src/components/cpus/semantics/model.js";
-import type { AluName } from "../components/cpus/8088/helpers.js";
+import { immediateAluOpcodes, type AluName } from "../components/cpus/8088/helpers.js";
 
 // Numeric probes exercise chapter composition after address resolution. The public-CPU
 // tests independently check ModR/M decoding, prefixes, and rejection before fetching.
@@ -17,7 +17,7 @@ for (const width of [8, 16] as const) {
     inputs: { pointer: 32 }, steps: [readSource("contents", sources[width === 8 ? "immediateByte" : "immediateWord"]),
       perform(actions[`store${width}`], { pointer: value("pointer"), contents: value("contents") })] };
   for (const [index, operation] of operations.entries()) for (const form of ["operand", "immediate", "signed"] as const) {
-    if (form === "signed" && (width !== 16 || !["ADD", "ADC", "SBB", "SUB", "CMP"].includes(operation))) continue;
+    if (form === "signed" && (width !== 16 || !immediateAluOpcodes(operation).includes(0x83))) continue;
     const actionName = ["add", "or", "adc", "sbb", "and", "sub", "xor", "cmp", "test"][index]!;
     const sourceName = form === "operand" ? `readRM${width}` as const : width === 8 || form === "signed" ? "immediateByte" : "immediateWord";
     definitions[`${operation}_${width}_${form}`] = { cpu, name: operation, explanation: "Capture the chapter source, then perform its ALU action.",

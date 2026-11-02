@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu8088 } from "../../../../src/components/cpus/generated/8088-cpu.js";
 import { ObservedRam } from "../../../helpers/observed-ram.js";
-import { address, aluForms, aluResult, flags, initialState, put, registerValue, replaceRegister, snapshot } from "./helpers.js";
+import { address, aluForms, immediateAluOpcodes, aluResult, flags, initialState, put, registerValue, replaceRegister, snapshot } from "./helpers.js";
 import type { AluName } from "./helpers.js";
 
 interface Form { opcode: number; operation: AluName; width: 8 | 16; direction: "toMemory" | "fromMemory" | "immediate"; selector: number }
@@ -14,7 +14,7 @@ for (const [operation, byteTo, wordTo, byteFrom, wordFrom, , , selector] of aluF
     { opcode: byteFrom, operation, width: 8, direction: "fromMemory", selector: 7 },
     { opcode: wordFrom, operation, width: 16, direction: "fromMemory", selector: 7 },
   );
-  for (const opcode of [0x80, 0x81, ...(["OR", "AND", "XOR"].includes(operation) ? [] : [0x82, 0x83])]) {
+  for (const opcode of immediateAluOpcodes(operation)) {
     forms.push({ opcode, operation, width: opcode % 2 ? 16 : 8, direction: "immediate", selector });
   }
 }
@@ -22,8 +22,8 @@ for (const [opcode, width, direction] of [[0x84, 8, "toMemory"], [0x85, 16, "toM
   forms.push({ opcode, width, direction, operation: "TEST", selector: direction === "immediate" ? 0 : 7 });
 }
 
-test("all 62 migrated 8088 ALU forms retain completed accesses, flags, and byte writes at every failure boundary", () => {
-  assert.equal(forms.length, 62);
+test("8088 ALU forms retain completed accesses, flags, and byte writes at every failure boundary", () => {
+  assert.equal(forms.length, 63);
   const failure = Error("byte access failed");
   for (const { opcode, operation, width, direction, selector } of forms) for (const prefixes of [[], [0x26, 0x3e, 0xf0]]) for (const offset of [0xf, 0xffff]) {
     const before = initialState({ cs: 0xabcd, ip: 0xffff, ds: 0xffff, flags: flags(511), interruptDeferred: true, recognitionDeferred: true });
@@ -76,9 +76,10 @@ test("all 62 migrated 8088 ALU forms retain completed accesses, flags, and byte 
 test("8088 rejects unused immediate selectors before displacement/fetch effects and rejects REP for every migrated ALU form", () => {
   const ram = new ObservedRam(0x100000);
   const before = initialState({ ip: 0xffff, flags: flags(511), interruptDeferred: true, recognitionDeferred: true, trapPending: true });
+  const unusedSelectors = [[0x82, [1, 4, 6]], [0x83, [1, 6]], [0xf6, [1]], [0xf7, [1]]] satisfies [number, number[]][];
   const rejected = [
-    ...[0x82, 0x83, 0xf6, 0xf7].flatMap(opcode => Array.from({ length: 256 }, (_, modRM) => modRM)
-      .filter(modRM => (opcode < 0xf6 ? [1, 4, 6] : [1]).includes(Math.floor(modRM / 8) % 8)).map(modRM => [opcode, modRM])),
+    ...unusedSelectors.flatMap(([opcode, selectors]) => Array.from({ length: 256 }, (_, modRM) => modRM)
+      .filter(modRM => selectors.includes(Math.floor(modRM / 8) % 8)).map(modRM => [opcode, modRM])),
     ...[...new Set(forms.map(form => form.opcode))].flatMap(opcode => [[0xf2, opcode], [0xf3, opcode]]),
   ];
   for (const bytes of rejected) {

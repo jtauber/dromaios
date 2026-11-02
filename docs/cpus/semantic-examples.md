@@ -942668,6 +942668,755 @@ match byte postbyte {
       }
     }
   }
+  case (byte & 38) = 20 {
+    pointer:u32 := source "resolve memory; defer register reads" {
+      postbyte:u8 := postbyte
+      overridden:u8 := overridden
+      segmentOverride:u16 := segmentOverride
+      pointer:u32 := match byte postbyte {
+        case (byte & 80) = 00 {
+          address:u32 := source "capture a logical memory address" {
+            postbyte:u8 := postbyte
+            overridden:u8 := overridden
+            segmentOverride:u16 := segmentOverride
+            pointer:u32 := match byte postbyte {
+              case (byte & C7) = 00 {
+                base:u32 := source "DS:BX+SI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                yield base
+              }
+              case (byte & C7) = 01 {
+                base:u32 := source "DS:BX+DI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                yield base
+              }
+              case (byte & C7) = 02 {
+                base:u32 := source "SS:BP+SI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                yield base
+              }
+              case (byte & C7) = 03 {
+                base:u32 := source "SS:BP+DI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                yield base
+              }
+              case (byte & C7) = 04 {
+                base:u32 := source "DS:SI" {
+                  segment:u16 := read DS
+                  first:u16 := read SI
+                  yield concatHighLow(segment, first)
+                }
+                yield base
+              }
+              case (byte & C7) = 05 {
+                base:u32 := source "DS:DI" {
+                  segment:u16 := read DS
+                  first:u16 := read DI
+                  yield concatHighLow(segment, first)
+                }
+                yield base
+              }
+              case (byte & C7) = 06 {
+                base:u32 := source "DS and a direct offset" {
+                  segment:u16 := read DS
+                  offset:u16 := source "immediate word, low byte first" {
+                    low:u8 := fetch byte
+                    high:u8 := fetch byte
+                    yield concatHighLow(high, low)
+                  }
+                  yield concatHighLow(segment, offset)
+                }
+                yield base
+              }
+              case (byte & C7) = 07 {
+                base:u32 := source "DS:BX" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  yield concatHighLow(segment, first)
+                }
+                yield base
+              }
+              case (byte & C7) = 40 {
+                base:u32 := source "DS:BX+SI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 41 {
+                base:u32 := source "DS:BX+DI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 42 {
+                base:u32 := source "SS:BP+SI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 43 {
+                base:u32 := source "SS:BP+DI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 44 {
+                base:u32 := source "DS:SI" {
+                  segment:u16 := read DS
+                  first:u16 := read SI
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 45 {
+                base:u32 := source "DS:DI" {
+                  segment:u16 := read DS
+                  first:u16 := read DI
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 46 {
+                base:u32 := source "SS:BP" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 47 {
+                base:u32 := source "DS:BX" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 80 {
+                base:u32 := source "DS:BX+SI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 81 {
+                base:u32 := source "DS:BX+DI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 82 {
+                base:u32 := source "SS:BP+SI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 83 {
+                base:u32 := source "SS:BP+DI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 84 {
+                base:u32 := source "DS:SI" {
+                  segment:u16 := read DS
+                  first:u16 := read SI
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 85 {
+                base:u32 := source "DS:DI" {
+                  segment:u16 := read DS
+                  first:u16 := read DI
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 86 {
+                base:u32 := source "SS:BP" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 87 {
+                base:u32 := source "DS:BX" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              otherwise return outcome "unsupported"; no later effects
+            }
+            segment := bits(pointer, 31, 16)
+            yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+          }
+          yield address
+        }
+        case (byte & C0) = 80 {
+          address:u32 := source "capture a logical memory address" {
+            postbyte:u8 := postbyte
+            overridden:u8 := overridden
+            segmentOverride:u16 := segmentOverride
+            pointer:u32 := match byte postbyte {
+              case (byte & C7) = 00 {
+                base:u32 := source "DS:BX+SI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                yield base
+              }
+              case (byte & C7) = 01 {
+                base:u32 := source "DS:BX+DI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                yield base
+              }
+              case (byte & C7) = 02 {
+                base:u32 := source "SS:BP+SI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                yield base
+              }
+              case (byte & C7) = 03 {
+                base:u32 := source "SS:BP+DI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                yield base
+              }
+              case (byte & C7) = 04 {
+                base:u32 := source "DS:SI" {
+                  segment:u16 := read DS
+                  first:u16 := read SI
+                  yield concatHighLow(segment, first)
+                }
+                yield base
+              }
+              case (byte & C7) = 05 {
+                base:u32 := source "DS:DI" {
+                  segment:u16 := read DS
+                  first:u16 := read DI
+                  yield concatHighLow(segment, first)
+                }
+                yield base
+              }
+              case (byte & C7) = 06 {
+                base:u32 := source "DS and a direct offset" {
+                  segment:u16 := read DS
+                  offset:u16 := source "immediate word, low byte first" {
+                    low:u8 := fetch byte
+                    high:u8 := fetch byte
+                    yield concatHighLow(high, low)
+                  }
+                  yield concatHighLow(segment, offset)
+                }
+                yield base
+              }
+              case (byte & C7) = 07 {
+                base:u32 := source "DS:BX" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  yield concatHighLow(segment, first)
+                }
+                yield base
+              }
+              case (byte & C7) = 40 {
+                base:u32 := source "DS:BX+SI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 41 {
+                base:u32 := source "DS:BX+DI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 42 {
+                base:u32 := source "SS:BP+SI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 43 {
+                base:u32 := source "SS:BP+DI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 44 {
+                base:u32 := source "DS:SI" {
+                  segment:u16 := read DS
+                  first:u16 := read SI
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 45 {
+                base:u32 := source "DS:DI" {
+                  segment:u16 := read DS
+                  first:u16 := read DI
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 46 {
+                base:u32 := source "SS:BP" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 47 {
+                base:u32 := source "DS:BX" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u8 := fetch byte
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), signExtend16(displacement))
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 80 {
+                base:u32 := source "DS:BX+SI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 81 {
+                base:u32 := source "DS:BX+DI" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 82 {
+                base:u32 := source "SS:BP+SI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read SI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 83 {
+                base:u32 := source "SS:BP+DI" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  second:u16 := read DI
+                  yield concatHighLow(segment, addWrap(first, second))
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 84 {
+                base:u32 := source "DS:SI" {
+                  segment:u16 := read DS
+                  first:u16 := read SI
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 85 {
+                base:u32 := source "DS:DI" {
+                  segment:u16 := read DS
+                  first:u16 := read DI
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 86 {
+                base:u32 := source "SS:BP" {
+                  segment:u16 := read SS
+                  first:u16 := read BP
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              case (byte & C7) = 87 {
+                base:u32 := source "DS:BX" {
+                  segment:u16 := read DS
+                  first:u16 := read BX
+                  yield concatHighLow(segment, first)
+                }
+                displacement:u16 := source "immediate word, low byte first" {
+                  low:u8 := fetch byte
+                  high:u8 := fetch byte
+                  yield concatHighLow(high, low)
+                }
+                segment := bits(base, 31, 16)
+                offset := addWrap(low16(base), displacement)
+                yield concatHighLow(segment, offset)
+              }
+              otherwise return outcome "unsupported"; no later effects
+            }
+            segment := bits(pointer, 31, 16)
+            yield concatHighLow(select(isZero(overridden), segment, segmentOverride), low16(pointer))
+          }
+          yield address
+        }
+        case (byte & C0) = C0 {
+          yield 00000000:u32
+        }
+        otherwise return outcome "unsupported"; no later effects
+      }
+      yield pointer
+    }
+    immediate:u8 := source "immediate byte" {
+      byte:u8 := fetch byte
+      yield byte
+    }
+    right := signExtend16(immediate)
+    perform "AND a resolved 16-bit destination" {
+      destination:u8 := postbyte
+      pointer:u32 := pointer
+      right:u16 := right
+      left:u16 := source "read a resolved 16-bit operand" {
+        postbyte:u8 := destination
+        pointer:u32 := pointer
+        result:u16 := match byte postbyte {
+          case (byte & C7) = C0 {
+            contents:u16 := read AX
+            yield contents
+          }
+          case (byte & C7) = C1 {
+            contents:u16 := read CX
+            yield contents
+          }
+          case (byte & C7) = C2 {
+            contents:u16 := read DX
+            yield contents
+          }
+          case (byte & C7) = C3 {
+            contents:u16 := read BX
+            yield contents
+          }
+          case (byte & C7) = C4 {
+            contents:u16 := read SP
+            yield contents
+          }
+          case (byte & C7) = C5 {
+            contents:u16 := read BP
+            yield contents
+          }
+          case (byte & C7) = C6 {
+            contents:u16 := read SI
+            yield contents
+          }
+          case (byte & C7) = C7 {
+            contents:u16 := read DI
+            yield contents
+          }
+          case (byte & 80) = 00 {
+            contents:u16 := source "read a captured 16-bit memory operand" {
+              pointer:u32 := pointer
+              segment := bits(pointer, 31, 16)
+              offset := low16(pointer)
+              low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+              high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+              yield concatHighLow(high, low)
+            }
+            yield contents
+          }
+          case (byte & C0) = 80 {
+            contents:u16 := source "read a captured 16-bit memory operand" {
+              pointer:u32 := pointer
+              segment := bits(pointer, 31, 16)
+              offset := low16(pointer)
+              low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+              high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+              yield concatHighLow(high, low)
+            }
+            yield contents
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+        yield result
+      }
+      result := bitAnd(left, right)
+      flags "8088 logical flags" simultaneously {
+        OF := 0:flag
+        CF := 0:flag
+        AF := 0:flag
+        ZF := isZero(result)
+        SF := topBit(result)
+        PF := evenParity8(lowByte(result))
+      } // Preserve unlisted flags.
+      perform "write a resolved 16-bit operand" {
+        postbyte:u8 := destination
+        pointer:u32 := pointer
+        contents:u16 := result
+        match byte postbyte {
+          case (byte & C7) = C0 {
+            write AX:u16 := contents
+          }
+          case (byte & C7) = C1 {
+            write CX:u16 := contents
+          }
+          case (byte & C7) = C2 {
+            write DX:u16 := contents
+          }
+          case (byte & C7) = C3 {
+            write BX:u16 := contents
+          }
+          case (byte & C7) = C4 {
+            write SP:u16 := contents
+          }
+          case (byte & C7) = C5 {
+            write BP:u16 := contents
+          }
+          case (byte & C7) = C6 {
+            write SI:u16 := contents
+          }
+          case (byte & C7) = C7 {
+            write DI:u16 := contents
+          }
+          case (byte & 80) = 00 {
+            perform "write a captured 16-bit memory operand" {
+              pointer:u32 := pointer
+              contents:u16 := contents
+              segment := bits(pointer, 31, 16)
+              offset := low16(pointer)
+              write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+              write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+            }
+          }
+          case (byte & C0) = 80 {
+            perform "write a captured 16-bit memory operand" {
+              pointer:u32 := pointer
+              contents:u16 := contents
+              segment := bits(pointer, 31, 16)
+              offset := low16(pointer)
+              write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+              write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+            }
+          }
+          otherwise return outcome "unsupported"; no later effects
+        }
+      }
+    }
+  }
   case (byte & 38) = 28 {
     pointer:u32 := source "resolve memory; defer register reads" {
       postbyte:u8 := postbyte
