@@ -74,11 +74,11 @@ export const aluForms = [
 ] as const;
 export type AluName = typeof aluForms[number][0] | "TEST";
 
-// 83 /4 also executes on the original chip, alongside the documented arithmetic forms.
+// 83 /4 and /6 also execute on the original chip, alongside the documented arithmetic forms.
 export function immediateAluOpcodes(name: AluName): readonly number[] {
   if (name === "TEST") return [0xf6, 0xf7];
-  if (name === "AND") return [0x80, 0x81, 0x83];
-  if (name === "OR" || name === "XOR") return [0x80, 0x81];
+  if (name === "AND" || name === "XOR") return [0x80, 0x81, 0x83];
+  if (name === "OR") return [0x80, 0x81];
   return [0x80, 0x81, 0x82, 0x83];
 }
 

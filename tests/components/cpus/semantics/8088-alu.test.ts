@@ -53,10 +53,10 @@ function observed(state: Cpu8088State, effect: (name: string) => void): Cpu8088S
 }
 
 test("8088 chapter ALU probes cover each supported resolved operand combination once", () => {
-  assert.equal(cases.length, 1640);
+  assert.equal(cases.length, 1649);
   const keys = cases.map(form => form.key).sort();
   assert.equal(new Set(keys).size, keys.length);
-  assert.equal(Object.keys(probes).filter(key => !key.startsWith("fetchAndStore")).length, 42);
+  assert.equal(Object.keys(probes).filter(key => !key.startsWith("fetchAndStore")).length, 43);
 });
 
 test("every 8088 ALU body preserves capture/flag/write order and precisely completed effects at every failure", () => {

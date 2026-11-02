@@ -147,9 +147,19 @@ test("8088 immediate ModR/M memory groups fetch complete encodings before read/m
   }
 });
 
+test("Ultima V's CGA driver toggles the word at CS:0FBC with a sign-extended XOR", () => {
+  const ram = new ObservedRam(0x100000);
+  const before = initialState({ cs: 0x9e03, ip: 0x12b0 });
+  const bytes = [0x2e, 0x83, 0x36, 0xbc, 0x0f, 0x01];
+  put(ram, before.cs, 0x0fbc, [0x01, 0x80]);
+  checkStep(ram, before, bytes, { ...before, ip: 0x12b6,
+    flags: { ...before.flags, cf: false, of: false, af: false, zf: false, sf: true, pf: true } },
+    undefined, [...dataReads(before.cs, 0x0fbc, [0x01, 0x80]), ...dataWrites(before.cs, 0x0fbc, [0x00, 0x80])]);
+});
+
 test("8088 rejects unused 82/83 operation selectors after ModR/M only, with complete atomic state preservation", () => {
   const ram = new ObservedRam(0x100000);
-  for (const [opcode, groups] of [[0x82, [1, 4, 6]], [0x83, [1, 6]]] as const) for (const group of groups) {
+  for (const [opcode, groups] of [[0x82, [1, 4, 6]], [0x83, [1]]] as const) for (const group of groups) {
     for (let mode = 0; mode < 4; mode++) for (let rm = 0; rm < 8; rm++) {
       const before = initialState({ cs: 0xffff, ip: 0xffff });
       const modRM = mode * 64 + group * 8 + rm;

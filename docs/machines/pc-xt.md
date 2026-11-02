@@ -32,7 +32,8 @@ that session in the browser or boots from a local 360 KiB disk in drive A. The
 [native cold-boot test](../../src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
 reaches the DOS prompt and runs `VER` and `DIR`. DOS also loads
 [Ultima V from a 360 KiB disk](pc-xt-ultima-v.md#native-launch).
-The game reaches its graphics menu on the reference emulator.
+The game draws its CGA title menu in native video RAM and its EGA menu on
+the reference emulator. The browser laboratory currently renders CGA text.
 
 ## Selected first configuration
 
@@ -281,8 +282,8 @@ from the reinserted copy.
 ### 5. Ultima V on the XT
 
 The [launch audit and EGA acceptance checks](pc-xt-ultima-v.md) pin the game
-and adapter ROM, trace the reference menu, and identify where the native XT
-currently stops. Use these milestones for the EGA laboratory.
+and adapter ROM and record separate checks for the native CGA and reference
+EGA menus. Use these milestones for the EGA laboratory.
 
 1. Boot DOS through the XT BIOS and launch Ultima V from the guest prompt.
 2. Reach the title screen, enter Britannia, and use the XT keyboard to move the
@@ -292,9 +293,10 @@ currently stops. Use these milestones for the EGA laboratory.
 
 ## Next implementation slice
 
-Support the [sign-extended XOR used by the CGA driver](pc-xt-ultima-v.md#native-launch),
-then rerun the opening and inspect what the driver writes to video RAM. The first EGA milestone is
-for the XT BIOS to call the adapter ROM and for that ROM to install INT 10h.
+Render CGA mode `04h` in the XT laboratory. Check its scan-line addressing
+and palette against the [native Ultima V menu](pc-xt-ultima-v.md#native-launch).
+The first EGA milestone is for the XT BIOS to call the adapter ROM and for
+that ROM to install INT 10h.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

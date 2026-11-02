@@ -23,7 +23,7 @@ for (const [opcode, width, direction] of [[0x84, 8, "toMemory"], [0x85, 16, "toM
 }
 
 test("8088 ALU forms retain completed accesses, flags, and byte writes at every failure boundary", () => {
-  assert.equal(forms.length, 63);
+  assert.equal(forms.length, 64);
   const failure = Error("byte access failed");
   for (const { opcode, operation, width, direction, selector } of forms) for (const prefixes of [[], [0x26, 0x3e, 0xf0]]) for (const offset of [0xf, 0xffff]) {
     const before = initialState({ cs: 0xabcd, ip: 0xffff, ds: 0xffff, flags: flags(511), interruptDeferred: true, recognitionDeferred: true });
@@ -76,7 +76,7 @@ test("8088 ALU forms retain completed accesses, flags, and byte writes at every 
 test("8088 rejects unused immediate selectors before displacement/fetch effects and rejects REP for every migrated ALU form", () => {
   const ram = new ObservedRam(0x100000);
   const before = initialState({ ip: 0xffff, flags: flags(511), interruptDeferred: true, recognitionDeferred: true, trapPending: true });
-  const unusedSelectors = [[0x82, [1, 4, 6]], [0x83, [1, 6]], [0xf6, [1]], [0xf7, [1]]] satisfies [number, number[]][];
+  const unusedSelectors = [[0x82, [1, 4, 6]], [0x83, [1]], [0xf6, [1]], [0xf7, [1]]] satisfies [number, number[]][];
   const rejected = [
     ...unusedSelectors.flatMap(([opcode, selectors]) => Array.from({ length: 256 }, (_, modRM) => modRM)
       .filter(modRM => selectors.includes(Math.floor(modRM / 8) % 8)).map(modRM => [opcode, modRM])),

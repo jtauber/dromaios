@@ -1,10 +1,9 @@
 # Ultima V on the IBM PC/XT
 
 DOS can load *Ultima V: Warriors of Destiny* from a 360 KiB floppy on the
-[native XT](pc-xt.md). The game selects the CGA driver, switches to graphics
-mode, and opens its title assets. Execution stops inside that driver. On the
-pinned [dromaios-pc reference][reference], the same executable reaches the
-title and main menu using EGA.
+[native XT](pc-xt.md). The game selects the CGA driver and draws its title
+and main menu in 320 × 200 graphics. The pinned [dromaios-pc reference][reference]
+runs the same executable with EGA.
 
 ## Media
 
@@ -24,7 +23,8 @@ procedures in the [XT laboratory](../../src/machines/8088/pc-xt.md#using-the-lab
 - **Start automatically with `ULTIMA-BOOT.IMG`.** In **Drive A**, choose
   **Insert…**, select this image, then choose **Quick boot** under **Execution**.
   DOS displays `Starting Ultima V...` and runs the game from `AUTOEXEC.BAT`.
-  The native XT currently [stops in the CGA driver](#native-launch).
+  The [native launch](#native-launch) traces the opening in video RAM. The
+  laboratory screen currently displays CGA text modes only.
 - **Start from DOS with `ULTIMA-LAUNCH.IMG`.** Boot the
   [Microsoft MS-DOS 3.30 system disk](pc-xt.md#firmware-and-media-identity)
   first. At `A>`, wait for the motor to stop, insert `ULTIMA-LAUNCH.IMG`,
@@ -104,15 +104,28 @@ all word registers and memory destinations.
 | --- | --- |
 | Driver selection | After opening `DATA.OVL` and `INTRO.OVL`, the game probes INT 10h with AH=`12`, BL=`10`, queries the video mode, and opens `CGA.DRV`. |
 | Graphics setup | At `9E03:058F` the driver requests mode `04h`. It calls the BIOS palette service twice and selects page zero. The mode byte at physical `00449` reads `04`. |
-| Opening assets | The game opens `IBM.CH`, `RUNES.CH`, `TITLE.BIT`, `BRITISH.BIT`, and `BRITISH.PTH`. Video RAM is still clear when execution stops. |
-| Next instruction | At `9E03:12B0` (physical `9F2E0`), the driver attempts `2E 83 36 BC 0F 01`, or `XOR WORD PTR CS:[0FBCh],1`. It would toggle bit zero of a word in the driver's segment. The model rejects the `83 /6` selector. |
+| Opening assets | The game opens `IBM.CH`, `RUNES.CH`, `TITLE.BIT`, `BRITISH.BIT`, and `BRITISH.PTH`. |
+| Driver XOR | At `9E03:12B0`, `2E 83 36 BC 0F 01` toggles the word at `CS:0FBC` from `0001` to `0000`. Execution continues at `9E03:12B6` after 33 modeled clocks. |
+| First visible pixels | At `9E03:10BD`, STOSW writes `55h` at physical `BABB6`. The opening draws the Origin Systems logo followed by the animated “a Lord British production” signature. |
+| Title menu | Press Space during the Origin logo to skip the opening. The game loads `ULTIMA.4` and draws **Ultima V: Warriors of Destiny** with **Journey Onward** highlighted. |
 
-Cold boot, Quick boot, and typing `ULTIMA` after the disk exchange all reach
-the same XOR. Timed execution reports missing timing at the prefix byte. The
-next CPU check is the sign-extended XOR on a memory operand with a segment
-override. The title is still blank at this stop. The
-[CGA display](../../src/components/devices/specifications/ibm-cga.md) currently
-renders text.
+To check the CGA picture independently of the laboratory's text renderer,
+read row `y` at `B8000 + (y % 2) × 2000h + floor(y / 2) × 80` (80 bytes
+per row). Each byte holds four two-bit pixel indices, most significant pair first. For
+this menu the display starts at offset zero and port `3D9` holds `20h`,
+selecting black, cyan, magenta, and light grey. Hash one byte per pixel
+before palette lookup. Both strips matched across cold boot and Quick boot.
+
+| CGA menu rows, inclusive | SHA-256 of pixel indices |
+| --- | --- |
+| 0–59, title lettering | `b71e239084ae529a1a03e0579b596157b9f7c6fcf7939630a39e4e515283956d` |
+| 128–199, choices and copyright | `3bbffd83042b0d0062a60f57bab4baddae4846a47689967b824b1264ed148550` |
+
+Letting the opening play exercises more files than skipping to the menu.
+On the audited boot disk, DOS returns file-not-found (carry set, AX=`0002`)
+for `WD.BIT`. Adding that file from the original game directory to a separate
+copy lets the driver draw the animated *Warriors of Destiny* subtitle. The
+next missing file on that path is `FONT.OVL`.
 
 Typing `ULTIMA E` forces a different path on the same XT. The game opens
 `EGA.DRV` and issues INT 10h with AX=`000D`, `1002`, and `0500`, matching

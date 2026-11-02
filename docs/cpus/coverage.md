@@ -23,7 +23,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,788](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,576](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,531](../../src/components/cpus/specifications/8088.md) | 2,901 | 291 / 291 | 100% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,540](../../src/components/cpus/specifications/8088.md) | 2,907 | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,819](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% |
 
 **Literate instruction coverage** measures documented opcode forms authored in
@@ -1121,7 +1121,7 @@ timed forms stop explicitly.
 | `0101 p rrr` (`50`–`5F`) | PUSH/POP r16 | 16 | Descending SS:SP; original-8088 PUSH SP and POP SP behavior |
 | `0111 ttt p` (`70`–`7F`) | Jcc rel8 | 16 | All sixteen conditions; fetch displacement on both paths |
 | `80`, `81` + `mm ooo rrr` | Immediate ALU r/m8 or r/m16 | 16 | All eight operations and every operand choice |
-| `82`, `83` + `mm ooo rrr` | Immediate ADD/ADC/SBB/SUB/CMP r/m | 10 | Byte for 82, sign-extended byte to word for 83. The additional hardware AND form (`83 /4`) is outside the documented count. |
+| `82`, `83` + `mm ooo rrr` | Immediate ADD/ADC/SBB/SUB/CMP r/m | 10 | Byte for 82, sign-extended byte to word for 83. The additional hardware forms AND (`83 /4`) and XOR (`83 /6`) are outside the documented count. |
 | `84`, `85` | TEST r/m,r | 2 | AND flags without a destination write |
 | `86`, `87` | XCHG r/m,r | 2 | Both widths; read both original values before writes; resolve memory once |
 | `88`–`8B` | MOV r/m,r or r,r/m | 4 | Both widths and directions; no destination read; preserve every flag |
