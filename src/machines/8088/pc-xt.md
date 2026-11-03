@@ -578,7 +578,9 @@ For **EGA**, load the 16 KiB IBM 6277356 option ROM dated 09/13/84 in the third
 socket. Mount MS-DOS 3.30 Disk 1 in **Drive A**, choose **Fresh power-on**,
 then **Run**. The adapter tests its video signals before the XT counts RAM.
 Press Enter at the date and time prompts. At `A>`, type `VER` and press Enter.
-The [EGA machine chapter](pc-xt-ega.md) describes how the card produces that display.
+To try graphics, boot the [sixteen-colour exercise](pc-xt-ega.md#try-the-colour-bars)
+or the [EGA-capable Ultima V Program disk](../../../docs/machines/pc-xt-ultima-v.md#native-ega-title-menu).
+Press Space during the Origin logo to reach the title menu.
 
 For **CGA**, choose the 8 KiB XT BIOS dated 11/08/82, the 32 KiB IBM BASIC
 C1.10 ROM, and the 8 KiB IBM MDA/CGA character ROM. Each file is checked against

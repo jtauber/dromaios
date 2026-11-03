@@ -34,7 +34,7 @@ reaches the DOS prompt and runs `VER` and `DIR`. DOS also loads
 [Ultima V from a 360 KiB disk](pc-xt-ultima-v.md#native-launch).
 The browser laboratory displays the game's four-colour CGA title menu. The
 native XT can also [resume the party and walk in Britannia](pc-xt-ultima-v.md#journey-onward).
-The [EGA configuration](../../src/machines/8088/pc-xt-ega.md) now cold-boots DOS in text mode. The reference emulator also runs the EGA version of the game.
+The [EGA configuration](../../src/machines/8088/pc-xt-ega.md) cold-boots DOS and draws the [sixteen-colour title menu](pc-xt-ultima-v.md#native-ega-title-menu).
 
 ## Selected first configuration
 
@@ -295,9 +295,10 @@ EGA menus. Use these milestones for the EGA laboratory.
 
 The [CGA play session](pc-xt-ultima-v.md#save-export-and-resume) now includes
 saving on the outdoor map and continuing from the exported Player disk after a fresh boot.
-The [EGA boot check](pc-xt-ultima-v.md#native-ega-acceptance) takes the original
-adapter ROM through POST to the DOS prompt. The next check is to issue the
-game driver’s EGA query and set mode `0Dh` through the installed INT 10h handler.
+The [EGA title menu](pc-xt-ultima-v.md#native-ega-title-menu) matches the
+reference. Next, select Journey Onward, trace the game's reads of `TILES.16`
+and `SAVED.GAM` across the disk exchange, and verify one party step in the
+sixteen-colour playfield.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

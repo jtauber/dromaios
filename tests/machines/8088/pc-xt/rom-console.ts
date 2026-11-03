@@ -1,10 +1,16 @@
 import assert from "node:assert/strict";
 import type { create8088PcXt } from "../../../../src/machines/generated/8088/pc-xt.js";
+import type { create8088PcXtEga } from "../../../../src/machines/generated/8088/pc-xt-ega.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
 
-type Machine = ReturnType<typeof create8088PcXt>;
+type Machine = ReturnType<typeof create8088PcXt | typeof create8088PcXtEga>;
 
 export function screen(machine: Machine): string[] {
+  if ("ega" in machine) {
+    if (!machine.ega.textEnabled) return [];
+    return Array.from({ length: machine.ega.rows }, (_, row) => String.fromCharCode(...Array.from(
+      { length: machine.ega.columns }, (_, col) => machine.ega.character(row, col))).trimEnd());
+  }
   // BASIC also prints character FF, the blank nonbreaking-space glyph in the CGA ROM.
   return Array.from({ length: 25 }, (_, row) => String.fromCharCode(...Array.from({ length: 80 }, (_, column) =>
     machine.video.read((row * 80 + column) * 2)).map(code => code === 0xff ? 0x20 : code)).trimEnd());

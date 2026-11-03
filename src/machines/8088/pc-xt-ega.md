@@ -162,12 +162,47 @@ cursor position. A character and attribute select glyph dots and palette
 entries. Six colour wires carry the resulting red, green and blue levels to
 the Enhanced Color Display.
 
-The model rounds each scan line to an XT oscillator tick. It covers the
-registers, plane access and raster status used by the IBM boot diagnostics
-and DOS text mode on this monitor. Graphics scanout, alternate monitors,
-light-pen capture, feature cards and vertical-retrace interrupts are outside
-this profile. The Changes panel observes conventional RAM. Memory and
-Disassembly can inspect the video aperture without loading its CPU read latches.
+## Sixteen-colour graphics
 
-The [acceptance specification](../../../docs/machines/pc-xt-ultima-v.md#native-ega-acceptance)
-identifies the firmware and separates DOS text startup from the game’s later graphics mode.
+In mode `0Dh`, each of the four planes contributes one bit to the colour of a
+dot. Take pixel (0, 0): bit 7 of byte zero in planes 0 through 3 supplies its
+four-bit palette index. The next dot uses bit 6 of the same four bytes. Forty
+bytes span a 320-dot row. The CRTC supplies the display start and row stride,
+so the CPU can draw at `A000:8000` while page zero is on screen. Reading video
+RAM fills four latches at once. A masked store can keep some of those bits and
+replace others. Reading the Memory panel leaves the latches alone.
+
+The palette entry drives six wires on the card. In 200-line mode the 5154
+monitor takes primary red, green and blue plus the secondary green wire for
+intensity. Palette value `06h` consequently appears brown. The monitor selects
+this wiring from the polarity of vertical sync. The same six wires give
+independent two-bit RGB components in 350-line mode.
+[IBM Enhanced Color Display technical reference, pages 3–6](https://minuszerodegrees.net/oa/OA%20-%20IBM%20Enhanced%20Color%20Display%20%285154%29.pdf).
+
+### Try the colour bars
+
+Build a bootable 360 KiB disk from the selected [DOS system disk](../../../docs/machines/pc-xt.md#firmware-and-media-identity):
+
+```sh
+node scripts/make-xt-ega-bars.ts "/path/to/DISK01.IMG" "/path/to/EGA-BARS.IMG"
+```
+
+In the EGA laboratory, insert this image and choose **Quick boot**.
+`BARS.COM` asks INT 10h for the adapter type and memory size, sets mode
+`0Dh`, loads a reversed palette, and selects page zero. It sets Graphics
+Controller write mode 2 and fills the screen with pixel indices 0 through 15.
+In this write mode each low-order bit of the CPU byte supplies a whole byte
+of dots to its corresponding plane. The program alternates 12-row and 13-row
+bands to cover all 200 rows. The first band appears white and the last black.
+Click the screen and press a key to return to DOS in text mode.
+
+The same BIOS calls let [Ultima V select its EGA driver and draw the title menu](../../../docs/machines/pc-xt-ultima-v.md#native-ega-title-menu).
+
+## Model limits
+
+The model rounds each scan line to an XT oscillator tick. Graphics scanout
+covers the 320×200 planar configuration programmed by the IBM ROM, with a
+single full-screen page and CRTC-controlled start and stride. Other graphics
+modes, split screens, alternate monitors, light-pen capture, feature cards
+and vertical-retrace interrupts are outside this profile. The Changes panel
+observes conventional RAM.

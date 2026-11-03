@@ -56,15 +56,29 @@ export function renderXtGraphicsFrame({ cga, video }: Pick<Display, "cga" | "vid
   return { width, height, pixels };
 }
 
-/** The Enhanced Color Display has a primary and secondary wire for each RGB component. */
-export function egaRgb(colour: number): readonly number[] {
+/** The 5154 decodes six colour pins at 350 lines. At 200 lines secondary green supplies RGBI intensity. */
+export function egaRgb(pins: number, rgbi = false): readonly number[] {
+  let colour = pins;
+  if (rgbi) {
+    const rgb = pins & 7;
+    colour = pins & 16 ? 0x38 | rgb : rgb === 6 ? 0x14 : rgb; // Low-intensity yellow appears brown.
+  }
   return [2, 1, 0].map(bit => 85 * (2 * ((colour >> bit) & 1) + ((colour >> (bit + 3)) & 1)));
 }
 
 export function renderEgaTextFrame(ega: IbmEga): XtVideoFrame {
+  return renderEgaRaster(ega, ega.textEnabled);
+}
+
+export function renderEgaGraphicsFrame(ega: IbmEga): XtVideoFrame {
+  if (!ega.graphicsSupported) throw new RangeError("EGA graphics rendering requires 320 × 200 planar mode (0Dh).");
+  return renderEgaRaster(ega, ega.videoEnabled);
+}
+
+function renderEgaRaster(ega: IbmEga, enabled: boolean): XtVideoFrame {
   const width = ega.columns * ega.cellWidth, height = ega.displayLines;
   const pixels = new Uint8Array(width * height);
-  if (ega.textEnabled) {
+  if (enabled) {
     for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) pixels[y * width + x] = ega.pixel(x, y);
   }
   return { width, height, pixels };

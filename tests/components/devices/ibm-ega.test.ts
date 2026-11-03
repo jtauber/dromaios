@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { IbmEga } from "../../../src/components/devices/ibm-ega.js";
+import { egaRgb } from "../../../src/machines/8088/pc-xt/video.js";
 
 test("EGA exposes the four monitor switches and switches the active CRTC/status ports", () => {
   const ega = new IbmEga();
@@ -53,4 +54,35 @@ test("the raster and diagnostic mux see the same glyph, palette and CRTC page", 
   ega.advanceOscillatorTicks(24); assert.equal(ega.readPort(0x3da) & 0x39, 9);
   const restored = new IbmEga(ega.snapshot());
   assert.equal(restored.readPort(0x3da), ega.readPort(0x3da));
+});
+
+test("planar scanout follows the CRTC page and stride; CPU writes use the latches and plane masks", () => {
+  const ega = new IbmEga();
+  function reg(port: number, index: number, value: number) { ega.writePort(port, index); ega.writePort(port + 1, value); }
+  ega.writePort(0x3c2, 3);
+  reg(0x3c4, 1, 1); reg(0x3c4, 4, 6); reg(0x3ce, 6, 5); reg(0x3ce, 8, 255);
+  for (const [i, v] of [[1, 39], [0x12, 199], [0x13, 20], [0x17, 0xe3], [0x18, 255]] as const) reg(0x3d4, i, v);
+  reg(0x3c0, 0x30, 1); reg(0x3c0, 0x32, 15); reg(0x3c0, 0x27, 42);
+  assert.ok(ega.graphicsSupported);
+  for (const [p, byte] of [0x55, 0x33, 0x0f, 0].entries()) {
+    reg(0x3c4, 2, 1 << p); ega.write(40, byte); // Row 1, eight pixels numbered 0 through 7.
+  }
+  const indices = (y: number) => Array.from({ length: 8 }, (_, x) => ega.graphicsIndex(x, y));
+  assert.deepEqual(indices(1), [0, 1, 2, 3, 4, 5, 6, 7]); assert.equal(ega.pixel(7, 1), 42);
+  reg(0x3c4, 2, 15); reg(0x3ce, 5, 1); ega.read(40); ega.write(0x8000, 0); // Copy the four latches.
+  assert.deepEqual(indices(0), Array(8).fill(0));
+  reg(0x3d4, 0x0c, 0x80); assert.deepEqual(indices(0), [0, 1, 2, 3, 4, 5, 6, 7]);
+  reg(0x3c0, 0x32, 3); assert.equal(ega.pixel(7, 0), ega.colour(3)); // Disable planes 2 and 3 only for display.
+  reg(0x3c4, 2, 1); reg(0x3ce, 5, 0); reg(0x3ce, 3, 0x19); reg(0x3ce, 8, 0xf0);
+  ega.read(0x8000); ega.peek(0); ega.write(0x8000, 0x81);
+  assert.equal(ega.peek(0x8000), 0x95); // Rotate 81 right once, XOR the latched 55, preserve its low nibble.
+  assert.equal(ega.peek(40), 0x55);
+});
+
+test("the 5154 uses the secondary green pin for RGBI intensity at 200 lines", () => {
+  assert.deepEqual(egaRgb(6, true), [170, 85, 0]); // Brown
+  assert.deepEqual(egaRgb(6, false), [170, 170, 0]);
+  assert.deepEqual(egaRgb(0x17, true), [255, 255, 255]);
+  assert.deepEqual(egaRgb(0x17, false), [170, 255, 170]);
+  assert.deepEqual(egaRgb(0x28, true), [0, 0, 0]); // Secondary red and blue do not drive this mode.
 });

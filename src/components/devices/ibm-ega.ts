@@ -201,7 +201,16 @@ export class IbmEga {
     }
   }
 
-  get textEnabled(): boolean { return Boolean(this.#attrIndex & 32) && !(this.#attr[0x10]! & 1) && !(this.#seq[1]! & 0x20); }
+  get videoEnabled(): boolean { return Boolean(this.#attrIndex & 32) && !(this.#seq[1]! & 0x20); }
+  get textEnabled(): boolean { return this.videoEnabled && !(this.#attr[0x10]! & 1); }
+  get rgbiOutput(): boolean { return !(this.#misc & 0x80); } // Positive vertical sync selects 5154 mode 1.
+  get graphicsSupported(): boolean {
+    // Mode 0Dh: eight serial dots from each plane, one byte address per character clock.
+    const lineCompare = this.#crt[0x18]! | ((this.#crt[7]! & 0x10) << 4);
+    return Boolean(this.#attr[0x10]! & 1) && Boolean(this.#gc[6]! & 1) && !(this.#gc[5]! & 0x20)
+      && (this.#crt[0x17]! & 0x4f) === 0x43 && this.#crt[8] === 0 && lineCompare >= 199
+      && this.columns === 40 && this.cellWidth === 8 && this.displayLines === 200 && this.cellHeight === 1;
+  }
   get columns(): number { return this.#crt[1]! + 1; }
   get cellHeight(): number { return (this.#crt[9]! & 31) + 1; }
   get cellWidth(): number { return this.#seq[1]! & 1 ? 8 : 9; }
@@ -224,8 +233,21 @@ export class IbmEga {
   colour(index: number): number { return this.#attr[index & 15]! & 63; }
   get blinkEnabled(): boolean { return Boolean(this.#attr[0x10]! & 8); }
 
+  /** The four shift registers present one dot together, most significant bit first in each byte. */
+  graphicsIndex(x: number, y: number): number {
+    const pan = this.#attr[0x13]! & 7;
+    const offset = this.#cell(y, (x + pan) >>> 3), shift = 7 - ((x + pan) & 7);
+    let index = 0;
+    for (let plane = 0; plane < 4; plane++) {
+      const bit = (this.#planes[plane * planeSize + offset]! >>> shift) & 1;
+      index |= bit << plane;
+    }
+    return index;
+  }
+
   /** Six colour pins at an active raster position, also sampled by the POST diagnostic multiplexer. */
   pixel(x: number, y: number): number {
+    if (this.#attr[0x10]! & 1) return this.colour(this.graphicsIndex(x, y) & this.#attr[0x12]!);
     const cell = this.#cell(Math.floor(y / this.cellHeight), Math.floor(x / this.cellWidth));
     const ch = this.#planes[cell]!, attr = this.#planes[planeSize + cell]!;
     const line = y % this.cellHeight, dot = x % this.cellWidth;

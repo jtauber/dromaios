@@ -1,8 +1,8 @@
 # Ultima V on the IBM PC/XT
 
 DOS can load *Ultima V: Warriors of Destiny* from a 360 KiB floppy on the
-[native XT](pc-xt.md). The game selects the CGA driver and draws its title
-and main menu in 320 × 200 graphics. With a writable Player disk, **Journey
+[native XT](pc-xt.md). On the CGA board, the game selects the four-colour driver. On the EGA board,
+it selects the sixteen-colour driver. Both draw the title menu at 320 × 200. On CGA with a writable Player disk, **Journey
 Onward** resumes the party in Iolo's hut and lets it walk onto the outdoor
 map. The pinned [dromaios-pc reference][reference] runs the same executable with EGA.
 
@@ -133,8 +133,34 @@ next missing file on that path is `FONT.OVL`.
 
 Typing `ULTIMA E` forces a different path on the same XT. The game opens
 `EGA.DRV` and issues INT 10h with AX=`000D`, `1002`, and `0500`, matching
-the reference calls. The native board has no EGA planes at `A0000` to receive
+the reference calls. The CGA board has no EGA planes at `A0000` to receive
 the driver's drawing.
+
+## Native EGA title menu
+
+Build the EGA-capable Program disk with Node 24. Supply the same Microsoft
+system disk and game directory used for the CGA disks, and a new output directory:
+
+```sh
+node scripts/make-ultima-v-disks.ts "/path/to/DISK01.IMG" "/path/to/ultima5" "./ultima-v-ega" --ega
+```
+
+`ULTIMA-EGA-PROGRAM.IMG` contains both drivers and both sets of Program
+graphics. Its SHA-256 is `96c2f57494a8e552251ac16b85ea15c043f29ca4b4deb15b3e39ac1dee923b35`.
+The builder also produces the [same Player disk](#journey-onward).
+
+1. In **Firmware**, choose **EGA**. Load the XT BIOS, BASIC and IBM EGA option ROM.
+2. Insert `ULTIMA-EGA-PROGRAM.IMG` in **Drive A**, choose **Fresh power-on**,
+   then **Run**. DOS starts `ULTIMA` without a video override.
+3. Click the screen and press Space during the Origin logo. The title menu
+   appears with **Journey Onward** highlighted.
+
+The game’s INT 10h query returned `BH=00`, `BL=03` (colour, 256 KiB).
+It opened `EGA.DRV`, set mode `0Dh`, loaded the palette and selected page
+zero. After the opening it read `ULTIMA.16`. Rows 0–59 and 128–199 of the
+menu matched both [reference hashes](#reference-launch), including the
+lettering, menu choices and copyright. The selector and flame animate
+between those strips.
 
 ## Journey Onward
 
@@ -234,16 +260,16 @@ After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ultima-v.tes
    8×14 table and runs `VER`. Set `XT_BIOS_ROM`, `XT_BASIC_ROM`, `XT_EGA_ROM`
    and `XT_DOS_DISK` to the selected images to repeat the check.
 
-2. **Set mode 0Dh through INT 10h.** From DOS, exercise the EGA information
-   query and the three traced driver calls. Check the BIOS data area's current
-   mode at `0040:0049`, the selected page, and the palette programmed by the
+2. **Set mode 0Dh through INT 10h.** The [DOS colour-bar program](../../src/machines/8088/pc-xt-ega.md#try-the-colour-bars) and the game exercise the EGA
+   information query and the three traced driver calls. The tests check the current
+   mode in the BIOS data area at `0040:0049`, the selected page, and the palette programmed by the
    option ROM. These checks exercise firmware work that the reference performs
    in host code or skips. [IBM EGA technical reference][ega].
-3. **Draw from guest memory.** Check Sequencer map masks, Graphics Controller
-   data rotation and bit masks, and preservation of unmasked bits through the
-   read latches. Exercise off-screen writes at offset `8000` independently of
-   visible page zero. Then launch with automatic detection, press Space, and
-   compare the two menu strips above. Party movement and a save followed by a
+3. **Draw from guest memory.** [Device tests](../../tests/components/devices/ibm-ega.test.ts)
+   exercise Sequencer map masks, rotation, masked writes through the read
+   latches, and off-screen storage at offset `8000`. The [native game test](../../tests/machines/8088/pc-xt/rom-ega.test.ts)
+   cold-boots with `XT_ULTIMA_EGA_PROGRAM` and the three firmware paths. It
+   checks automatic driver selection and both title-menu strips. Party movement and a save followed by a
    fresh boot belong to the [playable-session milestone](pc-xt.md#5-ultima-v-on-the-xt).
 
 [reference]: https://github.com/jtauber/dromaios-pc/tree/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54

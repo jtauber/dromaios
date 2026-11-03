@@ -5,25 +5,33 @@ import { test } from "node:test";
 import { create8088PcXtEga, romImages } from "../../../../src/machines/generated/8088/pc-xt-ega.js";
 import { RomImage } from "../../../../src/machines/rom-image.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
-import { renderEgaTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
-import { scanCodes } from "./rom-console.js";
+import { renderEgaGraphicsFrame, renderEgaTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
+import { makeXtEgaBarsDisk } from "../../../../scripts/make-xt-ega-bars.js";
+import { runInput, scanCodes, screen } from "./rom-console.js";
 
-const { XT_BIOS_ROM, XT_BASIC_ROM, XT_EGA_ROM, XT_DOS_DISK } = process.env;
+const { XT_BIOS_ROM, XT_BASIC_ROM, XT_EGA_ROM, XT_DOS_DISK, XT_ULTIMA_EGA_PROGRAM } = process.env;
 
-test("IBM EGA passes POST, installs INT 10h, and draws a DOS prompt with its uploaded font", {
-  skip: !(XT_BIOS_ROM && XT_BASIC_ROM && XT_EGA_ROM && XT_DOS_DISK) && "Set XT_BIOS_ROM, XT_BASIC_ROM, XT_EGA_ROM and XT_DOS_DISK.",
-}, async () => {
-  const digest = async (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
-  const rom = readFileSync(XT_EGA_ROM!), disk = readFileSync(XT_DOS_DISK!);
-  assert.equal(await digest(disk), "d79f283ebd2cd68e8dede44ed876da13c25024f7000bcb576177820388c424f4");
+const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+const hasFirmware = XT_BIOS_ROM && XT_BASIC_ROM && XT_EGA_ROM;
+
+async function bootEga(disk: Uint8Array, quick = false) {
+  const digest = async (bytes: Uint8Array) => sha256(bytes);
   const m = create8088PcXtEga({
     bios: await RomImage.verify(readFileSync(XT_BIOS_ROM!), romImages.bios, digest),
     basic: await RomImage.verify(readFileSync(XT_BASIC_ROM!), romImages.basic, digest),
-    option: await RomImage.verify(rom, romImages.option, digest),
+    option: await RomImage.verify(readFileSync(XT_EGA_ROM!), romImages.option, digest),
   });
+  if (quick) { m.ram.write(0x472, 0x34); m.ram.write(0x473, 0x12); }
   m.io.setDiskette(disk); m.reset();
-  const rows = () => Array.from({ length: m.ega.rows }, (_, row) => String.fromCharCode(...Array.from(
-    { length: m.ega.columns }, (_, column) => m.ega.character(row, column))).trimEnd());
+  return m;
+}
+
+test("IBM EGA passes POST, installs INT 10h, and draws a DOS prompt with its uploaded font", {
+  skip: !(hasFirmware && XT_DOS_DISK) && "Set XT_BIOS_ROM, XT_BASIC_ROM, XT_EGA_ROM and XT_DOS_DISK.",
+}, async () => {
+  const rom = readFileSync(XT_EGA_ROM!), disk = readFileSync(XT_DOS_DISK!);
+  assert.equal(sha256(disk), "d79f283ebd2cd68e8dede44ed876da13c25024f7000bcb576177820388c424f4");
+  const m = await bootEga(disk), rows = () => screen(m);
 
   // The XT calls the option ROM. Its POD14 raster/colour test takes the success exit.
   // The adapter returns to POST, which subsequently loads the DOS boot sector from A.
@@ -67,4 +75,60 @@ test("IBM EGA passes POST, installs INT 10h, and draws a DOS prompt with its upl
   }
   awaitLine("VER", "A>VER"); awaitLine("\n", "A>");
   assert.ok(rows().includes("MS-DOS Version 3.30"));
+});
+
+test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands with its own palette", {
+  skip: !(hasFirmware && XT_DOS_DISK) && "Set the XT firmware and XT_DOS_DISK.",
+}, async () => {
+  const m = await bootEga(makeXtEgaBarsDisk(readFileSync(XT_DOS_DISK!)), true);
+  // BARS.COM waits through INT 16h only after the adapter query and all 16 bands succeed.
+  runInput(m, [], { limit: 6_000_000, until: (_, { instruction, before }) => m.ega.graphicsSupported
+    && before.cs < 0xa000 && before.ah === 0 && instruction?.bytes[0] === 0xcd && instruction.bytes[1] === 0x16 });
+  assert.equal(m.ram.read(0x449), 0x0d); assert.equal(m.ram.read(0x462), 0);
+  const frame = renderEgaGraphicsFrame(m.ega);
+  assert.deepEqual([frame.width, frame.height], [320, 200]); assert.equal(m.ega.rgbiOutput, true);
+  for (let y = 0; y < 200; y++) {
+    const band = 2 * Math.floor(y / 25) + (y % 25 >= 12 ? 1 : 0);
+    const colour = 15 - band, pins = (colour & 7) | ((colour & 8) << 1);
+    assert.equal(m.ega.colour(band), pins);
+    assert.ok(frame.pixels.subarray(y * 320, (y + 1) * 320).every(pixel => pixel === pins), `Band ${band}, line ${y}`);
+  }
+  runInput(m, scanCodes(" "), { limit: 1_000_000, until: n => n % 2048 === 0 && screen(m).filter(Boolean).at(-1) === "A>" });
+  assert.equal(m.ram.read(0x449), 3);
+});
+
+test("Ultima V selects EGA.DRV automatically and draws both reference menu strips from a cold boot", {
+  skip: !(hasFirmware && XT_ULTIMA_EGA_PROGRAM) && "Set the XT firmware and XT_ULTIMA_EGA_PROGRAM.",
+}, async () => {
+  const disk = readFileSync(XT_ULTIMA_EGA_PROGRAM!);
+  assert.equal(sha256(disk), "96c2f57494a8e552251ac16b85ea15c043f29ca4b4deb15b3e39ac1dee923b35");
+  const m = await bootEga(disk);
+  const opened = new Set<string>(), calls: number[] = [];
+  runInput(m, [], { limit: 34_000_000, until: (n, { before, instruction }) => {
+    if (instruction?.bytes[0] === 0xcd) {
+      if (instruction.bytes[1] === 0x21 && before.ah === 0x3d) {
+        let name = "";
+        for (let i = 0; i < 64; i++) {
+          const byte = m.memory.read(((before.ds << 4) + ((before.dx + i) & 0xffff)) & 0xfffff);
+          if (!byte) break;
+          name += String.fromCharCode(byte);
+        }
+        opened.add(name.toUpperCase());
+      }
+      if (instruction.bytes[1] === 0x10 && opened.has("EGA.DRV") && before.cs < 0xa000
+        && [0x000d, 0x1002, 0x0500].includes(before.ax)) calls.push(before.ax);
+    }
+    return opened.has("TITLE.BIT") && n % 16384 === 0 && m.ega.graphicsSupported
+      && renderEgaGraphicsFrame(m.ega).pixels.some(pixel => pixel !== 0);
+  } });
+  assert.ok(opened.has("EGA.DRV")); assert.ok(!opened.has("CGA.DRV"));
+  assert.deepEqual(calls, [0x000d, 0x1002, 0x0500]);
+  const top = "3e6dbb8fe42ae4ba58f51c1d5c126bfb01b112032080aa5e81597a173668e324";
+  const bottom = "dec3a7d5b6cee8381ccf5b37c0edbfeca79b1264e376afd92d3e2003e85c7ebc";
+  runInput(m, scanCodes(" "), { limit: 7_000_000, until: n => {
+    if (n % 32768 || !m.ega.graphicsSupported) return false;
+    // Ultima's palette drives the RGBI pins in index order. Recover those four bits from the rendered frame.
+    const pixels = renderEgaGraphicsFrame(m.ega).pixels.map(pins => (pins & 7) | ((pins >> 1) & 8));
+    return sha256(pixels.subarray(0, 60 * 320)) === top && sha256(pixels.subarray(128 * 320)) === bottom;
+  } });
 });
