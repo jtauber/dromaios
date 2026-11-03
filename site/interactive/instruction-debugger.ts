@@ -27,8 +27,9 @@ export interface ObservedFrame {
   readonly stack: number;
   readonly stackRegister?: string;
 }
+export interface RunToOptions { readonly limit?: number; readonly when?: () => boolean }
 type Plan = { readonly kind: "step" } | { readonly kind: "over"; frame?: number }
-  | { readonly kind: "out"; readonly frame: number } | { readonly kind: "target"; readonly address: number; readonly space?: string };
+  | { readonly kind: "out"; readonly frame: number } | { readonly kind: "target"; readonly address: number; readonly space?: string; readonly when?: () => boolean };
 const sameLocation = (a: DebugLocation, b: DebugLocation) => a.address === b.address && a.space === b.space;
 const matches = (point: { readonly address: number; readonly space?: string }, location: DebugLocation) =>
   point.address === location.address && (point.space === undefined || point.space === location.space);
@@ -73,9 +74,11 @@ export function createInstructionDebugger(budget = 2_000_000) {
       if (!frame) throw new Error("No observed caller. Step into a call before using Step out.");
       start(location, { kind: "out", frame: frame.id }, true);
     },
-    runTo(location: DebugLocation, address: number, space?: string): void {
+    runTo(location: DebugLocation, address: number, space?: string, { limit = budget, when }: RunToOptions = {}): void {
       if (!Number.isSafeInteger(address) || address < 0) throw new RangeError("The target address must be a non-negative safe integer.");
-      start(location, { kind: "target", address, space });
+      if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError("The instruction limit must be positive.");
+      start(location, { kind: "target", address, space, when });
+      remaining = limit;
     },
     pause(location: DebugLocation, detail?: string): void { finish("pause", location, detail); },
     watchpoint(location: DebugLocation, detail: string): void { finish("watchpoint", location, detail); },
@@ -87,7 +90,7 @@ export function createInstructionDebugger(budget = 2_000_000) {
       const location = typeof current === "function" ? current() : current;
       const bypass = skip !== undefined && sameLocation(skip, location); skip = undefined;
       if (!bypass && breakpoints.some(point => point.enabled && matches(point, location))) finish("breakpoint", location);
-      else if (plan?.kind === "target" && matches(plan, location)) finish("target", location);
+      else if (plan?.kind === "target" && matches(plan, location) && (plan.when?.() ?? true)) finish("target", location);
       else if (completed && plan) finish(plan.kind, location);
       else if (plan && remaining === 0) finish("limit", location);
       return stop !== undefined;

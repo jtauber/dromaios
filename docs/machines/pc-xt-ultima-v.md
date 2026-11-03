@@ -187,6 +187,11 @@ the disk split. The local installation supplies the game files. Origin's
 
 ### Disk exchange in the laboratory
 
+The **Walkthrough** tab in both XT laboratories offers **Ultima V · Journey
+Onward**. Select a named checkpoint and choose **Run to checkpoint**. The
+guide checks the guest registers and RAM before it stops. To follow the
+same events by hand in the Debugger, use the addresses below.
+
 1. Insert `ULTIMA-EGA-PROGRAM.IMG` in the EGA laboratory or `ULTIMA-PROGRAM.IMG`
    in the CGA laboratory. Choose **Quick boot**, press Space during the Origin
    logo, and pause at the title menu with **Journey Onward** highlighted.
@@ -268,6 +273,59 @@ record at `1BD3:55A6` can be compared byte for byte with `SAVED.GAM` in
 the exported image. Run to the keyboard poll at `0C6F:1D6C` for the
 finished map. One Left keypress moves the forest tile at screen (56,72)
 to (72,72) as the party walks west.
+
+<details>
+<summary>Executable laboratory walkthrough</summary>
+
+The laboratory reads these checkpoints directly. Party triples give the
+location, X and Y bytes in the loaded party record, in decimal.
+
+```json
+{
+  "id": "ultima-v",
+  "title": "Ultima V · Journey Onward",
+  "setup": "In Drive A, insert ULTIMA-EGA-PROGRAM.IMG on EGA or ULTIMA-PROGRAM.IMG on CGA. Have Elwood’s ULTIMA-PLAYER.IMG ready. Choose Quick boot, press Space at the Origin logo, then pause at the title menu with Journey Onward highlighted. At each stop, read Before running and choose Run to checkpoint.",
+  "steps": [
+    {
+      "title": "Exchange the Program disk",
+      "execution": "0C6F:7249",
+      "prepare": "With the Program disk still mounted and Journey Onward highlighted, click the paused screen and press Enter once. Run to this checkpoint. Leave the Program disk in place while the game reads its tiles, even after the playfield appears.",
+      "observe": "DOS tried to open SAVED.GAM on the Program disk. Carry is set, AX is 0002 (file not found), and DS:DX points to the filename. This is the moment to exchange disks.",
+      "expect": { "missingFile": "SAVED.GAM" }
+    },
+    {
+      "title": "Meet the party in Iolo’s hut",
+      "execution": "0C6F:1D6C",
+      "prepare": "In Drive A choose Insert writable copy… and select the original Elwood Player disk. Run to this checkpoint while the game retries its open, reads the party and draws the hut.",
+      "observe": "Elwood, Shamino and Iolo are on screen. The game is polling the keyboard. Inspect party bytes to see location 0D (Iolo’s hut) at $215C3 and X and Y at $215C6–215C7. Both coordinates are 0F (15).",
+      "expect": { "party": [13, 15, 15] }
+    },
+    {
+      "title": "Take one step south",
+      "execution": "0C6F:89EE",
+      "prepare": "From the hut at (15,15), click the paused screen, press Down once, then run to this checkpoint.",
+      "observe": "The command area says South. The instruction at 0C6F:89EA just increased Y from 0F to 10 (16), while X stayed 0F. Inspect the party bytes, then choose Run in Execution to see the room scroll up one tile.",
+      "expect": { "party": [13, 15, 16] }
+    },
+    {
+      "title": "Read the exported Player disk",
+      "execution": "0C6F:7276",
+      "prepare": "Walk south to (15,18). Press O then Down to open the door. Walk to (15,31), press Down and answer Y to leave. Go Right to (46,62), press Q and confirm with Y. After Done and Motor off, export the disk. Pause, insert the Program disk, choose Fresh power-on and Run. Repeat checkpoint 1 at the title menu. At the exchange, insert a writable copy of the exported Player disk and run to this checkpoint.",
+      "observe": "DOS has read 4,192 bytes of SAVED.GAM into 1BD3:55A6. Carry is clear and AX is 1060. The record in memory already contains the outdoor location 00 and coordinates 2E, 3E (46,62), before the game redraws the map.",
+      "expect": { "partyRead": true, "party": [0, 46, 62] }
+    },
+    {
+      "title": "Resume in Britannia",
+      "execution": "0C6F:1D6C",
+      "prepare": "From the DOS read on the fresh XT, run to this checkpoint without pressing a key.",
+      "observe": "The outdoor map is drawn and the game is waiting for input at (46,62). Click the screen, press Left once, then choose Run in Execution. The party moves west to (45,62).",
+      "expect": { "party": [0, 46, 62] }
+    }
+  ]
+}
+```
+
+</details>
 
 The [CGA](../../tests/machines/8088/pc-xt/rom-ultima-v.test.ts) and
 [EGA](../../tests/machines/8088/pc-xt/rom-ega.test.ts) cold-boot tests run

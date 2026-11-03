@@ -24,8 +24,10 @@ import { createXtDebuggerView } from "./xt-debugger-view.js";
 import { previewXtInstruction } from "./xt-instruction-preview.js";
 import { createXtInstructionView } from "./xt-instruction-view.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
-import type { RomGuide } from "./rom-guide.js";
+import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
 import { createXtRomAnnotations, xtCheckpointPosition } from "./xt-rom-guide.js";
+import { matchesUltimaObservation, ultimaPartyLocation } from "./xt-ultima-v.js";
+import type { XtCheckpoint } from "./xt-ultima-v.js";
 import { createXtChangeLog, createXtWatchHistory, xtHistoryAssembly, xtStorageLabel } from "./xt-history.js";
 import { createChangeLogView } from "./change-log-view.js";
 import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
@@ -48,6 +50,7 @@ function mount(root: HTMLElement): void {
   const memoryPanel = root.querySelector<HTMLElement>('[data-workspace-panel="memory"]')!;
   const catalogue: XtCatalogue = JSON.parse(at("xt-catalogue").textContent!);
   const guide: RomGuide = JSON.parse(at("xt-rom-guide").textContent!);
+  const ultima: RomWalkthrough = JSON.parse(at("ultima-walkthrough").textContent!);
   const annotations = createXtRomAnnotations(guide);
   const showRegisters = createXtRegisterView(registers);
   const showCode = createXtCodeView(code, catalogue, annotations, () => refresh("code"));
@@ -97,12 +100,22 @@ function mount(root: HTMLElement): void {
     watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
   });
   function browseMemory(address: number): void { memory.browse(address); workspace.show("memory"); }
-  function runTo(text: string): void {
-    if (!session.ready || loading || execution.running || execution.error) return;
-    debug.runTo(parseXtDebugAddress(text)); message.textContent = ""; execution.run();
+  function guestCondition({ expect }: XtCheckpoint) {
+    return expect && (() => matchesUltimaObservation(expect, session.machine.cpu.snapshot(), session.machine.ram));
   }
-  const walkthrough = createRomWalkthrough(root, guide, {
-    runTo: text => act(() => runTo(text)), browse: browseMemory, position: xtCheckpointPosition,
+  function runTo(text: string, step?: XtCheckpoint): void {
+    if (!session.ready || loading || execution.running || execution.error) return;
+    const when = step && guestCondition(step);
+    // Loading the EGA tiles alone exceeds the ordinary two-million-boundary limit.
+    debug.runTo(parseXtDebugAddress(text), when ? { limit: 10_000_000, when } : undefined);
+    message.textContent = ""; execution.run();
+  }
+  const walkthrough = createRomWalkthrough(root, { routines: guide.routines, walkthroughs: [...guide.walkthroughs, ultima] }, {
+    runTo: (text, step) => act(() => runTo(text, step)),
+    browse: (address, step) => { showCode.browse({ address, space: "CS:IP " + step.execution }); workspace.show("code"); },
+    inspect: ({ expect }: XtCheckpoint) => expect && "party" in expect
+      ? { label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) } : undefined,
+    position: (step, location, available, running) => xtCheckpointPosition(step, location, available, running, guestCondition(step)),
     reference: address => {
       const entry = annotations.reference.at(address)!;
       at("walkthrough-reference-text").textContent = `${entry.name} · ${entry.description}`;

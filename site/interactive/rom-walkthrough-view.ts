@@ -1,12 +1,13 @@
 import type { DebugLocation } from "./instruction-debugger.js";
-import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
+import type { RomCheckpoint, RomGuide, RomWalkthrough } from "./rom-guide.js";
 import { romCheckpointPosition } from "./rom-guide.js";
 
 /** Reading and selecting checkpoints is independent of execution; only Run requests the existing debugger. */
 export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "routines" | "walkthroughs">, actions: {
-  readonly runTo: (address: string) => void;
-  readonly browse: (address: number) => void;
+  readonly runTo: (address: string, checkpoint: RomCheckpoint) => void;
+  readonly browse: (address: number, checkpoint: RomCheckpoint) => void;
   readonly reference: (address: number) => void;
+  readonly inspect?: (step: RomCheckpoint) => { readonly label: string; readonly show: () => void } | undefined;
   readonly available?: (tour: RomWalkthrough) => boolean;
   readonly position?: typeof romCheckpointPosition;
 }) {
@@ -16,6 +17,8 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   const choice = element<HTMLSelectElement>("choice"), checkpoints = element<HTMLSelectElement>("checkpoints");
   const previous = element<HTMLButtonElement>("previous"), next = element<HTMLButtonElement>("next"), run = element<HTMLButtonElement>("run");
   const position = element("position");
+  const reference = element<HTMLButtonElement>("reference"), referenceLabel = reference.textContent;
+  const referenceText = panel.querySelector<HTMLElement>("[data-walkthrough-reference-text]");
   let available = false, running = false, location: DebugLocation | undefined;
   const selected = () => guide.walkthroughs[choice.selectedIndex]!;
   const checkpoint = () => selected().steps[checkpoints.selectedIndex]!;
@@ -29,6 +32,14 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   }
   function showCheckpoint(): void {
     const step = checkpoint();
+    const inspection = actions.inspect?.(step);
+    reference.hidden = !step.routine && !inspection;
+    reference.textContent = inspection?.label ?? referenceLabel;
+    reference.onclick = inspection?.show ?? (() => {
+      const routine = guide.routines.find(routine => routine.name === step.routine);
+      if (routine) actions.reference(parseInt(routine.address, 16));
+    });
+    if (referenceText) referenceText.textContent = "";
     element("heading").textContent = `${checkpoints.selectedIndex + 1}. ${step.title} · ${step.execution ?? "$" + step.address}`;
     element("prepare").textContent = step.prepare; element("observe").textContent = step.observe;
     previous.disabled = checkpoints.selectedIndex === 0; next.disabled = checkpoints.selectedIndex === selected().steps.length - 1;
@@ -43,11 +54,12 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   choice.addEventListener("change", showTour); checkpoints.addEventListener("change", showCheckpoint);
   previous.addEventListener("click", () => { checkpoints.selectedIndex--; showCheckpoint(); });
   next.addEventListener("click", () => { checkpoints.selectedIndex++; showCheckpoint(); });
-  run.addEventListener("click", () => { if (!run.disabled) actions.runTo(checkpoint().execution ?? checkpoint().address); });
-  element<HTMLButtonElement>("browse").addEventListener("click", () => actions.browse(parseInt(checkpoint().address, 16)));
-  element<HTMLButtonElement>("reference").addEventListener("click", () => {
-    const routine = guide.routines.find(routine => routine.name === checkpoint().routine)!;
-    actions.reference(parseInt(routine.address, 16));
+  run.addEventListener("click", () => {
+    const step = checkpoint();
+    if (!run.disabled) actions.runTo(step.execution ?? step.address, step);
+  });
+  element<HTMLButtonElement>("browse").addEventListener("click", () => {
+    const step = checkpoint(); actions.browse(parseInt(step.address, 16), step);
   });
   showTour();
   return {

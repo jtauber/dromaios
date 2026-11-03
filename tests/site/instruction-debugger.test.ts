@@ -30,6 +30,15 @@ function program(parts: Readonly<Record<number, readonly number[]>>, budget = 10
 }
 const nested = { 0x200: [0x20, 0, 3, 0xea], 0x300: [0x20, 0, 4, 0x60], 0x400: [0xe8, 0x60] };
 
+test("a qualified target waits for a matching visit and its longer limit applies to just that run", () => {
+  const p = program({ 0x200: [0xe8, 0x4c, 0, 2] }, 1); // INX, JMP $0200
+  let visits = 0;
+  p.debug.runTo(p.location(), 0x200, "ram", { limit: 4, when: () => { visits++; return p.cpu.snapshot().x === 4; } });
+  assert.equal(p.run(), 4); assert.equal(visits, 3); assert.equal(p.debug.stop?.kind, "target");
+  p.debug.runTo(p.location(), 0x300);
+  assert.equal(p.run(), 1); assert.equal(p.debug.stop?.kind, "limit");
+});
+
 test("the chapter identifies only the four stacked control transfers, independently of their names", () => {
   assert.deepEqual(Object.entries(catalogue).filter(([, info]) => info?.stackFlow).map(([opcode, info]) => [+opcode, info?.stackFlow]),
     [[0, "interrupt"], [32, "call"], [64, "interrupt-return"], [96, "return"]]);

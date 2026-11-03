@@ -16,7 +16,7 @@ export interface RomCheckpoint {
   readonly address: string;
   readonly prepare: string;
   readonly observe: string;
-  readonly routine: string;
+  readonly routine?: string;
   /** Optional machine notation for an exact execution location, separate from its storage address. */
   readonly execution?: string;
 }

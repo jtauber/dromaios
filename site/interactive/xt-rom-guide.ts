@@ -23,11 +23,14 @@ export function createXtRomAnnotations(guide: RomGuide) {
   };
 }
 
-export function xtCheckpointPosition(checkpoint: RomCheckpoint, location: DebugLocation | undefined, available: boolean, running: boolean): string {
+export function xtCheckpointPosition(checkpoint: RomCheckpoint, location: DebugLocation | undefined, available: boolean, running: boolean,
+  matchesState?: () => boolean): string {
   if (!available || !location) return "Execution unavailable. See the Firmware and Execution panels.";
   const target = parseXtDebugAddress(checkpoint.execution ?? checkpoint.address), description = formatXtDebugAddress(target);
   if (running) return `Running · selected checkpoint ${description}.`;
-  return location.address === target.address && location.space === target.space
-    ? `At checkpoint ${description}. Compare the observations below.`
-    : `Paused at ${formatXtDebugAddress(location)} · checkpoint ${description}.`;
+  if (location.address === target.address && location.space === target.space) {
+    if (matchesState && !matchesState()) return `Paused at ${description}, but the guest state does not yet match this checkpoint.`;
+    return `At checkpoint ${description}. Compare the observations below.`;
+  }
+  return `Paused at ${formatXtDebugAddress(location)} · checkpoint ${description}.`;
 }

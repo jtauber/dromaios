@@ -263,8 +263,8 @@ walkthrough. Hardware timing, extended semigraphics, and additional media
 remain separate fidelity milestones. Shared debugger tools now serve both
 Apple II and CoCo.
 
-The next historical machine is the **IBM PC/XT**, using **dromaios-pc** as the
-primary reference and the existing generated 8088. Its
+The **IBM PC/XT** runs the generated 8088 and uses **dromaios-pc** as its
+primary reference. Its
 [reference audit and acceptance specification](docs/machines/pc-xt.md) select
 original XT firmware reaching ROM BASIC with CGA text, then DOS through a native
 360 KiB floppy-controller/DMA path. The reference's host BIOS services establish
@@ -278,14 +278,18 @@ and runs `VER` and `DIR`. After a [disk exchange](src/machines/8088/pc-xt.md#cha
 DOS can display a text file and run a COM program. The laboratory's drive A
 accepts local disks and includes the mounted disk in its checkpoints. DOS can
 [create a file on a writable copy and read it after exporting the image and booting afresh](src/machines/8088/pc-xt.md#saving-a-dos-file-across-a-fresh-boot).
-The software goal beyond DOS is a [playable Ultima V session](docs/machines/pc-xt.md#5-ultima-v-on-the-xt)
-with EGA graphics, keyboard control, and a game save that survives a fresh boot.
+The XT has reached its [playable Ultima V milestone](docs/machines/pc-xt-ultima-v.md#journey-onward)
+on CGA and EGA. Journey Onward loads the party from the Player disk, lets
+the player leave Iolo’s hut for Britannia, and resumes a saved game after a
+fresh boot. The laboratory walkthrough connects the disk exchange, a step
+south and the reloaded party to the DOS calls and RAM bytes behind them.
 Introduce further abstractions through concrete requirements.
 
 The [Apple II Plus](docs/machines/apple2.md) already has ROM BASIC, graphics,
-Language Card banking, read-only DOS 3.3, and a laboratory. Further DOS exploration,
-writable disks, and sound remain planned while the immediate effort broadens
-the machine lineup. New hardware behavior should be authored in executable
+Language Card banking, read-only DOS 3.3, and a laboratory. Its next storage
+milestone is to write a file under DOS 3.3, export the disk and read the file
+after a fresh boot. Further DOS exploration and sound remain planned.
+New hardware behavior should be authored in executable
 machine and device chapters where the existing language expresses it clearly.
 
 "Fully working" is measured against that selected configuration and software:

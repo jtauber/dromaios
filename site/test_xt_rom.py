@@ -7,7 +7,7 @@ import re
 import subprocess
 import unittest
 
-from xt_rom import xt_annotations
+from xt_rom import ultima_walkthrough, xt_annotations
 
 
 class XtRomTests(unittest.TestCase):
@@ -18,6 +18,17 @@ class XtRomTests(unittest.TestCase):
                                                  check=True, capture_output=True, text=True).stdout)
         cls.source = (root / "src/machines/8088/pc-xt.md").read_text()
         cls.record = json.loads(re.search(r"```json\n(.*?)\n```", cls.source, re.S)[1])
+        cls.ultima = (root / "docs/machines/pc-xt-ultima-v.md").read_text()
+
+    def test_software_checkpoints_browse_ram_and_share_the_keyboard_poll(self):
+        steps = ultima_walkthrough(self.ultima)["steps"]
+        self.assertEqual([s["address"] for s in steps], ["13939", "0E45C", "150DE", "13966", "0E45C"])
+        self.assertNotEqual(steps[1]["expect"], steps[-1]["expect"])
+        self.assertTrue(all("routine" not in s for s in steps))
+        for source in [self.ultima.replace("0C6F:7249", "C6F:7249"), self.ultima.replace('"partyRead": true', '"partyRead": false'),
+                       self.ultima.replace('[13, 15, 15]', '[13, 15]')]:
+            with self.assertRaises(ValueError):
+                ultima_walkthrough(source)
 
     def test_chapter_owns_nine_exact_execution_stops_and_physical_annotations(self):
         self.assertEqual(xt_annotations(self.source, self.catalogue), self.record)

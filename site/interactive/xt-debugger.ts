@@ -3,7 +3,7 @@ import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-c
 import type { stepTimedXtCpu } from "../../src/machines/8088/pc-xt/interrupts.js";
 import { logical8088, physical8088, xtHex as hex } from "./8088-disassembly.js";
 import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instruction-debugger.js";
-import type { DebugLocation, InstructionBreakpoint } from "./instruction-debugger.js";
+import type { DebugLocation, InstructionBreakpoint, RunToOptions } from "./instruction-debugger.js";
 import { parseMemoryAddress } from "./memory-window.js";
 import { createRamWriteCapture } from "./ram-write-capture.js";
 import { parseXtAddress } from "./xt-inspection.js";
@@ -73,9 +73,9 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
     },
     run(): void { hit = undefined; policy.run(location()); },
     step(): void { hit = undefined; policy.step(location()); policy.beforeStep(location()); },
-    runTo(target: Target): void {
+    runTo(target: Target, options?: RunToOptions): void {
       const point = validate([{ ...target, enabled: true }], 0xfffff, true)[0]!;
-      hit = undefined; policy.runTo(location(), point.address, point.space);
+      hit = undefined; policy.runTo(location(), point.address, point.space, options);
     },
     pause(detail?: string): void { policy.pause(location(), detail); },
     beforeStep(): boolean { return policy.beforeStep(location); },
