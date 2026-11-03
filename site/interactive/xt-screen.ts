@@ -1,4 +1,4 @@
-import { cgaColours, renderXtTextFrame } from "../../src/machines/8088/pc-xt/video.js";
+import { cgaColours, renderXtGraphicsFrame, renderXtTextFrame } from "../../src/machines/8088/pc-xt/video.js";
 import type { XtMachine } from "./xt-session.js";
 
 const palette = cgaColours.map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)));
@@ -10,13 +10,14 @@ export function createXtScreen(canvas: HTMLCanvasElement, text: HTMLElement, not
   let image: ImageData | undefined;
   return (machine: XtMachine, ready: boolean) => {
     const { cga, video } = machine;
+    const textMode = cga.textSupported();
     const message = !ready ? "Load the three ROMs in the Firmware panel."
       : !cga.videoEnabled() ? "Waiting for the BIOS to enable CGA video."
-      : !cga.textSupported() ? "Waiting for a supported CGA text mode." : "";
+      : !textMode && !cga.graphicsSupported() ? "Waiting for CGA text or 320 × 200 four-colour graphics." : "";
     notice.textContent = message; notice.hidden = !message;
     canvas.hidden = Boolean(message);
     if (message) { text.textContent = ""; return; }
-    const frame = renderXtTextFrame(machine);
+    const frame = textMode ? renderXtTextFrame(machine) : renderXtGraphicsFrame(machine);
     if (!image || canvas.width !== frame.width) {
       canvas.width = frame.width; canvas.height = frame.height;
       image = context.createImageData(frame.width, frame.height); image.data.fill(255);
@@ -26,6 +27,11 @@ export function createXtScreen(canvas: HTMLCanvasElement, text: HTMLElement, not
       image.data[offset] = colour[0]!; image.data[offset + 1] = colour[1]!; image.data[offset + 2] = colour[2]!;
     }
     context.putImageData(image, 0, 0);
+    if (!textMode) {
+      const description = "320 × 200 four-colour CGA graphics.";
+      if (text.textContent !== description) text.textContent = description;
+      return;
+    }
     const rows: string[] = [];
     for (let row = 0; row < 25; row++) {
       let line = "";

@@ -422,8 +422,8 @@ freed the cluster.
 The [CGA device chapter](../../components/devices/specifications/ibm-cga.md)
 owns the 6845 register masks, scan/status signals, display-start latch, cursor,
 and attribute/blink rules. This board selects 40/80-column, 25-row RGBI text
-with eight-line characters. Graphics, composite colour, and the CRTC's internal
-cursor-blink modes are outside this first profile.
+with eight-line characters. The same adapter also displays
+[four-colour graphics](#cga-four-colour-graphics).
 
 `stepTimedXtCpu()` advances CGA and the system board from the same oscillator:
 DMA grants advance both before CPU accesses, and instruction/interrupt
@@ -469,6 +469,15 @@ that later POST or disk boot has completed. It adds no host BIOS services or
 firmware patches. The same suite saves a scroll during a `REP MOVSW` element
 sequence and requires restored execution to reproduce RAM, CPU, device state,
 clock phase, and pixels. `XT_CGA_ROM` enables the original-font pixel checks.
+
+## CGA four-colour graphics
+
+When the BIOS selects mode `04h`, the Screen panel switches to a 320 × 200
+bitmap. The [graphics renderer](pc-xt/video.ts) reads the packed pixels from
+video RAM and maps them to RGBI using the adapter's current palette. The
+character ROM is used only for text. The original-ROM tests set mode `04h`
+with `INT 10h`, change the palette, write pixels on odd and even lines, read
+one back, and return to 80-column text.
 
 ## Acceptance boundary
 
@@ -574,6 +583,9 @@ determines what boots.
   [MS-DOS 3.30 system disk](#cold-booting-ms-dos-330). Its filename appears in
   the panel. Choose **Fresh power-on**, then **Run**. Click the screen and press
   Enter at each date and time prompt. At `A>`, try `VER` and `DIR`.
+- **Ultima V.** Insert the [bootable `ULTIMA-BOOT.IMG`](../../../docs/machines/pc-xt-ultima-v.md#media)
+  and choose **Quick boot**. Press Space while the Origin Systems logo is
+  visible. The game draws its four-colour title menu with **Journey Onward** selected.
 
 The first part of POST runs with video disabled. The address and emulated
 seconds in **Execution** show the board advancing. **Step** advances one timed

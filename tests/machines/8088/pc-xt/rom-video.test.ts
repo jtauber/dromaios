@@ -5,7 +5,7 @@ import { before, test } from "node:test";
 import { create8088PcXt, romImages } from "../../../../src/machines/generated/8088/pc-xt.js";
 import { RomImage } from "../../../../src/machines/rom-image.js";
 import { advanceXtOscillatorTicks, stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
-import { renderXtTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
+import { renderXtGraphicsFrame, renderXtTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
 
 type Machine = ReturnType<typeof create8088PcXt>;
 type StepRecord = ReturnType<typeof stepTimedXtCpu>["record"];
@@ -120,6 +120,20 @@ test("original BIOS modes 0–3 initialize text and scroll when teletype wraps a
     }
     if (machine.font.loaded) assert.equal(renderXtTextFrame(machine).width, columns * 8);
   }
+});
+
+test("original BIOS mode 04h palette and pixel services reach the RGBI graphics frame", optional, () => {
+  const { machine, end } = fixture([
+    { ax: 0x0004 }, { ax: 0x0b00, bx: 0x0014 }, { ax: 0x0b00, bx: 0x0101 },
+    { ax: 0x0c02, cx: 3, dx: 1 }, { ax: 0x0c03, cx: 4, dx: 2 },
+    { ax: 0x0d00, cx: 3, dx: 1 }, { ax: 0x0003 },
+  ]);
+  run(machine, end - 14);
+  assert.equal(machine.ram.read(0x449), 4); assert.equal(machine.cpu.snapshot().al, 2);
+  assert.equal(machine.video.read(0x2000), 2); assert.equal(machine.video.read(81), 0xc0);
+  const { pixels } = renderXtGraphicsFrame(machine);
+  assert.equal(pixels[0], 4); assert.equal(pixels[323], 13); assert.equal(pixels[644], 15);
+  run(machine, end); assert.ok(machine.cga.textSupported()); assert.equal(machine.cga.graphicsSupported(), false);
 });
 
 test("original BIOS window scrolls preserve borders, apply fill attributes, and leave the cursor still", optional, () => {

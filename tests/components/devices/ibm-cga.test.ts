@@ -95,3 +95,26 @@ test("CGA arbitrary batches and snapshots preserve scan, blink, and divider phas
   assert.throws(() => actual.advanceOscillatorTicks(256), RangeError);
   actual.reset(); assert.deepEqual(actual.snapshot(), new IbmCga().snapshot());
 });
+
+test("CGA mode 04h follows the CRTC geometry and the colour-select register", () => {
+  const cga = configured(40);
+  register(cga, 6, 100); register(cga, 9, 1);
+  cga.write(8, 0x2a);
+  assert.ok(cga.graphicsSupported()); assert.equal(cga.textSupported(), false);
+  for (const [bits, colours] of [[0x00, [2, 4, 6]], [0x10, [10, 12, 14]],
+    [0x20, [3, 5, 7]], [0x30, [11, 13, 15]]] as const) {
+    for (let background = 0; background < 16; background++) {
+      cga.write(9, bits | background);
+      assert.deepEqual([0, 1, 2, 3].map(i => cga.graphicsColour(i)), [background, ...colours]);
+    }
+  }
+  for (const mode of [0x28, 0x2b, 0x2e, 0x1a]) {
+    cga.write(8, mode); assert.equal(cga.graphicsSupported(), false);
+  }
+  cga.write(8, 0x02); // Video enable and the text blink bit do not select the pixel format.
+  const crtc = cga.snapshot().crtc;
+  for (const [index, value] of [[1, 80], [6, 25], [8, 1], [9, 7]] as const) {
+    register(cga, index, value); assert.equal(cga.graphicsSupported(), false);
+    register(cga, index, crtc[index]); assert.ok(cga.graphicsSupported());
+  }
+});

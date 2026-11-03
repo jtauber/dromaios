@@ -23,8 +23,8 @@ procedures in the [XT laboratory](../../src/machines/8088/pc-xt.md#using-the-lab
 - **Start automatically with `ULTIMA-BOOT.IMG`.** In **Drive A**, choose
   **Insert…**, select this image, then choose **Quick boot** under **Execution**.
   DOS displays `Starting Ultima V...` and runs the game from `AUTOEXEC.BAT`.
-  The [native launch](#native-launch) traces the opening in video RAM. The
-  laboratory screen currently displays CGA text modes only.
+  Press Space during the Origin Systems logo to see the four-colour title
+  menu in the Screen panel. The [native launch](#native-launch) traces the opening.
 - **Start from DOS with `ULTIMA-LAUNCH.IMG`.** Boot the
   [Microsoft MS-DOS 3.30 system disk](pc-xt.md#firmware-and-media-identity)
   first. At `A>`, wait for the motor to stop, insert `ULTIMA-LAUNCH.IMG`,
@@ -109,12 +109,14 @@ all word registers and memory destinations.
 | First visible pixels | At `9E03:10BD`, STOSW writes `55h` at physical `BABB6`. The opening draws the Origin Systems logo followed by the animated “a Lord British production” signature. |
 | Title menu | Press Space during the Origin logo to skip the opening. The game loads `ULTIMA.4` and draws **Ultima V: Warriors of Destiny** with **Journey Onward** highlighted. |
 
-To check the CGA picture independently of the laboratory's text renderer,
+To check the CGA picture independently of the laboratory's graphics renderer,
 read row `y` at `B8000 + (y % 2) × 2000h + floor(y / 2) × 80` (80 bytes
 per row). Each byte holds four two-bit pixel indices, most significant pair first. For
 this menu the display starts at offset zero and port `3D9` holds `20h`,
 selecting black, cyan, magenta, and light grey. Hash one byte per pixel
 before palette lookup. Both strips matched across cold boot and Quick boot.
+Mapping the browser canvas's RGB colours back to these four indices reproduced
+both hashes, including after saving and restoring the laboratory checkpoint.
 
 | CGA menu rows, inclusive | SHA-256 of pixel indices |
 | --- | --- |

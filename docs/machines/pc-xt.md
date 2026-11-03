@@ -32,21 +32,20 @@ that session in the browser or boots from a local 360 KiB disk in drive A. The
 [native cold-boot test](../../src/machines/8088/pc-xt.md#cold-booting-ms-dos-330)
 reaches the DOS prompt and runs `VER` and `DIR`. DOS also loads
 [Ultima V from a 360 KiB disk](pc-xt-ultima-v.md#native-launch).
-The game draws its CGA title menu in native video RAM and its EGA menu on
-the reference emulator. The browser laboratory currently renders CGA text.
+The browser laboratory displays the game's four-colour CGA title menu. The
+reference emulator runs the EGA version.
 
 ## Selected first configuration
 
 Target an **IBM 5160 PC/XT**, with the original **11/08/82 BIOS**, IBM ROM BASIC
 **C1.10**, an 8088 at the nominal **4.77 MHz** clock, **640 KiB RAM** (256 KiB on
-the system board and 384 KiB expansion), an **83-key XT keyboard**, and **CGA
-text output**. Select 80-column colour display and one floppy drive in the
+the system board and 384 KiB expansion), an **83-key XT keyboard**, and **CGA**.
+Select 80-column colour display and one floppy drive in the
 equipment switches. The disk milestone uses a **360 KiB drive**, with 40
 cylinders, two heads, nine 512-byte sectors per track, and the XT diskette adapter.
 
-CGA text is a bounded first display target. The reference's EGA implementation
-remains useful for a later EGA configuration and software-parity work; selecting
-CGA does not imply EGA is implemented or that all CGA graphics modes work.
+CGA supports 40/80-column text and BIOS graphics mode `04h`. The reference's
+EGA implementation provides a comparison for a later adapter configuration.
 No hard disk, 8087, AT keyboard controller, mouse, or later x86 extensions are
 part of this first profile. Speaker control and timer state must be observable;
 audible output can follow separately.
@@ -147,7 +146,7 @@ image binding. The [ROM layout notes][rom-layout] distinguish the selected
 arrangement from later 64 KiB XT firmware.
 
 The [CGA chapter](../../src/components/devices/specifications/ibm-cga.md) describes
-the selected font bank and supported text profile. The native DOS session uses
+the selected font bank and the RGBI text and graphics profiles. The native DOS session uses
 the original geometry of the Microsoft disk. The reference's NEC disk and
 `ultima5.img` are both 1,474,560 bytes. The
 [Ultima V media inventory](pc-xt-ultima-v.md#media) identifies the executable
@@ -293,8 +292,8 @@ EGA menus. Use these milestones for the EGA laboratory.
 
 ## Next implementation slice
 
-Render CGA mode `04h` in the XT laboratory. Check its scan-line addressing
-and palette against the [native Ultima V menu](pc-xt-ultima-v.md#native-launch).
+Trace the files Ultima V requests after the [title menu](pc-xt-ultima-v.md#native-launch)
+and assemble the local media needed to enter Britannia.
 The first EGA milestone is for the XT BIOS to call the adapter ROM and for
 that ROM to install INT 10h.
 

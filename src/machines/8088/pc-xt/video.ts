@@ -8,12 +8,14 @@ export const cgaColours: readonly string[] = Object.freeze([
   "#555555", "#5555FF", "#55FF55", "#55FFFF", "#FF5555", "#FF55FF", "#FFFF55", "#FFFFFF",
 ]);
 
-export interface XtTextFrame {
+export interface XtVideoFrame {
   readonly width: number;
   readonly height: number;
-  /** Detached RGBI colour indices, row-major; 40-column pixels may be doubled by the presentation. */
+  /** Detached RGBI colour indices in scan-line order. */
   readonly pixels: Uint8Array;
 }
+
+export type XtTextFrame = XtVideoFrame;
 
 /** Reconstruct the active text image from physical storage and pure device views. */
 export function renderXtTextFrame({ cga, video, font }: Display): XtTextFrame {
@@ -32,6 +34,22 @@ export function renderXtTextFrame({ cga, video, font }: Display): XtTextFrame {
       const dots = cga.cursorVisible(address, line) ? 0xff : visible ? glyph : 0;
       const start = (row * 8 + line) * width + column * 8;
       for (let x = 0; x < 8; x++) pixels[start + x] = dots & (0x80 >>> x) ? foreground : background;
+    }
+  }
+  return { width, height, pixels };
+}
+
+/** Read the four packed pixels in each byte of the CGA's interleaved scan lines. */
+export function renderXtGraphicsFrame({ cga, video }: Pick<Display, "cga" | "video">): XtVideoFrame {
+  if (!cga.graphicsSupported()) throw new RangeError("CGA graphics rendering requires 320 × 200 four-colour mode (04h).");
+  const width = 320, height = 200, pixels = new Uint8Array(width * height);
+  if (!cga.videoEnabled()) return { width, height, pixels };
+  const colours = [0, 1, 2, 3].map(index => cga.graphicsColour(index));
+  let pixel = 0;
+  for (let line = 0; line < height; line++) {
+    for (let column = 0; column < width / 4; column++) {
+      const byte = video.read(cga.graphicsAddress(line, column));
+      for (let shift = 6; shift >= 0; shift -= 2) pixels[pixel++] = colours[(byte >> shift) & 3]!;
     }
   }
   return { width, height, pixels };

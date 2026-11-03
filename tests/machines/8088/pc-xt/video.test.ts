@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { create8088PcXt, romImages } from "../../../../src/machines/generated/8088/pc-xt.js";
 import { RomImage } from "../../../../src/machines/rom-image.js";
 import { advanceXtOscillatorTicks, stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
-import { cgaColours, renderXtTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
+import { cgaColours, renderXtGraphicsFrame, renderXtTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
 
 async function fixture(columns = 80) {
   // Synthetic glyph A: each row has a different single dot; no historical ROM bytes.
@@ -78,6 +78,34 @@ test("CGA machine wiring advances on instructions, idle halt, and DMA grants; re
   machine.reset(); assert.equal(machine.cga.snapshot().phase, 0); assert.equal(machine.cga.snapshot().mode, 0);
   assert.equal(machine.video.read(0), 65); assert.equal(machine.font.loaded, true);
   assert.throws(() => create8088PcXt({ ...bindings, font: null }, before), /identity/);
+});
+
+test("CGA mode 04h reads packed pixels from alternate banks and wraps the latched start within each bank", () => {
+  const bindings = { bios: null, basic: null, font: null }, machine = create8088PcXt(bindings);
+  const { cga, video } = machine;
+  assert.throws(() => renderXtGraphicsFrame(machine), /04h/);
+  [56, 40, 45, 10, 127, 6, 100, 112, 2, 1].forEach((value, index) => {
+    cga.write(4, index); cga.write(5, value);
+  });
+  cga.write(8, 0x2a); cga.write(9, 0x21);
+  video.write(0, 0x1b); video.write(0x2000, 0xe4); // 00 01 10 11, then the reverse on line one.
+  video.write(80, 0x40); video.write(0x3f3f, 1); // First byte on line two and last visible pixel.
+  const frame = renderXtGraphicsFrame(machine);
+  assert.deepEqual([frame.width, frame.height], [320, 200]);
+  assert.deepEqual([...frame.pixels.slice(0, 4)], [1, 3, 5, 7]);
+  assert.deepEqual([...frame.pixels.slice(320, 324)], [7, 5, 3, 1]);
+  assert.equal(frame.pixels[640], 3); assert.equal(frame.pixels.at(-1), 3);
+  cga.write(4, 12); cga.write(5, 0x3f); cga.write(4, 13); cga.write(5, 0xff);
+  advanceXtOscillatorTicks(machine, 912 * 262 - 1);
+  assert.equal(cga.graphicsAddress(0, 0), 0);
+  advanceXtOscillatorTicks(machine, 1);
+  assert.equal(cga.graphicsAddress(0, 0), 0x1ffe); assert.equal(cga.graphicsAddress(1, 0), 0x3ffe);
+  const saved = machine.snapshot(), wrapped = renderXtGraphicsFrame(machine);
+  assert.deepEqual([...wrapped.pixels.slice(8, 12)], [1, 3, 5, 7]);
+  assert.deepEqual([...wrapped.pixels.slice(328, 332)], [7, 5, 3, 1]);
+  assert.deepEqual(renderXtGraphicsFrame(create8088PcXt(bindings, saved)), wrapped);
+  assert.deepEqual(machine.snapshot(), saved);
+  cga.write(8, 0x22); assert.ok(renderXtGraphicsFrame(machine).pixels.every(pixel => pixel === 0));
 });
 
 test("CGA observation rejects missing fonts and unsupported display profiles without altering the machine", async () => {

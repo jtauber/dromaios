@@ -1,11 +1,11 @@
-# IBM CGA: text, scan timing, and the RGBI display
+# IBM CGA: text, four-colour graphics, and the RGBI display
 
 IBM introduced the Color/Graphics Monitor Adapter with the PC in 1981. Its
 16 KiB of display RAM stores characters and attributes in text modes, or pixels
 in graphics modes. A Motorola 6845 supplies character addresses and raster
 position; the adapter adds its own character ROM, colour logic, and blink
-counter. This chapter implements the **40/80-column, 25-row text profile** used
-by the XT BIOS. It does not implement a general graphics controller.
+counter. This chapter covers the XT BIOS's 40/80-column text modes and its
+320 × 200 four-colour graphics mode (`04h`) on an RGBI monitor.
 
 The references are [IBM's Technical Reference][ibm], printed pages 1-123–1-148
 and schematics D-36–D-41, and the [Motorola MC6845 datasheet][motorola], Figures
@@ -297,7 +297,56 @@ source cursorVisible "Cursor address, shape, enable, and external divide-by-sixt
   shape: flag = and(not(lessThan(line, shapeStart, unsigned)), not(lessThan(end, line, unsigned)))
   return and(and(matches, shape), and(zero(and(start, u8($60))), not(bit(fields, 3))))
 }
+```
 
+## Four-colour graphics
+
+In BIOS mode `04h` the CRTC counts 40 character periods across and 100 rows
+down. Mode bit 1 selects graphics. Bits 0, 2, and 4 are clear for the slow
+character clock, colour burst, and medium resolution respectively. Each
+character period supplies two bytes, and each row takes two scan lines.
+The low raster-address bit selects one of two 8 KiB banks. Even lines use
+`B8000` and odd lines use `BA000`. Within each bank the display starts at twice the
+latched CRTC start address and advances 80 bytes per line, wrapping at 8 KiB.
+
+Each byte holds four pixels. Bits 7:6 select the leftmost pixel, then 5:4,
+3:2, and 1:0. Pixel zero takes its RGBI colour directly from the low nibble
+of port `3D9`. For pixels 1–3, the two pixel bits drive red and green.
+Colour-select bit 5 supplies blue (green/red/brown or cyan/magenta/light
+grey) and bit 4 supplies intensity. The text blink and cursor have no part
+in the graphics picture. [IBM Technical Reference, pp. 1-133–134, 1-138–142][ibm].
+
+```device
+source graphicsSupported "Standard 320 by 200 colour graphics with two scan lines per CRTC row" : flag {
+  mode = register MODE
+  columns = array CRTC[u8(1)]
+  rows = array CRTC[u8(6)]
+  interlace = array CRTC[u8(8)]
+  raster = array CRTC[u8(9)]
+  colourGraphics: flag = equal(and(mode, u8($17)), u8($02))
+  geometry: flag = and(equal(columns, u8(40)), equal(rows, u8(100)))
+  return and(and(colourGraphics, geometry), and(not(bit(interlace, 0)), equal(raster, u8(1))))
+}
+
+source graphicsAddress "RA0 selects the bank and the low twelve CRTC address bits select its words" (line: 8, byteColumn: 8): 16 {
+  rowStart = source characterAddress(shiftBits(line, right, 1), u8(0))
+  offset = add(shiftBits(extend(rowStart, 16), left, 1), extend(byteColumn, 16))
+  bank = select(bit(line, 0), u16($2000), u16(0))
+  return or(bank, and(offset, u16($1FFF)))
+}
+
+source graphicsColour "Map a packed pixel's two-bit index to RGBI" (pixel: 8): 8 {
+  colour = register COLOUR
+  index = and(pixel, u8(3))
+  blue = select(bit(colour, 5), u8(1), u8(0))
+  intensity = select(bit(colour, 4), u8(8), u8(0))
+  return select(zero(index), and(colour, u8($0F)), or(shiftBits(index, left, 1), or(blue, intensity)))
+}
+```
+
+## State validation and device interface
+
+```device
 source validState "Reject unconnected register bits and impossible sync duration" : flag {
   iterate(u8(16)) {
     slot: 8 = u8(0)
@@ -328,6 +377,9 @@ interface IbmCga {
   input advanceOscillatorTicks
   view status
   view textSupported
+  view graphicsSupported
+  view graphicsAddress
+  view graphicsColour
   view videoEnabled
   view columns
   view characterAddress
@@ -363,10 +415,9 @@ phase, not reconstruct it from a host timestamp or restart a frame.
 
 The renderer reconstructs one active image from current RAM and this state. It
 does not replay raster history, show CGA snow, or emulate composite colour,
-borders, graphics pixels, light pens, or precise mid-frame register effects.
+borders, graphics modes `05h`/`06h`, light pens, or precise mid-frame register effects.
 Mode bit 2 controls composite colour burst and does not desaturate RGBI text.
-Colour-select registers are retained for future border/graphics work; the active
-text colours come from cell attributes.
+Active text colours come from cell attributes.
 
 [Component tests](../../../../tests/components/devices/ibm-cga.test.ts) check
 independent register masks, line/frame boundaries, blink rates, and restoration.
