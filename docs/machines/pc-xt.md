@@ -281,23 +281,15 @@ from the reinserted copy.
 
 ### 5. Ultima V on the XT
 
-The [launch audit and EGA acceptance checks](pc-xt-ultima-v.md) pin the game
-and adapter ROM and record separate checks for the native CGA and reference
-EGA menus. Use these milestones for the EGA laboratory.
+The [launch audit](pc-xt-ultima-v.md) pins the game and adapter ROM. The
+XT boots DOS and selects the installed graphics driver. The CGA and EGA
+laboratories both reach the title menu and [exchange disks for Journey
+Onward](pc-xt-ultima-v.md#disk-exchange-in-the-laboratory).
 
-1. Boot DOS through the XT BIOS and launch Ultima V from the guest prompt.
-2. Reach the title screen, enter Britannia, and use the XT keyboard to move the
-   party to a known location. Check the map display before and after the move.
-3. Save using the game's own command. Power on afresh with the saved disk,
-   relaunch the game, and resume at the recorded location.
-
-## Next implementation slice
-
-The [CGA play session](pc-xt-ultima-v.md#save-export-and-resume) now includes
-saving on the outdoor map and continuing from the exported Player disk after a fresh boot.
-The EGA laboratory now [resumes the party and takes one step in Iolo’s hut](pc-xt-ultima-v.md#one-ega-step-in-iolos-hut).
-Next, follow the CGA route outdoors on EGA, save at (46,62), export the Player
-disk, and verify the saved position after a fresh boot.
+On both adapters, the party can leave Iolo’s hut, save at (46,62) in
+Britannia, and resume there from the exported Player disk after a fresh
+boot. The first westward step moves the party to (45,62) and redraws the
+map. [Save and resume walkthrough](pc-xt-ultima-v.md#save-export-and-resume).
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

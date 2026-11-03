@@ -23,7 +23,3 @@ export function dosTransfer(machine: Xt, input: readonly number[], operation: "r
   const physical = (i: number) => ((ds << 4) + ((dx + i) & 0xffff)) & 0xfffff;
   return { base: physical(0), bytes: Uint8Array.from({ length: transferred }, (_, i) => machine.ram.read(physical(i))) };
 }
-
-export function partyPosition(machine: Xt, base: number) {
-  return [0x2ed, 0x2f0, 0x2f1].map(offset => machine.ram.read(base + offset)); // Location, X, Y within SAVED.GAM
-}

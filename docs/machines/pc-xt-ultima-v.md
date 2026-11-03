@@ -1,10 +1,12 @@
 # Ultima V on the IBM PC/XT
 
 DOS can load *Ultima V: Warriors of Destiny* from a 360 KiB floppy on the
-[native XT](pc-xt.md). On the CGA board, the game selects the four-colour driver. On the EGA board,
-it selects the sixteen-colour driver. Both draw the title menu at 320 × 200. With a writable Player disk, **Journey Onward** resumes the party in
-Iolo’s hut on both adapters. The EGA check follows its first south step.
-The CGA session continues onto the outdoor map and saves the game. The pinned [dromaios-pc reference][reference] runs the same executable with EGA.
+[native XT](pc-xt.md). The game selects the four-colour CGA driver or the
+sixteen-colour EGA driver and draws the title menu at 320 × 200. On both
+adapters, **Journey Onward** resumes the party in Iolo’s hut. The party can
+walk into Britannia, save to a writable Player disk, and continue from the
+exported disk after a fresh boot. The pinned [dromaios-pc reference][reference]
+runs the same executable with EGA.
 
 ## Media
 
@@ -230,15 +232,15 @@ disk’s party record and the redrawn tile. Set `XT_BIOS_ROM`, `XT_BASIC_ROM`,
 `XT_EGA_ROM`, `XT_ULTIMA_EGA_PROGRAM` and `XT_ULTIMA_PLAYER` to the audited
 images. After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ega.test.js`.
 
-### From the hut to Britannia on CGA
+### From the hut to Britannia
 
 The location, X and Y fields are at offsets `2EDh`, `2F0h` and `2F1h` of
-the party record. In the CGA laboratory, Down and Up moved from (15,15) to
-(15,16) and back. From (15,18), open the door to the south and
-walk to the bottom edge. Take one more south step and answer Y to leave.
-The game switches to location 0 at (45,62). From that state, Right moved to
-(46,62) and redrew the map with **East** in the command area. The same run
-without input kept (45,62). [Save record layout][save-format].
+the party record. From (15,16) in Iolo’s hut, walk down to (15,18).
+Press **O**, then Down to open the south door. Walk down to (15,31) and
+press Down once more. Answer **Y** to “Dost thou wish to leave?” The
+game switches to location 0 at (45,62). Press Right once. The outdoor
+map redraws, the command area reads **East**, and the party is at (46,62).
+[Save record layout][save-format].
 
 ### Save, export, and resume
 
@@ -247,7 +249,8 @@ without input kept (45,62). [Save record layout][save-format].
 2. Wait for **Motor off** in Drive A, then choose **Export disk image**.
    The laboratory downloads `ULTIMA-PLAYER-saved.img`. The original
    `ULTIMA-PLAYER.IMG` still starts in Iolo's hut.
-3. Pause, insert `ULTIMA-PROGRAM.IMG`, choose **Fresh power-on**, then **Run**.
+3. Pause and insert `ULTIMA-EGA-PROGRAM.IMG` on EGA or `ULTIMA-PROGRAM.IMG`
+   on CGA. Choose **Fresh power-on**, then **Run**.
    Repeat the [disk exchange](#disk-exchange-in-the-laboratory) using a writable
    copy of the **exported** Player image. Journey Onward resumes Elwood, Shamino
    and Iolo on the outdoor map at (46,62). Left moves the party to (45,62).
@@ -258,11 +261,26 @@ respectively. Reading the FAT12 files from the download showed location 0,
 X=46 and Y=62 in Elwood's party record. The object list contained `BRIT.OOL`
 followed by `UNDER.OOL`. [Origin's Q command][origin].
 
-The optional [cold-boot test](../../tests/machines/8088/pc-xt/rom-ultima-v.test.ts)
-compares the full party record written by DOS with the one read on a second,
-fresh XT. It checks the resumed coordinates and the next step. Set `XT_BIOS_ROM`,
-`XT_BASIC_ROM`, `XT_ULTIMA_PROGRAM` and `XT_ULTIMA_PLAYER` to the local images.
-After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ultima-v.test.js`.
+To inspect the EGA reload, set a breakpoint at `0C6F:7276` after exchanging
+the Program disk for the exported Player disk. This is the return from DOS’s
+file read. Carry is clear and `AX=1060h` (4,192 bytes). At this point the
+record at `1BD3:55A6` can be compared byte for byte with `SAVED.GAM` in
+the exported image. Run to the keyboard poll at `0C6F:1D6C` for the
+finished map. One Left keypress moves the forest tile at screen (56,72)
+to (72,72) as the party walks west.
+
+The [CGA](../../tests/machines/8088/pc-xt/rom-ultima-v.test.ts) and
+[EGA](../../tests/machines/8088/pc-xt/rom-ega.test.ts) cold-boot tests run
+the same route. They compare the full party record written by DOS with the
+one loaded on a new XT and check the next step. Set `XT_BIOS_ROM`,
+`XT_BASIC_ROM` and `XT_ULTIMA_PLAYER` to the audited images. CGA also
+requires `XT_ULTIMA_PROGRAM`. EGA uses `XT_EGA_ROM` and `XT_ULTIMA_EGA_PROGRAM`.
+After building, run the check for either adapter.
+
+```sh
+node --test dist/tests/machines/8088/pc-xt/rom-ultima-v.test.js
+node --test dist/tests/machines/8088/pc-xt/rom-ega.test.js
+```
 
 ## Native EGA acceptance
 
@@ -293,8 +311,8 @@ After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ultima-v.tes
    exercise Sequencer map masks, rotation, masked writes through the read
    latches, and off-screen storage at offset `8000`. The [native game test](../../tests/machines/8088/pc-xt/rom-ega.test.ts)
    cold-boots with `XT_ULTIMA_EGA_PROGRAM` and the three firmware paths. It
-   checks automatic driver selection and both title-menu strips. Party movement and a save followed by a
-   fresh boot belong to the [playable-session milestone](pc-xt.md#5-ultima-v-on-the-xt).
+   checks automatic driver selection and both title-menu strips. With the Player
+   disk it also verifies the [save, export and fresh boot](#save-export-and-resume).
 
 [reference]: https://github.com/jtauber/dromaios-pc/tree/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54
 [origin]: https://www.mocagh.org/origin/u5-refcard-ibm.pdf

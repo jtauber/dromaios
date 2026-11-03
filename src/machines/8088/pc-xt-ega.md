@@ -199,7 +199,8 @@ Click the screen and press a key to return to DOS in text mode.
 The same BIOS calls let [Ultima V select its EGA driver and draw the title menu](../../../docs/machines/pc-xt-ultima-v.md#native-ega-title-menu).
 In [Journey Onward](../../../docs/machines/pc-xt-ultima-v.md#one-ega-step-in-iolos-hut),
 watch the game update its Y coordinate and see the sixteen-colour map scroll
-when the party walks south.
+when the party walks south. The [save and resume walkthrough](../../../docs/machines/pc-xt-ultima-v.md#save-export-and-resume)
+follows the party outdoors and checks the first westward step after a fresh boot.
 
 ## Model limits
 
