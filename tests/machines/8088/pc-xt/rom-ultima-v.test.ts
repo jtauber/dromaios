@@ -5,6 +5,7 @@ import { test } from "node:test";
 import { create8088PcXt, romImages } from "../../../../src/machines/generated/8088/pc-xt.js";
 import { RomImage } from "../../../../src/machines/rom-image.js";
 import { renderXtGraphicsFrame } from "../../../../src/machines/8088/pc-xt/video.js";
+import { dosTransfer, partyPosition } from "./dos-transfer.js";
 import { runInput, scanCodes } from "./rom-console.js";
 
 const { XT_BIOS_ROM, XT_BASIC_ROM, XT_ULTIMA_PROGRAM, XT_ULTIMA_PLAYER } = process.env;
@@ -12,23 +13,6 @@ const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest(
 
 type Xt = ReturnType<typeof create8088PcXt>;
 type Firmware = Parameters<typeof create8088PcXt>[0];
-
-// Capture the party record when DOS returns from its read or write. The same
-// buffer holds the live coordinates after the game resumes.
-function partyTransfer(machine: Xt, input: number[], operation: "read" | "write") {
-  const functionNumber = operation === "read" ? 0x3f : 0x40, size = 4192;
-  let returnCs = -1, returnIp = -1, base = 0;
-  runInput(machine, input, { limit: 2_000_000, until: (_, { before, after, instruction }) => {
-    if (before.ah === functionNumber && before.cx === size && instruction?.bytes[0] === 0xcd && instruction.bytes[1] === 0x21) {
-      base = ((before.ds << 4) + before.dx) & 0xfffff;
-      returnCs = before.cs; returnIp = (before.ip + 2) & 0xffff;
-    }
-    if (after.cs !== returnCs || after.ip !== returnIp) return false;
-    assert.equal(after.flags.cf, false); assert.equal(after.ax, size);
-    return true;
-  } });
-  return { base, bytes: Uint8Array.from({ length: size }, (_, i) => machine.ram.read(base + i)) };
-}
 
 function journeyOnward(firmware: Firmware, program: Uint8Array, player: Uint8Array) {
   const machine = create8088PcXt(firmware);
@@ -45,8 +29,8 @@ function journeyOnward(firmware: Firmware, program: Uint8Array, player: Uint8Arr
     after.cs === 0x0c6f && after.ip === 0x7249 && after.flags.cf && after.ax === 2 });
   machine.io.setDiskette(player, { writable: true });
 
-  const loaded = partyTransfer(machine, [], "read");
-  const position = () => [0x2ed, 0x2f0, 0x2f1].map(offset => machine.ram.read(loaded.base + offset));
+  const loaded = dosTransfer(machine, [], "read", 4192);
+  const position = () => partyPosition(machine, loaded.base);
   runInput(machine, [], { limit: 6_000_000, until: n => {
     if (n % 16384) return false;
     const frame = renderXtGraphicsFrame(machine);
@@ -92,7 +76,7 @@ test("Ultima V saves in Britannia and resumes from the exported Player disk on a
   move(0x15, 0, 45, 62); // Y, for yes.
   move(0x4d, 0, 46, 62); // Right on the outdoor map.
   press(0x10); // Q: Quit and Save.
-  const saved = partyTransfer(machine, [0x15, 0x95], "write"); // Y at "Save game?"
+  const saved = dosTransfer(machine, [0x15, 0x95], "write", 4192); // Y at "Save game?"
   // SAVED.OOL follows SAVED.GAM. Wait for the game to finish both transfers
   // and for the BIOS to release the motor, as Drive A requires for export.
   runInput(machine, [], { limit: 2_000_000, until: (_, { before, instruction }) =>

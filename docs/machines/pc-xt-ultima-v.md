@@ -2,9 +2,9 @@
 
 DOS can load *Ultima V: Warriors of Destiny* from a 360 KiB floppy on the
 [native XT](pc-xt.md). On the CGA board, the game selects the four-colour driver. On the EGA board,
-it selects the sixteen-colour driver. Both draw the title menu at 320 × 200. On CGA with a writable Player disk, **Journey
-Onward** resumes the party in Iolo's hut and lets it walk onto the outdoor
-map. The pinned [dromaios-pc reference][reference] runs the same executable with EGA.
+it selects the sixteen-colour driver. Both draw the title menu at 320 × 200. With a writable Player disk, **Journey Onward** resumes the party in
+Iolo’s hut on both adapters. The EGA check follows its first south step.
+The CGA session continues onto the outdoor map and saves the game. The pinned [dromaios-pc reference][reference] runs the same executable with EGA.
 
 ## Media
 
@@ -160,7 +160,8 @@ It opened `EGA.DRV`, set mode `0Dh`, loaded the palette and selected page
 zero. After the opening it read `ULTIMA.16`. Rows 0–59 and 128–199 of the
 menu matched both [reference hashes](#reference-launch), including the
 lettering, menu choices and copyright. The selector and flame animate
-between those strips.
+between those strips. Continue with the [disk exchange](#disk-exchange-in-the-laboratory)
+to enter Iolo’s hut.
 
 ## Journey Onward
 
@@ -184,33 +185,56 @@ the disk split. The local installation supplies the game files. Origin's
 
 ### Disk exchange in the laboratory
 
-1. Insert `ULTIMA-PROGRAM.IMG` into **Drive A**, choose **Quick boot**, and
-   press Space during the Origin logo. Pause at the title menu with **Journey
-   Onward** highlighted.
+1. Insert `ULTIMA-EGA-PROGRAM.IMG` in the EGA laboratory or `ULTIMA-PROGRAM.IMG`
+   in the CGA laboratory. Choose **Quick boot**, press Space during the Origin
+   logo, and pause at the title menu with **Journey Onward** highlighted.
 2. In the **Debugger** tab, add a breakpoint at `0C6F:7249`. Choose **Run**,
    click the screen, and press Enter. For these images the breakpoint stops
    the game when DOS returns from its first failed open of `SAVED.GAM`. The
-   game has finished reading the Program disk at this point. The empty
-   playfield can appear before the transfer of `TILES.4` has finished.
-3. Use **Insert writable copy…** for `ULTIMA-PLAYER.IMG`, remove the
-   breakpoint, and choose **Run**. The
-   game retries the open on drive A. When the map appears, click the screen
-   and use the arrow keys.
+   return has carry set and `AX=0002` (file not found). This is the time to
+   exchange disks. The empty playfield can appear while DOS is still reading
+   the tiles from the Program disk.
+3. Use **Insert writable copy…** for `ULTIMA-PLAYER.IMG` and remove the
+   disk-exchange breakpoint. For the EGA check, set the [keyboard poll
+   breakpoint](#one-ega-step-in-iolos-hut) before choosing **Run**. The
+   game retries the open on drive A until DOS recognizes the Player disk.
 
 ### What the guest loads
 
 | Player action | Observed DOS file activity |
 | --- | --- |
-| Select Journey Onward | The game reads all 19,347 bytes of `TILES.4` from the Program disk. DOS returns error 2 for `SAVED.GAM` until it recognizes the Player disk. |
+| Select Journey Onward | The game reads all 30,414 bytes of `TILES.16` on EGA, or all 19,347 bytes of `TILES.4` on CGA, from the Program disk. DOS returns error 2 for `SAVED.GAM` until it recognizes the Player disk. |
 | Resume the party | DOS reads 4,192 bytes from `SAVED.GAM` and 512 from `SAVED.OOL`. The game recreates `BRIT.OOL` and `UNDER.OOL`, writing 256 bytes to each. |
-| Enter Iolo's hut | The game reads `TOWN.OVL` and the hut's 1,024-byte map from `DWELLING.DAT`. Elwood, Shamino and Iolo appear in the party panel. Moving loads `NPC.OVL`. |
+| Enter Iolo's hut | The game reads `TOWN.OVL` and the hut's 1,024-byte map from `DWELLING.DAT`. Elwood, Shamino and Iolo appear in the party panel. The first Down key on EGA loads all 4,912 bytes of `NPC.OVL` from the Player disk. |
 | Open the south door | The O command loads `SJOG.OVL`. Down selects the door, and the next Down walks through it. |
 | Leave for Britannia | The game opens `BRIT.DAT`, `OUTSUBS.OVL`, `BRIT.OOL` and `MAINOUT.OVL`, then reads the outdoor map from `BRIT.DAT`. |
 
-In this run DOS read the party record into `1BD3:55A6`. Offsets `2EDh`,
-`2F0h` and `2F1h` hold location, X and Y. In the hut (location 13), a south
-step changed (15,15) to (15,16). In the browser laboratory, Down and Up reproduced
-that step and returned the party to (15,15). From (15,18), open the door to the south and
+### One EGA step in Iolo’s hut
+
+1. Use `0C6F:1D6C` as the execution breakpoint after exchanging disks.
+   When the game reaches this keyboard poll, the hut is drawn and the party
+   panel shows Elwood, Shamino and Iolo. DOS read `SAVED.GAM` into
+   `1BD3:55A6`. The live X and Y bytes at physical `215C6` and `215C7`
+   both read `0F` (15).
+2. Remove the execution breakpoint. Add a **RAM write watchpoint** at
+   `215C7`, click the screen, press Down once, and run. The instruction at
+   `0C6F:89EA` changes Y from `0F` to `10`. X stays `0F` and the location
+   byte stays `0D` (Iolo’s hut).
+3. Remove the watchpoint, add the `0C6F:1D6C` breakpoint again and choose **Run**. The command area reads **South**. The party is at (15,16)
+   and the room has scrolled up one tile. On the 320×200 browser canvas,
+   the 16×16 table tile at (112,88) appears at (112,72) after the step.
+
+The [ROM-backed EGA test](../../tests/machines/8088/pc-xt/rom-ega.test.ts)
+follows the Program disk’s tile reads, the failed save-file open, the Player
+disk’s party record and the redrawn tile. Set `XT_BIOS_ROM`, `XT_BASIC_ROM`,
+`XT_EGA_ROM`, `XT_ULTIMA_EGA_PROGRAM` and `XT_ULTIMA_PLAYER` to the audited
+images. After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ega.test.js`.
+
+### From the hut to Britannia on CGA
+
+The location, X and Y fields are at offsets `2EDh`, `2F0h` and `2F1h` of
+the party record. In the CGA laboratory, Down and Up moved from (15,15) to
+(15,16) and back. From (15,18), open the door to the south and
 walk to the bottom edge. Take one more south step and answer Y to leave.
 The game switches to location 0 at (45,62). From that state, Right moved to
 (46,62) and redrew the map with **East** in the command area. The same run

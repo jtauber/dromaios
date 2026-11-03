@@ -7,9 +7,10 @@ import { RomImage } from "../../../../src/machines/rom-image.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
 import { renderEgaGraphicsFrame, renderEgaTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
 import { makeXtEgaBarsDisk } from "../../../../scripts/make-xt-ega-bars.js";
+import { dosTransfer, partyPosition } from "./dos-transfer.js";
 import { runInput, scanCodes, screen } from "./rom-console.js";
 
-const { XT_BIOS_ROM, XT_BASIC_ROM, XT_EGA_ROM, XT_DOS_DISK, XT_ULTIMA_EGA_PROGRAM } = process.env;
+const { XT_BIOS_ROM, XT_BASIC_ROM, XT_EGA_ROM, XT_DOS_DISK, XT_ULTIMA_EGA_PROGRAM, XT_ULTIMA_PLAYER } = process.env;
 
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const hasFirmware = XT_BIOS_ROM && XT_BASIC_ROM && XT_EGA_ROM;
@@ -97,9 +98,21 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
   assert.equal(m.ram.read(0x449), 3);
 });
 
+type EgaXt = ReturnType<typeof create8088PcXtEga>;
+
+function filenameAt(machine: EgaXt, ds: number, dx: number) {
+  let name = "";
+  for (let i = 0; i < 64; i++) {
+    const byte = machine.memory.read(((ds << 4) + ((dx + i) & 0xffff)) & 0xfffff);
+    if (!byte) break;
+    name += String.fromCharCode(byte);
+  }
+  return name.toUpperCase();
+}
+
 test("Ultima V selects EGA.DRV automatically and draws both reference menu strips from a cold boot", {
   skip: !(hasFirmware && XT_ULTIMA_EGA_PROGRAM) && "Set the XT firmware and XT_ULTIMA_EGA_PROGRAM.",
-}, async () => {
+}, async t => {
   const disk = readFileSync(XT_ULTIMA_EGA_PROGRAM!);
   assert.equal(sha256(disk), "96c2f57494a8e552251ac16b85ea15c043f29ca4b4deb15b3e39ac1dee923b35");
   const m = await bootEga(disk);
@@ -107,13 +120,7 @@ test("Ultima V selects EGA.DRV automatically and draws both reference menu strip
   runInput(m, [], { limit: 34_000_000, until: (n, { before, instruction }) => {
     if (instruction?.bytes[0] === 0xcd) {
       if (instruction.bytes[1] === 0x21 && before.ah === 0x3d) {
-        let name = "";
-        for (let i = 0; i < 64; i++) {
-          const byte = m.memory.read(((before.ds << 4) + ((before.dx + i) & 0xffff)) & 0xfffff);
-          if (!byte) break;
-          name += String.fromCharCode(byte);
-        }
-        opened.add(name.toUpperCase());
+        opened.add(filenameAt(m, before.ds, before.dx));
       }
       if (instruction.bytes[1] === 0x10 && opened.has("EGA.DRV") && before.cs < 0xa000
         && [0x000d, 0x1002, 0x0500].includes(before.ax)) calls.push(before.ax);
@@ -131,4 +138,49 @@ test("Ultima V selects EGA.DRV automatically and draws both reference menu strip
     const pixels = renderEgaGraphicsFrame(m.ega).pixels.map(pins => (pins & 7) | ((pins >> 1) & 8));
     return sha256(pixels.subarray(0, 60 * 320)) === top && sha256(pixels.subarray(128 * 320)) === bottom;
   } });
+
+  await t.test("Journey Onward exchanges disks and one Down key moves the party and scrolls the hut", {
+    skip: !XT_ULTIMA_PLAYER && "Set XT_ULTIMA_PLAYER to the original Player disk.",
+  }, () => {
+    const player = readFileSync(XT_ULTIMA_PLAYER!);
+    assert.equal(sha256(player), "135c06d4193b1f01062b27d0f884e2045d0ea0dec667e88b281f0ef466bc9b7a");
+    runInput(m, scanCodes("\n"), { limit: 2_000_000, until: (_, { before, instruction }) =>
+      before.ah === 0x3d && instruction?.bytes[0] === 0xcd && instruction.bytes[1] === 0x21
+      && filenameAt(m, before.ds, before.dx) === "TILES.16" });
+    const tiles = createHash("sha256");
+    let length = 0;
+    while (length < 30_414) {
+      const { bytes } = dosTransfer(m, [], "read");
+      assert.ok(bytes.length, "Premature end of TILES.16");
+      tiles.update(bytes); length += bytes.length;
+    }
+    assert.equal(length, 30_414);
+    assert.equal(tiles.digest("hex"), "bc5d33bdb92a9f054cabf95fc34293d65b181e23eabf041a08edf88027ea4f83");
+    // The traced game takes another 2.4 million boundaries after the last tile read.
+    runInput(m, [], { limit: 4_000_000, until: (_, { after }) =>
+      after.cs === 0x0c6f && after.ip === 0x7249 && after.flags.cf && after.ax === 2 });
+    const { ds, dx } = m.cpu.snapshot();
+    assert.equal(filenameAt(m, ds, dx), "SAVED.GAM");
+    m.io.setDiskette(player, { writable: true });
+    const party = dosTransfer(m, [], "read", 4192);
+    assert.equal(sha256(party.bytes), "e4cf6298c3f04151669d7948330ce85f51edec2c0efc9eeabe6c3b3ac3e7b740");
+
+    // At this keyboard poll the game has finished drawing the map. The table east of the party
+    // should scroll up by one 16-dot tile when the party moves south.
+    const atInput = (cs: number, ip: number) => cs === 0x0c6f && ip === 0x1d6c;
+    runInput(m, [], { limit: 5_000_000, until: (_, { after }) => atInput(after.cs, after.ip) });
+    assert.deepEqual(partyPosition(m, party.base), [13, 15, 15]);
+    const table = (y: number) => {
+      const pixels = renderEgaGraphicsFrame(m.ega).pixels;
+      return Buffer.concat(Array.from({ length: 16 }, (_, row) =>
+        pixels.subarray((y + row) * 320 + 112, (y + row) * 320 + 128)));
+    };
+    const before = table(88);
+    assert.notDeepEqual(before, table(72));
+    const { keyboardInterrupts } = runInput(m, [0x50, 0xd0], { limit: 2_000_000, until: (_, { after }) =>
+      atInput(after.cs, after.ip) && partyPosition(m, party.base)[2] === 16 });
+    assert.equal(keyboardInterrupts, 2); // Down make and break
+    assert.deepEqual(partyPosition(m, party.base), [13, 15, 16]);
+    assert.deepEqual(table(72), before);
+  });
 });

@@ -295,10 +295,9 @@ EGA menus. Use these milestones for the EGA laboratory.
 
 The [CGA play session](pc-xt-ultima-v.md#save-export-and-resume) now includes
 saving on the outdoor map and continuing from the exported Player disk after a fresh boot.
-The [EGA title menu](pc-xt-ultima-v.md#native-ega-title-menu) matches the
-reference. Next, select Journey Onward, trace the game's reads of `TILES.16`
-and `SAVED.GAM` across the disk exchange, and verify one party step in the
-sixteen-colour playfield.
+The EGA laboratory now [resumes the party and takes one step in Iolo’s hut](pc-xt-ultima-v.md#one-ega-step-in-iolos-hut).
+Next, follow the CGA route outdoors on EGA, save at (46,62), export the Player
+disk, and verify the saved position after a fresh boot.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/
