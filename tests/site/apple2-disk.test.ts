@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { create6502Apple2, romImages } from "../../src/machines/generated/6502/apple2.js";
 import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
+import type { Dos33SectorWrite } from "../../src/components/devices/dos33-disk.js";
 import { readApple2Rom, readApple2Disk } from "../../site/interactive/apple2-media.js";
 import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
@@ -87,7 +88,7 @@ function dosTerminal(session: ReturnType<typeof createApple2Session>) {
     assert.match(screen(), /LOADING INTEGER INTO LANGUAGE CARD/);
     assert.ok(prompt());
   }
-  return { command, screen, cataloguePages, bootToPrompt };
+  return { command, screen, cataloguePages, bootToPrompt, waitForInput };
 }
 
 const romPath = process.env.APPLE2_ROM, diskPath = process.env.APPLE2_DISK;
@@ -129,13 +130,56 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
   command("SAVE TEST"); assert.match(screen(), /WRITE PROTECTED/);
   assert.deepEqual(machine.disk.snapshot().media, original);
 
-  await t.test("DOS runs ANSWER from a fresh export and can save another file on the restored writable disk", async () => {
+  await t.test("DOS runs ANSWER from a fresh export and can save another file on the restored writable disk", async t => {
     const master = selected.disk.exportImage();
     assert.doesNotMatch(catalogue, /\bANSWER$/m);
     const working = await readApple2Disk(file(master, "dos33-master.dsk"), media.disk, "writable-copy");
     machine.disk.insert(working.disk);
     command("NEW"); command("10 PRINT 6*7");
-    command("SAVE ANSWER", 20_000_000); // Allocating and saving the new file takes about 13 million instructions.
+    const writes: Dos33SectorWrite[] = [];
+    const detach = working.disk.observeWrites(write => writes.push(write));
+    session.send(apple2Input("SAVE ANSWER\n"));
+    // Stop partway through the fifth field, before DOS commits the pointer to the program sector.
+    let midway: ReturnType<typeof session.snapshot> | undefined;
+    for (let i = 0; i < 15_000_000; i++) {
+      const record = session.step();
+      assert.equal(record.outcome, "executed");
+      if (writes.length === 4 && record.accesses.some(a => a.address === 0xc0ec)
+        && machine.disk.inspect().q7 && machine.disk.snapshot().shifted?.length === 100) {
+        midway = session.snapshot(); break;
+      }
+    }
+    assert.ok(midway, "DOS must reach the middle of its fifth sector write");
+    terminal.waitForInput(20_000_000);
+    detach();
+    assert.deepEqual(writes.map(w => [w.track, w.sector]), [[17, 0], [17, 12], [12, 6], [12, 5], [12, 6], [17, 0], [17, 12]]);
+    assert.deepEqual(writes.filter(w => w.sector === 6).map(w => w.bytes.slice(12, 14)), [[0, 0], [12, 5]]);
+    const complete = machine.disk.exportImage();
+
+    await t.test("restoration finishes the pending write and power loss keeps the earlier one-sector catalogue entry", async () => {
+      const saved = await encodeApple2SavedState({ machine: "apple2-plus", name: "Writing the T/S list", diskName: working.name,
+        savedAt: new Date().toISOString(), flash: false, state: midway });
+      const { session: resumed } = await prepareApple2SavedState(saved, rom.image, media);
+      const tail: Dos33SectorWrite[] = [];
+      resumed.machine.disk.inspectMedium()!.observeWrites(write => tail.push(write));
+      dosTerminal(resumed).waitForInput(20_000_000);
+      assert.deepEqual(tail, writes.slice(4));
+      assert.deepEqual(resumed.machine.disk.exportImage(), complete);
+
+      const { session: cut } = await prepareApple2SavedState(saved, rom.image, media);
+      cut.powerOn();
+      assert.equal(cut.machine.disk.snapshot().shifted, undefined);
+      const partial = cut.machine.disk.exportImage();
+      assert.deepEqual(partial.slice(0xc500, 0xc600), complete.slice(0xc500, 0xc600), "The program data was already written");
+      assert.deepEqual([...partial.slice(0xc60c, 0xc60e)], [0, 0], "The list does not yet point to the program data");
+      const cold = dosTerminal(cut);
+      cold.bootToPrompt();
+      assert.match(cold.cataloguePages().join("\n"), /^ *A 001 ANSWER$/m);
+      cold.command("NEW");
+      assert.match(cold.command("LOAD ANSWER"), /\]LOAD ANSWER\n+\]$/);
+      assert.match(cold.command("LIST"), /\]LIST\n+\]$/);
+      assert.match(cold.command("RUN"), /\]RUN\n+\]$/);
+    });
     const listing = terminal.cataloguePages().join("\n");
     assert.match(listing, /^ *A 002 ANSWER$/m);
 

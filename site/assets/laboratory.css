@@ -25,6 +25,10 @@
 .lab-panel-body { padding: 10px; min-height: 0; min-width: 0; }
 .lab-panel-body > h2 { margin: 0 0 12px; font: 600 14px/1.4 system-ui, sans-serif; }
 .lab-panel-body > h2:not(:first-child) { margin-top: 24px; }
+.lab-panel-body [data-dos-inspector] { margin-top: 20px; }
+[data-dos-inspector] h2 { font: 600 14px/1.4 system-ui, sans-serif; }
+[data-dos-inspector] label { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); align-items: start; gap: 6px; margin: 6px 0; }
+[data-dos-inspector] pre { overflow-x: auto; }
 .lab-scroll { overflow: auto; scrollbar-color: #435674 #18253b; }
 .lab-hint, .laboratory-credit { color: var(--muted); font: 11px/1.5 system-ui, sans-serif; margin: 8px 0; }
 .laboratory-credit { padding: 0 4px; margin: 0; }

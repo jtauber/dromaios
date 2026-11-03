@@ -14,6 +14,12 @@ const addressFieldSize = 14, dataFieldSize = 3 + 343 + 3;
 // Distance from one address prologue to the next within a track.
 export const dos33SectorSpan = addressFieldSize + dataGap + dataFieldSize + sectorGap;
 
+export interface Dos33SectorWrite {
+  readonly track: number;
+  readonly sector: number; // Logical sector in the DOS-order image.
+  readonly bytes: readonly number[];
+}
+
 function reversePair(value: number): number { return ((value & 1) << 1) | ((value & 2) >> 1); }
 
 /** Decode one complete DOS data field between optional FF sync bytes. */
@@ -43,6 +49,7 @@ export class Dos33Disk {
   readonly writable: boolean;
   readonly #bytes: Uint8Array;
   readonly #tracks: Uint8Array[];
+  readonly #observers = new Set<(write: Dos33SectorWrite) => void>();
   #snapshot: readonly number[] | undefined;
 
   constructor(bytes: Uint8Array | readonly number[], { writable = false } = {}) {
@@ -59,6 +66,12 @@ export class Dos33Disk {
   snapshot(): readonly number[] { return this.#snapshot ??= Object.freeze(Array.from(this.#bytes)); }
   exportImage(): Uint8Array { return this.#bytes.slice(); }
 
+  /** Observe accepted fields, including identical rewrites. Observers must not throw or modify the medium. */
+  observeWrites(observer: (write: Dos33SectorWrite) => void): () => void {
+    this.#observers.add(observer);
+    return () => { this.#observers.delete(observer); };
+  }
+
   /** A DOS-order image can represent a valid replacement data field on an existing sector. */
   writeDataField(track: number, position: number, bytes: readonly number[]): void {
     checkUnsigned("Disk position", position, this.trackLength(track) - 1);
@@ -69,9 +82,14 @@ export class Dos33Disk {
       || within > addressFieldSize + dataGap || within + bytes.length > dos33SectorSpan) return;
     const data = decodeDataField(bytes);
     if (!data) return;
-    this.#bytes.set(data, (track * 16 + dosSector[sector]!) * 256);
+    const logical = dosSector[sector]!;
+    this.#bytes.set(data, (track * 16 + logical) * 256);
     this.#tracks[track] = this.#encodeTrack(track);
     this.#snapshot = undefined;
+    if (this.#observers.size) {
+      const write = Object.freeze({ track, sector: logical, bytes: Object.freeze(Array.from(data)) });
+      for (const observer of this.#observers) observer(write);
+    }
   }
 
   trackLength(track: number): number {

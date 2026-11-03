@@ -610,6 +610,57 @@ states → Save new state**. Eject the disk or reload the page, then restore
 that state. Drive 1 shows the original filename and **writable copy**. Run,
 load `ANSWER`, and enter `SAVE RESTORED`. The catalogue now lists both files.
 
+### Following the sector writes
+
+In the **Disk** panel, select **Sector write trace** under **File or trace**.
+Each row represents one accepted data field. Selecting it shows the 256 bytes
+committed at that moment. The inspector keeps the last 64 writes since the
+disk was mounted, including repeated writes to the same sector. **Clear
+write trace** starts a new recording. Fresh power-on or restoring a checkpoint
+starts a new trace with the mounted medium.
+
+On the verified System Master, `SAVE ANSWER` writes four distinct sectors
+in seven operations. All track and sector numbers in this table are decimal.
+
+| Write | Track | DOS sector | What changed |
+| ---: | ---: | ---: | --- |
+| 1 | 17 | 0 | DOS updates the allocation map and selects track 12. |
+| 2 | 17 | 12 | The catalogue now names `ANSWER`, points to its list at T12 S6, and counts one sector. |
+| 3 | 12 | 6 | DOS initializes the empty track/sector list. |
+| 4 | 12 | 5 | DOS writes the Applesoft program data. |
+| 5 | 12 | 6 | The pair at +$0C changes from `00 00` to `0C 05`, linking the program data. |
+| 6 | 17 | 0 | DOS records the remaining free sectors on track 12. |
+| 7 | 17 | 12 | The catalogue entry’s sector count changes from one to two. |
+
+To follow the finished file, choose **A 002 ANSWER** instead of the trace.
+Select its catalogue entry, T/S list, and file sector 0 in turn. At image
+offset `$0C500`, the bytes `0C 00` give the 12-byte Applesoft program
+length. The following bytes include line number 10 and the tokenized
+expression. These views use an immutable image of the committed sectors.
+Opening a file or selecting a write never steps the CPU, moves the head,
+or consumes the next disk byte. The linked sector layouts are described
+in [Beneath Apple DOS, chapter 4][beneath-dos].
+
+### Interrupting SAVE ANSWER
+
+The [disk acceptance test](../../../tests/site/apple2-disk.test.ts) pauses
+after 100 bytes have shifted into the fifth write, while Q7 is still high.
+The program-data sector is already on disk. The previously committed list
+still has `00 00` where its pointer to that data will go.
+
+* **Restore and continue.** The checkpoint includes the partially shifted
+  field. DOS finishes writes 5–7, and every byte of the exported disk matches
+  the uninterrupted save.
+* **Cut power there.** Fresh power-on retains the four completed writes
+  and discards the pending field. After a cold boot, `CATALOG` shows
+  `A 001 ANSWER`. `NEW` followed by `LOAD ANSWER` returns to the prompt
+  without an error. `LIST` shows no lines, and `RUN` prints nothing. The
+  data is present at T12 S5, but the file’s list does not point to it.
+
+This result describes this interruption point and the Disk II model’s
+whole-sector commit rule. A physical drive interrupted mid-write can also
+leave a damaged data field.
+
 ## Disk II controller and media profile
 
 The machine fence above owns slot placement. A focused
@@ -774,3 +825,4 @@ reset/power-on, failed replacement, page hiding, and wide/narrow layouts.
 [reference]: https://github.com/jtauber/dromaios-apple2/tree/569baf98006f61e80ed93c36aa4f8d9ae23011d3
 [disk-hardware]: https://archive.org/details/understanding_the_apple_ii
 [dos-manual]: https://www.applelogic.org/files/AIIDOS.pdf
+[beneath-dos]: https://archive.org/details/Beneath_Apple_DOS_alt/

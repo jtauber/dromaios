@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Apple2DiskII } from "../../../src/components/devices/apple2-disk-ii.js";
 import { Dos33Disk } from "../../../src/components/devices/dos33-disk.js";
+import type { Dos33SectorWrite } from "../../../src/components/devices/dos33-disk.js";
 
 const media = new Dos33Disk(new Uint8Array(Dos33Disk.size));
 function card(): Apple2DiskII {
@@ -78,6 +79,21 @@ function startWrite(position = 1210): Apple2DiskII {
 function shift(disk: Apple2DiskII, bytes: readonly number[]): void {
   for (const byte of bytes) { disk.write(13, byte); disk.read(12); }
 }
+
+test("write observers capture immutable DOS-order sectors on commit, including identical rewrites", () => {
+  const medium = new Dos33Disk(new Uint8Array(Dos33Disk.size), { writable: true });
+  const writes: Dos33SectorWrite[] = [];
+  const stop = medium.observeWrites(write => writes.push(write));
+  medium.writeDataField(0, 1210, frame.slice(0, 100));
+  medium.writeDataField(0, 1210, frame);
+  medium.writeDataField(0, 1210, frame);
+  stop(); medium.writeDataField(0, 1210, frame);
+  assert.equal(writes.length, 2);
+  for (const write of writes) {
+    assert.deepEqual(write, { track: 0, sector: 6, bytes: [...sectorSix] });
+    assert.ok(Object.isFrozen(write.bytes));
+  }
+});
 
 test("Disk II restores between latch load and shift and publishes a complete sector on return to read mode", () => {
   const disk = startWrite();

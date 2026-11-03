@@ -9,6 +9,7 @@ import { createApple2Screen } from "./apple2-screen-view.js";
 import { readApple2Disk } from "./apple2-media.js";
 import type { Apple2RomFile, Apple2DiskMode } from "./apple2-media.js";
 import { downloadDiskImage } from "./disk-download.js";
+import { createApple2DiskInspector } from "./apple2-disk-inspector.js";
 import { apple2RomStorage } from "./apple2-rom-storage.js";
 import { createApple2Inspection } from "./apple2-inspection-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
@@ -57,6 +58,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   let requestedPanels: readonly string[] = [];
   const updates = createPanelUpdates(root, id => refreshPanels([id]));
   const shouldUpdate = (id: string) => requestedPanels.includes(id) || updates.shouldUpdate(id, execution.running);
+  const diskInspector = createApple2DiskInspector(root);
   const navigation = createInspectorNavigation(root, tool => tool === "memory" ? inspection.memoryAddress : explorer.address(tool), location => {
     if (location.tool === "memory") inspection.browseMemory(location.address);
     else explorer.browse(location.tool, location.address);
@@ -165,6 +167,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (!writableDisk) loadDisk.textContent = diskName ? "Replace disk…" : "Load disk…";
     if (writableDisk) writableDisk.disabled = loadDisk.disabled;
     const drive = session.machine.disk.inspect();
+    diskInspector?.refresh(session.machine.disk, shouldUpdate("disk"));
     if (exportDisk) exportDisk.disabled = selecting || !drive.loaded || drive.motor;
     eject.disabled = !available || !drive.loaded;
     status.textContent = `${!session.hasFirmware ? "Hardware ready · no ROM installed" : execution.running ? "Running" : "Paused"} · ${execution.steps.toLocaleString()} instructions`;

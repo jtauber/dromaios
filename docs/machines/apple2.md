@@ -198,7 +198,8 @@ The [ANSWER session](../../src/machines/6502/apple2.md#saving-answer-across-a-fr
 covers the native machine and browser laboratory. DOS catalogues the program
 and loads it after a cold boot from the downloaded disk. A named checkpoint
 restores the edited bytes and write permission so DOS can save another file.
-An interrupted file save on the working disk remains a separate acceptance case.
+The [interrupted SAVE check](../../src/machines/6502/apple2.md#interrupting-save-answer)
+compares checkpoint continuation and fresh power-on during the same sector write.
 
 Speaker transitions must be timestamped in emulated time. Check a known
 software-driven tone, browser audio enablement, pause/resume, and silence on
@@ -269,7 +270,7 @@ paths before a shared peripheral-inspection abstraction is designed.
 | Change history | Instruction-attributed before/after values for registers, flags, PC, and physical RAM, including Language Card banks; bounded history with recording and display filters, and explicitly identified user RAM edits. | — |
 | ROM and system | Searchable Monitor reference with PC/Memory following, mapping-aware context, and navigation to Disassembly and Memory; guide-owned routine contracts, byte-checked instruction comments, and five in-lab walkthroughs (reset/echo, carriage return, scrolling, cursor editing, and output-hook redirection) using versioned ROM-only stops; live read/write memory map and structured keyboard, display, and Language Card state with change highlights; bounded instruction-linked device-access history with specification descriptions; disk snapshots. | Further annotations driven by walkthroughs. |
 | Applesoft tools | BASIC runs on the machine; ROM walkthrough follows input, echo, carriage return, and scrolling. | Listing, variables, interpreter state, source stepping, breakpoints, execution history, and profiling. |
-| Disk tools | DOS-order disk insertion, writable copies, export and re-import, checkpoint restoration, controller state. | Nibble stream, sector map, and observed disk-access history with copying. |
+| Disk tools | DOS-order disk insertion, writable copies, export and re-import, checkpoint restoration, controller state, read-only file/sector inspection, and a trace of committed sector writes. | Nibble-stream inspection and disk-read history. |
 | Software selection | Verified Applesoft ROM and pinned DOS System Master. | Explicit software/media profiles and acceptance for additional disks and programs. |
 
 Layout parity is the first replacement slice, not a claim of complete tool

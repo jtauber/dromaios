@@ -213,6 +213,16 @@
       <h2>Disk II controller</h2><pre data-disk-inspect>No disk controller installed.</pre>
       <p class="lab-hint">Guest writes change the in-memory copy. When the motor is off, export a .dsk to keep the changes. Saved states also retain the mounted disk and its write permission.</p>
       <p><a href="{{ calc_url(apple2_url ~ '#saving-answer-across-a-fresh-boot') }}" target="_blank" rel="noopener">Save and boot ANSWER ↗</a></p>
+      <section data-dos-inspector>
+        <h2>DOS disk inspector</h2>
+        <label>File or trace <select data-dos-source aria-label="File or trace"></select></label>
+        <label>Sector <select data-dos-sector aria-label="Sector" size="4"></select></label>
+        <button type="button" data-dos-clear>Clear write trace</button>
+        <p data-dos-detail class="lab-hint"></p>
+        <pre data-dos-dump class="basic-readout"></pre>
+        <p class="lab-hint">Track and sector numbers are decimal. Rows show hexadecimal image offsets, bytes and seven-bit text. File views show current sectors. The trace keeps the last 64 completed writes, in order, from this mount.</p>
+        <p><a href="{{ calc_url(apple2_url ~ '#following-the-sector-writes') }}" target="_blank" rel="noopener">Follow the seven writes of SAVE ANSWER ↗</a></p>
+      </section>
     </section>
   </div>
 </main>
