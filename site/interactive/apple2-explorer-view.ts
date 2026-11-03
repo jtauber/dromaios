@@ -57,7 +57,8 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   const reference = createApple2RomReference(root, catalogue, (tool, address) => navigation.browse(tool, address, "rom"));
   const walkthrough = createApple2Walkthrough(root, catalogue, machine, reads, {
     runTo: (address, space, when) => {
-      debuggerState.runTo(location(), parseApple2Address(address), space, when ? { when, limit: 5_000_000 } : {});
+      // BLOAD and BRUN each take about six million instructions on the selected disk.
+      debuggerState.runTo(location(), parseApple2Address(address), space, when ? { when, limit: 10_000_000 } : {});
       run();
     },
     browse: navigation.browse,

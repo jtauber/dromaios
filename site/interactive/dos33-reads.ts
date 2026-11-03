@@ -4,7 +4,8 @@ import type { createApple2Session } from "./apple2-session.js";
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 type Sector = { readonly track: number; readonly sector: number; readonly buffer: number };
 export type DosRead = Sector & { readonly number: number; readonly bytes: readonly number[] };
-export type LoadObservation = Sector | { readonly kind: "read" | "write"; readonly address: number; readonly value?: number };
+export type LoadObservation = Sector | { readonly jumpFrom: number; readonly indirect: number; readonly target: number }
+  | { readonly kind: "read" | "write"; readonly address: number; readonly value?: number };
 
 // The selected System Master installs JMP $B7B5 at RWTS ($03D9). Its wrapper
 // calls the driver, restores the flags and returns via CLC/RTS or SEC/RTS.
@@ -49,6 +50,11 @@ export function createDos33ReadTrace() {
     /** A stop describes the boundary just reached, even when several reads share one return PC. */
     matches(expect: LoadObservation): boolean {
       if ("track" in expect) return latest?.track === expect.track && latest.sector === expect.sector && latest.buffer === expect.buffer;
+      if ("jumpFrom" in expect) {
+        if (last?.before.pc !== expect.jumpFrom || last.after.pc !== expect.target) return false;
+        const [opcode, low, high] = last.instruction.bytes;
+        return opcode === 0x6c && low === (expect.indirect & 0xff) && high === (expect.indirect >>> 8);
+      }
       return last?.accesses.some(a => a.kind === expect.kind && a.address === expect.address
         && (expect.value === undefined || a.value === expect.value)) ?? false;
     },

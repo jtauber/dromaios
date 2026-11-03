@@ -40,3 +40,11 @@ test("the inspector accepts an empty list and rejects unsupported geometry, bad 
   bytes[0x11c01] = 17; bytes[0x11c02] = 12;
   assert.throws(() => dos33Catalogue(bytes), /loops at T17 S12/);
 });
+
+test("a binary file exposes its little-endian load address and length in file sector zero", () => {
+  const bytes = example();
+  bytes[0x810d] = 4; bytes.splice(0xc500, 4, 0, 0x60, 0x2c, 1);
+  const sectors = dos33FileSectors(bytes, dos33Catalogue(bytes).files[0]!);
+  assert.match(sectors.find(s => s.fileSector === 0)!.detail, /load address \$6000 and length 300 bytes/);
+  assert.doesNotMatch(sectors.find(s => s.fileSector === 2)!.detail, /binary header/);
+});

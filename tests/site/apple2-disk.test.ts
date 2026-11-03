@@ -12,7 +12,8 @@ import { createDos33ReadTrace } from "../../site/interactive/dos33-reads.js";
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import { encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
 
-const media: Apple2Media = JSON.parse(readFileSync("src/machines/6502/apple2.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
+const chapter = readFileSync("src/machines/6502/apple2.md", "utf8");
+const media: Apple2Media = JSON.parse(chapter.match(/```json\n([\s\S]*?)```/)![1]!);
 function file(bytes: Uint8Array, name = "local file") {
   const buffer = new Uint8Array(bytes).buffer;
   return { name, size: buffer.byteLength, async arrayBuffer() { return buffer; } };
@@ -161,6 +162,75 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     assert.fail("The bootstrap never read the Disk II latch");
   });
   terminal.bootToPrompt();
+  await t.test("BSAVE a 300-byte binary, cold-boot its export, BLOAD every byte and trace the BRUN handoff", async () => {
+    // Fork the booted Master at its prompt. The experiment gets its own writable disk.
+    const working = createApple2Session(rom.image);
+    working.restore(session.snapshot());
+    working.machine.disk.insert(new Dos33Disk(selected.disk.exportImage(), { writable: true }));
+    const source = dosTerminal(working);
+    const section = chapter.split("## Following a DOS binary into execution\n")[1]!.split("\n## ")[0]!;
+    const recipe = section.match(/^```text\n([\s\S]*?)\n```$/m);
+    assert.ok(recipe, "Run the BSAVE recipe published in the Apple II chapter");
+    for (const line of recipe[1]!.split("\n")) source.command(line, 20_000_000);
+    assert.match(source.cataloguePages().join("\n"), /^ *B 003 BEACON$/m);
+
+    const expected = Uint8Array.from({ length: 300 }, (_, i) => i & 0xff);
+    expected.set([0xad, 0x2b, 0x61, 0x8d, 0x94, 0x07, 0x60]); expected[299] = 0xaa;
+    const exported = working.machine.disk.exportImage();
+    assert.deepEqual([...exported.slice(0xc60c, 0xc610)], [12, 5, 12, 4]);
+    assert.deepEqual([...exported.slice(0xc500, 0xc504)], [0, 0x60, 0x2c, 1]);
+    assert.deepEqual(exported.slice(0xc504, 0xc600), expected.slice(0, 252));
+    assert.deepEqual(exported.slice(0xc400, 0xc430), expected.slice(252));
+
+    const mounted = await readApple2Disk(file(exported, "BEACON.dsk"), media.disk, "read-only");
+    const cold = dosTerminal(createApple2Session(rom.image, { bootstrap, image: mounted.disk }));
+    cold.bootToPrompt();
+    const { ram } = cold.machine, trace = createDos33ReadTrace();
+    const payload = () => Uint8Array.from({ length: 300 }, (_, i) => ram.read(0x6000 + i));
+    const search = [[17, 0, 0xb3bb], ...[15, 14, 13, 12].map(s => [17, s, 0xb4bb]), [12, 6, 0x9700]];
+    const entry = { jumpFrom: 0xa394, indirect: 0xaa72, target: 0x6000 };
+    for (const command of ["BLOAD", "BRUN"]) {
+      trace.clear();
+      // No expected byte is present before either command. Guard the exact range.
+      expected.forEach((b, i) => ram.write(0x6000 + i, b ^ 0xff));
+      ram.write(0x5fff, 0x55); ram.write(0x612c, 0x77);
+      const programSteps: number[][] = [], copies: number[][] = [];
+      let handoffs = 0;
+      const text = cold.command(command + " BEACON", undefined, record => {
+        trace.observe(cold.machine, record);
+        const pc = record.before.pc;
+        if (pc === 0xaca3) {
+          const dest = record.accesses.find(a => a.kind === "write" && a.address >= 0x6000 && a.address < 0x612c);
+          if (dest) copies.push([dest.address, dest.value, trace.reads.at(-1)!.sector]);
+        }
+        if (trace.matches(entry)) {
+          handoffs++;
+          assert.deepEqual(payload(), expected);
+          assert.deepEqual([ram.read(0xaa72), ram.read(0xaa73)], [0, 0x60]);
+        }
+        if (pc >= 0x6000 && pc < 0x612c) programSteps.push([pc, record.after.pc]);
+      });
+      assert.deepEqual(trace.reads.map(r => [r.track, r.sector, r.buffer]),
+        [...search, ...search, [12, 5, 0x9600], [12, 4, 0x9600]]);
+      for (const { track, sector, bytes } of trace.reads) {
+        const offset = (track * 16 + sector) * 256;
+        assert.deepEqual(bytes, [...exported.slice(offset, offset + 256)]);
+      }
+      assert.deepEqual(copies, Array.from(expected, (b, i) => [0x6000 + i, b, i < 252 ? 5 : 4]));
+      assert.deepEqual(payload(), expected);
+      assert.deepEqual([ram.read(0x5fff), ram.read(0x612c)], [0x55, 0x77]);
+      assert.ok(text.endsWith("]"));
+      if (command === "BLOAD") {
+        assert.equal(handoffs, 0); assert.deepEqual(programSteps, []);
+      } else {
+        assert.equal(handoffs, 1);
+        assert.deepEqual(programSteps, [[0x6000, 0x6003], [0x6003, 0x6006], [0x6006, 0xa17d]]);
+        assert.equal(ram.read(0x0794), 0xaa); assert.match(text, /^ {20}\*$/m);
+      }
+    }
+    assert.deepEqual(cold.machine.disk.exportImage(), exported);
+  });
+
   const pages = terminal.cataloguePages(), catalogue = pages.join("\n");
   assert.ok(pages.length > 1);
   assert.match(catalogue, /\*A 006 HELLO/); assert.match(catalogue, /\*A 009 COLOR DEMOSOFT/);

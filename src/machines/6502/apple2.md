@@ -719,6 +719,68 @@ slot bootstrap's direct nibble reads are outside that interface.
 | Completed | LIST | LIST reads the PRINT token | $D715 | read $0805 = $BA | $0805 | Applesoft has read the PRINT token in line 10. Resume to see LIST expand it. |
 | Interrupted | LIST | LIST finds the empty program | $D6DE | read $0802 = $00 | $0801 | The high byte of the first link is zero. Resume to see LIST return to the prompt without a line. |
 
+## Following a DOS binary into execution
+
+`BEACON` is a 300-byte machine-language program. Its first instruction reads
+the **last** byte of the file, so the star it draws depends on both data sectors
+having made it into RAM. To make the disk, boot a writable copy of the selected
+System Master. At the Applesoft prompt, enter these lines one at a time:
+
+```text
+NEW
+10 FOR I=0 TO 299:POKE 24576+I,I-256*INT(I/256):NEXT
+20 FOR I=0 TO 6:READ B:POKE 24576+I,B:NEXT
+30 DATA 173,43,97,141,148,7,96
+40 POKE 24875,170
+RUN
+BSAVE BEACON,A$6000,L$012C
+```
+
+Line 10 fills the range with each offset's low byte, which makes a skipped
+or transposed byte visible in a comparison. Lines 20–30 install three
+instructions at `$6000`. Line 40 puts `$AA`, the Apple II text code for
+`*`, at `$612B`.
+
+| Address | Bytes | Instruction | Effect |
+| --- | --- | --- | --- |
+| $6000 | AD 2B 61 | LDA $612B | Read the marker from byte 300. |
+| $6003 | 8D 94 07 | STA $0794 | Put the star on text page one, row 8, column 21 (counting from one). |
+| $6006 | 60 | RTS | Return to DOS. |
+
+When the motor stops, **Export disk image**, then **Insert read-only** and
+select the export. This starts a fresh machine. Run until DOS reaches the
+Applesoft prompt, then pause. Select **BLOAD and BRUN BEACON** in **Walkthrough**.
+Clear the **DOS sector read trace** in **Disk** to separate the load from the
+boot reads. Queue `BLOAD BEACON` with Return on the screen while paused.
+
+On this export the catalogue entry is `B 003 BEACON`: one T/S list and
+two data sectors. Both `BLOAD` and `BRUN` made two passes through T17 S0,
+T17 S15, S14, S13, S12, and T12 S6 before reading the data. The trace
+keeps each return, even when DOS reuses the same buffer.
+
+| File sector | DOS read on this disk | Bytes in the $9600 buffer | Bytes DOS copies into RAM |
+| --- | --- | --- | --- |
+| 0 | T12 S5 | `00 60 2C 01` gives address $6000 and length $012C, followed by 252 payload bytes | $9604–$96FF → $6000–$60FB |
+| 1 | T12 S4 | The remaining 48 bytes start at offset zero and end with AA at $962F | $9600–$962F → $60FC–$612B |
+
+The [native acceptance test](../../../tests/site/apple2-disk.test.ts) replaces
+all 300 destination bytes with their complements before `BLOAD`. It compares
+the restored bytes with the original program, checks the adjacent bytes, and
+observes each store in order across the sector boundary. `BLOAD` returns to
+the prompt without entering the program.
+
+Use **Run to checkpoint** for each stop. At the second stop, queue `BRUN BEACON`
+with Return. DOS reads the file again, places `00 60` at `$AA72–$AA73`, and
+executes `JMP ($AA72)` at `$A394`. The last stop is **before** the instruction
+at `$6000`. Step twice to see the accumulator receive `$AA` and the star
+appear on the screen. Resume to return to the Applesoft prompt.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| BEACON | BLOAD BEACON | Finish the first data sector | $ACA5 | write $60FB = $FB | $60FB | DOS has copied 252 bytes from the first sector. The second sector continues at $60FC. |
+| BEACON | BLOAD BEACON | Finish loading all 300 bytes | $ACA5 | write $612B = $AA | $612B | The star byte has arrived from the second sector. BLOAD will return without executing the program. |
+| BEACON | BRUN BEACON | DOS hands control to BEACON | $6000 | JMP ($AA72) at $A394 | $6000 | The DOS jump has completed. The next instruction is LDA $612B, and the program has yet to draw the star. |
+
 ## Disk II controller and media profile
 
 The machine fence above owns slot placement. A focused

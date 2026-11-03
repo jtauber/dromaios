@@ -16,7 +16,7 @@ from rendering import CHAPTERS, REPOSITORY, ChapterRendering, chapter_link, gith
 from machines import ALTAIR, APPLE2, COCO, MACHINES, media_record, rom_container_record
 from lessons import BASIC_LESSONS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
-from apple2_rom import APPLE2_ROM, rom_annotations, explorer_catalogue, load_answer_walkthroughs
+from apple2_rom import APPLE2_ROM, rom_annotations, explorer_catalogue, dos_walkthroughs
 
 
 class CpuBlocks(HTMLParser):
@@ -64,7 +64,7 @@ class PublishingTests(unittest.TestCase):
 
     def test_load_answer_stops_come_from_the_machine_chapter(self):
         source = APPLE2.read_text()
-        complete, cut = load_answer_walkthroughs(source)
+        complete, cut, binary = dos_walkthroughs(source)
         sector_reads = lambda tour: [(e["track"], e["sector"], e["buffer"]) for step in tour["steps"]
                                      if "track" in (e := step["expect"])]
         common = [(17, 12, 0xb4bb), (12, 6, 0x9700)]
@@ -74,8 +74,12 @@ class PublishingTests(unittest.TestCase):
             listing = tour["steps"][-1]
             self.assertEqual((listing["address"], listing["expect"]["address"]), (pc, byte_address))
             self.assertIn("queue LIST", listing["prepare"])
+        handoff = binary["steps"][-1]
+        self.assertEqual(binary["file"], dict(name="BEACON", type="B", address=0x6000, length=300))
+        self.assertEqual(handoff["expect"], dict(jumpFrom=0xa394, indirect=0xaa72, target=0x6000))
+        self.assertIn("queue BRUN BEACON", handoff["prepare"])
         with self.assertRaisesRegex(ValueError, "Invalid observation"):
-            load_answer_walkthroughs(source.replace("T12 S5 →", "T12 S16 →"))
+            dos_walkthroughs(source.replace("T12 S5 →", "T12 S16 →"))
 
     def test_rom_details_notes_and_walkthroughs_have_checked_cross_references(self):
         record = json.loads(re.search(r"```json\n(.*?)\n```", APPLE2_ROM.read_text(), re.S)[1])

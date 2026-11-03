@@ -36,3 +36,22 @@ test("DOS reads require an observed request and successful matching return, and 
   assert.ok(!trace.matches(expect)); assert.equal(trace.reads[0]!.bytes[0], 12);
   trace.clear(); assert.equal(trace.reads.length, 0);
 });
+
+test("a handoff matches the executed indirect jump and expires on the next instruction", () => {
+  const { machine } = createApple2Session(), trace = createDos33ReadTrace();
+  [0x6c, 0x72, 0xaa].forEach((v, i) => machine.ram.write(i, v));
+  machine.ram.write(0xaa73, 0x60); machine.ram.write(0x6000, 0xea);
+  const jump = { jumpFrom: 0, indirect: 0xaa72, target: 0x6000 };
+  trace.observe(machine, machine.cpu.step());
+  assert.ok(trace.matches(jump));
+  for (const other of [{ jumpFrom: 1 }, { indirect: 0xaa74 }, { target: 0x6001 }]) {
+    assert.ok(!trace.matches({ ...jump, ...other }));
+  }
+  trace.observe(machine, machine.cpu.step());
+  assert.ok(!trace.matches(jump));
+
+  const direct = createApple2Session().machine;
+  [0x4c, 0, 0x60].forEach((v, i) => direct.ram.write(i, v));
+  trace.observe(direct, direct.cpu.step());
+  assert.ok(!trace.matches(jump), "Arrival via JMP $6000 is a different instruction");
+});

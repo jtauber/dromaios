@@ -52,14 +52,20 @@ export function dos33Catalogue(bytes: readonly number[]) {
   return volume;
 }
 
-export interface Dos33FileSector { readonly index: number; readonly label: string; readonly detail: string }
+export interface Dos33FileSector { readonly index: number; readonly label: string; readonly detail: string; readonly fileSector?: number }
+
+/** The first four bytes of file sector zero are little-endian load address and payload length. */
+export function dos33BinaryHeader(image: readonly number[], sector: number) {
+  const base = sector * 256;
+  return { address: word(image, base), length: word(image, base + 2) };
+}
 
 /** Follow the selected file's lists. A sparse slot consumes a file position but supplies no disk sector. */
 export function dos33FileSectors(bytes: readonly number[], file: Dos33File): Dos33FileSector[] {
   const catalog = Math.floor(file.entry / 256), offset = file.entry % 256;
   const firstList = pointer(bytes, file.entry);
   if (firstList === undefined) throw new Error("The file has no track/sector list.");
-  const result = [{ index: catalog, label: "Catalogue entry", detail: `${file.name} starts at +$${offset.toString(16).toUpperCase()}. Its first two bytes point to the T/S list at ${sectorLabel(firstList)}.` }];
+  const result: Dos33FileSector[] = [{ index: catalog, label: "Catalogue entry", detail: `${file.name} starts at +$${offset.toString(16).toUpperCase()}. Its first two bytes point to the T/S list at ${sectorLabel(firstList)}.` }];
   for (const index of chain(bytes, firstList)) {
     const base = index * 256, first = word(bytes, base + 5);
     result.push({ index, label: "T/S list", detail: `The next list pointer is at +$01. Pairs from +$0C describe file sectors starting at ${first}.` });
@@ -68,9 +74,13 @@ export function dos33FileSectors(bytes: readonly number[], file: Dos33File): Dos
       if (data === undefined) continue;
       const n = first + (at - 0x0c) / 2;
       if (result.length > 35 * 16) throw new Error("The file references more sectors than fit on this disk.");
-      const length = file.type === "A" && n === 0 ? ` The first word gives the Applesoft length (${word(bytes, data * 256)} bytes).` : "";
-      result.push({ index: data, label: `File sector ${n}`,
-        detail: `Referenced by ${sectorLabel(index)} at +$${at.toString(16).toUpperCase().padStart(2, "0")}.${length}` });
+      let header = file.type === "A" && n === 0 ? ` The first word gives the Applesoft length (${word(bytes, data * 256)} bytes).` : "";
+      if (file.type === "B" && n === 0) {
+        const { address, length } = dos33BinaryHeader(bytes, data);
+        header = ` The binary header gives load address $${address.toString(16).toUpperCase().padStart(4, "0")} and length ${length} bytes.`;
+      }
+      result.push({ index: data, fileSector: n, label: `File sector ${n}`,
+        detail: `Referenced by ${sectorLabel(index)} at +$${at.toString(16).toUpperCase().padStart(2, "0")}.${header}` });
     }
   }
   return result;
