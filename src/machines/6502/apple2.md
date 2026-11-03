@@ -9,8 +9,8 @@ This is the first native composition in the [Apple II Plus plan](../../../docs/m
 48 KiB of main RAM, caller-supplied firmware, the keyboard latch, and text and
 graphics displays, plus a 16 KiB Language Card and an optional slot-6 Disk II.
 It runs BASIC and boots the selected DOS 3.3 System Master. The laboratory
-mounts the local image read-only. On a writable copy, DOS can write a sector,
-read it back, and recover the same bytes from an exported DOS-order image.
+mounts the local image read-only. On a writable copy, DOS can save an
+Applesoft program and load it after a fresh boot from the exported disk.
 The main reference is the pinned [dromaios-apple2 implementation][reference];
 Apple's [Reference Manual][manual] supplies the hardware background.
 
@@ -571,6 +571,33 @@ arithmetic program, and try LIST and RUN again. DOS and Applesoft work together;
 RUN still prints 5. On the protected System Master, `SAVE TEST` reports
 `WRITE PROTECTED`.
 
+### Saving ANSWER across a fresh boot
+
+The native test mounts a writable copy of the verified System Master in
+drive 1 and enters these commands at the Applesoft prompt.
+
+```text
+NEW
+10 PRINT 6*7
+SAVE ANSWER
+CATALOG
+```
+
+Page through the catalogue to `A 002 ANSWER`. The `A` identifies an
+Applesoft program. The two sectors belonging to the file are its track/sector
+list and its program data. In the exported image from this run, the catalogue
+entry on track 17, sector 12 points to track 12, sector 6. That sector lists
+track 12, sector 5 as the location of the program. Those three sectors and
+the volume allocation map on track 17, sector 0 are the only sectors that
+changed (track and sector numbers here are decimal).
+
+Enter `NEW`, then `LOAD ANSWER` and `RUN`. Applesoft prints `42`.
+Export drive 1 with `disk.exportImage()` and use its 143,360 bytes as the
+boot disk in a newly constructed Apple II with the same firmware and slot-6
+bootstrap. The export can be mounted read-only. After the DOS 3.3 banner
+and Applesoft prompt appear, repeat `NEW` and `LOAD ANSWER`. `LIST` shows
+`10 PRINT 6 * 7`, and `RUN` prints `42` again.
+
 ## Disk II controller and media profile
 
 The machine fence above owns slot placement. A focused
@@ -704,8 +731,10 @@ The [disk acceptance test](../../../tests/site/apple2-disk.test.ts) uses the
 same host media verification and keyboard queue as the browser. It cold-boots
 DOS, restores and compares instruction records while the bootstrap is reading,
 finishes CATALOG pagination, clears BASIC before LOAD/LIST HELLO, and runs the
-arithmetic program under DOS. SAVE must report protection and leave every media
-byte unchanged. Reset, eject, and fresh power-on check media retention separately.
+arithmetic program under DOS. SAVE must report protection on the original
+disk. On a writable copy, the test checks the ANSWER catalogue entry and
+boots another Apple II from the export to load and run it. Reset, eject, and
+fresh power-on check media retention separately.
 
 ```sh
 APPLE2_ROM=/path/to/apple2p.rom APPLE2_DISK=/path/to/dos33-master.dsk npm test

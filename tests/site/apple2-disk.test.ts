@@ -35,17 +35,9 @@ test("Apple II media checks whole containers, bootstrap slices, and selected dis
   diskBytes[0] = 255; assert.equal(selected.disk.snapshot()[0], 0);
 });
 
-const romPath = process.env.APPLE2_ROM, diskPath = process.env.APPLE2_DISK;
-test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writable media", {
-  skip: romPath === undefined || diskPath === undefined ? "Set APPLE2_ROM (20 KiB container) and APPLE2_DISK to the selected local media" : false,
-}, async t => {
-  assert.ok(romPath); assert.ok(diskPath);
-  const rom = await readApple2Rom(file(readFileSync(romPath)), romImages.firmware, media);
-  assert.ok(rom.bootstrap, "Disk acceptance needs the container's slot-6 bootstrap");
-  const selected = await readApple2Disk(file(readFileSync(diskPath)), media.disk);
-  const session = createApple2Session(rom.image, { bootstrap: rom.bootstrap, image: selected.disk });
-  const machine = session.machine;
-  const original = machine.disk.snapshot().media;
+/** Drive DOS through the keyboard and observe its output in page-one text RAM. */
+function dosTerminal(session: ReturnType<typeof createApple2Session>) {
+  const { machine } = session;
   // Independent Apple II page-one text rows, rather than the production video decoder.
   const rows = [0x400, 0x480, 0x500, 0x580, 0x600, 0x680, 0x700, 0x780,
     0x428, 0x4a8, 0x528, 0x5a8, 0x628, 0x6a8, 0x728, 0x7a8,
@@ -56,19 +48,11 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
       return String.fromCharCode(code < 32 ? code + 64 : code);
     }).join("").trimEnd()).join("\n").trim();
   }
-  let checkedResume = false;
   function waitForInput(limit = 10_000_000): void {
     let polls = 0;
     for (let steps = 0; steps < limit; steps++) {
       const record = session.step();
       assert.equal(record.outcome, "executed");
-      if (!checkedResume && record.accesses.some(access => access.kind === "read" && access.address === 0xc0ec)) {
-        checkedResume = true;
-        const saved = machine.snapshot(), resumed = create6502Apple2({ firmware: rom.image }, saved);
-        screen(); machine.disk.inspect(); assert.deepEqual(machine.snapshot(), saved);
-        for (let step = 0; step < 1000; step++) assert.deepEqual(session.step(), resumed.cpu.step());
-        assert.deepEqual(machine.snapshot(), resumed.snapshot());
-      }
       // Start counting only after the final queued key has been acknowledged: KEYIN
       // still has to return that key to BASIC before it can execute the command.
       if (record.accesses.some(access => access.kind === "read" && access.address >= 0xc000 && access.address < 0xc010)) {
@@ -78,18 +62,54 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     }
     assert.fail(`No keyboard wait at PC ${machine.cpu.snapshot().pc.toString(16)}:\n${screen()}`);
   }
-  function command(text: string): void { session.send(apple2Input(text + "\n")); waitForInput(); }
-  waitForInput(60_000_000);
-  assert.ok(checkedResume);
-  assert.match(screen(), /DOS VERSION 3\.3\s+08\/25\/80/);
-  assert.match(screen(), /LOADING INTEGER INTO LANGUAGE CARD/);
-  assert.match(screen(), /\]$/);
-  command("CATALOG");
-  let catalogue = screen(), pages = 1;
+  function command(text: string, limit?: number): string {
+    session.send(apple2Input(text + "\n")); waitForInput(limit); return screen();
+  }
   const prompt = () => machine.ram.read(0x24) === 1 && (machine.ram.read(rows[machine.ram.read(0x25)]!) & 0x7f) === 0x5d;
-  while (!prompt() && pages < 5) { command(""); catalogue += "\n" + screen(); pages++; }
-  assert.ok(prompt(), "Catalogue pagination must finish before the next command");
-  assert.ok(pages > 1);
+  function cataloguePages(): string[] {
+    const pages = [command("CATALOG")];
+    while (!prompt() && pages.length < 5) pages.push(command(""));
+    assert.ok(prompt(), "Catalogue pagination must finish before the next command");
+    return pages;
+  }
+  function bootToPrompt(): void {
+    waitForInput(60_000_000);
+    assert.match(screen(), /DOS VERSION 3\.3\s+08\/25\/80/);
+    assert.match(screen(), /LOADING INTEGER INTO LANGUAGE CARD/);
+    assert.ok(prompt());
+  }
+  return { command, screen, cataloguePages, bootToPrompt };
+}
+
+const romPath = process.env.APPLE2_ROM, diskPath = process.env.APPLE2_DISK;
+test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writable media", {
+  skip: romPath === undefined || diskPath === undefined ? "Set APPLE2_ROM (20 KiB container) and APPLE2_DISK to the selected local media" : false,
+}, async t => {
+  assert.ok(romPath); assert.ok(diskPath);
+  const rom = await readApple2Rom(file(readFileSync(romPath)), romImages.firmware, media);
+  const bootstrap = rom.bootstrap;
+  assert.ok(bootstrap, "Disk acceptance needs the container's slot-6 bootstrap");
+  const selected = await readApple2Disk(file(readFileSync(diskPath)), media.disk);
+  const session = createApple2Session(rom.image, { bootstrap, image: selected.disk });
+  const machine = session.machine, terminal = dosTerminal(session);
+  const { command, screen } = terminal;
+  const original = machine.disk.snapshot().media;
+  await t.test("bootstrap continues identically after restoring a Disk II read", () => {
+    for (let i = 0; i < 1_000_000; i++) {
+      const record = session.step();
+      assert.equal(record.outcome, "executed");
+      if (!record.accesses.some(access => access.kind === "read" && access.address === 0xc0ec)) continue;
+      const saved = machine.snapshot(), resumed = create6502Apple2({ firmware: rom.image }, saved);
+      screen(); machine.disk.inspect(); assert.deepEqual(machine.snapshot(), saved);
+      for (let step = 0; step < 1000; step++) assert.deepEqual(session.step(), resumed.cpu.step());
+      assert.deepEqual(machine.snapshot(), resumed.snapshot());
+      return;
+    }
+    assert.fail("The bootstrap never read the Disk II latch");
+  });
+  terminal.bootToPrompt();
+  const pages = terminal.cataloguePages(), catalogue = pages.join("\n");
+  assert.ok(pages.length > 1);
   assert.match(catalogue, /\*A 006 HELLO/); assert.match(catalogue, /\*A 009 COLOR DEMOSOFT/);
   command("NEW"); command("LOAD HELLO"); command("LIST");
   assert.match(screen(), /200\s+VTAB 10/);
@@ -99,6 +119,32 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
   assert.match(screen(), /\]RUN\n5\n/);
   command("SAVE TEST"); assert.match(screen(), /WRITE PROTECTED/);
   assert.deepEqual(machine.disk.snapshot().media, original);
+
+  await t.test("DOS saves ANSWER in the catalogue and a fresh boot from the exported disk runs it", () => {
+    const master = selected.disk.exportImage();
+    assert.doesNotMatch(catalogue, /\bANSWER$/m);
+    machine.disk.insert(new Dos33Disk(master, { writable: true }));
+    command("NEW"); command("10 PRINT 6*7");
+    command("SAVE ANSWER", 20_000_000); // Allocating and saving the new file takes about 13 million instructions.
+    const listing = terminal.cataloguePages().join("\n");
+    assert.match(listing, /^ *A 002 ANSWER$/m);
+
+    function loadAndRun(dos: ReturnType<typeof dosTerminal>): void {
+      dos.command("NEW");
+      assert.match(dos.command("LIST"), /\]LIST\n+\]$/);
+      dos.command("LOAD ANSWER");
+      assert.match(dos.command("LIST"), /\]LIST\n+10\s+PRINT\s*6\s*\*\s*7\n+\]$/);
+      assert.match(dos.command("RUN"), /\]RUN\n42\n+\]$/);
+    }
+    loadAndRun(terminal);
+    const exported = machine.disk.exportImage();
+    assert.equal(exported.length, Dos33Disk.size);
+    assert.notDeepEqual(exported, master);
+    assert.deepEqual(selected.disk.exportImage(), master);
+    const fresh = dosTerminal(createApple2Session(rom.image, { bootstrap, image: new Dos33Disk(exported) }));
+    fresh.bootToPrompt();
+    loadAndRun(fresh);
+  });
 
   await t.test("DOS RWTS writes track 18 sector 6, reads it back, and changes only $12600–$126FF in the export", () => {
     const master = selected.disk.exportImage();

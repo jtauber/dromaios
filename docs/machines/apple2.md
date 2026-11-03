@@ -5,8 +5,8 @@ The Apple II target is an **Apple II Plus**, using
 browser interaction, and software targets. The initial
 [executable chapter](../../src/machines/6502/apple2.md) now boots ROM and runs
 BASIC programs with browser text and both graphics resolutions, Language Card
-banking, and DOS 3.3. The native Disk II has reached the first sector-write
-checkpoint. Saving files and sound complete the target below.
+banking, and DOS 3.3. The native Disk II can save an Applesoft file and
+recover it from the exported disk after a fresh boot.
 ApplePy remains a
 historical reference; it is not the migration baseline.
 
@@ -194,11 +194,11 @@ motor-off behavior; these are not rotational or copy-protection compatibility.
 DOS now [writes and reads back one sector](../../src/machines/6502/apple2.md#writing-a-dos-sector)
 on a writable copy. The exported image changes only at the expected DOS-order offset.
 
-Saving is part of the usable-machine target. On a disposable working copy of
-a selected DOS disk: enter a BASIC program, `SAVE`, confirm its catalogue entry,
-`NEW`, `LOAD`, and `RUN`. Export the changed image, start a fresh machine,
-re-import it, and repeat `LOAD`/`RUN`. Also test write protection and an attempted
-save that cannot complete without falsely reporting success or corrupting media.
+The [ANSWER session](../../src/machines/6502/apple2.md#saving-answer-across-a-fresh-boot)
+completes the native file-save checkpoint. DOS catalogues the program and
+loads it after a fresh boot from the exported image. The laboratory still
+needs writable-copy, export, and re-import controls. Its acceptance should
+also cover a save that cannot complete on the working disk.
 
 Speaker transitions must be timestamped in emulated time. Check a known
 software-driven tone, browser audio enablement, pause/resume, and silence on
@@ -207,8 +207,8 @@ independent of browser frame rate and host scheduling. Address the necessary
 6502 timing and bus-access fidelity explicitly; static opcode costs alone
 cannot establish those properties.
 
-These four checkpoints define the first usable Apple II Plus release. DOS
-file-save acceptance, writable laboratory media, and sound remain unfinished.
+These four checkpoints define the first usable Apple II Plus release. Writable
+laboratory media and sound remain unfinished.
 Understanding the working ROM and DOS configuration still precedes games such
 as Mystery House and Ultima IV. Playing a game and explaining its software
 remain separate acceptance targets.
@@ -317,8 +317,8 @@ and hardware contracts in the executable machine chapter, with software
 walkthroughs linking to them. Do not introduce a general plugin framework or
 extend the peripheral language merely to host these first tools.
 
-Next, exercise the DOS file manager on the writable copy and verify that its
-catalogue entry and file survive export and a fresh boot.
+Use the native ANSWER session as the acceptance case for writable laboratory
+media, including a checkpoint restored with the edited disk mounted.
 
 As implementation lands, move hardware/reset/media contracts and acceptance
 details into the executable chapter alongside their declarations. Keep this
