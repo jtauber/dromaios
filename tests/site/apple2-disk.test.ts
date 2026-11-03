@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { create6502Apple2, romImages } from "../../src/machines/generated/6502/apple2.js";
+import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
 import { readApple2Rom, readApple2Disk } from "../../site/interactive/apple2-media.js";
 import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
@@ -35,9 +36,9 @@ test("Apple II media checks whole containers, bootstrap slices, and selected dis
 });
 
 const romPath = process.env.APPLE2_ROM, diskPath = process.env.APPLE2_DISK;
-test("native Disk II boots DOS, catalogues and loads HELLO, runs BASIC, and rejects SAVE", {
+test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writable media", {
   skip: romPath === undefined || diskPath === undefined ? "Set APPLE2_ROM (20 KiB container) and APPLE2_DISK to the selected local media" : false,
-}, async () => {
+}, async t => {
   assert.ok(romPath); assert.ok(diskPath);
   const rom = await readApple2Rom(file(readFileSync(romPath)), romImages.firmware, media);
   assert.ok(rom.bootstrap, "Disk acceptance needs the container's slot-6 bootstrap");
@@ -98,6 +99,49 @@ test("native Disk II boots DOS, catalogues and loads HELLO, runs BASIC, and reje
   assert.match(screen(), /\]RUN\n5\n/);
   command("SAVE TEST"); assert.match(screen(), /WRITE PROTECTED/);
   assert.deepEqual(machine.disk.snapshot().media, original);
+
+  await t.test("DOS RWTS writes track 18 sector 6, reads it back, and changes only $12600–$126FF in the export", () => {
+    const master = selected.disk.exportImage();
+    machine.disk.insert(new Dos33Disk(master, { writable: true }));
+    const put = (address: number, bytes: ArrayLike<number>) => {
+      for (let i = 0; i < bytes.length; i++) machine.ram.write(address + i, bytes[i]!);
+    };
+    // CALL 768 enters a guest loop: LDA #$03, LDY #$80, JSR RWTS, JMP $0300.
+    // Observe each return before the JMP and supply the next request in the same IOB.
+    put(0x300, [0xa9, 3, 0xa0, 0x80, 0x20, 0xd9, 3, 0x4c, 0, 3]);
+    put(0x380, [1, 0x60, 1, 0, 18, 6, 0xa0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    put(0x3a0, [0, 1, 0xef, 0xd8]); // Device characteristics for a Disk II.
+    session.send(apple2Input("CALL 768\n"));
+    function rwts(operation: number, bufferPage: number): void {
+      machine.ram.write(0x389, bufferPage); machine.ram.write(0x38c, operation);
+      for (let i = 0; i < 2_000_000; i++) {
+        const { after, outcome } = session.step();
+        assert.equal(outcome, "executed");
+        if (after.pc === 0x307) {
+          assert.equal(after.flags.c, false, `RWTS error ${machine.ram.read(0x38d)}`); return;
+        }
+      }
+      assert.fail("RWTS did not return to the guest caller");
+    }
+    const payload = Uint8Array.from({ length: 256 }, (_, i) => i ^ 0x53);
+    put(0x2000, payload);
+    rwts(2, 0x20); // Write from $2000.
+    put(0x2100, payload.map(byte => byte ^ 0xff));
+    rwts(1, 0x21); // Read into a different buffer through the same DOS entry point.
+    const buffer = (address: number) => Uint8Array.from({ length: 256 }, (_, i) => machine.ram.read(address + i));
+    assert.deepEqual(buffer(0x2100), payload);
+
+    const expected = master.slice();
+    expected.set(payload, 0x12600); // DOS-order file offset: (18 × 16 + 6) × 256.
+    const exported = machine.disk.exportImage();
+    assert.deepEqual(exported, expected);
+    assert.deepEqual(selected.disk.exportImage(), master);
+    machine.disk.insert(new Dos33Disk(exported));
+    put(0x2200, payload.map(byte => byte ^ 0xff));
+    rwts(1, 0x22);
+    assert.deepEqual(buffer(0x2200), payload);
+  });
+  machine.disk.insert(selected.disk);
   const before = machine.disk.snapshot(); session.reset(); assert.deepEqual(machine.disk.snapshot(), before);
   session.powerOn();
   assert.equal(session.machine.disk.inspect().position, 0);

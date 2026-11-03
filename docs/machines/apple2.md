@@ -5,7 +5,8 @@ The Apple II target is an **Apple II Plus**, using
 browser interaction, and software targets. The initial
 [executable chapter](../../src/machines/6502/apple2.md) now boots ROM and runs
 BASIC programs with browser text and both graphics resolutions, Language Card
-banking, and read-only DOS 3.3. Writable disks and sound complete the target below.
+banking, and DOS 3.3. The native Disk II has reached the first sector-write
+checkpoint. Saving files and sound complete the target below.
 ApplePy remains a
 historical reference; it is not the migration baseline.
 
@@ -190,6 +191,9 @@ motor-off behavior; these are not rotational or copy-protection compatibility.
 
 ### 4. Writable disks and sound
 
+DOS now [writes and reads back one sector](../../src/machines/6502/apple2.md#writing-a-dos-sector)
+on a writable copy. The exported image changes only at the expected DOS-order offset.
+
 Saving is part of the usable-machine target. On a disposable working copy of
 a selected DOS disk: enter a BASIC program, `SAVE`, confirm its catalogue entry,
 `NEW`, `LOAD`, and `RUN`. Export the changed image, start a fresh machine,
@@ -203,9 +207,8 @@ independent of browser frame rate and host scheduling. Address the necessary
 6502 timing and bus-access fidelity explicitly; static opcode costs alone
 cannot establish those properties.
 
-These four checkpoints define the first usable Apple II Plus release. Writable
-disks and sound remain unfinished. Further DOS exploration and these extensions
-remain planned while the immediate effort broadens to the [CoCo](coco.md).
+These four checkpoints define the first usable Apple II Plus release. DOS
+file-save acceptance, writable laboratory media, and sound remain unfinished.
 Understanding the working ROM and DOS configuration still precedes games such
 as Mystery House and Ultima IV. Playing a game and explaining its software
 remain separate acceptance targets.
@@ -314,11 +317,8 @@ and hardware contracts in the executable machine chapter, with software
 walkthroughs linking to them. Do not introduce a general plugin framework or
 extend the peripheral language merely to host these first tools.
 
-When writable disks resume, implement them on a disposable in-memory copy and
-prove SAVE/NEW/LOAD/RUN plus export/re-import with the selected System Master.
-Keep malformed/incomplete writes from silently corrupting sectors and retain
-an explicit protected mode. This goes beyond the reference's unfinished write
-path and needs independent evidence.
+Next, exercise the DOS file manager on the writable copy and verify that its
+catalogue entry and file survive export and a fresh boot.
 
 As implementation lands, move hardware/reset/media contracts and acceptance
 details into the executable chapter alongside their declarations. Keep this

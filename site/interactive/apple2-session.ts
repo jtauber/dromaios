@@ -12,10 +12,8 @@ export interface Apple2SessionState {
 
 /** Host keyboard transport for a generated machine; all BASIC behavior still executes in ROM. */
 export function createApple2Session(firmware: RomImage | null = null, disk?: { readonly bootstrap: readonly number[]; readonly image: Dos33Disk }) {
-  // Fresh power-on retains selected media; eject changes that selection as well as the live drive.
-  let selected: typeof disk = disk === undefined ? undefined : { bootstrap: [...disk.bootstrap], image: disk.image };
-  let machine = powerOn(), input: number[] = [];
-  function powerOn() {
+  let machine = powerOn(disk), input: number[] = [];
+  function powerOn(selected?: typeof disk) {
     const machine = create6502Apple2({ firmware });
     if (selected !== undefined) { machine.disk.install(selected.bootstrap); machine.disk.insert(selected.image); }
     if (firmware !== null) machine.reset();
@@ -36,10 +34,9 @@ export function createApple2Session(firmware: RomImage | null = null, disk?: { r
       for (const byte of state.input) checkUnsigned("Saved keyboard character", byte, 0x7f);
       // Construct and validate everything before replacing any part of the live session.
       const restored = create6502Apple2({ firmware }, state.hardware);
-      const { bootstrap, media } = restored.disk.snapshot();
+      const { bootstrap, media } = state.hardware.disk;
       if (media !== null && bootstrap === null) throw new Error("Saved disk requires its bootstrap.");
-      const retained = media === null ? undefined : { bootstrap: bootstrap!, image: new Dos33Disk(media) };
-      machine = restored; input = [...state.input]; selected = retained;
+      machine = restored; input = [...state.input];
     },
     installFirmware(image: RomImage): void { machine.firmware.install(image); firmware = image; },
     send(bytes: readonly number[]): void {
@@ -53,8 +50,12 @@ export function createApple2Session(firmware: RomImage | null = null, disk?: { r
       return machine.cpu.step();
     },
     reset(): void { requireFirmware(); machine.reset(); input = []; },
-    powerOn(): void { machine = powerOn(); input = []; },
-    eject(): void { machine.disk.eject(); selected = undefined; },
+    powerOn(): void {
+      const { bootstrap, media, writable } = machine.disk.snapshot();
+      machine = powerOn(media && bootstrap ? { bootstrap, image: new Dos33Disk(media, { writable }) } : undefined);
+      input = [];
+    },
+    eject(): void { machine.disk.eject(); },
   };
 }
 

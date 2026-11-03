@@ -286,7 +286,9 @@ south and the reloaded party to the DOS calls and RAM bytes behind them.
 Introduce further abstractions through concrete requirements.
 
 The [Apple II Plus](docs/machines/apple2.md) already has ROM BASIC, graphics,
-Language Card banking, read-only DOS 3.3, and a laboratory. Its next storage
+Language Card banking, DOS 3.3, and a laboratory. Native DOS can
+[write and read back a sector](src/machines/6502/apple2.md#writing-a-dos-sector)
+on a writable disk copy. Its next storage
 milestone is to write a file under DOS 3.3, export the disk and read the file
 after a fresh boot. Further DOS exploration and sound remain planned.
 New hardware behavior should be authored in executable

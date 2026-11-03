@@ -55,6 +55,65 @@ test("Disk II declares read-only media through the actual DOS write-protect sens
   assert.deepEqual(disk.snapshot().media, original);
 });
 
+// A second canonical track supplies the transferred GCR bytes. The DOS-backed test
+// independently gets those bytes from RWTS's 6502 encoder.
+const sectorSix = Uint8Array.from({ length: 256 }, (_, i) => 255 - i);
+const frame = (() => {
+  const source = new Uint8Array(Dos33Disk.size);
+  source.set(sectorSix, 6 * 256);
+  const disk = new Dos33Disk(source);
+  return [0xff, ...Array.from({ length: 349 }, (_, i) => disk.read(0, 1217 + i)), 0xff];
+})();
+
+function startWrite(position = 1210): Apple2DiskII {
+  const disk = card();
+  disk.insert(new Dos33Disk(new Uint8Array(Dos33Disk.size), { writable: true }));
+  disk.read(9);
+  for (let i = 0; i < position; i++) disk.read(12);
+  disk.read(13); assert.equal(disk.read(14), 0); // Writable drive 1.
+  disk.write(15, frame[0]!); disk.read(12);
+  return disk;
+}
+
+function shift(disk: Apple2DiskII, bytes: readonly number[]): void {
+  for (const byte of bytes) { disk.write(13, byte); disk.read(12); }
+}
+
+test("Disk II restores between latch load and shift and publishes a complete sector on return to read mode", () => {
+  const disk = startWrite();
+  shift(disk, frame.slice(1, 170)); disk.write(13, frame[170]!);
+  const saved = disk.snapshot(), restored = new Apple2DiskII(saved);
+  for (const card of [disk, restored]) {
+    card.read(12); shift(card, frame.slice(171));
+    assert.deepEqual(card.exportImage(), new Uint8Array(Dos33Disk.size));
+    card.read(14);
+    const expected = new Uint8Array(Dos33Disk.size);
+    expected.set(sectorSix, 6 * 256);
+    const exported = card.exportImage();
+    assert.deepEqual(exported, expected);
+    exported.fill(0); assert.deepEqual(card.exportImage(), expected);
+  }
+  assert.deepEqual(disk.snapshot(), restored.snapshot());
+  assert.equal(saved.media![6 * 256], 0, "An earlier snapshot still describes the original sector");
+  assert.throws(() => new Apple2DiskII({ ...saved, writable: false }));
+});
+
+test("partial, invalid, misplaced and interrupted Disk II writes leave every exported byte intact", () => {
+  const badCode = frame.slice(), badChecksum = frame.slice(), badEnd = frame.slice();
+  badCode[16] = 0; badChecksum[346] = frame[346] === 0x96 ? 0x97 : 0x96; badEnd[349] = 0;
+  for (const bytes of [frame.slice(0, 30), badCode, badChecksum, badEnd, [...frame, ...new Array<number>(400).fill(0xff)]]) {
+    const disk = startWrite(); shift(disk, bytes.slice(1)); disk.read(14);
+    assert.deepEqual(disk.exportImage(), new Uint8Array(Dos33Disk.size));
+  }
+  const misplaced = startWrite(10); shift(misplaced, frame.slice(1)); misplaced.read(14);
+  assert.deepEqual(misplaced.exportImage(), new Uint8Array(Dos33Disk.size));
+  for (const interrupt of [8, 11, 3]) { // Motor off, absent drive 2, head movement.
+    const disk = startWrite(); shift(disk, frame.slice(1, 60)); disk.read(interrupt);
+    shift(disk, frame.slice(60)); disk.read(14);
+    assert.deepEqual(disk.exportImage(), new Uint8Array(Dos33Disk.size));
+  }
+});
+
 test("Disk II stepping, inspection, reset, restoration, and replacement preserve their declared state", () => {
   const disk = card();
   disk.read(3); assert.equal(disk.inspect().halfTrack, 0, "Motor is off");

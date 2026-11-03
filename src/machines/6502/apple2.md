@@ -8,8 +8,9 @@ the upper 12 KiB of the address space.
 This is the first native composition in the [Apple II Plus plan](../../../docs/machines/apple2.md):
 48 KiB of main RAM, caller-supplied firmware, the keyboard latch, and text and
 graphics displays, plus a 16 KiB Language Card and an optional slot-6 Disk II.
-It runs BASIC and boots the selected DOS 3.3 System Master from a local,
-read-only disk image. Disk writes and sound remain future work.
+It runs BASIC and boots the selected DOS 3.3 System Master. The laboratory
+mounts the local image read-only. On a writable copy, DOS can write a sector,
+read it back, and recover the same bytes from an exported DOS-order image.
 The main reference is the pinned [dromaios-apple2 implementation][reference];
 Apple's [Reference Manual][manual] supplies the hardware background.
 
@@ -136,9 +137,10 @@ Disk boot also extracts the 256-byte P5 bootstrap at container offsets
 this container; a bare 12 KiB motherboard image still supports ROM-only use.
 The selected disk is the reference's `disks/dos33-master.dsk`. Its size and
 whole-file digest above are checked before insertion. The host calls
-`disk.install(bootstrap)` and `disk.insert(new Dos33Disk(bytes))`; those focused
-device methods own copies of their inputs. The generated machine needs no
-Disk II-specific construction code.
+`disk.install(bootstrap)` and `disk.insert(new Dos33Disk(bytes))` for protected
+media. Passing `{ writable: true }` to the disk constructor creates a writable
+copy. `disk.exportImage()` returns an independent DOS-order byte image of the
+mounted disk.
 
 ## Construction, reset, and restoration
 
@@ -566,8 +568,8 @@ LIST
 LIST displays the program from disk, including the Language Card detection
 and `BLOAD INTBASIC,A$D000` command. Next use `NEW`, enter the earlier two-line
 arithmetic program, and try LIST and RUN again. DOS and Applesoft work together;
-RUN still prints 5. `SAVE TEST` must instead report `WRITE PROTECTED`. This
-milestone cannot save or export disk changes, and never alters the selected file.
+RUN still prints 5. On the protected System Master, `SAVE TEST` reports
+`WRITE PROTECTED`.
 
 ## Disk II controller and media profile
 
@@ -593,9 +595,9 @@ Q7 selects read or write operation; Q6 selects shifting or loading/sensing:
 | Q7 | Q6 | Modeled result |
 | ---: | ---: | --- |
 | 0 | 0 | Reading C0EC consumes one disk byte. Other even-address reads sample the current latch. |
-| 0 | 1 | Even-address reads return 80: the medium is write protected. |
-| 1 | 0 | The latch is retained; no bytes are written to the medium. |
-| 1 | 1 | CPU writes load the latch, but the protected medium still cannot change. |
+| 0 | 1 | An even-address read returns 00 for writable media in drive 1, otherwise 80. |
+| 1 | 0 | Lowering Q6 shifts one latch byte on writable drive 1 with its motor on. |
+| 1 | 1 | A CPU write loads the latch for the next shift. |
 
 Odd addresses do not drive the data bus; this model returns 00. In particular,
 DOS senses protection by reading C0ED and then C0EE: the first access selects
@@ -609,6 +611,7 @@ The controller stores the selected drive (initially 1), motor/Q6/Q7 booleans
 (0), and data latch (00). Bootstrap and media start absent. CPU reset preserves
 all of these. Snapshot restoration validates the fields, owns the bootstrap
 and disk data, and resumes at the same byte without executing a guest access.
+It preserves write permission and bytes already shifted during an open write.
 `inspect()` reveals control state without copying the medium or advancing it.
 Insertion and eject reset the byte position and latch, preserving head and controls.
 
@@ -622,6 +625,33 @@ high-bit values. An XOR chain and the 64-entry disk-byte translation table
 produce 343 encoded bytes, including the checksum. Address and data prologues,
 epilogues, and fixed FF gaps make a circular 6,162-byte track stream.
 
+### Writing a DOS sector
+
+DOS's Read/Write Track/Sector routine (RWTS) first reads the address field
+to find its sector. On the selected System Master it reads through DE AA of
+the address epilogue, senses write protection, then raises Q7. It loads a
+byte with Q6 high and lowers Q6 to shift it. Sync bytes precede the data
+prologue D5 AA AD. Lowering Q7 ends the write.
+
+The controller uses the starting position on the track to identify which
+existing sector follows that address field. The media model decodes the
+342 values, checks the chained checksum and the DE AA EB epilogue, and
+replaces the sector in the DOS-order image. The next read sees its newly
+encoded track. An incomplete or malformed field leaves the previous sector
+intact. This is the unit of write supported by a sector image.
+
+The [native check](../../../tests/site/apple2-disk.test.ts) uses the
+[DOS Manual’s RWTS interface][dos-manual]. A 6502 caller enters DOS at
+03D9 with an I/O block for slot 6, drive 1, track 18, logical sector 6
+(decimal). DOS finds physical address field 3 and writes 256 bytes from
+2000. A second call reads them into 2100. Both return with carry clear.
+In the exported 143,360-byte image the payload occupies **12600–126FF**
+(hexadecimal), because `(18 × 16 + 6) × 256 = 12600h`. Every other byte
+matches the System Master. Remounting the export as a protected disk and
+reading the sector into 2200 recovers the same payload.
+
+### Timing and format limits
+
 This is deliberately an **access-driven byte model**. With motor on, drive 1
 selected, and media present, C0EC reads advance that stream. Pausing or
 inspecting never advances it. Reading without those conditions returns 00
@@ -634,9 +664,8 @@ an adjacent phase moves one half track; the phase-difference table resolves
 opposite phases. Phase-off accesses do not move the head. The range is clamped
 to tracks 0–34; odd half tracks read the lower whole track. This is not a model
 of simultaneous phase currents, head settling, rotational speed, bit timing,
-the sequencer, or flux transitions. Custom formats, copy protection, other disk
-sizes, disk writes, and drive 2 are outside this profile. Successful DOS reads
-establish the stated software checkpoint, not those stronger hardware claims.
+the sequencer, or flux transitions. Formatting tracks, custom formats, copy
+protection, other disk sizes, and drive 2 are outside this profile.
 
 ## Headless acceptance
 
@@ -703,3 +732,4 @@ reset/power-on, failed replacement, page hiding, and wide/narrow layouts.
 [manual]: https://www.applelogic.org/files/AIIREF.pdf
 [reference]: https://github.com/jtauber/dromaios-apple2/tree/569baf98006f61e80ed93c36aa4f8d9ae23011d3
 [disk-hardware]: https://archive.org/details/understanding_the_apple_ii
+[dos-manual]: https://www.applelogic.org/files/AIIDOS.pdf
