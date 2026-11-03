@@ -29,3 +29,46 @@ def explorer_catalogue():
         if instruction is None or instruction["length"] != len(encoded):
             raise ValueError(f"ROM note at ${note['address']} must describe one supported instruction.")
     return {**guide, "instructions": cpu["instructions"], "hardware": cpu["hardware"]}
+
+
+def load_answer_walkthroughs(source):
+    """Read the named stops from the machine chapter's laboratory table."""
+    header = "| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |"
+    if source.count(header) != 1:
+        raise ValueError("The Apple II guide needs one LOAD ANSWER checkpoint table.")
+    table = source.split(header)[1].strip().split("\n\n", 1)[0]
+    rows = [[cell.strip() for cell in line.strip("|").split("|")] for line in table.splitlines()[1:]]
+    tours = []
+    for disk in ("Completed", "Interrupted"):
+        steps = []
+        previous_command = None
+        for medium, command, title, pc, observed, inspect, note in rows:
+            if medium not in {"Both", "Completed", "Interrupted"}:
+                raise ValueError(f"Unknown ANSWER disk {medium}.")
+            if medium not in {"Both", disk}:
+                continue
+            if command not in {"LOAD ANSWER", "LIST"} or not title or not note:
+                raise ValueError(f"Missing command or description for ANSWER checkpoint {title}.")
+            if not all(re.fullmatch(r"\$[0-9A-F]{4}", text) for text in (pc, inspect)):
+                raise ValueError(f"Invalid address in ANSWER checkpoint {title}.")
+            sector = re.fullmatch(r"T(\d+) S(\d+) → \$([0-9A-F]{4})", observed)
+            access = re.fullmatch(r"(read|write) \$([0-9A-F]{4})(?: = \$([0-9A-F]{2}))?", observed)
+            if sector and int(sector[1]) < 35 and int(sector[2]) < 16:
+                expect = dict(track=int(sector[1]), sector=int(sector[2]), buffer=int(sector[3], 16))
+            elif access:
+                expect = dict(kind=access[1], address=int(access[2], 16))
+                if access[3] is not None:
+                    expect["value"] = int(access[3], 16)
+            else:
+                raise ValueError(f"Invalid observation in ANSWER checkpoint {title}.")
+            prepare = (f"With the CPU paused, queue {command} and press Return on the screen." if previous_command != command
+                       else f"Continue {command} without entering another command.")
+            previous_command = command
+            steps.append(dict(title=title, address=pc[1:], inspect=int(inspect[1:], 16),
+                              expect=expect, observe=note, prepare=prepare))
+        if not steps:
+            raise ValueError(f"No LOAD checkpoints for the {disk.lower()} disk.")
+        tours.append(dict(id=f"answer-{disk.lower()}", title=f"LOAD ANSWER · {disk.lower()} disk",
+                          setup=f"Boot the {disk.lower()} ANSWER export, run NEW and pause at the prompt. "
+                                "Clear the DOS sector read trace in Disk to isolate this load.", steps=steps))
+    return tours

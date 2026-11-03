@@ -8,6 +8,8 @@ import type { Dos33SectorWrite } from "../../src/components/devices/dos33-disk.j
 import { readApple2Rom, readApple2Disk } from "../../site/interactive/apple2-media.js";
 import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
+import { createDos33ReadTrace } from "../../site/interactive/dos33-reads.js";
+import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import { encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
 
 const media: Apple2Media = JSON.parse(readFileSync("src/machines/6502/apple2.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
@@ -58,11 +60,12 @@ function dosTerminal(session: ReturnType<typeof createApple2Session>) {
       return String.fromCharCode(code < 32 ? code + 64 : code);
     }).join("").trimEnd()).join("\n").trim();
   }
-  function waitForInput(limit = 10_000_000): void {
+  function waitForInput(limit = 10_000_000, observe?: (step: Cpu6502StepRecord) => void): void {
     let polls = 0;
     for (let steps = 0; steps < limit; steps++) {
       const record = session.step();
       assert.equal(record.outcome, "executed");
+      observe?.(record);
       // Start counting only after the final queued key has been acknowledged: KEYIN
       // still has to return that key to BASIC before it can execute the command.
       if (record.accesses.some(access => access.kind === "read" && access.address >= 0xc000 && access.address < 0xc010)) {
@@ -72,8 +75,8 @@ function dosTerminal(session: ReturnType<typeof createApple2Session>) {
     }
     assert.fail(`No keyboard wait at PC ${machine.cpu.snapshot().pc.toString(16)}:\n${screen()}`);
   }
-  function command(text: string, limit?: number): string {
-    session.send(apple2Input(text + "\n")); waitForInput(limit); return screen();
+  function command(text: string, limit?: number, observe?: (step: Cpu6502StepRecord) => void): string {
+    session.send(apple2Input(text + "\n")); waitForInput(limit, observe); return screen();
   }
   const prompt = () => machine.ram.read(0x24) === 1 && (machine.ram.read(rows[machine.ram.read(0x25)]!) & 0x7f) === 0x5d;
   function cataloguePages(): string[] {
@@ -88,7 +91,47 @@ function dosTerminal(session: ReturnType<typeof createApple2Session>) {
     assert.match(screen(), /LOADING INTEGER INTO LANGUAGE CARD/);
     assert.ok(prompt());
   }
-  return { command, screen, cataloguePages, bootToPrompt, waitForInput };
+  return { machine, command, screen, cataloguePages, bootToPrompt, waitForInput };
+}
+
+/** The disk-sector bytes and observed CPU writes independently account for the BASIC text. */
+function traceAnswer(dos: ReturnType<typeof dosTerminal>, image: Uint8Array, completed: boolean): void {
+  const trace = createDos33ReadTrace(), copies: number[][] = [], listing: number[] = [];
+  dos.command("NEW");
+  dos.command("LOAD ANSWER", undefined, record => {
+    trace.observe(dos.machine, record);
+    for (const a of record.accesses) {
+      if (a.kind === "write" && a.address >= 0x0801 && a.address <= 0x080c && record.before.pc === 0xaca3) {
+        copies.push([a.address, a.value]);
+        assert.ok(trace.matches({ kind: "write", address: a.address, value: a.value }));
+      }
+    }
+    if (record.after.pc === 0xb093) {
+      const read = trace.reads.at(-1)!;
+      assert.ok(trace.matches(read));
+    }
+  });
+  const expected = [[17, 0, 0xb3bb], ...[15, 14, 13, 12].map(s => [17, s, 0xb4bb]), [12, 6, 0x9700]];
+  if (completed) expected.push([12, 5, 0x9600]);
+  assert.deepEqual(trace.reads.map(r => [r.track, r.sector, r.buffer]), expected);
+  for (const r of trace.reads) {
+    const offset = (r.track * 16 + r.sector) * 256;
+    assert.deepEqual(r.bytes, [...image.slice(offset, offset + 256)]);
+    assert.equal(trace.matches(r), false, "Returning to the prompt expires a read stop");
+  }
+  assert.deepEqual(trace.reads[5]!.bytes.slice(12, 14), completed ? [12, 5] : [0, 0]);
+  const payload = [...image.slice(0xc502, 0xc50e)];
+  assert.deepEqual(copies, completed ? payload.map((b, i) => [0x0801 + i, b]) : []);
+  const program = (length: number) => Array.from({ length }, (_, i) => dos.machine.ram.read(0x0801 + i));
+  assert.deepEqual(program(completed ? 12 : 2), completed ? payload : [0, 0]);
+  const text = dos.command("LIST", undefined, record => {
+    trace.observe(dos.machine, record);
+    if (record.after.pc === (completed ? 0xd715 : 0xd6de)
+      && trace.matches({ kind: "read", address: completed ? 0x0805 : 0x0802, value: completed ? 0xba : 0 })) listing.push(record.after.pc);
+  });
+  assert.equal(listing.length, 1);
+  assert.match(text, completed ? /\]LIST\n+10\s+PRINT\s*6\s*\*\s*7\n+\]$/ : /\]LIST\n+\]$/);
+  assert.match(dos.command("RUN"), completed ? /\]RUN\n42\n+\]$/ : /\]RUN\n+\]$/);
 }
 
 const romPath = process.env.APPLE2_ROM, diskPath = process.env.APPLE2_DISK;
@@ -174,11 +217,8 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
       assert.deepEqual([...partial.slice(0xc60c, 0xc60e)], [0, 0], "The list does not yet point to the program data");
       const cold = dosTerminal(cut);
       cold.bootToPrompt();
+      traceAnswer(cold, partial, false);
       assert.match(cold.cataloguePages().join("\n"), /^ *A 001 ANSWER$/m);
-      cold.command("NEW");
-      assert.match(cold.command("LOAD ANSWER"), /\]LOAD ANSWER\n+\]$/);
-      assert.match(cold.command("LIST"), /\]LIST\n+\]$/);
-      assert.match(cold.command("RUN"), /\]RUN\n+\]$/);
     });
     const listing = terminal.cataloguePages().join("\n");
     assert.match(listing, /^ *A 002 ANSWER$/m);
@@ -209,7 +249,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     const downloaded = await readApple2Disk(file(exported, "dos33-master-saved.dsk"), media.disk, "read-only");
     const fresh = dosTerminal(createApple2Session(rom.image, { bootstrap, image: downloaded.disk }));
     fresh.bootToPrompt();
-    loadAndRun(fresh);
+    traceAnswer(fresh, exported, true);
   });
 
   await t.test("DOS RWTS writes track 18 sector 6, reads it back, and changes only $12600–$126FF in the export", () => {

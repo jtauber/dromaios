@@ -58,7 +58,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   let requestedPanels: readonly string[] = [];
   const updates = createPanelUpdates(root, id => refreshPanels([id]));
   const shouldUpdate = (id: string) => requestedPanels.includes(id) || updates.shouldUpdate(id, execution.running);
-  const diskInspector = createApple2DiskInspector(root);
+  const diskInspector = createApple2DiskInspector(root, address => navigation.browse("memory", address));
   const navigation = createInspectorNavigation(root, tool => tool === "memory" ? inspection.memoryAddress : explorer.address(tool), location => {
     if (location.tool === "memory") inspection.browseMemory(location.address);
     else explorer.browse(location.tool, location.address);
@@ -106,7 +106,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   });
   const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); }, shouldUpdate, {
     memoryAddress: () => inspection.memoryAddress, browseMemory: address => inspection.browseMemory(address), browse: navigation.browse,
-  });
+  }, diskInspector?.trace);
   const screenInspector = createApple2ScreenInspector(root, () => session.machine, {
     memory: address => navigation.browse("memory", address),
     watch: address => inspection.watchMemory(address, "write"), code: explorer.browseCode,

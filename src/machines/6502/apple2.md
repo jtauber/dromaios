@@ -661,6 +661,64 @@ This result describes this interruption point and the Disk II model’s
 whole-sector commit rule. A physical drive interrupted mid-write can also
 leave a damaged data field.
 
+## Following LOAD ANSWER
+
+Boot the [completed or interrupted export](#interrupting-save-answer) made
+above as a read-only disk. Run `NEW` at the Applesoft prompt. Pause, open
+**Walkthrough**, and choose **LOAD ANSWER · completed disk** or **LOAD ANSWER ·
+interrupted disk**. In **Disk → DOS sector read trace**, clear any boot reads.
+With the CPU paused, type `LOAD ANSWER` and press Return on the Apple II screen.
+Choose **Run to checkpoint** for each named stop in turn. For the final stop,
+queue `LIST` and press Return while still paused. Then resume and enter `RUN`.
+
+Here is the whole read sequence on these two System Master exports. Sector
+numbers are decimal. Addresses and bytes are hexadecimal. Each row is a
+successful DOS RWTS read of 256 bytes into main RAM. The file manager resumes
+at `$B093` after every read.
+
+| Read | DOS sector | RAM destination | What arrives |
+| ---: | --- | --- | --- |
+| 1 | T17 S0 | `$B3BB–$B4BA` | Volume table. The first catalogue sector is T17 S15. |
+| 2 | T17 S15 | `$B4BB–$B5BA` | First catalogue sector. |
+| 3 | T17 S14 | `$B4BB–$B5BA` | Next catalogue sector overwrites the same buffer. |
+| 4 | T17 S13 | `$B4BB–$B5BA` | Search continues. |
+| 5 | T17 S12 | `$B4BB–$B5BA` | The ANSWER entry starts at offset $DD, now in RAM at $B598. |
+| 6 | T12 S6 | `$9700–$97FF` | The first data pointer at $970C is `0C 05` on the completed disk and `00 00` on the interrupted disk. |
+| 7 | T12 S5 | `$9600–$96FF` | Completed disk only. The first two bytes, `0C 00`, give the file's 12-byte payload length. |
+
+DOS strips that two-byte length and copies `$9602–$960D` into
+`$0801–$080C`, one byte at a time with the store at `$ACA3`.
+The first BASIC line starts with its link to `$080A` and the line number
+10. The expression is `BA 36 CA 37` (`PRINT`, `6`, `*`, `7`), followed
+by a zero terminator. The zero link at `$080A–$080B` ends the program;
+the twelfth byte `0A` is beyond that link. During `LIST`, Applesoft reads
+the token at `$0805` and prints `10 PRINT 6 * 7`. `RUN` prints `42`.
+
+On the interrupted disk, the data at T12 S5 is identical. DOS finds no
+pointer to it, so it never reads that sector or copies its payload.
+After `NEW` the zero link at `$0801–$0802` still ends the program. `LIST`
+tests its high byte and prints no line. `RUN` returns to the prompt.
+
+### Laboratory stops
+
+The laboratory uses this table to build both tours. Each stop is immediately
+*after* the indicated read or write, at the next instruction's PC. **Inspect
+RAM** opens the live bytes at the selected address. The Disk panel retains
+the last 64 successful reads with the bytes as they were on return, even
+when DOS has since reused the buffer. The trace recognizes the resident
+RWTS in this System Master and slot 6, drive 1 reads into main RAM. The
+slot bootstrap's direct nibble reads are outside that interface.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| Both | LOAD ANSWER | Find ANSWER in the catalogue | $B093 | T17 S12 → $B4BB | $B598 | The first two entry bytes, 0C 06, point to the list at T12 S6. The high-bit filename starts three bytes later. |
+| Completed | LOAD ANSWER | Follow the data pointer | $B093 | T12 S6 → $9700 | $970C | The pair 0C 05 names the sector allocated to file position zero. |
+| Interrupted | LOAD ANSWER | Find the missing pointer | $B093 | T12 S6 → $9700 | $970C | Both bytes are zero. This is the last disk read of LOAD. |
+| Completed | LOAD ANSWER | Read the program sector | $B093 | T12 S5 → $9600 | $9600 | The length is 0C 00. The line link, line number and PRINT token follow it. |
+| Completed | LOAD ANSWER | Finish copying to Applesoft | $ACA5 | write $080C | $0801 | Twelve bytes have moved from the file buffer into Applesoft's program area. Compare them with the captured read. |
+| Completed | LIST | LIST reads the PRINT token | $D715 | read $0805 = $BA | $0805 | Applesoft has read the PRINT token in line 10. Resume to see LIST expand it. |
+| Interrupted | LIST | LIST finds the empty program | $D6DE | read $0802 = $00 | $0801 | The high byte of the first link is zero. Resume to see LIST return to the prompt without a line. |
+
 ## Disk II controller and media profile
 
 The machine fence above owns slot placement. A focused
