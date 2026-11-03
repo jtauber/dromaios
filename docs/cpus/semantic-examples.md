@@ -1004027,30 +1004027,130 @@ A zero divisor or out-of-range quotient delivers interrupt type 0 after fetching
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
-operation := bits(postbyte, 5, 3)
-unsignedMultiply:flag := equal(operation, 4:u3)
-unsignedDivide:flag := equal(operation, 6:u3)
-unary:flag := or(equal(operation, 2:u3), equal(operation, 3:u3))
-registerCost := select(unary, 0003:u16, select(unsignedDivide, 005A:u16, select(unsignedMultiply, 004D:u16, 0005:u16)))
-memoryCost := select(unary, 0010:u16, select(unsignedDivide, 0060:u16, select(unsignedMultiply, 0053:u16, 000B:u16)))
-cost:u16 := source "register cost or memory cost plus EA" {
-  postbyte:u8 := postbyte
-  registerCost:u16 := registerCost
-  memoryCost:u16 := memoryCost
-  ea:u16 := source "8088 effective-address calculation" {
-    postbyte:u8 := postbyte
-    mode := bitAnd(postbyte, C0:u8)
-    code := bitAnd(postbyte, 07:u8)
-    paired:flag := lessThan(code, 04:u8, unsigned)
-    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
-    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
-    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
-    direct:flag := and(isZero(mode), equal(code, 06:u8))
-    yield select(direct, 0006:u16, displaced)
+cost:u16 := match byte postbyte {
+  case (byte & 38) = 00 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0005:u16
+      memoryCost:u16 := 000B:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
   }
-  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+  case (byte & 30) = 10 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0003:u16
+      memoryCost:u16 := 0010:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 20 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 004D:u16
+      memoryCost:u16 := 0053:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 28 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0062:u16
+      memoryCost:u16 := 0068:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 30 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 005A:u16
+      memoryCost:u16 := 0060:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 38 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0070:u16
+      memoryCost:u16 := 0076:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  otherwise return outcome "unsupported"; no later effects
 }
-instruction timing: cost CPU clocks when or(unary, or(isZero(operation), or(unsignedMultiply, unsignedDivide))); otherwise timing unavailable
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1009199,30 +1009299,130 @@ A zero divisor or out-of-range quotient delivers interrupt type 0 after fetching
 overridden:u8 := input
 segmentOverride:u16 := input
 postbyte:u8 := fetch byte
-operation := bits(postbyte, 5, 3)
-unsignedMultiply:flag := equal(operation, 4:u3)
-unsignedDivide:flag := equal(operation, 6:u3)
-unary:flag := or(equal(operation, 2:u3), equal(operation, 3:u3))
-registerCost := select(unary, 0003:u16, select(unsignedDivide, 00A2:u16, select(unsignedMultiply, 0085:u16, 0005:u16)))
-memoryCost := select(unary, 0018:u16, select(unsignedDivide, 00AC:u16, select(unsignedMultiply, 008F:u16, 000F:u16)))
-cost:u16 := source "register cost or memory cost plus EA" {
-  postbyte:u8 := postbyte
-  registerCost:u16 := registerCost
-  memoryCost:u16 := memoryCost
-  ea:u16 := source "8088 effective-address calculation" {
-    postbyte:u8 := postbyte
-    mode := bitAnd(postbyte, C0:u8)
-    code := bitAnd(postbyte, 07:u8)
-    paired:flag := lessThan(code, 04:u8, unsigned)
-    slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
-    base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
-    displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
-    direct:flag := and(isZero(mode), equal(code, 06:u8))
-    yield select(direct, 0006:u16, displaced)
+cost:u16 := match byte postbyte {
+  case (byte & 38) = 00 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0005:u16
+      memoryCost:u16 := 000F:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
   }
-  yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+  case (byte & 30) = 10 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0003:u16
+      memoryCost:u16 := 0018:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 20 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 0085:u16
+      memoryCost:u16 := 008F:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 28 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 009A:u16
+      memoryCost:u16 := 00A4:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 30 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 00A2:u16
+      memoryCost:u16 := 00AC:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  case (byte & 38) = 38 {
+    cost:u16 := source "register cost or memory cost plus EA" {
+      postbyte:u8 := postbyte
+      registerCost:u16 := 00B8:u16
+      memoryCost:u16 := 00C2:u16
+      ea:u16 := source "8088 effective-address calculation" {
+        postbyte:u8 := postbyte
+        mode := bitAnd(postbyte, C0:u8)
+        code := bitAnd(postbyte, 07:u8)
+        paired:flag := lessThan(code, 04:u8, unsigned)
+        slowerPair:flag := or(equal(code, 01:u8), equal(code, 02:u8))
+        base := select(paired, select(slowerPair, 0008:u16, 0007:u16), 0005:u16)
+        displaced := addWrap(base, select(isZero(mode), 0000:u16, 0004:u16))
+        direct:flag := and(isZero(mode), equal(code, 06:u8))
+        yield select(direct, 0006:u16, displaced)
+      }
+      yield select(equal(bitAnd(postbyte, C0:u8), C0:u8), registerCost, addWrap(memoryCost, ea))
+    }
+    yield cost
+  }
+  otherwise return outcome "unsupported"; no later effects
 }
-instruction timing: cost CPU clocks when or(unary, or(isZero(operation), or(unsignedMultiply, unsignedDivide))); otherwise timing unavailable
+instruction timing: cost CPU clocks
 match byte postbyte {
   case (byte & 38) = 00 {
     pointer:u32 := source "resolve memory; defer register reads" {
@@ -1023469,9 +1023669,6 @@ overridden:u8 := input
 segmentOverride:u16 := input
 repeatMode:u8 := input
 startIP:u16 := input
-when equal(repeatMode, 02:u8) {
-  return outcome "opcode"; no later effects
-}
 count:u16 := source "plain operation or remaining repeat count" {
   repeatMode:u8 := repeatMode
   count:u16 := match byte repeatMode {
@@ -1023620,9 +1023817,6 @@ overridden:u8 := input
 segmentOverride:u16 := input
 repeatMode:u8 := input
 startIP:u16 := input
-when equal(repeatMode, 02:u8) {
-  return outcome "opcode"; no later effects
-}
 count:u16 := source "plain operation or remaining repeat count" {
   repeatMode:u8 := repeatMode
   count:u16 := match byte repeatMode {
@@ -1024131,9 +1024325,6 @@ overridden:u8 := input
 segmentOverride:u16 := input
 repeatMode:u8 := input
 startIP:u16 := input
-when equal(repeatMode, 02:u8) {
-  return outcome "opcode"; no later effects
-}
 count:u16 := source "plain operation or remaining repeat count" {
   repeatMode:u8 := repeatMode
   count:u16 := match byte repeatMode {
@@ -1024271,9 +1024462,6 @@ overridden:u8 := input
 segmentOverride:u16 := input
 repeatMode:u8 := input
 startIP:u16 := input
-when equal(repeatMode, 02:u8) {
-  return outcome "opcode"; no later effects
-}
 count:u16 := source "plain operation or remaining repeat count" {
   repeatMode:u8 := repeatMode
   count:u16 := match byte repeatMode {
@@ -1024411,9 +1024599,6 @@ overridden:u8 := input
 segmentOverride:u16 := input
 repeatMode:u8 := input
 startIP:u16 := input
-when equal(repeatMode, 02:u8) {
-  return outcome "opcode"; no later effects
-}
 count:u16 := source "plain operation or remaining repeat count" {
   repeatMode:u8 := repeatMode
   count:u16 := match byte repeatMode {
@@ -1024552,9 +1024737,6 @@ overridden:u8 := input
 segmentOverride:u16 := input
 repeatMode:u8 := input
 startIP:u16 := input
-when equal(repeatMode, 02:u8) {
-  return outcome "opcode"; no later effects
-}
 count:u16 := source "plain operation or remaining repeat count" {
   repeatMode:u8 := repeatMode
   count:u16 := match byte repeatMode {

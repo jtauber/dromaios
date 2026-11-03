@@ -72,7 +72,6 @@ const stringCases: Case[] = [];
 for (const operation of ["move", "compare", "store", "load", "scan"] as const) for (const width of [8, 16] as const) {
   const compares = operation === "compare" || operation === "scan";
   for (const repeat of ["once", "repe", "repne"] as const) for (const override of [false, true]) {
-    if (repeat === "repne" && !compares) continue;
     const key = `${operation}_${width}${repeat === "once" ? "" : "_" + repeat}${override ? "_override" : ""}`;
     stringCases.push({ key, execute(state, context) {
       generatedStrings[stringOpcodes[operation] + Number(width === 16)]!(state, Number(override), override ? segment : 0,
@@ -104,7 +103,7 @@ for (const operation of ["move", "compare", "store", "load", "scan"] as const) f
 }
 
 test("8088 addressing, string, and remaining interrupt-control definitions have the exact independent inventory", () => {
-  assert.equal(addressCases.length, 89); assert.equal(stringCases.length, 48);
+  assert.equal(addressCases.length, 89); assert.equal(stringCases.length, 60);
   assert.deepEqual(Object.keys(addressing).sort(), addressCases.map(c => c.key).sort());
   assert.deepEqual(Object.keys(addressing8088).sort(), Object.keys(addressing).sort());
   assert.deepEqual(Object.keys(strings).map(Number), [0xa4, 0xa5, 0xa6, 0xa7, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf]);

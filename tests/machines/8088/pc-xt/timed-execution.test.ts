@@ -65,7 +65,7 @@ test("a CPU output that unmasks a pending request misses the current INTR sample
 });
 
 test("an uncovered timed instruction stops the XT without advancing device time", () => {
-  const machine = create8088XtTimer(); machine.ram.write(0x100, 0xf6); machine.ram.write(0x101, 0xe8); // IMUL AL remains untimed.
+  const machine = create8088XtTimer(); machine.ram.write(0x100, 0x9b); // WAIT remains outside the timed subset.
   const before = machine.snapshot();
   assert.throws(() => stepTimedXtCpu(machine), InstructionTimingUnavailable);
   assert.deepEqual(machine.snapshot(), before);

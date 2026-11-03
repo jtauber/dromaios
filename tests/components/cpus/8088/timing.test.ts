@@ -40,6 +40,7 @@ const examples: readonly [readonly number[], number][] = [
   [[0xff, 0xe0], 11], [[0xff, 0x26, 0, 2], 28], [[0x2e, 0xff, 0xa4, 0, 2], 33],
   [[0xc4, 6, 0, 2], 30], [[0xc5, 6, 0, 2], 30], [[0x26, 0xc5, 0x80, 0, 2], 37],
   [[0x98], 2], [[0x99], 5],
+  [[0xf6, 0xe8], 98], [[0xf6, 0x2e, 0, 2], 110], [[0xf7, 0xe8], 154], [[0xf7, 0x6e, 0xd2], 173],
   [[0xf6, 0xd0], 3], [[0xf7, 0xd9], 3], [[0xf6, 0x16, 0, 2], 22], [[0xf7, 0x1e, 0, 2], 30],
   [[0xff, 0xf0], 15], [[0xff, 0xf4], 15], [[0xff, 0x36, 0, 2], 30], [[0x2e, 0xff, 0xb7, 0, 2], 35],
   [[0xd7], 11], [[0x2e, 0xd7], 13],
@@ -101,6 +102,22 @@ test("8088 unsigned DIV charges the declared range ceiling without extra operand
   }
 });
 
+test("8088 IDIV uses the signed range ceilings for register, memory and type-0 paths", () => {
+  // F7 FE is IDIV SI in Ultima V. Include its DX:AX = 60, SI = 10 case.
+  for (const word of [false, true]) for (const memory of [false, true]) {
+    for (const [dividend, divisor] of [[60, 10], [-61, 10], [1, 0], [-32768, -1]] as const) {
+      const code = [word ? 0xf7 : 0xf6, memory ? 0x3e : word ? 0xfe : 0xfb, ...(memory ? [0, 2] : [])];
+      const state = { dx: dividend < 0 ? 0xffff : 0, ax: dividend & 0xffff, si: divisor & 0xffff, bx: divisor & 0xff };
+      const timed = fixture(code, state), plain = fixture(code, state);
+      for (const { ram } of [timed, plain]) { ram.write(0x200, divisor & 0xff); ram.write(0x201, (divisor >> 8) & 0xff); }
+      const { clocks, ...record } = timed.cpu.stepTimed();
+      assert.equal(clocks, word ? memory ? 200 : 184 : memory ? 124 : 112);
+      assert.deepEqual(record, plain.cpu.step());
+      if (word && dividend === 60) assert.deepEqual([record.after.ax, record.after.dx], [6, 0]);
+    }
+  }
+});
+
 test("8088 sign-extension clocks preserve ordinary results and flags for both signs", () => {
   for (const [opcode, expected] of [[0x98, 2], [0x99, 5]] as const) for (const ax of [0, 0x7f, 0x80, 0xff, 0x7fff, 0x8000, 0xffff]) {
     const state = { ax, dx: 0xa55a, flags: flags(0x1ff) };
@@ -143,8 +160,7 @@ test("8088 strings use standalone or bounded REP-entry clocks, including empty c
   // opcode, standalone byte, repeated byte, extra clocks for word transfers (Intel table 2-21).
   for (const [opcode, plain, repeated, wordExtra] of [[0xa4, 18, 17, 8], [0xa6, 22, 22, 8],
     [0xaa, 11, 10, 4], [0xac, 12, 13, 4], [0xae, 15, 15, 4]] as const) {
-    const prefixes = opcode === 0xa6 || opcode === 0xae ? [undefined, 0xf2, 0xf3] : [undefined, 0xf3];
-    for (const prefix of prefixes) for (const word of [false, true]) for (const cx of [0, 1, 2]) for (const df of [false, true]) {
+    for (const prefix of [undefined, 0xf2, 0xf3]) for (const word of [false, true]) for (const cx of [0, 1, 2]) for (const df of [false, true]) {
       const code = [...(prefix === undefined ? [] : [prefix]), opcode + Number(word)];
       const state = { cx, si: 0x400, di: 0x600, ax: 0, flags: { ...flags(0), df } };
       const { cpu } = fixture(code, state), ordinary = fixture(code, state).cpu.step();
@@ -222,7 +238,7 @@ test("reserved indirect transfers, register LEA and undocumented AAM/AAD radices
 });
 
 test("uncovered instructions and group forms reject before data effects and do not consume deferrals", () => {
-  for (const code of [[0xf6, 0xe8], [0xf6, 0x2e, 0, 2], [0xf7, 0xfb], [0x9b], [0x0f], [0xc4, 0xc0], [0xc5, 0xc0]]) {
+  for (const code of [[0xd8, 0xc0], [0xd8, 0x06, 0, 2], [0x9b], [0x0f], [0xc4, 0xc0], [0xc5, 0xc0]]) {
     const { cpu, ram } = fixture(code, { interruptDeferred: true });
     const before = cpu.snapshot(), writes: number[] = [];
     ram.observeWrites(write => writes.push(write.address));

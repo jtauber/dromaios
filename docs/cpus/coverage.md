@@ -23,7 +23,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,788](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,576](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,540](../../src/components/cpus/specifications/8088.md) | 2,907 | 291 / 291 | 100% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,581](../../src/components/cpus/specifications/8088.md) | 2,944 | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,819](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% |
 
 **Literate instruction coverage** measures documented opcode forms authored in
@@ -1103,9 +1103,9 @@ covers XT reset, POST, ROM BASIC sessions and the native MS-DOS 3.30 boot,
 word transfers, branches, shifts/rotates, strings, prefixes, conditional
 loops, NOT/NEG, indirect PUSH/POP, XLAT, near and far indirect calls and
 jumps, far-pointer loads, LEA, AAM/AAD, sign extension, and interrupt entry.
-Unsigned MUL and DIV use Intel's published range ceilings for each operand form;
-their data-dependent microcode is not modeled. DIV retains the nominal cost
-on its type-0 path; separate exception-entry timing remains unmodeled.
+MUL, IMUL, DIV, and IDIV use Intel’s published range ceilings for each operand
+form. Both divisions retain their nominal cost on a type-0 exception. Data-dependent
+microcode and additional exception-entry time remain unmodeled.
 Repeated strings use an explicitly bounded one-element re-entry cost, not
 uninterrupted hardware REP throughput.
 Timing coverage is separate from the complete opcode-form coverage below; uncovered
@@ -1171,7 +1171,8 @@ ModR/M register/address choices, immediates, displacements, and stack
 adjustments remain operands rather than additional coverage forms. These
 291 forms include every documented operand choice. All seven prefixes are
 implemented as modifiers: segment overrides, LOCK without bus arbitration,
-and REP/REPE/REPNE on their documented strings. Repetition executes one element
+and REP/REPE/REPNE on their documented strings. The model also accepts the
+hardware's F2 encoding for unconditional MOVS, STOS, and LODS. Repetition executes one element
 per step; its snapshot and refetch policy is in the [model contract](../../src/components/cpus/specifications/8088.md#string-elements-and-repetition).
 
 All documented forms are implemented, including the

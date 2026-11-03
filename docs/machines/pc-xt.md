@@ -33,7 +33,8 @@ that session in the browser or boots from a local 360 KiB disk in drive A. The
 reaches the DOS prompt and runs `VER` and `DIR`. DOS also loads
 [Ultima V from a 360 KiB disk](pc-xt-ultima-v.md#native-launch).
 The browser laboratory displays the game's four-colour CGA title menu. The
-reference emulator runs the EGA version.
+native XT can also [resume the party and walk in Britannia](pc-xt-ultima-v.md#journey-onward).
+The reference emulator runs the EGA version.
 
 ## Selected first configuration
 
@@ -292,8 +293,9 @@ EGA menus. Use these milestones for the EGA laboratory.
 
 ## Next implementation slice
 
-Trace the files Ultima V requests after the [title menu](pc-xt-ultima-v.md#native-launch)
-and assemble the local media needed to enter Britannia.
+The [Journey Onward trace](pc-xt-ultima-v.md#journey-onward) reaches the
+outdoor map and verifies party movement. Next, save at a known location using
+the game's own command, export the Player disk, and resume from it after a fresh boot.
 The first EGA milestone is for the XT BIOS to call the adapter ROM and for
 that ROM to install INT 10h.
 

@@ -68,8 +68,8 @@ test("all 19 new 8088 forms retain exact byte effects and retirement across pref
   assert.equal(forms.length, 19);
   const failure = Error("failed byte access");
   for (const [opcode, operation] of forms) for (const override of [false, true]) for (const bits of [0, 511]) {
-    const string = opcode >= 0xa4 && opcode <= 0xaf, compares = operation === "compare" || operation === "scan";
-    for (const repeat of string ? compares ? [0, 0xf2, 0xf3] : [0, 0xf3] : [0]) for (const cx of string ? [0, 1, 2] : [2]) {
+    const string = opcode >= 0xa4 && opcode <= 0xaf;
+    for (const repeat of string ? [0, 0xf2, 0xf3] : [0]) for (const cx of string ? [0, 1, 2] : [2]) {
       const before = initialState({ cs: 0xabcd, ip: 0xffff, ds: 0x2222, es: 0xffff, ss: 0xffff, sp: 0xffff,
         bx: 0xfff0, ax: 0x1210, si: 0xffff, di: 0, cx, flags: flags(bits), recognitionDeferred: true, interruptDeferred: true });
       const suffix = opcode === 0x8c || opcode === 0x8e ? [0x16, 0xff, 0xff] : [0x8d, 0xc4, 0xc5].includes(opcode) ? [0x36, 0xff, 0xff] : [];
@@ -111,8 +111,8 @@ test("all 19 new 8088 forms retain exact byte effects and retirement across pref
 
 test("8088 transfer and string decoders reject unsupported prefixes and selectors before body effects", () => {
   const rejected: number[][] = [];
-  for (const [opcode, operation] of forms) for (const repeat of [0xf2, 0xf3]) {
-    if (opcode >= 0xa4 && opcode <= 0xaf && (repeat === 0xf3 || ["compare", "scan"].includes(operation))) continue;
+  for (const [opcode] of forms) for (const repeat of [0xf2, 0xf3]) {
+    if (opcode >= 0xa4 && opcode <= 0xaf) continue;
     rejected.push([repeat, opcode]);
   }
   for (let modRM = 0; modRM < 256; modRM++) {

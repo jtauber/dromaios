@@ -63,7 +63,6 @@ test("8088 completion repeated strings handle empty counts, termination flags, a
   const ram = new ObservedRam(0x100000);
   for (const [opcode, operation, width] of strings) for (const rep of [0xf2, 0xf3]) {
     const compares = operation === "compare" || operation === "scan";
-    if (rep === 0xf2 && !compares) continue;
     for (const cx of [0, 1, 2, 0xffff]) for (const equal of [false, true]) for (const incomingZF of [false, true]) {
       const before = initialState({ cx, ax: 7, flags: { ...flags(511), tf: false, zf: incomingZF, df: false } });
       const source = width === 8 ? [7] : [7, 0], destination = width === 8 ? [equal ? 7 : 6] : [equal ? 7 : 6, 0];

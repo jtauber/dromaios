@@ -61,8 +61,9 @@ export function decode8088(cpu: Catalogue8088, cs: number, ip: number, read: (in
     if (!encoding) throw new PreviewStopped("Unsupported opcode " + literal(opcode, 2));
     const stringInstruction = typeof encoding.notation === "string" && /^(CMPS|SCAS|MOVS|LODS|STOS)[BW]$/.test(encoding.notation);
     const compares = typeof encoding.notation === "string" && /^(CMPS|SCAS)/.test(encoding.notation);
-    if (repeat && (!stringInstruction || repeat === "REPNE" && !compares)) throw new PreviewStopped("Unsupported repeat prefix");
-    if (repeat === "REP" && compares) repeat = "REPE";
+    if (repeat && !stringInstruction) throw new PreviewStopped("Unsupported repeat prefix");
+    if (repeat && !compares) repeat = "REP";
+    else if (repeat === "REP") repeat = "REPE";
 
     let mode = 0, reg = 0, rm = 0, memory = "";
     let bases: readonly string[] = [], displacement = 0, memoryOperand = false, addressOnly = false;

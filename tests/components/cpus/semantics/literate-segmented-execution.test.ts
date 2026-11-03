@@ -44,8 +44,9 @@ test("segmented chapter edits control segment projection, prefix captures, repea
   ram.write(0x3010, 0xab); ram.write(0x4010, 0xcd);
   const step = boundary.step(); assert.equal(step.instruction?.address, 0x2000); assert.equal(state.ax & 255, 0xab);
   assert.equal(step.accesses[0]?.kind, "read"); assert.deepEqual(step.accesses[0], { kind: "read", address: 0x800, value: 0x26 });
-  state.ip = 0; ram.write(0x800, 0xf3); ram.write(0x801, 0xa4);
-  assert.equal(boundary.step().outcome, "unsupported"); assert.equal(state.ip, 0); // REPNE MOVS is rejected by its body.
+  state.ip = 0; state.cx = 2; state.di = 0; ram.write(0x800, 0xf3); ram.write(0x801, 0xae);
+  // The edited F3 is REPNE: unequal SCASB operands repeat.
+  assert.equal(boundary.step().outcome, "executed"); assert.equal(state.ip, 0); assert.equal(state.cx, 1);
   ram.write(0x801, 0x26); ram.write(0x802, 0x90);
   const bounded = boundary.step(); assert.equal(bounded.outcome, "unsupported");
   assert.deepEqual(bounded.instruction?.bytes, [0xf3, 0x26]); assert.equal(state.ip, 0);

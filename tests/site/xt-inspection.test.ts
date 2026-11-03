@@ -27,7 +27,7 @@ test("8088 Intel notation includes resolved far and relative targets, operands, 
   for (const [bytes, assembly] of [
     [[0xea, 0x5b, 0xe0, 0, 0xf0], "JMP F000:E05B"],
     [[0xeb, 0xfc], "JMP FFFF:FFFE"], [[0xe8, 0xfd, 0xff], "CALL FFFF:0000"],
-    [[0x83, 0xe4, 0xfe], "AND SP, 0FFFEh"],
+    [[0xf2, 0xab], "REP STOSW"], [[0x83, 0xe4, 0xfe], "AND SP, 0FFFEh"],
     [[0x2e, 0x83, 0x36, 0xbc, 0x0f, 1], "CS: XOR WORD PTR [0FBCh], 0001h"],
     [[0x74, 0xfe], "JE FFFF:0000"], [[0x83, 0x6e, 0xff, 0xfe], "SUB WORD PTR [BP-1h], 0FFFEh"],
     [[0x8b, 0xc4], "MOV AX, SP"], [[0x8a, 0x26, 0x34, 0x12], "MOV AH, BYTE PTR [1234h]"],
@@ -38,7 +38,7 @@ test("8088 Intel notation includes resolved far and relative targets, operands, 
     const row = decode(...bytes);
     assert.equal(row.assembly, assembly); assert.deepEqual(row.bytes, bytes); assert.ok(row.complete);
   }
-  for (const bytes of [[0x83, 0xc8], [0x8e, 0xc8], [0x8d, 0xc0], [0xff, 0xd8], [0xd4, 0], [0xf2, 0xa4], [0xf3, 0xb8]]) {
+  for (const bytes of [[0x83, 0xc8], [0x8e, 0xc8], [0x8d, 0xc0], [0xff, 0xd8], [0xd4, 0], [0xf2, 0xb8], [0xf3, 0xb8]]) {
     assert.match(decode(...bytes).assembly, /Unsupported/);
   }
   assert.match(decode(0xb8, 1).assembly, /Incomplete/);

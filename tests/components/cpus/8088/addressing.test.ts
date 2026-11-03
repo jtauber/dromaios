@@ -260,6 +260,6 @@ test("8088 completion prefixes are local, last-of-kind wins, and LOCK permits on
   assert.equal(rejected.instruction?.bytes.length, 65536); assert.equal(ram.accesses.length, 65536);
   reject(ram, before, [0x26, 0xf0, 0xd6]); // No immediate or interrupt-vector read.
   reject(ram, before, [0xf3, 0x90]);
-  reject(ram, before, [0xf2, 0xa4]);
+  reject(ram, before, [0xf2, 0x90]);
   reject(ram, before, [0xf3, 0xf7]); // Undocumented REP arithmetic is excluded before ModR/M.
 });

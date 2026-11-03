@@ -2,8 +2,9 @@
 
 DOS can load *Ultima V: Warriors of Destiny* from a 360 KiB floppy on the
 [native XT](pc-xt.md). The game selects the CGA driver and draws its title
-and main menu in 320 × 200 graphics. The pinned [dromaios-pc reference][reference]
-runs the same executable with EGA.
+and main menu in 320 × 200 graphics. With a writable Player disk, **Journey
+Onward** resumes the party in Iolo's hut and lets it walk onto the outdoor
+map. The pinned [dromaios-pc reference][reference] runs the same executable with EGA.
 
 ## Media
 
@@ -17,8 +18,9 @@ versions. These SHA-256 digests identify the selection independently of names.
 | `ULTIMA.EXE` | 36,592 | `c75c1c6f37bf8ec45405df6d3bac0e626c780a706d48a88f92edb324ca1f3b3b` |
 | `EGA.DRV` | 11,654 | `93f9c50d836d7abfb62ea14c51bbf9d86b9e4173ae31dd0ea585a742f4802604` |
 
-The audit uses two locally prepared 360 KiB images. Choose one of these
-procedures in the [XT laboratory](../../src/machines/8088/pc-xt.md#using-the-laboratory).
+For play, prepare the [Program and Player disks](#journey-onward). The two
+earlier title-only images exercise these launch paths in the
+[XT laboratory](../../src/machines/8088/pc-xt.md#using-the-laboratory).
 
 - **Start automatically with `ULTIMA-BOOT.IMG`.** In **Drive A**, choose
   **Insert…**, select this image, then choose **Quick boot** under **Execution**.
@@ -134,6 +136,65 @@ Typing `ULTIMA E` forces a different path on the same XT. The game opens
 the reference calls. The native board has no EGA planes at `A0000` to receive
 the driver's drawing.
 
+## Journey Onward
+
+The [disk builder](../../scripts/make-ultima-v-disks.ts) takes the audited
+MS-DOS 3.30 system disk and the extracted original game directory. Choose the
+directory containing `ULTIMA.EXE`, `CGA.DRV` and `SAVED.GAM`. Run the
+builder from the repository root with Node 24 and give it a new output directory.
+
+```sh
+node scripts/make-ultima-v-disks.ts "/path/to/DISK01.IMG" "/path/to/ultima5" "./ultima-v-disks"
+```
+
+| Local image | Contents | SHA-256 |
+| --- | --- | --- |
+| `ULTIMA-PROGRAM.IMG` | Bootable MS-DOS, startup batch file and 21 CGA Program files, including `FONT.OVL`, `WD.BIT` and `TILES.4` | `5ebb13692c5b41e71a4ee5006050d2cf4994e98c2b90e7a6711cde82eac800ce` |
+| `ULTIMA-PLAYER.IMG` | The 41 filenames from the 360 KiB Disk 2 listing, including the local archive's existing Elwood save. 1 KiB free. | `135c06d4193b1f01062b27d0f884e2045d0ea0dec667e88b281f0ef466bc9b7a` |
+
+These are FAT12 repacks. The [retail directory listing][listings] establishes
+the disk split. The local installation supplies the game files. Origin's
+[reference card][origin] calls for a writable copy of the Player disk.
+
+### Disk exchange in the laboratory
+
+1. Insert `ULTIMA-PROGRAM.IMG` into **Drive A**, choose **Quick boot**, and
+   press Space during the Origin logo. Pause at the title menu with **Journey
+   Onward** highlighted.
+2. In the **Debugger** tab, add a breakpoint at `0C6F:7249`. Choose **Run**,
+   click the screen, and press Enter. For these images the breakpoint stops
+   the game when DOS returns from its first failed open of `SAVED.GAM`. The
+   game has finished reading the Program disk at this point. The empty
+   playfield can appear before the transfer of `TILES.4` has finished.
+3. Use **Insert writable copy…** for `ULTIMA-PLAYER.IMG`, remove the
+   breakpoint, and choose **Run**. The
+   game retries the open on drive A. When the map appears, click the screen
+   and use the arrow keys.
+
+### What the guest loads
+
+| Player action | Observed DOS file activity |
+| --- | --- |
+| Select Journey Onward | The game reads all 19,347 bytes of `TILES.4` from the Program disk. DOS returns error 2 for `SAVED.GAM` until it recognizes the Player disk. |
+| Resume the party | DOS reads 4,192 bytes from `SAVED.GAM` and 512 from `SAVED.OOL`. The game recreates `BRIT.OOL` and `UNDER.OOL`, writing 256 bytes to each. |
+| Enter Iolo's hut | The game reads `TOWN.OVL` and the hut's 1,024-byte map from `DWELLING.DAT`. Elwood, Shamino and Iolo appear in the party panel. Moving loads `NPC.OVL`. |
+| Open the south door | The O command loads `SJOG.OVL`. Down selects the door, and the next Down walks through it. |
+| Leave for Britannia | The game opens `BRIT.DAT`, `OUTSUBS.OVL`, `BRIT.OOL` and `MAINOUT.OVL`, then reads the outdoor map from `BRIT.DAT`. |
+
+In this run DOS read the party record into `1BD3:55A6`. Offsets `2EDh`,
+`2F0h` and `2F1h` hold location, X and Y. In the hut (location 13), a south
+step changed (15,15) to (15,16). In the browser laboratory, Down and Up reproduced
+that step and returned the party to (15,15). From (15,18), open the door to the south and
+walk to the bottom edge. Take one more south step and answer Y to leave.
+The game switches to location 0 at (45,62). From that state, Right moved to
+(46,62) and redrew the map with **East** in the command area. The same run
+without input kept (45,62). [Save record layout][save-format].
+
+The optional [cold-boot test](../../tests/machines/8088/pc-xt/rom-ultima-v.test.ts)
+exercises this route through the original XT BIOS and DOS. Set `XT_BIOS_ROM`,
+`XT_BASIC_ROM`, `XT_ULTIMA_PROGRAM` and `XT_ULTIMA_PLAYER` to the local images.
+After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ultima-v.test.js`.
+
 ## Native EGA acceptance
 
 1. **Start the adapter firmware.** Retain the XT board, 640 KiB RAM and 360 KiB
@@ -161,6 +222,7 @@ the driver's drawing.
 [reference]: https://github.com/jtauber/dromaios-pc/tree/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54
 [origin]: https://www.mocagh.org/origin/u5-refcard-ibm.pdf
 [listings]: https://forum.winworldpc.com/discussion/8311/ibm-pc-tandy-1000-game-installation-file-listing-screenshot/p62#Comment_163559
+[save-format]: https://wiki.ultimacodex.com/wiki/Ultima_V_internal_formats
 [immediate]: ../../src/components/cpus/specifications/8088.md#immediate-operation-groups
 [switches]: https://www.minuszerodegrees.net/ibm_ega/IBM%20EGA%20-%20Installation%20Instructions.pdf
 [rom]: https://www.pcjs.org/machines/pcx86/ibm/video/ega/1984-09-13/IBM-EGA.json5
