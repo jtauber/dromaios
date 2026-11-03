@@ -62,8 +62,8 @@ export class Apple2DiskII implements MemoryConnection {
     if (!this.#media) throw new Error("No disk in drive 1.");
     return this.#media.exportImage();
   }
-  inspect(): DiskIIState & { readonly installed: boolean; readonly loaded: boolean } {
-    return { ...this.#state, installed: this.#bootstrap !== null, loaded: this.#media !== null };
+  inspect(): DiskIIState & { readonly installed: boolean; readonly loaded: boolean; readonly writable: boolean } {
+    return { ...this.#state, installed: this.#bootstrap !== null, loaded: this.#media !== null, writable: this.#media?.writable ?? false };
   }
 
   /** CPU reset does not power-cycle the controller or rewind the disk. */

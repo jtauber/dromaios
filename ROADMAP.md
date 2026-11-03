@@ -288,8 +288,9 @@ Introduce further abstractions through concrete requirements.
 The [Apple II Plus](docs/machines/apple2.md) already has ROM BASIC, graphics,
 Language Card banking, DOS 3.3, and a laboratory. Native DOS can
 [save an Applesoft program and run it after a fresh boot from the exported disk](src/machines/6502/apple2.md#saving-answer-across-a-fresh-boot).
-The next storage milestone is to make this session available through the
-laboratory’s drive controls. Further DOS exploration and sound remain planned.
+The laboratory’s drive controls run the same session with writable copies,
+downloaded disks, and checkpoints that retain disk edits. Further DOS
+exploration and sound remain planned.
 New hardware behavior should be authored in executable
 machine and device chapters where the existing language expresses it clearly.
 

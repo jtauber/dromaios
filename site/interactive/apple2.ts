@@ -7,7 +7,8 @@ import { createApple2Session, apple2ControlKey, apple2ScreenKey, apple2Input } f
 import { createApple2ScreenInspector } from "./apple2-screen-inspector-view.js";
 import { createApple2Screen } from "./apple2-screen-view.js";
 import { readApple2Disk } from "./apple2-media.js";
-import type { Apple2RomFile, Apple2DiskFile } from "./apple2-media.js";
+import type { Apple2RomFile, Apple2DiskMode } from "./apple2-media.js";
+import { downloadDiskImage } from "./disk-download.js";
 import { apple2RomStorage } from "./apple2-rom-storage.js";
 import { createApple2Inspection } from "./apple2-inspection-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
@@ -28,6 +29,9 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const inputStatus = root.querySelector<HTMLElement>("[data-input-status]");
   const diskFile = element<HTMLInputElement>("disk-file"), eject = element<HTMLButtonElement>("disk-eject");
   const loadRom = element<HTMLButtonElement>("rom-load"), loadDisk = element<HTMLButtonElement>("disk-load");
+  const writableDisk = root.querySelector<HTMLButtonElement>("[data-disk-writable]");
+  const exportDisk = root.querySelector<HTMLButtonElement>("[data-disk-export]");
+  const diskNotice = root.querySelector<HTMLElement>("[data-disk-notice]");
   const screen = element<HTMLElement>("apple2-screen"), message = element<HTMLElement>("machine-message");
   const run = element<HTMLButtonElement>("machine-run"), pause = element<HTMLButtonElement>("machine-pause");
   const step = element<HTMLButtonElement>("machine-step"), reset = element<HTMLButtonElement>("machine-reset");
@@ -43,7 +47,8 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     disk: { bytes: Number(root.dataset.diskBytes), sha256: root.dataset.diskSha256! },
   };
   const romStorage = apple2RomStorage(() => window.localStorage, romImages.firmware, media);
-  let session = createApple2Session(), rom: Apple2RomFile | undefined, disk: Apple2DiskFile | undefined;
+  let session = createApple2Session(), rom: Apple2RomFile | undefined, diskName: string | null = null;
+  let diskMode: Apple2DiskMode = writableDisk ? "read-only" : "system-master";
   let selecting = false, selection = 0, flash = false, nextFlash = 0, restoring = false;
   const renderScreen = createApple2Screen(screen, element<HTMLInputElement>("apple2-scanlines"));
   const monochrome = element<HTMLInputElement>("apple2-monochrome");
@@ -107,10 +112,11 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const savedStates = createApple2SavedStateView(root, {
     capture() {
       requirePaused();
-      return { state: session.snapshot(), diskName: disk?.name ?? null, flash };
+      return { state: session.snapshot(), diskName, flash };
     },
     restore: saved => withSavedState(saved, prepared => {
-      session = prepared.session; disk = prepared.disk; flash = prepared.flash; nextFlash = 0;
+      session = prepared.session; diskName = prepared.diskName; flash = prepared.flash; nextFlash = 0;
+      if (diskNotice) diskNotice.textContent = "";
       explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
       if (keyboard) keyboard.value = "";
       message.textContent = `Restored “${saved.name}”. Paused; instruction count restarted.`;
@@ -156,13 +162,16 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     loadRom.disabled = file.disabled = forgetRom.disabled = selecting;
     loadDisk.disabled = diskFile.disabled = selecting || rom?.bootstrap === undefined;
     loadRom.textContent = rom ? "Replace ROM…" : "Load ROM…";
-    loadDisk.textContent = disk ? "Replace disk…" : "Load disk…";
-    eject.disabled = !available || disk === undefined;
+    if (!writableDisk) loadDisk.textContent = diskName ? "Replace disk…" : "Load disk…";
+    if (writableDisk) writableDisk.disabled = loadDisk.disabled;
+    const drive = session.machine.disk.inspect();
+    if (exportDisk) exportDisk.disabled = selecting || !drive.loaded || drive.motor;
+    eject.disabled = !available || !drive.loaded;
     status.textContent = `${!session.hasFirmware ? "Hardware ready · no ROM installed" : execution.running ? "Running" : "Paused"} · ${execution.steps.toLocaleString()} instructions`;
     status.setAttribute("aria-live", execution.running ? "off" : "polite");
     element<HTMLElement>("rom-status").textContent = rom ? `Loaded: ${rom.name} · verified`
       : restoring ? "Checking saved ROM…" : "No ROM loaded.";
-    element<HTMLElement>("disk-status").textContent = disk ? `Loaded: ${disk.name} · drive 1 · write protected`
+    element<HTMLElement>("disk-status").textContent = diskName ? `${diskName} · drive 1 · ${drive.writable ? "writable copy" : "write protected"} · motor ${drive.motor ? "on" : "off"}`
       : rom?.bootstrap ? "No disk loaded. Fresh power-on boots Applesoft." : "Disk boot needs the 20 KiB ROM container, which includes the Disk II bootstrap.";
     if (inputStatus) inputStatus.textContent = `${session.pendingInput} keyboard characters queued`;
     if (execution.error !== undefined) { explorer.fail(execution.error); screenInspector?.reset(); }
@@ -197,11 +206,12 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     refresh();
   }
   const sendText = (text: string) => action(() => send(apple2Input(text)));
-  async function choose<T>(input: HTMLInputElement, verify: (file: File) => Promise<T>, apply: (verified: T) => void): Promise<void> {
+  async function choose<T>(input: HTMLInputElement, verify: (file: File) => Promise<T>, apply: (verified: T) => void, notice?: HTMLElement | null): Promise<void> {
     const chosen = input.files?.[0];
     if (chosen === undefined) return;
     const token = ++selection;
     explorer.reset(); execution.stop(); selecting = true; message.textContent = `Checking ${chosen.name}…`; refresh();
+    if (notice) notice.textContent = message.textContent;
     try {
       const verified = await verify(chosen);
       if (token !== selection) return;
@@ -209,7 +219,10 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       execution.reset(); changeLog?.reset(); screenInspector?.reset(); flash = false; nextFlash = 0;
       if (keyboard) keyboard.value = "";
     } catch (cause) {
-      if (token === selection) message.textContent = cause instanceof Error ? cause.message : String(cause);
+      if (token === selection) {
+        message.textContent = cause instanceof Error ? cause.message : String(cause);
+        if (notice) notice.textContent = message.textContent;
+      }
     } finally {
       if (token === selection) { selecting = false; input.value = ""; refresh(); }
     }
@@ -218,11 +231,13 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     const fresh = rom === undefined ? session : createApple2Session();
     fresh.installFirmware(verified.image);
     fresh.reset();
-    session = fresh; rom = verified; disk = undefined;
+    session = fresh; rom = verified; diskName = null;
+    if (diskNotice) diskNotice.textContent = "";
     message.textContent = "ROM loaded. Run boots Applesoft, or select a disk to boot DOS.";
   }
   loadRom.addEventListener("click", () => file.click());
-  loadDisk.addEventListener("click", () => diskFile.click());
+  loadDisk.addEventListener("click", () => { diskMode = writableDisk ? "read-only" : "system-master"; diskFile.click(); });
+  writableDisk?.addEventListener("click", () => { diskMode = "writable-copy"; diskFile.click(); });
   file.addEventListener("change", () => void choose(file, chosen => romStorage.prepare(chosen), ({ rom, stored }) => {
     installRom(rom);
     try {
@@ -240,13 +255,20 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       storageStatus.textContent = "The browser could not remove the saved ROM. You can clear it through this site's browser storage settings.";
     }
   });
-  diskFile.addEventListener("change", () => void choose(diskFile, chosen => readApple2Disk(chosen, media.disk), verified => {
-    const fresh = createApple2Session(rom!.image, { bootstrap: rom!.bootstrap!, image: verified.disk });
-    session = fresh; disk = verified;
-    message.textContent = "Disk loaded in a fresh machine. Run boots DOS 3.3; wait for the ] prompt after Integer BASIC loads.";
+  diskFile.addEventListener("change", () => void choose(diskFile, chosen => readApple2Disk(chosen, media.disk, diskMode), loaded => {
+    session = createApple2Session(rom!.image, { bootstrap: rom!.bootstrap!, image: loaded.disk });
+    diskName = loaded.name;
+    if (diskNotice) diskNotice.textContent = loaded.systemMaster ? "Verified DOS 3.3 System Master." : "Local DOS-order image.";
+    message.textContent = "Disk loaded in a fresh, paused machine. Choose Run to boot drive 1.";
+  }, diskNotice));
+  exportDisk?.addEventListener("click", () => action(() => {
+    if (!diskName || selecting || session.machine.disk.inspect().motor) return;
+    const name = downloadDiskImage(diskName, ".dsk", session.machine.disk.exportImage());
+    if (diskNotice) diskNotice.textContent = `Exported ${name}.`;
   }));
   eject.addEventListener("click", () => action(() => {
-    explorer.pause("Disk ejected."); execution.stop(); session.eject(); disk = undefined;
+    explorer.pause("Disk ejected."); execution.stop(); session.eject(); diskName = null;
+    if (diskNotice) diskNotice.textContent = "";
     message.textContent = "Disk ejected. RAM is preserved; Fresh power-on returns to ROM-only Applesoft.";
     refresh();
   }));
@@ -269,7 +291,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     explorer.reset(); execution.reset(); session.powerOn(); changeLog?.reset(); screenInspector?.reset(); flash = false; nextFlash = 0;
     if (keyboard) keyboard.value = "";
     message.textContent = session.hasFirmware
-      ? `Fresh power-on. The previous program is gone; Run boots ${disk ? "DOS 3.3 from the retained disk" : "Applesoft"} again.`
+      ? `Fresh power-on. The previous program is gone; Run boots ${diskName ? "from the retained disk" : "Applesoft"} again.`
       : "Fresh hardware. RAM is zeroed; install a ROM to boot.";
     refresh();
   }));

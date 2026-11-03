@@ -195,10 +195,10 @@ DOS now [writes and reads back one sector](../../src/machines/6502/apple2.md#wri
 on a writable copy. The exported image changes only at the expected DOS-order offset.
 
 The [ANSWER session](../../src/machines/6502/apple2.md#saving-answer-across-a-fresh-boot)
-completes the native file-save checkpoint. DOS catalogues the program and
-loads it after a fresh boot from the exported image. The laboratory still
-needs writable-copy, export, and re-import controls. Its acceptance should
-also cover a save that cannot complete on the working disk.
+covers the native machine and browser laboratory. DOS catalogues the program
+and loads it after a cold boot from the downloaded disk. A named checkpoint
+restores the edited bytes and write permission so DOS can save another file.
+An interrupted file save on the working disk remains a separate acceptance case.
 
 Speaker transitions must be timestamped in emulated time. Check a known
 software-driven tone, browser audio enablement, pause/resume, and silence on
@@ -207,8 +207,8 @@ independent of browser frame rate and host scheduling. Address the necessary
 6502 timing and bus-access fidelity explicitly; static opcode costs alone
 cannot establish those properties.
 
-These four checkpoints define the first usable Apple II Plus release. Writable
-laboratory media and sound remain unfinished.
+These four checkpoints define the first usable Apple II Plus release. Sound
+remains unfinished.
 Understanding the working ROM and DOS configuration still precedes games such
 as Mystery House and Ultima IV. Playing a game and explaining its software
 remain separate acceptance targets.
@@ -269,7 +269,7 @@ paths before a shared peripheral-inspection abstraction is designed.
 | Change history | Instruction-attributed before/after values for registers, flags, PC, and physical RAM, including Language Card banks; bounded history with recording and display filters, and explicitly identified user RAM edits. | — |
 | ROM and system | Searchable Monitor reference with PC/Memory following, mapping-aware context, and navigation to Disassembly and Memory; guide-owned routine contracts, byte-checked instruction comments, and five in-lab walkthroughs (reset/echo, carriage return, scrolling, cursor editing, and output-hook redirection) using versioned ROM-only stops; live read/write memory map and structured keyboard, display, and Language Card state with change highlights; bounded instruction-linked device-access history with specification descriptions; disk snapshots. | Further annotations driven by walkthroughs. |
 | Applesoft tools | BASIC runs on the machine; ROM walkthrough follows input, echo, carriage return, and scrolling. | Listing, variables, interpreter state, source stepping, breakpoints, execution history, and profiling. |
-| Disk tools | Verified DOS disk boot, read-only drive/eject controls, controller state. | Nibble stream, sector map, and observed disk-access history with copying. |
+| Disk tools | DOS-order disk insertion, writable copies, export and re-import, checkpoint restoration, controller state. | Nibble stream, sector map, and observed disk-access history with copying. |
 | Software selection | Verified Applesoft ROM and pinned DOS System Master. | Explicit software/media profiles and acceptance for additional disks and programs. |
 
 Layout parity is the first replacement slice, not a claim of complete tool
@@ -316,9 +316,6 @@ Use these concrete examples to discover shared instruments. Keep machine wiring
 and hardware contracts in the executable machine chapter, with software
 walkthroughs linking to them. Do not introduce a general plugin framework or
 extend the peripheral language merely to host these first tools.
-
-Use the native ANSWER session as the acceptance case for writable laboratory
-media, including a checkpoint restored with the edited disk mounted.
 
 As implementation lands, move hardware/reset/media contracts and acceptance
 details into the executable chapter alongside their declarations. Keep this

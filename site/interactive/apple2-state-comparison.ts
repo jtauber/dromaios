@@ -28,14 +28,20 @@ export function compareApple2States(saved: Apple2SessionState, current: Apple2Se
   }
   const devices: { name: string; before: string; after: string }[] = [];
   for (const part of ["keyboard", "video", "language", "disk"] as const) {
-    for (const [name, value] of Object.entries(before[part])) {
+    for (const name of new Set([...Object.keys(before[part]), ...Object.keys(after[part])])) {
       if (name === "media" || name === "bootstrap") continue;
-      const next = Reflect.get(after[part], name);
-      if (value !== next) devices.push({ name: `${part}.${name}`, before: String(value), after: String(next) });
+      const value = String(Reflect.get(before[part], name) ?? (name === "writable" ? false : "")),
+        next = String(Reflect.get(after[part], name) ?? (name === "writable" ? false : ""));
+      if (value !== next) devices.push({ name: `${part}.${name}`, before: value, after: next });
     }
   }
   if ((before.disk.media !== null) !== (after.disk.media !== null)) {
     devices.push({ name: "disk.media", before: before.disk.media ? "loaded" : "absent", after: after.disk.media ? "loaded" : "absent" });
+  } else if (before.disk.media && after.disk.media) {
+    const current = after.disk.media;
+    const first = before.disk.media.findIndex((byte, i) => byte !== current[i]);
+    if (first !== -1) devices.push({ name: `disk.media · first differing byte at $${first.toString(16).toUpperCase()}`,
+      before: String(before.disk.media[first]), after: String(current[first]) });
   }
   if ((before.disk.bootstrap !== null) !== (after.disk.bootstrap !== null)) {
     devices.push({ name: "disk.bootstrap", before: before.disk.bootstrap ? "installed" : "absent", after: after.disk.bootstrap ? "installed" : "absent" });

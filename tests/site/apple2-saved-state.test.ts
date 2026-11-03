@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
-import { apple2SavedStates, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
+import { apple2SavedStates, encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
 import type { Apple2SavedState } from "../../site/interactive/apple2-saved-state.js";
 import { compareApple2States } from "../../site/interactive/apple2-state-comparison.js";
 import { editApple2Register } from "../../site/interactive/apple2-register-edit.js";
@@ -96,7 +96,7 @@ test("damaged entries remain deletable and incompatible machine versions are rej
     assert.deepEqual(store.names(), [first.name]);
   }
   store.remove(first.name); assert.deepEqual(store.names(), []);
-  await assert.rejects(prepareApple2SavedState({ ...first, version: 2 } as unknown as Apple2SavedState, null, media), /version/);
+  await assert.rejects(prepareApple2SavedState({ ...first, version: 3 } as unknown as Apple2SavedState, null, media), /version/);
 });
 
 test("preparation rechecks saved bootstrap and disk identities and never changes the original session", async () => {
@@ -104,13 +104,35 @@ test("preparation rechecks saved bootstrap and disk identities and never changes
   original.send([65]); original.machine.disk.read(9); original.machine.disk.read(12);
   const first = saved(original), before = original.snapshot();
   const prepared = await prepareApple2SavedState(first, null, media);
-  assert.deepEqual(prepared.session.snapshot(), before); assert.equal(prepared.disk?.name, "test.dsk"); assert.equal(prepared.flash, true);
+  assert.deepEqual(prepared.session.snapshot(), before); assert.equal(prepared.diskName, "test.dsk"); assert.equal(prepared.flash, true);
   for (const field of ["bootstrap", "media"] as const) {
     const altered = structuredClone(first); (altered.state.hardware.disk[field] as number[])[0] = 99;
     await assert.rejects(prepareApple2SavedState(altered, null, media), /bootstrap|match/);
   }
   await assert.rejects(prepareApple2SavedState({ ...first, diskName: null }, null, media), /name/);
   assert.deepEqual(original.snapshot(), before);
+});
+
+test("new checkpoints restore a local disk's bytes, name and permission after ejection and reload", async () => {
+  const memory = storage(), bytes = diskBytes.slice(); bytes[0x12600] = 42;
+  for (const writable of [true, false]) {
+    const session = createApple2Session(null, { bootstrap: [...bootstrap], image: new Dos33Disk(bytes, { writable }) });
+    const state = await encodeApple2SavedState({ ...saved(session), name: String(writable), diskName: "answer.dsk" });
+    apple2SavedStates(() => memory).save(state);
+    session.eject();
+    const stored = apple2SavedStates(() => memory).read(state.name);
+    const restored = await prepareApple2SavedState(stored, null, media);
+    assert.equal(restored.diskName, "answer.dsk");
+    assert.deepEqual(restored.session.machine.disk.exportImage(), bytes);
+    assert.equal(restored.session.machine.disk.inspect().writable, writable);
+    restored.session.powerOn();
+    assert.deepEqual(restored.session.machine.disk.exportImage(), bytes);
+    assert.equal(restored.session.machine.disk.inspect().writable, writable);
+    (stored.state.hardware.disk.media as number[])[0x12600] = 0;
+    await assert.rejects(prepareApple2SavedState(stored, null, media), /digest/);
+  }
+  const empty = await encodeApple2SavedState(saved());
+  assert.equal((await prepareApple2SavedState(empty, null, media)).diskName, null);
 });
 
 test("comparisons distinguish hidden physical banks, net changes, flags, devices and equal-length changed input queues", () => {
@@ -130,6 +152,16 @@ test("comparisons distinguish hidden physical banks, net changes, flags, devices
   assert.equal(diff.devices.length, 3); assert.equal(diff.inputChanged, true);
   const same = compareApple2States(before, before);
   assert.deepEqual(same, { registers: [], flags: [], memory: [], devices: [], inputChanged: false });
+});
+
+test("comparison sees a changed mounted disk and write permission in either direction", () => {
+  const protectedDisk = createApple2Session(null, { bootstrap: [...bootstrap], image: new Dos33Disk(diskBytes) }).snapshot();
+  const bytes = diskBytes.slice(); bytes[77] = 42;
+  const edited = createApple2Session(null, { bootstrap: [...bootstrap], image: new Dos33Disk(bytes, { writable: true }) }).snapshot();
+  for (const [from, to] of [[protectedDisk, edited], [edited, protectedDisk]] as const) {
+    const differences = compareApple2States(from, to).devices.map(field => field.name);
+    assert.deepEqual(differences, ["disk.writable", "disk.media · first differing byte at $4D"]);
+  }
 });
 
 test("a saved real-ROM session repeats queued-key execution exactly after restoration", {

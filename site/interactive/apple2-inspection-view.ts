@@ -112,7 +112,8 @@ export function createApple2Inspection(root: HTMLElement, shouldUpdate: (id: str
     if (instruction && shouldUpdate("instruction")) instruction(nextInstruction());
     if (shouldUpdate("system") || shouldUpdate("disk")) {
       const drive = machine.disk.inspect(), on = (value: boolean) => value ? "on" : "off";
-      const disk = `Disk II ${drive.installed ? "installed" : "absent"}\nMedia ${drive.loaded ? "loaded · protected" : "absent"}\nDrive ${drive.drive} · motor ${on(drive.motor)}\nTrack ${drive.halfTrack / 2} · byte ${drive.position}\nPhase ${drive.phase} · Q6 ${+drive.q6} · Q7 ${+drive.q7}\nLatch $${hex(drive.latch, 2)}`;
+      const medium = !drive.loaded ? "absent" : drive.writable ? "loaded · writable copy" : "loaded · protected";
+      const disk = `Disk II ${drive.installed ? "installed" : "absent"}\nMedia ${medium}\nDrive ${drive.drive} · motor ${on(drive.motor)}\nTrack ${drive.halfTrack / 2} · byte ${drive.position}\nPhase ${drive.phase} · Q6 ${+drive.q6} · Q7 ${+drive.q7}\nLatch $${hex(drive.latch, 2)}`;
       if (shouldUpdate("system") && hardwareView) hardwareView.refresh(machine, latest);
       else if (shouldUpdate("system")) {
         const key = machine.keyboard.snapshot(), language = machine.language.snapshot(), video = machine.video.snapshot();

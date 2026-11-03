@@ -9,7 +9,7 @@ This is the first native composition in the [Apple II Plus plan](../../../docs/m
 48 KiB of main RAM, caller-supplied firmware, the keyboard latch, and text and
 graphics displays, plus a 16 KiB Language Card and an optional slot-6 Disk II.
 It runs BASIC and boots the selected DOS 3.3 System Master. The laboratory
-mounts the local image read-only. On a writable copy, DOS can save an
+mounts local DOS-order images read-only or as writable copies. DOS can save an
 Applesoft program and load it after a fresh boot from the exported disk.
 The main reference is the pinned [dromaios-apple2 implementation][reference];
 Apple's [Reference Manual][manual] supplies the hardware background.
@@ -135,8 +135,10 @@ replacing an existing machine.
 Disk boot also extracts the 256-byte P5 bootstrap at container offsets
 0600–06FF and verifies its separate digest. The browser's disk option requires
 this container; a bare 12 KiB motherboard image still supports ROM-only use.
-The selected disk is the reference's `disks/dos33-master.dsk`. Its size and
-whole-file digest above are checked before insertion. The host calls
+The classroom verifies the size and whole-file digest of the reference's
+`disks/dos33-master.dsk`. The laboratory also accepts other 143,360-byte
+DOS-order images, including its own exports. It identifies the verified
+System Master when the bytes match the declared digest. The host calls
 `disk.install(bootstrap)` and `disk.insert(new Dos33Disk(bytes))` for protected
 media. Passing `{ writable: true }` to the disk constructor creates a writable
 copy. `disk.exportImage()` returns an independent DOS-order byte image of the
@@ -419,14 +421,16 @@ demonstrates this with the Monitor's `CH` workspace byte.
 The laboratory's **Saved states** panel stores named experiments in this
 browser and site origin. Pause, give the state a name, and choose **Save new
 state**. Each state includes the complete hardware snapshot, the host keyboard
-queue, selected disk name, and paused flashing phase. Main RAM, both Language
+queue, mounted disk bytes, filename, write permission, and paused flashing phase. Main RAM, both Language
 Card banks and common upper RAM are included even when hidden by the current
 mapping. Panel arrangement, watches, breakpoints, and display preferences belong
 to the workspace and are not part of the saved machine.
 
 **Restore** checks the saved machine version, complete component state, firmware
 identity, and any stored bootstrap/disk identities before replacing the current
-experiment. Load the matching verified ROM first; its bytes are not duplicated
+experiment. Version 2 saves the SHA-256 of the disk at capture time, so a
+file written by DOS survives restoration. Version 1 states still verify their
+disk against the original System Master digest. Load the matching verified ROM first; its bytes are not duplicated
 inside a saved state. Restoration executes no instruction or reset and always
 leaves the machine paused. It clears executed-instruction history, the Changes
 log, observed calls, device activity, last-writer attribution, and temporary
@@ -438,7 +442,8 @@ current machine and its queued input untouched.
 **Compare** captures saved → current differences while paused: registers,
 flags, physical RAM bytes, device fields, and the host input queue. It does not
 change either machine. This is a net comparison, so a byte changed and then
-restored to its saved value is absent. Memory links browse the current mapped
+restored to its saved value is absent. For mounted disks, Compare shows a
+change in write permission and the first file byte that differs. Memory links browse the current mapped
 bank; a link to hidden Language Card RAM explains the mismatch without changing
 mapping. Large differences show 128 RAM bytes at a time, with **Show more** for
 the rest. The result stays a captured comparison until Compare is pressed
@@ -573,8 +578,9 @@ RUN still prints 5. On the protected System Master, `SAVE TEST` reports
 
 ### Saving ANSWER across a fresh boot
 
-The native test mounts a writable copy of the verified System Master in
-drive 1 and enters these commands at the Applesoft prompt.
+In the laboratory’s **Disk** panel, choose **Insert writable copy…** and
+select `dos33-master.dsk`. Choose **Run** and wait for the Applesoft prompt.
+The native acceptance test uses the same media and commands.
 
 ```text
 NEW
@@ -592,11 +598,17 @@ the volume allocation map on track 17, sector 0 are the only sectors that
 changed (track and sector numbers here are decimal).
 
 Enter `NEW`, then `LOAD ANSWER` and `RUN`. Applesoft prints `42`.
-Export drive 1 with `disk.exportImage()` and use its 143,360 bytes as the
-boot disk in a newly constructed Apple II with the same firmware and slot-6
-bootstrap. The export can be mounted read-only. After the DOS 3.3 banner
-and Applesoft prompt appear, repeat `NEW` and `LOAD ANSWER`. `LIST` shows
-`10 PRINT 6 * 7`, and `RUN` prints `42` again.
+When drive 1 shows **motor off**, choose **Export disk image**. The browser
+downloads `dos33-master-saved.dsk`, the 143,360-byte result of
+`disk.exportImage()`. Choose **Insert read-only…** and select that download.
+Press **Run** to cold-boot the newly constructed Apple II. After the DOS 3.3
+banner and Applesoft prompt appear, repeat `NEW` and `LOAD ANSWER`. `LIST`
+shows `10 PRINT 6 * 7`, and `RUN` prints `42` again.
+
+To continue editing, pause with the writable copy mounted and use **Saved
+states → Save new state**. Eject the disk or reload the page, then restore
+that state. Drive 1 shows the original filename and **writable copy**. Run,
+load `ANSWER`, and enter `SAVE RESTORED`. The catalogue now lists both files.
 
 ## Disk II controller and media profile
 

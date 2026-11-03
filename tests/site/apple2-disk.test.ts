@@ -7,6 +7,7 @@ import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
 import { readApple2Rom, readApple2Disk } from "../../site/interactive/apple2-media.js";
 import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
+import { encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
 
 const media: Apple2Media = JSON.parse(readFileSync("src/machines/6502/apple2.md", "utf8").match(/```json\n([\s\S]*?)```/)![1]!);
 function file(bytes: Uint8Array, name = "local file") {
@@ -33,6 +34,14 @@ test("Apple II media checks whole containers, bootstrap slices, and selected dis
   await assert.rejects(readApple2Disk(file(new Uint8Array(143360)), media.disk), /System Master/);
   const diskBytes = new Uint8Array(143360), selected = await readApple2Disk(file(diskBytes), { bytes: 143360, sha256: hash(diskBytes) });
   diskBytes[0] = 255; assert.equal(selected.disk.snapshot()[0], 0);
+  assert.ok(selected.systemMaster);
+  for (const mode of ["read-only", "writable-copy"] as const) {
+    const local = await readApple2Disk(file(diskBytes, "answer.dsk"), media.disk, mode);
+    assert.equal(local.systemMaster, false);
+    assert.equal(local.disk.writable, mode === "writable-copy");
+    assert.deepEqual(local.disk.exportImage(), diskBytes);
+    await assert.rejects(readApple2Disk(file(diskBytes.subarray(1)), media.disk, mode), /143,360/);
+  }
 });
 
 /** Drive DOS through the keyboard and observe its output in page-one text RAM. */
@@ -120,10 +129,11 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
   command("SAVE TEST"); assert.match(screen(), /WRITE PROTECTED/);
   assert.deepEqual(machine.disk.snapshot().media, original);
 
-  await t.test("DOS saves ANSWER in the catalogue and a fresh boot from the exported disk runs it", () => {
+  await t.test("DOS runs ANSWER from a fresh export and can save another file on the restored writable disk", async () => {
     const master = selected.disk.exportImage();
     assert.doesNotMatch(catalogue, /\bANSWER$/m);
-    machine.disk.insert(new Dos33Disk(master, { writable: true }));
+    const working = await readApple2Disk(file(master, "dos33-master.dsk"), media.disk, "writable-copy");
+    machine.disk.insert(working.disk);
     command("NEW"); command("10 PRINT 6*7");
     command("SAVE ANSWER", 20_000_000); // Allocating and saving the new file takes about 13 million instructions.
     const listing = terminal.cataloguePages().join("\n");
@@ -141,7 +151,19 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     assert.equal(exported.length, Dos33Disk.size);
     assert.notDeepEqual(exported, master);
     assert.deepEqual(selected.disk.exportImage(), master);
-    const fresh = dosTerminal(createApple2Session(rom.image, { bootstrap, image: new Dos33Disk(exported) }));
+    const checkpoint = await encodeApple2SavedState({ machine: "apple2-plus", name: "With ANSWER", diskName: working.name,
+      savedAt: new Date().toISOString(), flash: false, state: session.snapshot() });
+    session.eject();
+    const restored = await prepareApple2SavedState(checkpoint, rom.image, media);
+    assert.equal(restored.diskName, working.name);
+    assert.deepEqual(restored.session.machine.disk.exportImage(), exported);
+    const restoredDos = dosTerminal(restored.session);
+    restoredDos.command("SAVE RESTORED", 20_000_000);
+    const restoredListing = restoredDos.cataloguePages().join("\n");
+    for (const name of ["ANSWER", "RESTORED"]) assert.match(restoredListing, new RegExp(`^ *A 002 ${name}$`, "m"));
+
+    const downloaded = await readApple2Disk(file(exported, "dos33-master-saved.dsk"), media.disk, "read-only");
+    const fresh = dosTerminal(createApple2Session(rom.image, { bootstrap, image: downloaded.disk }));
     fresh.bootToPrompt();
     loadAndRun(fresh);
   });

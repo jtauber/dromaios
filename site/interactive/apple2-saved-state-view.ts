@@ -1,4 +1,4 @@
-import { apple2SavedStates } from "./apple2-saved-state.js";
+import { apple2SavedStates, encodeApple2SavedState } from "./apple2-saved-state.js";
 import type { Apple2SavedState } from "./apple2-saved-state.js";
 import type { Apple2SessionState } from "./apple2-session.js";
 import { compareApple2States } from "./apple2-state-comparison.js";
@@ -57,9 +57,9 @@ export function createApple2SavedStateView(root: HTMLElement, actions: {
   form.addEventListener("submit", event => {
     event.preventDefault();
     if (!available) return;
-    void action(() => {
-      const saved: Apple2SavedState = { version: 1, machine: "apple2-plus", name: name.value.trim(),
-        savedAt: new Date().toISOString(), ...actions.capture() };
+    void action(async () => {
+      const saved = await encodeApple2SavedState({ machine: "apple2-plus", name: name.value.trim(),
+        savedAt: new Date().toISOString(), ...actions.capture() });
       store.save(saved); list(saved.name); invalidate(); name.value = "";
       status.textContent = `Saved “${saved.name}” in this browser.`;
     });

@@ -13,7 +13,7 @@ export interface Apple2Media extends RomContainer {
   readonly disk: { readonly bytes: number; readonly sha256: string };
 }
 export interface Apple2RomFile extends RomFile { readonly bootstrap?: readonly number[] }
-export interface Apple2DiskFile { readonly name: string; readonly disk: Dos33Disk }
+export type Apple2DiskMode = "system-master" | "read-only" | "writable-copy";
 
 /** The verified container supplies both motherboard firmware and the slot-6 bootstrap. */
 export async function readApple2Rom(file: LocalFile, expected: RomIdentity, media: Apple2Media): Promise<Apple2RomFile> {
@@ -31,10 +31,12 @@ export async function readApple2Rom(file: LocalFile, expected: RomIdentity, medi
   return { ...rom, bootstrap: Object.freeze(Array.from(bootstrap)) };
 }
 
-/** This first profile accepts the selected System Master, without downloading or changing it. */
-export async function readApple2Disk(file: LocalFile, expected: Apple2Media["disk"]): Promise<Apple2DiskFile> {
-  if (file.size !== expected.bytes || expected.bytes !== Dos33Disk.size) throw new Error("Choose the 143,360-byte DOS 3.3 System Master disk.");
-  const bytes = new Uint8Array(new Uint8Array(await file.arrayBuffer()));
-  if (bytes.length !== file.size || await sha256(bytes) !== expected.sha256) throw new Error("Disk does not match the selected DOS 3.3 System Master.");
-  return { name: file.name, disk: new Dos33Disk(bytes) };
+/** The classroom verifies the System Master. The lab also mounts local DOS-order images. */
+export async function readApple2Disk(file: LocalFile, expected: Apple2Media["disk"], mode: Apple2DiskMode = "system-master") {
+  if (file.size !== Dos33Disk.size) throw new Error("Choose a 143,360-byte DOS-order disk image.");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (bytes.length !== file.size) throw new Error("Incomplete DOS-order disk image.");
+  const systemMaster = bytes.length === expected.bytes && await sha256(bytes) === expected.sha256;
+  if (mode === "system-master" && !systemMaster) throw new Error("Disk does not match the selected DOS 3.3 System Master.");
+  return { name: file.name, disk: new Dos33Disk(bytes, { writable: mode === "writable-copy" }), systemMaster };
 }

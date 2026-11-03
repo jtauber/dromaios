@@ -118,7 +118,7 @@
       <div class="basic-controls"><button type="button" data-state-restore>Restore</button><button type="button" data-state-compare>Compare</button><button type="button" data-state-delete>Delete saved state</button></div>
       <p data-state-status class="basic-message" role="status"></p>
       <p class="lab-hint">Pause to save, restore, or compare. Saved states stay in this browser across reloads.</p>
-      <details><summary>What is saved?</summary><p class="lab-hint">RAM, CPU, devices, disk, and queued keys. Restore replaces the current experiment and leaves it paused. Layout, watches, and breakpoints stay as they are; execution histories are cleared. Load the matching ROM before restoring.</p></details>
+      <details><summary>What is saved?</summary><p class="lab-hint">RAM, CPU, devices, queued keys, and the mounted disk, including its edits, filename and write permission. Restore replaces the current experiment and leaves it paused. Load the matching ROM before restoring.</p></details>
       <h2>Saved → current</h2>
       <p class="lab-hint">Compare captures net changes, including hidden RAM banks. Values are hex; device fields use their snapshot values.</p>
       <p data-state-summary class="lab-hint"></p>
@@ -202,13 +202,17 @@
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="disk" data-panel-live="true" data-panel-title="Disk">
       <h2>Drive 1</h2>
-      {{ media_picker('disk', 'disk') }}
+      <input type="file" data-disk-file aria-label="disk file" accept=".dsk,.do" hidden disabled>
+      <div class="basic-controls"><button type="button" data-disk-load disabled>Insert read-only…</button>
+        <button type="button" data-disk-writable disabled>Insert writable copy…</button></div>
       <p data-disk-status class="basic-readout">No disk loaded.</p>
-      <button type="button" data-disk-eject disabled>Eject disk</button>
-      <p class="lab-hint">Use the 20 KiB ROM container, then the verified DOS 3.3 System Master. Selecting a disk prepares a fresh, paused machine. Run boots DOS; allow time for Integer BASIC to load.</p>
+      <div class="basic-controls"><button type="button" data-disk-eject disabled>Eject disk</button>
+        <button type="button" data-disk-export disabled title="Download the mounted disk when the motor is off">Export disk image</button></div>
+      <p class="basic-readout" data-disk-notice role="status"></p>
+      <p class="lab-hint">Load the 20 KiB ROM container, then a 143,360-byte DOS-order disk. Inserting a disk prepares a fresh, paused machine. Choose Run to boot it.</p>
       <h2>Disk II controller</h2><pre data-disk-inspect>No disk controller installed.</pre>
-      <p class="lab-hint">This configuration is read-only. Eject preserves RAM; fresh power-on retains the selected disk. No guest reads are used to inspect the controller.</p>
-      <p><a href="{{ calc_url(apple2_url ~ '#booting-dos-33') }}" target="_blank" rel="noopener">DOS boot guide ↗</a></p>
+      <p class="lab-hint">Guest writes change the in-memory copy. When the motor is off, export a .dsk to keep the changes. Saved states also retain the mounted disk and its write permission.</p>
+      <p><a href="{{ calc_url(apple2_url ~ '#saving-answer-across-a-fresh-boot') }}" target="_blank" rel="noopener">Save and boot ANSWER ↗</a></p>
     </section>
   </div>
 </main>

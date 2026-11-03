@@ -3,6 +3,7 @@ import { romImages as egaRomImages } from "../../src/machines/generated/8088/pc-
 import { xtDisketteSize } from "../../src/machines/8088/pc-xt/io.js";
 import { xtOscillatorHz } from "../../src/machines/8088/pc-xt/clock.js";
 import { createExecutionController } from "./execution-controller.js";
+import { downloadDiskImage } from "./disk-download.js";
 import { readRomFile } from "./rom-file.js";
 import { romFileStorage } from "./rom-storage.js";
 import { createWorkspace } from "./workspace/dock.js";
@@ -259,13 +260,8 @@ function mount(root: HTMLElement): void {
   button("disk-eject").onclick = () => act(() => { session.ejectDisk(); diskMessage.textContent = ""; });
   button("disk-export").onclick = () => act(() => {
     if (!session.diskName || session.machine.io.disketteMotorOn) return;
-    const link = document.createElement("a");
-    link.download = session.diskName.replace(/(?:-saved)?\.(?:img|ima|dsk)$/i, "") + "-saved.img";
-    const url = URL.createObjectURL(new Blob([session.machine.io.exportDiskette()], { type: "application/octet-stream" }));
-    link.href = url;
-    link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    diskMessage.textContent = `Exported ${link.download}.`;
+    const filename = downloadDiskImage(session.diskName, ".img", session.machine.io.exportDiskette());
+    diskMessage.textContent = `Exported ${filename}.`;
   });
 
   for (const slot of slots) {
