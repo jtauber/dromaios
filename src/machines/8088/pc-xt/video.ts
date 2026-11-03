@@ -1,3 +1,4 @@
+import type { IbmEga } from "../../../components/devices/ibm-ega.ts";
 import type { create8088PcXt } from "../../generated/8088/pc-xt.ts";
 
 type Display = Pick<ReturnType<typeof create8088PcXt>, "cga" | "video" | "font">;
@@ -11,7 +12,7 @@ export const cgaColours: readonly string[] = Object.freeze([
 export interface XtVideoFrame {
   readonly width: number;
   readonly height: number;
-  /** Detached RGBI colour indices in scan-line order. */
+  /** Detached monitor colour indices in scan-line order (RGBI on CGA, six colour pins on EGA). */
   readonly pixels: Uint8Array;
 }
 
@@ -51,6 +52,20 @@ export function renderXtGraphicsFrame({ cga, video }: Pick<Display, "cga" | "vid
       const byte = video.read(cga.graphicsAddress(line, column));
       for (let shift = 6; shift >= 0; shift -= 2) pixels[pixel++] = colours[(byte >> shift) & 3]!;
     }
+  }
+  return { width, height, pixels };
+}
+
+/** The Enhanced Color Display has a primary and secondary wire for each RGB component. */
+export function egaRgb(colour: number): readonly number[] {
+  return [2, 1, 0].map(bit => 85 * (2 * ((colour >> bit) & 1) + ((colour >> (bit + 3)) & 1)));
+}
+
+export function renderEgaTextFrame(ega: IbmEga): XtVideoFrame {
+  const width = ega.columns * ega.cellWidth, height = ega.displayLines;
+  const pixels = new Uint8Array(width * height);
+  if (ega.textEnabled) {
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) pixels[y * width + x] = ega.pixel(x, y);
   }
   return { width, height, pixels };
 }

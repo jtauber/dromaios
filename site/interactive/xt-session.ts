@@ -1,13 +1,15 @@
 import { create8088PcXt } from "../../src/machines/generated/8088/pc-xt.js";
+import { create8088PcXtEga } from "../../src/machines/generated/8088/pc-xt-ega.js";
 import { stepTimedXtCpu, type XtCpuBoard } from "../../src/machines/8088/pc-xt/interrupts.js";
 import type { RomImage } from "../../src/machines/rom-image.js";
 import { checkMachineSnapshot } from "../../src/machines/snapshot.js";
 import { XtKeyboard } from "./xt-keyboard.js";
 import type { XtKeyboardState } from "./xt-keyboard.js";
 
-export type XtMachine = ReturnType<typeof create8088PcXt>;
+export type XtMachine = ReturnType<typeof create8088PcXt | typeof create8088PcXtEga>;
 type Bindings = Parameters<typeof create8088PcXt>[0];
-export type XtRomSlot = keyof Bindings;
+type EgaBindings = Parameters<typeof create8088PcXtEga>[0];
+export type XtRomSlot = keyof Bindings | keyof EgaBindings;
 export interface XtSessionState {
   readonly hardware: ReturnType<XtMachine["snapshot"]>;
   readonly keyboard: XtKeyboardState;
@@ -29,15 +31,33 @@ function checkDiskName(name: unknown): asserts name is string {
 /** The lab's execution and input boundary. Pausing, drawing and docking do not advance the machine. */
 export function createXtSession(initial: Bindings = { bios: null, basic: null, font: null }) {
   const bindings = { ...initial };
+  return xtSession((state?: Parameters<typeof create8088PcXt>[1]) => create8088PcXt(bindings, state),
+    (machine, slot, image) => {
+      if (slot === "option") throw new Error("The CGA has no option ROM.");
+      machine[slot].install(image); bindings[slot] = image;
+    });
+}
+
+export function createXtEgaSession(initial: EgaBindings = { bios: null, basic: null, option: null }) {
+  const bindings = { ...initial };
+  return xtSession((state?: Parameters<typeof create8088PcXtEga>[1]) => create8088PcXtEga(bindings, state),
+    (machine, slot, image) => {
+      if (slot === "font") throw new Error("The EGA loads its font from the option ROM.");
+      machine[slot].install(image); bindings[slot] = image;
+    });
+}
+
+function xtSession<M extends XtMachine, S>(create: (state?: S) => M,
+  install: (machine: M, slot: XtRomSlot, image: RomImage) => void) {
   function freshMachine() {
-    const board = create8088PcXt(bindings);
+    const board = create();
     board.reset();
     return board;
   }
   let machine = freshMachine();
   let keyboard = new XtKeyboard();
   let diskName: string | null = null;
-  const ready = () => machine.bios.loaded && machine.basic.loaded && machine.font.loaded;
+  const ready = () => machine.bios.loaded && machine.basic.loaded && ("option" in machine ? machine.option.loaded : machine.font.loaded);
   return {
     get machine() { return machine; },
     get keyboard() { return keyboard; },
@@ -49,9 +69,9 @@ export function createXtSession(initial: Bindings = { bios: null, basic: null, f
       diskName = name;
     },
     ejectDisk() { machine.io.setDiskette(null); diskName = null; },
-    install(slot: XtRomSlot, image: RomImage) { machine[slot].install(image); bindings[slot] = image; },
+    install(slot: XtRomSlot, image: RomImage) { install(machine, slot, image); },
     step() {
-      if (!ready()) throw new Error("Load the BIOS, BASIC, and character ROMs to run the XT.");
+      if (!ready()) throw new Error("Load the BIOS, BASIC, and display firmware to run the XT.");
       const record = stepXtSessionCpu(machine, keyboard);
       if (record.outcome === "unsupported") throw new Error(`Unsupported instruction at ${record.before.pc.toString(16)}.`);
       return record;
@@ -73,7 +93,7 @@ export function createXtSession(initial: Bindings = { bios: null, basic: null, f
     restore(value: unknown) {
       checkMachineSnapshot(value, ["hardware", "keyboard", "diskName"]);
       const state = value as XtSessionState;
-      const next = create8088PcXt(bindings, state.hardware);
+      const next = create(state.hardware as S);
       const input = new XtKeyboard(state.keyboard);
       if (next.io.snapshot().disketteImage) checkDiskName(state.diskName);
       else if (state.diskName !== null) throw new Error("Empty XT drive cannot have a disk filename.");

@@ -11,7 +11,7 @@ export interface XtBoundary {
 export interface XtStorageRegion {
   readonly start: number;
   readonly size: number;
-  readonly component: "ram" | "video" | "bios" | "basic";
+  readonly component: "ram" | "video" | "bios" | "basic" | "ega" | "option";
   readonly offset: number;
 }
 export interface XtCatalogue { readonly cpu: Catalogue8088; readonly storage: readonly XtStorageRegion[] }
@@ -25,10 +25,14 @@ export function parseXtAddress(text: string): number {
 }
 
 /** Resolve an observed physical byte using only the board's declared storage and aliases. */
-export function readXtStorage(machine: Pick<XtMachine, XtStorageRegion["component"]>, regions: readonly XtStorageRegion[], address: number): number | undefined {
+export function readXtStorage(machine: XtMachine, regions: readonly XtStorageRegion[], address: number): number | undefined {
   const region = regions.find(r => address >= r.start && address < r.start + r.size);
   if (!region) return undefined;
-  const value = machine[region.component].read(region.offset + address - region.start);
+  const offset = region.offset + address - region.start;
+  if (region.component === "ega") return "ega" in machine ? machine.ega.peek(offset) : undefined;
+  const storage = region.component === "video" ? ("video" in machine ? machine.video : undefined)
+    : region.component === "option" ? ("option" in machine ? machine.option : undefined) : machine[region.component];
+  const value = storage?.read(offset);
   return typeof value === "number" ? value : undefined;
 }
 

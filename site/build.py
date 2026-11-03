@@ -155,11 +155,14 @@ def build(base):
                           "coco_rom_guides": coco_annotations(COCO.read_text(), coco_instructions["romImages"], coco_instructions)})
     xt_lab = machine_guide(XT, "Intel 8088", "XT",
                            "Explore the IBM PC/XT’s executable specification and boot its laboratory into ROM BASIC or DOS.")
-    xt_catalogue = json.loads(subprocess.run(["node", "site/xt-instructions.ts"], cwd=ROOT,
-                                             check=True, capture_output=True, text=True).stdout)
-    site.render_template("xt-laboratory.html", f"{xt_lab}index.html",
-                         {"xt_url": MACHINES[XT], "title": "IBM PC/XT laboratory", "xt_catalogue": xt_catalogue,
-                          "xt_rom_guide": xt_annotations(XT.read_text(), xt_catalogue)})
+    for profile in ("cga", "ega"):
+        xt_catalogue = json.loads(subprocess.run(["node", "site/xt-instructions.ts", profile], cwd=ROOT,
+                                                 check=True, capture_output=True, text=True).stdout)
+        lab = xt_lab if profile == "cga" else f"{xt_lab}ega/"
+        site.render_template("xt-laboratory.html", f"{lab}index.html",
+                             {"xt_url": MACHINES[XT], "xt_lab": xt_lab, "ega": profile == "ega",
+                              "title": f"IBM PC/XT laboratory · {profile.upper()}", "xt_catalogue": xt_catalogue,
+                              "xt_rom_guide": xt_annotations(XT.read_text(), xt_catalogue)})
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):

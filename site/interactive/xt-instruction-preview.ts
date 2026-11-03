@@ -7,7 +7,7 @@ import type { Row8088 } from "./8088-disassembly.js";
 import { readXtStorage } from "./xt-inspection.js";
 import type { XtCatalogue } from "./xt-inspection.js";
 import { stepXtSessionCpu } from "./xt-session.js";
-import type { createXtSession } from "./xt-session.js";
+import type { XtMachine } from "./xt-session.js";
 import { XtKeyboard } from "./xt-keyboard.js";
 import { previewMemory } from "./preview-memory.js";
 import { describeFlagCondition, testFlagCondition } from "./instruction-shape.js";
@@ -29,15 +29,18 @@ export function explain8088Address(state: Cpu8088Snapshot, row: Row8088): readon
 }
 
 /** A copied CPU, board I/O and keyboard preserve native boundary ordering. Only declared storage is observed. */
-export function previewXtInstruction(session: Pick<ReturnType<typeof createXtSession>, "machine" | "keyboard">, catalogue: XtCatalogue) {
+export function previewXtInstruction(session: { readonly machine: XtMachine; readonly keyboard: XtKeyboard }, catalogue: XtCatalogue) {
   const { machine } = session, state = machine.cpu.snapshot();
   const read = (address: number) => readXtStorage(machine, catalogue.storage, address);
   const row = decode8088(catalogue.cpu, state.cs, state.ip, index => read(physical8088(state.cs, state.ip + index)));
   const unavailable = Symbol("XT preview unavailable");
   let external: string | undefined, reads = 0;
   function stop(reason: string): never { external = reason; throw unavailable; }
-  const writeKind = (address: number) => catalogue.storage.some(region => (region.component === "ram" || region.component === "video")
-    && address >= region.start && address < region.start + region.size) ? "ram" as const : "ignored" as const;
+  function writeKind(address: number) {
+    const kind = catalogue.storage.find(r => address >= r.start && address < r.start + r.size)?.component;
+    if (kind === "ega") return "device" as const;
+    return kind === "ram" || kind === "video" ? "ram" as const : "ignored" as const;
+  }
   const memory = previewMemory(address => {
     if (++reads > 64) stop("Preview limit of 64 memory reads reached.");
     return read(address);

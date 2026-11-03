@@ -94,7 +94,9 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
         }
         body.push("    switch (port) {");
         for (const binding of machine.ports.filter(binding => binding.direction === direction)) {
-          const call = `${part(binding.component)}.${direction === "in" ? "read" : "write"}(${binding.address}${direction === "out" ? ", value" : ""})`;
+          const kind = machine.components.find(component => component.name === binding.component)!.kind;
+          const separate = isDeviceKind(kind) && "separatePorts" in deviceModels[kind];
+          const call = `${part(binding.component)}.${direction === "in" ? "read" : "write"}${separate ? "Port" : ""}(${binding.address}${direction === "out" ? ", value" : ""})`;
           body.push(`      case ${binding.port}: return ${call};`);
         }
         body.push(unmapped === undefined

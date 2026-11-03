@@ -34,7 +34,7 @@ reaches the DOS prompt and runs `VER` and `DIR`. DOS also loads
 [Ultima V from a 360 KiB disk](pc-xt-ultima-v.md#native-launch).
 The browser laboratory displays the game's four-colour CGA title menu. The
 native XT can also [resume the party and walk in Britannia](pc-xt-ultima-v.md#journey-onward).
-The reference emulator runs the EGA version.
+The [EGA configuration](../../src/machines/8088/pc-xt-ega.md) now cold-boots DOS in text mode. The reference emulator also runs the EGA version of the game.
 
 ## Selected first configuration
 
@@ -45,8 +45,7 @@ Select 80-column colour display and one floppy drive in the
 equipment switches. The disk milestone uses a **360 KiB drive**, with 40
 cylinders, two heads, nine 512-byte sectors per track, and the XT diskette adapter.
 
-CGA supports 40/80-column text and BIOS graphics mode `04h`. The reference's
-EGA implementation provides a comparison for a later adapter configuration.
+CGA supports 40/80-column text and BIOS graphics mode `04h`. The second configuration replaces CGA with IBM’s 256 KiB EGA and Enhanced Color Display.
 No hard disk, 8087, AT keyboard controller, mouse, or later x86 extensions are
 part of this first profile. Speaker control and timer state must be observable;
 audible output can follow separately.
@@ -138,6 +137,7 @@ identify exact bytes rather than accepting a filename as proof of version.
 | [XT BIOS, 11/08/82][bios-image] | 8,192 | `2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2` |
 | [IBM ROM BASIC C1.10][basic-image] | 32,768 | `3033d1a54c99d7e2aa1fc7c8c2e51a56ae1b61bf4e70e8aa580f43c43e37a63e` |
 | [IBM MDA/CGA character ROM][font-image] | 8,192 | `37527f661580e5a09710051cec67422abfadf31c61b841537a91e7f27be19304` |
+| [IBM EGA option ROM, 09/13/84](pc-xt-ultima-v.md#native-ega-acceptance) | 16,384 | `bf1583dd387d6e078ab3f5039bcb3f7020a66a63d5f0e57039883c5081dbbf9c` |
 | Microsoft MS-DOS 3.30 Disk 1 (`MS330PP01`) | 368,640 | `d79f283ebd2cd68e8dede44ed876da13c25024f7000bcb576177820388c424f4` |
 | Reference `disks/Dos3.3.img` (NEC MS-DOS 3.30) | 1,474,560 | `dcde53d1a4e4c1abed2d30f05a4674730eac14f4504924b83c97262d0f8c58d2` |
 
@@ -295,8 +295,9 @@ EGA menus. Use these milestones for the EGA laboratory.
 
 The [CGA play session](pc-xt-ultima-v.md#save-export-and-resume) now includes
 saving on the outdoor map and continuing from the exported Player disk after a fresh boot.
-The first EGA milestone is for the XT BIOS to call the adapter ROM and for
-that ROM to install INT 10h.
+The [EGA boot check](pc-xt-ultima-v.md#native-ega-acceptance) takes the original
+adapter ROM through POST to the DOS prompt. The next check is to issue the
+game driver’s EGA query and set mode `0Dh` through the installed INT 10h handler.
 
 [ibm]: https://minuszerodegrees.net/manuals/IBM_5160_Technical_Reference_APR83.pdf
 [rom-layout]: https://www.pcjs.org/machines/pcx86/ibm/5160/rom/

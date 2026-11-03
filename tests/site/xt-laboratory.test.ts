@@ -4,7 +4,7 @@ import { migrateXtWorkspace, xtWorkspaceKey } from "../../site/interactive/xt-wo
 import { decodeWorkspaceState, encodeWorkspaceState } from "../../site/interactive/workspace/state.js";
 import { groups } from "../../site/interactive/workspace/layout.js";
 import { XtKeyboard } from "../../site/interactive/xt-keyboard.js";
-import { createXtSession } from "../../site/interactive/xt-session.js";
+import { createXtEgaSession, createXtSession } from "../../site/interactive/xt-session.js";
 import { decodeXtCheckpoint, encodeXtCheckpoint } from "../../site/interactive/xt-checkpoint.js";
 
 function drain(keyboard: XtKeyboard, caps = false) {
@@ -65,6 +65,20 @@ test("XT session restore validates the keyboard, memory and ROM identities befor
   assert.throws(() => decodeXtCheckpoint(JSON.stringify({ ...JSON.parse(text), hardware: { ram: "" } })), /memory size/);
   assert.equal(session.machine, live); assert.deepEqual(session.snapshot(), saved);
   session.powerOn(); session.restore(decoded); assert.deepEqual(session.snapshot(), saved);
+});
+
+test("EGA checkpoints preserve the display planes and reject a cross-adapter restore", () => {
+  const session = createXtEgaSession(), { ega } = session.machine;
+  ega.writePort(0x3c2, 3); ega.writePort(0x3c4, 2); ega.writePort(0x3c5, 1);
+  ega.writePort(0x3ce, 8); ega.writePort(0x3cf, 255); ega.write(0, 65);
+  assert.throws(() => decodeXtCheckpoint(encodeXtCheckpoint(session.snapshot())), /different machine/);
+  session.insertDisk("dos.img", new Uint8Array(360 * 1024));
+  const text = encodeXtCheckpoint(session.snapshot());
+  session.powerOn(); assert.equal(session.machine.ega.character(0, 0), 0);
+  session.restore(decodeXtCheckpoint(text, true)); assert.equal(session.machine.ega.character(0, 0), 65);
+  assert.equal(session.diskName, "dos.img");
+  assert.throws(() => session.restore(createXtSession().snapshot()), /snapshot requires/);
+  assert.equal(session.machine.ega.character(0, 0), 65);
 });
 
 test("a rejected paste or excessive input leaves the XT keyboard usable", () => {

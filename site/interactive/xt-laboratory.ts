@@ -1,4 +1,5 @@
 import { romImages } from "../../src/machines/generated/8088/pc-xt.js";
+import { romImages as egaRomImages } from "../../src/machines/generated/8088/pc-xt-ega.js";
 import { xtDisketteSize } from "../../src/machines/8088/pc-xt/io.js";
 import { xtOscillatorHz } from "../../src/machines/8088/pc-xt/clock.js";
 import { createExecutionController } from "./execution-controller.js";
@@ -13,7 +14,7 @@ import { physical8088, xtHex as hex } from "./8088-disassembly.js";
 import { createMemoryInspector } from "./memory-inspector.js";
 import { parseXtAddress, readXtStorage } from "./xt-inspection.js";
 import type { XtCatalogue } from "./xt-inspection.js";
-import { createXtSession } from "./xt-session.js";
+import { createXtEgaSession, createXtSession } from "./xt-session.js";
 import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
 import { createXtScreen } from "./xt-screen.js";
@@ -36,7 +37,10 @@ function mount(root: HTMLElement): void {
   const button = (name: string) => at<HTMLButtonElement>(name);
   const screen = at("screen"), message = at("message"), status = at("execution");
   const display = createXtScreen(root.querySelector("canvas")!, at("screen-text"), at("screen-notice"));
-  const session = createXtSession();
+  const ega = root.dataset.xtLaboratory === "ega";
+  const session = ega ? createXtEgaSession() : createXtSession();
+  const images = { ...romImages, ...egaRomImages };
+  const checkpointKey = ega ? xtCheckpointKey + ":ega" : xtCheckpointKey;
   const debug = createXtDebugger(() => session.machine);
   const registers = root.querySelector<HTMLElement>('[data-workspace-panel="registers"]')!;
   const code = root.querySelector<HTMLElement>('[data-workspace-panel="code"]')!;
@@ -68,8 +72,8 @@ function mount(root: HTMLElement): void {
     const id = panel.dataset.slot as XtRomSlot;
     return { id, file: panel.querySelector("input")!, load: panel.querySelector<HTMLButtonElement>("[data-load]")!,
       forget: panel.querySelector<HTMLButtonElement>("[data-forget]")!, status: panel.querySelector<HTMLElement>("[data-slot-status]")!,
-      storage: romFileStorage(() => localStorage, "dromaios:xt-rom:" + id + ":v1", romImages[id].size,
-        file => readRomFile(file, romImages[id])), remembered: false };
+      storage: romFileStorage(() => localStorage, "dromaios:xt-rom:" + id + ":v1", images[id].size,
+        file => readRomFile(file, images[id])), remembered: false };
   });
   const diskFile = at<HTMLInputElement>("disk-file"), diskName = at("disk-name"), motor = at("disk-motor");
   const diskMessage = at("disk-message");
@@ -214,17 +218,17 @@ function mount(root: HTMLElement): void {
   document.addEventListener("visibilitychange", () => { if (document.hidden) leaveWindow(); });
 
   button("save").onclick = () => act(() => {
-    localStorage.setItem(xtCheckpointKey, encodeXtCheckpoint(session.snapshot()));
+    localStorage.setItem(checkpointKey, encodeXtCheckpoint(session.snapshot()));
     saved = true; at("saved").textContent = "XT checkpoint saved in this browser.";
   });
   button("restore").onclick = () => act(() => {
-    const value = localStorage.getItem(xtCheckpointKey);
+    const value = localStorage.getItem(checkpointKey);
     if (value === null) throw new Error("No saved XT checkpoint.");
-    session.restore(decodeXtCheckpoint(value)); diskMessage.textContent = ""; resetTools();
+    session.restore(decodeXtCheckpoint(value, ega)); diskMessage.textContent = ""; resetTools();
     message.textContent = "Session restored and paused.";
   });
   button("remove").onclick = () => act(() => {
-    localStorage.removeItem(xtCheckpointKey); saved = false; at("saved").textContent = "No checkpoint saved.";
+    localStorage.removeItem(checkpointKey); saved = false; at("saved").textContent = "No checkpoint saved.";
   });
 
   button("disk-insert").onclick = () => { writableCopy = false; diskFile.click(); };
@@ -286,7 +290,7 @@ function mount(root: HTMLElement): void {
   });
   mountWorkspaceControls(controls, workspace, layoutStatus);
   try {
-    saved = localStorage.getItem(xtCheckpointKey) !== null;
+    saved = localStorage.getItem(checkpointKey) !== null;
     if (saved) at("saved").textContent = "Local XT checkpoint available.";
   } catch { at("saved").textContent = "Browser storage unavailable."; }
   refresh();

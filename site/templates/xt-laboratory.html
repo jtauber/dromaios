@@ -16,15 +16,15 @@
 {% endblock %}
 {% block footer %}{% endblock %}
 {% block main %}
-<main id="main" class="laboratory xt-laboratory" data-xt-laboratory>
+<main id="main" class="laboratory xt-laboratory" data-xt-laboratory="{{ 'ega' if ega else 'cga' }}">
   <script type="application/json" data-xt-catalogue>{{ xt_catalogue | tojson }}</script>
   <script type="application/json" data-xt-rom-guide>{{ xt_rom_guide | tojson }}</script>
   <noscript><p>Enable JavaScript to use the laboratory. <a href="{{ calc_url(xt_url) }}">Read the machine guide</a>.</p></noscript>
   <div class="workspace-scroll"><div class="workspace-dock" data-workspace-root aria-label="XT laboratory workspace"></div></div>
   <div hidden data-workspace-panels>
-    <section class="lab-tool lab-tool-screen" data-workspace-panel="screen" data-panel-title="Screen" data-panel-heading="IBM PC/XT" data-panel-detail="CGA · RGBI">
+    <section class="lab-tool lab-tool-screen" data-workspace-panel="screen" data-panel-title="Screen" data-panel-heading="IBM PC/XT" data-panel-detail="{{ 'EGA · Enhanced Color Display' if ega else 'CGA · RGBI' }}">
       <div class="lab-panel-body"><div class="lab-display-area">
-        <div class="xt-monitor" data-screen tabindex="0" role="region" aria-label="CGA display and XT keyboard" aria-describedby="xt-input-help">
+        <div class="xt-monitor" data-screen tabindex="0" role="region" aria-label="{{ 'EGA' if ega else 'CGA' }} display and XT keyboard" aria-describedby="xt-input-help">
           <canvas width="640" height="200" hidden aria-hidden="true"></canvas>
           <pre class="visually-hidden" data-screen-text aria-label="Screen contents"></pre>
           <div class="xt-screen-notice" data-screen-notice>Preparing display…</div>
@@ -85,7 +85,7 @@
       <p class="lab-hint">Watches stop after a write to RAM 00000–9FFFF, including unchanged values. Segment:offset entries select a physical RAM byte.</p>
       <p class="basic-message" data-debugger-status></p>
       <button type="button" data-watchpoint-memory hidden>Show written byte in Memory</button>
-      {% with watch_history_help='Oldest first. Captures conventional RAM writes to all configured watches, including unchanged stores and interrupt entry. The checkboxes enable stopping; disabled watches still record history. Live and Changes recording do not control capture. Removing a watch clears its history. Reset, power-on, restoration, and ROM replacement clear all history. Code links use the captured CS:IP but browse current storage. Reads, CGA RAM, ROM, and port I/O are excluded.' %}
+      {% with watch_history_help='Oldest first. Captures conventional RAM writes to all configured watches, including unchanged stores and interrupt entry. The checkboxes enable stopping; disabled watches still record history. Live and Changes recording do not control capture. Removing a watch clears its history. Reset, power-on, restoration, and ROM replacement clear all history. Code links use the captured CS:IP but browse current storage. Reads, display memory, ROM, and port I/O are excluded.' %}
         {% include "instruments/watch-history.html" %}
       {% endwith %}
     </section>
@@ -103,12 +103,13 @@
       <p class="basic-readout" data-walkthrough-reference-text></p>
       <p><a href="{{ calc_url(xt_url) }}#following-reset-and-early-post" target="_blank" rel="noopener">Read the BIOS guide ↗</a></p>
     </section>
-    {% with log_memory_detail='including CGA RAM at its first physical window (B8000); BC000 aliases name the same stored bytes', log_ram_edits=false, log_pc_label='CS:IP' %}
+    {% with log_memory_detail='in conventional RAM' if ega else 'including CGA RAM at its first physical window (B8000); BC000 aliases name the same stored bytes', log_ram_edits=false, log_pc_label='CS:IP' %}
       {% include "instruments/change-log.html" %}
     {% endwith %}
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="rom" data-panel-title="Firmware">
+      <p>Display adapter · {% if ega %}<a href="{{ calc_url(xt_lab) }}">CGA</a> / <strong>EGA</strong>{% else %}<strong>CGA</strong> / <a href="{{ calc_url(xt_lab ~ 'ega/') }}">EGA</a>{% endif %}</p>
       <p>Load the three ROMs, then choose <strong>Quick boot</strong> to start a fresh session. For the full 640 KiB RAM test, choose <strong>Fresh power-on</strong> and <strong>Run</strong>. An empty drive starts ROM BASIC.</p>
-      {% for id, name, size in [('bios','XT BIOS · 11/08/82','8 KiB'),('basic','IBM BASIC · C1.10','32 KiB'),('font','IBM MDA/CGA character ROM','8 KiB')] %}
+      {% for id, name, size in [('bios','XT BIOS · 11/08/82','8 KiB'),('basic','IBM BASIC · C1.10','32 KiB'),('option','IBM EGA option ROM · 09/13/84','16 KiB') if ega else ('font','IBM MDA/CGA character ROM','8 KiB')] %}
       <div class="xt-socket" data-slot="{{ id }}">
         <h2>{{ name }} <small>{{ size }}</small></h2>
         <div class="basic-controls"><button type="button" data-load disabled aria-label="Load {{ name }}">Load…</button>

@@ -34,9 +34,10 @@ export function createXtChangeLog(machine: XtMachine, regions: readonly XtStorag
     state: cpu8088StateDescription, counters: ["cs", "ip"], snapshot: () => machine.cpu.snapshot(),
     location: xtDebugLocation, event: xtBoundaryEvent, memoryLabel: xtStorageLabel,
     observeWrites(listener: (write: XtStorageWrite) => void) {
-      const detach = (["ram", "video"] as const).map(storage => {
+      const storageConnections = [["ram", machine.ram], ...("video" in machine ? [["video", machine.video] as const] : [])] as const;
+      const detach = storageConnections.map(([storage, connection]) => {
         const region = regions.find(region => region.component === storage && region.offset === 0)!;
-        return machine[storage].observeWrites(write => listener({ ...write, address: region.start + write.address, storage }));
+        return connection.observeWrites(write => listener({ ...write, address: region.start + write.address, storage }));
       });
       return () => { for (const stop of detach) stop(); };
     },

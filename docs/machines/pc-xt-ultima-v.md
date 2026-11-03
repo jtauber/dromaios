@@ -226,6 +226,14 @@ After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ultima-v.tes
    ports `3DA` and `3BA`, writes `00` to `3C0`, and installs `C000:0CD7`
    as the INT 10h vector at physical `00040`. The acceptance run must then
    reach the DOS text prompt through that adapter. [IBM installation instructions][switches] · [PCjs ROM dump][rom].
+
+   The [ROM-backed cold-boot test](../../tests/machines/8088/pc-xt/rom-ega.test.ts)
+   reaches IBM’s successful raster diagnostic exit at `C000:0466` and the DOS
+   boot sector at `0000:7C00`. After two Enters the screen reads `A>` in mode
+   03h. The test compares both glyphs, dot for dot, against the option ROM’s
+   8×14 table and runs `VER`. Set `XT_BIOS_ROM`, `XT_BASIC_ROM`, `XT_EGA_ROM`
+   and `XT_DOS_DISK` to the selected images to repeat the check.
+
 2. **Set mode 0Dh through INT 10h.** From DOS, exercise the EGA information
    query and the three traced driver calls. Check the BIOS data area's current
    mode at `0040:0049`, the selected page, and the palette programmed by the

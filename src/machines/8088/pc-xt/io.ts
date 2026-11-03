@@ -301,3 +301,11 @@ export class XtIo implements MemoryConnection {
     this.#dma.setRequests(this.#refreshPending, false, this.#disketteImage !== null && this.#diskette.dreq(), false);
   }
 }
+
+/** IBM specifies SW1 positions 5 and 6 both on for the EGA's option ROM. */
+export class XtEgaIo extends XtIo {
+  constructor(state?: XtIoSnapshot) {
+    super(state);
+    if (state === undefined) this.setEquipmentSwitches(0x0d);
+  }
+}

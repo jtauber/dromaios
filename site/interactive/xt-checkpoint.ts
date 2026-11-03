@@ -20,20 +20,24 @@ function unpack(value: unknown, size: number, field = "memory"): number[] {
 /** RAM, video and the mounted disk each have one packed copy. */
 export function encodeXtCheckpoint({ hardware, keyboard, diskName }: XtSessionState): string {
   const { io } = hardware;
-  return JSON.stringify({ version: 2, machine: "ibm-pc-xt", keyboard, diskName, hardware: {
-    ...hardware, ram: pack(hardware.ram), video: pack(hardware.video),
+  const video = "ega" in hardware
+    ? { ega: { ...hardware.ega, planes: pack(hardware.ega.planes) } } : { video: pack(hardware.video) };
+  return JSON.stringify({ version: 2, machine: "ega" in hardware ? "ibm-pc-xt-ega" : "ibm-pc-xt", keyboard, diskName, hardware: {
+    ...hardware, ram: pack(hardware.ram), ...video,
     io: { ...io, disketteImage: io.disketteImage && pack(io.disketteImage) },
   } });
 }
-export function decodeXtCheckpoint(text: string): XtSessionState {
-  if (text.length > 1_100_000 + xtDisketteSize / 3 * 4) throw new Error("XT checkpoint is too large.");
+export function decodeXtCheckpoint(text: string, ega = false): XtSessionState {
+  if (text.length > 1_100_000 + xtDisketteSize / 3 * 4 + (ega ? 350_000 : 0)) throw new Error("XT checkpoint is too large.");
   const data = JSON.parse(text);
-  if (data?.machine !== "ibm-pc-xt" || (data.version !== 1 && data.version !== 2)) {
+  const legacy = !ega && data?.version === 1;
+  if (data?.machine !== (ega ? "ibm-pc-xt-ega" : "ibm-pc-xt") || (!legacy && data.version !== 2)) {
     throw new Error("This checkpoint belongs to a different machine or version.");
   }
-  const legacy = data.version === 1;
   checkMachineSnapshot(data, legacy ? ["version", "machine", "hardware", "keyboard"] : ["version", "machine", "hardware", "keyboard", "diskName"]);
-  const hardware = { ...data.hardware, ram: unpack(data.hardware?.ram, 0xa0000), video: unpack(data.hardware?.video, 0x4000) };
+  const hardware = { ...data.hardware, ram: unpack(data.hardware?.ram, 0xa0000), ...(ega
+    ? { ega: { ...data.hardware?.ega, planes: unpack(data.hardware?.ega?.planes, 0x40000, "EGA planes") } }
+    : { video: unpack(data.hardware?.video, 0x4000) }) };
   // The version-1 laboratory always had an empty drive. Its oldest board snapshots predate disketteImage.
   if (legacy) return { hardware, keyboard: data.keyboard, diskName: null };
   const disk = hardware.io?.disketteImage;
