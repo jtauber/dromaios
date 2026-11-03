@@ -587,6 +587,8 @@ determines what boots.
   and choose **Quick boot**. Press Space while the Origin Systems logo is
   visible. The game draws its four-colour title menu with **Journey Onward** selected.
   To resume a party and walk outdoors, use the [Program and Player disks](../../../docs/machines/pc-xt-ultima-v.md#journey-onward).
+  The [save and resume walkthrough](../../../docs/machines/pc-xt-ultima-v.md#save-export-and-resume)
+  shows when to export the Player disk and how to use it after booting the Program disk again.
 
 The first part of POST runs with video disabled. The address and emulated
 seconds in **Execution** show the board advancing. **Step** advances one timed

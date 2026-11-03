@@ -293,9 +293,8 @@ EGA menus. Use these milestones for the EGA laboratory.
 
 ## Next implementation slice
 
-The [Journey Onward trace](pc-xt-ultima-v.md#journey-onward) reaches the
-outdoor map and verifies party movement. Next, save at a known location using
-the game's own command, export the Player disk, and resume from it after a fresh boot.
+The [CGA play session](pc-xt-ultima-v.md#save-export-and-resume) now includes
+saving on the outdoor map and continuing from the exported Player disk after a fresh boot.
 The first EGA milestone is for the XT BIOS to call the adapter ROM and for
 that ROM to install INT 10h.
 

@@ -190,8 +190,27 @@ The game switches to location 0 at (45,62). From that state, Right moved to
 (46,62) and redrew the map with **East** in the command area. The same run
 without input kept (45,62). [Save record layout][save-format].
 
+### Save, export, and resume
+
+1. At (46,62) outdoors, click the Screen panel and press **Q**. Answer **Y** to
+   the **Save game?** prompt. The game displays **Saving...** followed by **Done.**
+2. Wait for **Motor off** in Drive A, then choose **Export disk image**.
+   The laboratory downloads `ULTIMA-PLAYER-saved.img`. The original
+   `ULTIMA-PLAYER.IMG` still starts in Iolo's hut.
+3. Pause, insert `ULTIMA-PROGRAM.IMG`, choose **Fresh power-on**, then **Run**.
+   Repeat the [disk exchange](#disk-exchange-in-the-laboratory) using a writable
+   copy of the **exported** Player image. Journey Onward resumes Elwood, Shamino
+   and Iolo on the outdoor map at (46,62). Left moves the party to (45,62).
+
+During the save, DOS read 256 bytes each from `UNDER.OOL` and `BRIT.OOL`.
+It recreated `SAVED.GAM` and `SAVED.OOL`, writing 4,192 and 512 bytes
+respectively. Reading the FAT12 files from the download showed location 0,
+X=46 and Y=62 in Elwood's party record. The object list contained `BRIT.OOL`
+followed by `UNDER.OOL`. [Origin's Q command][origin].
+
 The optional [cold-boot test](../../tests/machines/8088/pc-xt/rom-ultima-v.test.ts)
-exercises this route through the original XT BIOS and DOS. Set `XT_BIOS_ROM`,
+compares the full party record written by DOS with the one read on a second,
+fresh XT. It checks the resumed coordinates and the next step. Set `XT_BIOS_ROM`,
 `XT_BASIC_ROM`, `XT_ULTIMA_PROGRAM` and `XT_ULTIMA_PLAYER` to the local images.
 After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ultima-v.test.js`.
 
