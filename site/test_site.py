@@ -64,7 +64,7 @@ class PublishingTests(unittest.TestCase):
 
     def test_load_answer_stops_come_from_the_machine_chapter(self):
         source = APPLE2.read_text()
-        complete, cut, binary = dos_walkthroughs(source)
+        complete, cut, binary, boot = dos_walkthroughs(source)
         sector_reads = lambda tour: [(e["track"], e["sector"], e["buffer"]) for step in tour["steps"]
                                      if "track" in (e := step["expect"])]
         common = [(17, 12, 0xb4bb), (12, 6, 0x9700)]
@@ -78,6 +78,12 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(binary["file"], dict(name="BEACON", type="B", address=0x6000, length=300))
         self.assertEqual(handoff["expect"], dict(jumpFrom=0xa394, indirect=0xaa72, target=0x6000))
         self.assertIn("queue BRUN BEACON", handoff["prepare"])
+        request, store, integer, floating = boot["steps"]
+        self.assertTrue(boot["fromPowerOn"])
+        self.assertEqual(request["expect"], dict(dosCommand="BLOAD INTBASIC,A$D000"))
+        self.assertEqual(store["expect"], dict(bank="bank2", address=0xd000, value=0xa9))
+        self.assertEqual(integer["expect"], floating["expect"])
+        self.assertEqual((integer["space"], floating["space"]), ("lc-upper", "rom"))
         with self.assertRaisesRegex(ValueError, "Invalid observation"):
             dos_walkthroughs(source.replace("T12 S5 →", "T12 S16 →"))
 

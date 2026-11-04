@@ -9,13 +9,14 @@ import type { createDos33ReadTrace, LoadObservation } from "./dos33-reads.js";
 import { hex } from "./apple2-explorer.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
-type LoadCheckpoint = RomCheckpoint & { inspect: number; expect: LoadObservation };
+type LoadCheckpoint = RomCheckpoint & { inspect: number; expect: LoadObservation; space?: "rom" | "lc-upper"; limit?: number };
 type LoadTour = Omit<RomWalkthrough, "steps"> & {
   file: { name: string; type: "A" } | { name: string; type: "B"; address: number; length: number };
+  fromPowerOn?: boolean;
   steps: readonly LoadCheckpoint[];
 };
 const loadStep = (step: RomCheckpoint): step is LoadCheckpoint => "expect" in step;
-const space = (step: RomCheckpoint) => parseInt(step.address, 16) < 0xc000 ? "ram" : "rom";
+const space = (step: LoadCheckpoint) => step.space ?? (parseInt(step.address, 16) < 0xc000 ? "ram" : "rom");
 
 /** A sector tour follows the pinned file chain. A binary tour follows the header's destination wherever DOS allocated the file. */
 function matchesDisk(image: readonly number[], tour: LoadTour): boolean {
@@ -25,8 +26,9 @@ function matchesDisk(image: readonly number[], tour: LoadTour): boolean {
     const sectors = dos33FileSectors(image, file);
     if (file.count !== sectors.length - 1) return false; // The catalogue sector belongs to the volume.
     if (tour.file.type === "B") {
-      const first = sectors.find(s => s.fileSector === 0);
-      if (!first || !sectors.some(s => s.fileSector === 1)) return false;
+      const data = sectors.filter(s => s.fileSector !== undefined), first = data[0];
+      if (!first || data.length !== Math.ceil((4 + tour.file.length) / 256)
+        || !data.every((s, i) => s.fileSector === i)) return false;
       const header = dos33BinaryHeader(image, first.index);
       return header.address === tour.file.address && header.length === tour.file.length;
     }
@@ -38,7 +40,7 @@ function matchesDisk(image: readonly number[], tour: LoadTour): boolean {
 
 export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, machine: () => Machine | undefined,
   trace: ReturnType<typeof createDos33ReadTrace> | undefined, actions: {
-    runTo(address: string, space: string, when?: () => boolean): void;
+    runTo(address: string, space: string, when?: () => boolean, limit?: number): void;
     browse(tool: "code" | "memory" | "rom", address: number): void;
   }) {
   const source = root.querySelector("[data-load-walkthroughs]");
@@ -52,21 +54,27 @@ export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, mach
       const selected = machine(), image = selected?.disk.inspectMedium()?.snapshot();
       if (image !== lastImage) { lastImage = image; enabled.clear(); }
       if (!enabled.has(load)) enabled.set(load, !!image && matchesDisk(image, load));
-      return !!trace && !!selected && enabled.get(load)! && hasDos33Rwts(selected);
+      return !!trace && !!selected && enabled.get(load)! && (load.fromPowerOn === true || hasDos33Rwts(selected));
     },
     runTo(address, step) {
-      if (loadStep(step)) actions.runTo(address, space(step), () => trace!.matches(step.expect));
+      if (loadStep(step)) actions.runTo(address, space(step), () => trace!.matches(step.expect), step.limit);
       else actions.runTo(address, "rom");
     },
     browse: address => actions.browse("code", address),
     reference: address => actions.browse("rom", address),
-    inspect: step => loadStep(step) ? { label: `Inspect RAM $${hex(step.inspect)}`, show: () => actions.browse("memory", step.inspect) } : undefined,
+    inspect: step => loadStep(step) ? { label: `Inspect ${step.inspect >= 0xd000 ? "mapped memory" : "RAM"} $${hex(step.inspect)}`, show: () => actions.browse("memory", step.inspect) } : undefined,
     position(step, location: DebugLocation | undefined, available, running) {
       if (!loadStep(step)) return romCheckpointPosition(step, location, available, running);
-      if (!available || !location) return "Boot the disk specified by this tour and pause at the Applesoft prompt to start this tour.";
+      if (!available || !location) return "Insert the disk specified in the walkthrough setup.";
       if (running) return `Running to ${step.title} at $${step.address}.`;
       if (location.address === parseInt(step.address, 16) && location.space === space(step) && trace?.matches(step.expect)) {
-        return `At checkpoint · ${step.title} ($${step.address}).`;
+        const hit = `At checkpoint · ${step.title} ($${step.address}).`;
+        if ("bank" in step.expect) {
+          const offset = step.expect.address - 0xd000, selected = machine()!;
+          const rom = selected.firmware.read(offset), byte = selected[step.expect.bank].read(offset);
+          return `${hit} At $${hex(step.expect.address)} · bank ${step.expect.bank === "bank2" ? 2 : 1} $${hex(byte, 2)} · ROM $${typeof rom === "number" ? hex(rom, 2) : "??"}.`;
+        }
+        return hit;
       }
       return `Paused at $${hex(location.address)} (${location.space}) · waiting for ${step.title}.`;
     },

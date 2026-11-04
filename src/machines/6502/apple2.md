@@ -556,7 +556,7 @@ every stage. No host routine intercepts a ROM call or supplies a DOS command.
 
 Select the ROM container and System Master, then Run. Wait for
 `DOS VERSION 3.3` and the System Master banner. HELLO detects the Language Card
-and loads Integer BASIC into it before returning to the Applesoft `]` prompt.
+and [loads Integer BASIC into it](#how-hello-loads-integer-basic) before returning to the Applesoft `]` prompt.
 This takes substantially longer than a ROM-only boot; the browser yields
 between bounded instruction batches so Pause remains available.
 
@@ -780,6 +780,61 @@ appear on the screen. Resume to return to the Applesoft prompt.
 | BEACON | BLOAD BEACON | Finish the first data sector | $ACA5 | write $60FB = $FB | $60FB | DOS has copied 252 bytes from the first sector. The second sector continues at $60FC. |
 | BEACON | BLOAD BEACON | Finish loading all 300 bytes | $ACA5 | write $612B = $AA | $612B | The star byte has arrived from the second sector. BLOAD will return without executing the program. |
 | BEACON | BRUN BEACON | DOS hands control to BEACON | $6000 | JMP ($AA72) at $A394 | $6000 | The DOS jump has completed. The next instruction is LDA $612B, and the program has yet to draw the star. |
+
+## How HELLO loads Integer BASIC
+
+On the DOS 3.3 System Master, the `HELLO` startup program prints
+`(LOADING INTEGER INTO LANGUAGE CARD)` and sends DOS the command
+`BLOAD INTBASIC,A$D000`. To follow it, insert the System Master read-only
+in the laboratory. Leave the CPU paused at fresh power-on, select
+**HELLO, INT and FP** in **Walkthrough**, and choose **Run to checkpoint**.
+No keyboard input is needed for the first two stops.
+
+At the first stop DOS has reached its binary-load handler. The buffer at
+`$0200` holds Ctrl-D, the command, and Return, all with the high bit set.
+In **Disk**, select **B 050 INTBASIC** (locked) and **File sector 0**.
+The first four bytes at T15 S14 are `00 10 00 30`: a load address of
+`$1000` and a length of `$3000` (12,288 bytes). The address in HELLO's
+command overrides the one in the file. The 50 sectors comprise a
+track/sector list and 49 data sectors.
+
+At the second stop, the store at `$ACA3` has copied the first payload byte
+to `$D000`. HELLO's setup code read `$C081` twice to select bank 2 and
+enable RAM writes with ROM still supplying reads. The walkthrough shows
+the physical byte in bank 2 alongside the ROM byte. Browsing the ordinary
+Memory panel at this stop shows `6F` from ROM.
+
+| Payload offsets | CPU addresses DOS writes | Physical destination |
+| --- | --- | --- |
+| $0000–$0FFF | $D000–$DFFF | Language Card bank 2, starting with `A9 20` |
+| $1000–$2FFF | $E000–$FFFF | Shared upper RAM, starting with `20 00 F0` |
+
+Resume with **Run**. When the Applesoft `]` prompt appears, DOS has
+finished the load and the card is write-protected. Pause and follow the
+`INT` stop. DOS writes to `$C080` to select RAM for reads, then jumps
+through the word at `$9D5C`. At `$E000` the 6502 is about to fetch
+`20 00 F0` (`JSR $F000`) from the freshly loaded upper RAM. Resume,
+wait for Integer BASIC's `>` prompt, and enter `PRINT 6*7` to print `42`.
+
+For the final stop, pause and queue `FP` with Return. DOS now selects ROM
+for reads with a write to `$C081`. The same jump at `$9DE7` reaches the
+same address, `$E000`, where the first three ROM bytes are `4C 28 F1`
+(`JMP $F128`). Resume and enter `PRINT 3/2` at the Applesoft `]` prompt.
+It prints `1.5`. Switching back to ROM leaves the loaded RAM bytes intact.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| System Master | Boot | HELLO requests Integer BASIC | $A35D | DOS command `BLOAD INTBASIC,A$D000` | $0200 | Ctrl-D starts the DOS command. Compare its destination with the address in the disk header. |
+| System Master | Boot | First byte lands in bank 2 | $ACA5 | write bank 2 $D000 = $A9 | $D000 | The physical store put A9 in bank 2 while reads at D000 still return 6F from ROM. |
+| System Master | INT | Enter Integer BASIC in upper RAM | $E000 in LC upper | JMP ($9D5C) at $9DE7 | $E000 | The loaded bytes 20 00 F0 are now visible. Step to execute JSR $F000. |
+| System Master | FP | Return to Applesoft ROM | $E000 in ROM | JMP ($9D5C) at $9DE7 | $E000 | At the same address the processor now sees 4C 28 F1. Step to execute JMP $F128. |
+
+The [disk acceptance test](../../../tests/site/apple2-disk.test.ts) follows the
+catalogue pointer and the 49 sector pointers in the System Master
+image, removes the four-byte header, and compares every payload byte with
+its physical bank. It checks the first instruction fetch and the prompt in
+each interpreter. The [Language Card chapter](../../components/devices/specifications/apple2-language-card.md)
+describes the independent read and write controls.
 
 ## Disk II controller and media profile
 

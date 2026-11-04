@@ -6,6 +6,8 @@ import { create6502Apple2, romImages } from "../../src/machines/generated/6502/a
 import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
 import type { Dos33SectorWrite } from "../../src/components/devices/dos33-disk.js";
 import { readApple2Rom, readApple2Disk } from "../../site/interactive/apple2-media.js";
+import type { Apple2MemoryChange } from "../../site/interactive/apple2-inspection.js";
+import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
 import { createDos33ReadTrace } from "../../site/interactive/dos33-reads.js";
@@ -86,8 +88,8 @@ function dosTerminal(session: ReturnType<typeof createApple2Session>) {
     assert.ok(prompt(), "Catalogue pagination must finish before the next command");
     return pages;
   }
-  function bootToPrompt(): void {
-    waitForInput(60_000_000);
+  function bootToPrompt(observe?: (step: Cpu6502StepRecord) => void): void {
+    waitForInput(60_000_000, observe);
     assert.match(screen(), /DOS VERSION 3\.3\s+08\/25\/80/);
     assert.match(screen(), /LOADING INTEGER INTO LANGUAGE CARD/);
     assert.ok(prompt());
@@ -135,12 +137,99 @@ function traceAnswer(dos: ReturnType<typeof dosTerminal>, image: Uint8Array, com
   assert.match(dos.command("RUN"), completed ? /\]RUN\n42\n+\]$/ : /\]RUN\n+\]$/);
 }
 
+/** Read INTBASIC from the pinned Master's catalogue entry and T/S list, independently of the laboratory parser. */
+function integerBasicPayload(disk: Uint8Array): Uint8Array {
+  const entry = 0x11d74;
+  assert.equal(String.fromCharCode(...disk.slice(entry + 3, entry + 33).map(b => b & 0x7f)).trimEnd(), "INTBASIC");
+  assert.deepEqual([...disk.slice(entry + 33, entry + 35)], [50, 0]);
+  const sectorAt = (pointer: number) => (disk[pointer]! * 16 + disk[pointer + 1]!) * 256;
+  const list = sectorAt(entry);
+  assert.deepEqual([...disk.slice(list + 1, list + 3)], [0, 0], "One T/S list contains the whole file");
+  const file = new Uint8Array(49 * 256);
+  for (let i = 0; i < 49; i++) {
+    const base = sectorAt(list + 12 + 2 * i);
+    assert.notEqual(base, 0); file.set(disk.subarray(base, base + 256), i * 256);
+  }
+  assert.deepEqual([...file.slice(0, 4)], [0, 0x10, 0, 0x30]);
+  return file.slice(4, 4 + 0x3000);
+}
+
+function traceInterpreterBoot(dos: ReturnType<typeof dosTerminal>, disk: Uint8Array, rom: Uint8Array): void {
+  const { machine } = dos, payload = integerBasicPayload(disk), trace = createDos33ReadTrace();
+  let copied = 0, requests = 0;
+  const writes: Apple2MemoryChange[] = [];
+  const detach = (["bank2", "upper"] as const).map(region => machine[region].observeWrites(w =>
+    writes.push({ ...w, region, address: w.address + (region === "bank2" ? 0xd000 : 0xe000) })));
+  try {
+    dos.bootToPrompt(record => {
+      if (record.after.pc === 0xa35d) {
+        trace.observe(machine, record);
+        assert.ok(trace.matches({ dosCommand: "BLOAD INTBASIC,A$D000" }));
+        assert.ok(!trace.matches({ dosCommand: "BLOAD INTBASIC" })); // The override matters.
+        requests++;
+      }
+      if (record.before.pc === 0xaca3 && writes.length) {
+        assert.equal(requests, 1);
+        assert.equal(writes.length, 1);
+        const write = writes[0]!;
+        assert.equal(write.region, copied < 4096 ? "bank2" : "upper");
+        assert.equal(write.address, 0xd000 + copied);
+        assert.equal(write.after, payload[copied]);
+        if (copied === 0) {
+          trace.observe(machine, record, writes);
+          assert.equal(record.after.pc, 0xaca5);
+          assert.ok(trace.matches({ bank: "bank2", address: 0xd000, value: 0xa9 }));
+          assert.ok(!trace.matches({ bank: "bank1", address: 0xd000, value: 0xa9 }));
+          assert.equal(apple2DebugLocation(machine, 0xd000).space, "rom");
+          assert.equal(machine.firmware.read(0), 0x6f);
+        }
+        copied++;
+      }
+      writes.length = 0;
+    });
+  } finally { detach.forEach(remove => remove()); }
+  assert.equal(copied, 12288);
+  const checkStorage = () => {
+    const state = machine.snapshot();
+    assert.deepEqual(state.bank1, new Array(4096).fill(0));
+    assert.deepEqual([...state.bank2, ...state.upper], [...payload]);
+    assert.deepEqual(Array.from({ length: 12288 }, (_, i) => machine.firmware.read(i)), [...rom]);
+  };
+  checkStorage();
+  const jump = { jumpFrom: 0x9de7, indirect: 0x9d5c, target: 0xe000 };
+  function switchBasic(command: "INT" | "FP", mapping: string, first: number[], next: number): string {
+    let entered = false, fetched = false;
+    const text = dos.command(command, undefined, record => {
+      if (entered && !fetched) {
+        assert.equal(record.before.pc, 0xe000);
+        assert.deepEqual(record.instruction.bytes, first);
+        assert.equal(record.after.pc, next);
+        fetched = true;
+      }
+      if (record.before.pc === jump.jumpFrom && record.after.pc === jump.target) {
+        trace.observe(machine, record);
+        assert.ok(trace.matches(jump)); assert.equal(entered, false);
+        assert.equal(apple2DebugLocation(machine).space, mapping);
+        entered = true;
+      }
+    });
+    assert.ok(fetched, `${command} must execute the first instruction in ${mapping}`);
+    return text;
+  }
+  assert.match(switchBasic("INT", "lc-upper", [0x20, 0, 0xf0], 0xf000), /\]INT\n+>$/);
+  assert.match(dos.command("PRINT 6*7"), />PRINT 6\*7\n42\n+>$/);
+  assert.match(switchBasic("FP", "rom", [0x4c, 0x28, 0xf1], 0xf128), />FP\n+\]$/);
+  assert.match(dos.command("PRINT 3/2"), /\]PRINT 3\/2\n1\.5\n+\]$/);
+  checkStorage();
+}
+
 const romPath = process.env.APPLE2_ROM, diskPath = process.env.APPLE2_DISK;
 test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writable media", {
   skip: romPath === undefined || diskPath === undefined ? "Set APPLE2_ROM (20 KiB container) and APPLE2_DISK to the selected local media" : false,
 }, async t => {
   assert.ok(romPath); assert.ok(diskPath);
-  const rom = await readApple2Rom(file(readFileSync(romPath)), romImages.firmware, media);
+  const container = readFileSync(romPath);
+  const rom = await readApple2Rom(file(container), romImages.firmware, media);
   const bootstrap = rom.bootstrap;
   assert.ok(bootstrap, "Disk acceptance needs the container's slot-6 bootstrap");
   const selected = await readApple2Disk(file(readFileSync(diskPath)), media.disk);
@@ -161,7 +250,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     }
     assert.fail("The bootstrap never read the Disk II latch");
   });
-  terminal.bootToPrompt();
+  traceInterpreterBoot(terminal, selected.disk.exportImage(), container.subarray(media.offset));
   await t.test("BSAVE a 300-byte binary, cold-boot its export, BLOAD every byte and trace the BRUN handoff", async () => {
     // Fork the booted Master at its prompt. The experiment gets its own writable disk.
     const working = createApple2Session(rom.image);

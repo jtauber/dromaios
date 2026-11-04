@@ -56,9 +56,9 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     (tool, address) => navigation.browse(tool, address, "code"), { address: navigation.memoryAddress, browse: navigation.browseMemory }, breakpoints);
   const reference = createApple2RomReference(root, catalogue, (tool, address) => navigation.browse(tool, address, "rom"));
   const walkthrough = createApple2Walkthrough(root, catalogue, machine, reads, {
-    runTo: (address, space, when) => {
+    runTo: (address, space, when, limit = 10_000_000) => {
       // BLOAD and BRUN each take about six million instructions on the selected disk.
-      debuggerState.runTo(location(), parseApple2Address(address), space, when ? { when, limit: 10_000_000 } : {});
+      debuggerState.runTo(location(), parseApple2Address(address), space, when ? { when, limit } : {});
       run();
     },
     browse: navigation.browse,
@@ -119,7 +119,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     pause(detail?: string): void { debuggerState.pause(location(), detail); },
     fail(detail: string): void { debuggerState.fail(location(), detail); },
     observe(record: Cpu6502StepRecord, before: DebugLocation, watches: readonly MemoryWatch[], changes: readonly Apple2MemoryChange[], writes: readonly Apple2MemoryChange[]): void {
-      if (reads) reads.observe(machine()!, record);
+      if (reads) reads.observe(machine()!, record, writes);
       devices?.observe(record, before);
       watchHistory.observe(record, before, watches, writes);
       debuggerState.observe(apple2DebugStep(record, before, location(), catalogue.instructions));

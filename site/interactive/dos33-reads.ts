@@ -1,10 +1,13 @@
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
+import type { Apple2MemoryChange } from "./apple2-inspection.js";
 import type { createApple2Session } from "./apple2-session.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 type Sector = { readonly track: number; readonly sector: number; readonly buffer: number };
 export type DosRead = Sector & { readonly number: number; readonly bytes: readonly number[] };
 export type LoadObservation = Sector | { readonly jumpFrom: number; readonly indirect: number; readonly target: number }
+  | { readonly dosCommand: string }
+  | { readonly bank: "bank1" | "bank2"; readonly address: number; readonly value: number }
   | { readonly kind: "read" | "write"; readonly address: number; readonly value?: number };
 
 // The selected System Master installs JMP $B7B5 at RWTS ($03D9). Its wrapper
@@ -19,13 +22,14 @@ export function hasDos33Rwts({ ram }: Machine): boolean {
 export function createDos33ReadTrace() {
   let pending: (Sector & { stack: number; caller: number }) | undefined;
   let latest: DosRead | undefined, last: Cpu6502StepRecord | undefined, sequence = 0;
+  let lastRam: Machine["ram"] | undefined, lastWrites: readonly Apple2MemoryChange[] | undefined;
   const reads: DosRead[] = [];
   return {
     get reads(): readonly DosRead[] { return reads; },
     clear(): void { reads.length = 0; sequence = 0; },
-    interrupt(): void { pending = latest = last = undefined; },
-    observe(machine: Machine, record: Cpu6502StepRecord): void {
-      latest = undefined; last = record;
+    interrupt(): void { pending = latest = last = lastRam = lastWrites = undefined; },
+    observe(machine: Machine, record: Cpu6502StepRecord, writes?: readonly Apple2MemoryChange[]): void {
+      latest = undefined; last = record; lastRam = machine.ram; lastWrites = writes;
       const { pc, sp } = record.before, { ram } = machine;
       if (pc === entry) {
         pending = undefined;
@@ -50,6 +54,16 @@ export function createDos33ReadTrace() {
     /** A stop describes the boundary just reached, even when several reads share one return PC. */
     matches(expect: LoadObservation): boolean {
       if ("track" in expect) return latest?.track === expect.track && latest.sector === expect.sector && latest.buffer === expect.buffer;
+      if ("bank" in expect) return lastWrites?.some(w => w.region === expect.bank && w.address === expect.address && w.after === expect.value) ?? false;
+      if ("dosCommand" in expect) {
+        // The System Master leaves the high-bit Ctrl-D command and its CR in the input buffer.
+        const command = "\x04" + expect.dosCommand + "\r";
+        if (!lastRam) return false;
+        for (let i = 0; i < command.length; i++) {
+          if (lastRam.read(0x0200 + i) !== (command.charCodeAt(i) | 0x80)) return false;
+        }
+        return true;
+      }
       if ("jumpFrom" in expect) {
         if (last?.before.pc !== expect.jumpFrom || last.after.pc !== expect.target) return false;
         const [opcode, low, high] = last.instruction.bytes;

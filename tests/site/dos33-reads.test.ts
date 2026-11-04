@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { createApple2ChangeLog } from "../../site/interactive/apple2-change-log.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
 import { createDos33ReadTrace } from "../../site/interactive/dos33-reads.js";
 import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
@@ -54,4 +55,28 @@ test("a handoff matches the executed indirect jump and expires on the next instr
   [0x4c, 0, 0x60].forEach((v, i) => direct.ram.write(i, v));
   trace.observe(direct, direct.cpu.step());
   assert.ok(!trace.matches(jump), "Arrival via JMP $6000 is a different instruction");
+});
+
+test("a DOS command includes its terminator and a bank stop requires a physical store even with recording off", () => {
+  const { machine } = createApple2Session(), trace = createDos33ReadTrace(), log = createApple2ChangeLog(machine);
+  log.recording = false;
+  const command = "BLOAD INTBASIC,A$D000";
+  [...("\x04" + command + "\r")].forEach((c, i) => machine.ram.write(0x200 + i, c.charCodeAt(0) | 0x80));
+  // Load A, then store the same byte at the same address with different card settings.
+  [0xa9, 0xa9, 0x8d, 0, 0xd0, 0x8d, 0, 0xd0, 0x8d, 0, 0xd0].forEach((b, i) => machine.ram.write(i, b));
+  const store = { bank: "bank2", address: 0xd000, value: 0xa9 } as const;
+  const step = () => {
+    const record = log.capture(() => machine.cpu.step());
+    trace.observe(machine, record, log.memoryWrites(record));
+  };
+  step();
+  assert.ok(trace.matches({ dosCommand: command }));
+  assert.ok(!trace.matches({ dosCommand: "BLOAD INTBASIC" }));
+  step(); assert.ok(trace.matches(store));
+  machine.language.read(2); // Protect RAM. The bus still sees the next STA.
+  step(); assert.ok(!trace.matches(store));
+  machine.language.read(9); machine.language.read(9); // Enable bank 1 writes behind ROM.
+  step(); assert.ok(!trace.matches(store)); assert.ok(trace.matches({ ...store, bank: "bank1" }));
+  trace.interrupt(); assert.ok(!trace.matches({ dosCommand: command })); assert.ok(!trace.matches({ ...store, bank: "bank1" }));
+  log.dispose();
 });
