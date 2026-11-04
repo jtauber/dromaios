@@ -7,6 +7,8 @@ type Sector = { readonly track: number; readonly sector: number; readonly buffer
 export type DosRead = Sector & { readonly number: number; readonly bytes: readonly number[] };
 export type LoadObservation = Sector | { readonly jumpFrom: number; readonly indirect: number; readonly target: number }
   | { readonly dosCommand: string }
+  | { readonly catalogueName: string; readonly address: number; readonly value: number }
+  | { readonly textCell: readonly [number, number]; readonly page: number; readonly before: number; readonly after: number }
   | { readonly bank: "bank1" | "bank2"; readonly address: number; readonly value: number }
   | { readonly kind: "read" | "write"; readonly address: number; readonly value?: number };
 
@@ -22,14 +24,14 @@ export function hasDos33Rwts({ ram }: Machine): boolean {
 export function createDos33ReadTrace() {
   let pending: (Sector & { stack: number; caller: number }) | undefined;
   let latest: DosRead | undefined, last: Cpu6502StepRecord | undefined, sequence = 0;
-  let lastRam: Machine["ram"] | undefined, lastWrites: readonly Apple2MemoryChange[] | undefined;
+  let lastMachine: Machine | undefined, lastWrites: readonly Apple2MemoryChange[] | undefined;
   const reads: DosRead[] = [];
   return {
     get reads(): readonly DosRead[] { return reads; },
     clear(): void { reads.length = 0; sequence = 0; },
-    interrupt(): void { pending = latest = last = lastRam = lastWrites = undefined; },
+    interrupt(): void { pending = latest = last = lastMachine = lastWrites = undefined; },
     observe(machine: Machine, record: Cpu6502StepRecord, writes?: readonly Apple2MemoryChange[]): void {
-      latest = undefined; last = record; lastRam = machine.ram; lastWrites = writes;
+      latest = undefined; last = record; lastMachine = machine; lastWrites = writes;
       const { pc, sp } = record.before, { ram } = machine;
       if (pc === entry) {
         pending = undefined;
@@ -55,12 +57,24 @@ export function createDos33ReadTrace() {
     matches(expect: LoadObservation): boolean {
       if ("track" in expect) return latest?.track === expect.track && latest.sector === expect.sector && latest.buffer === expect.buffer;
       if ("bank" in expect) return lastWrites?.some(w => w.region === expect.bank && w.address === expect.address && w.after === expect.value) ?? false;
+      if ("textCell" in expect) {
+        const [row, column] = expect.textCell, video = lastMachine?.video;
+        if (!video?.visibleRow(row) || video.snapshot().page2 !== (expect.page === 2)) return false;
+        const address = video.textAddress(row, column);
+        return lastWrites?.some(w => w.region === "ram" && w.address === address && w.before === expect.before && w.after === expect.after) ?? false;
+      }
+      if ("catalogueName" in expect) {
+        if (!last?.accesses.some(a => a.kind === "read" && a.address === expect.address && a.value === expect.value)) return false;
+        // The type byte DOS just read precedes the full, space-padded filename.
+        const name = expect.catalogueName.padEnd(30);
+        return [...name].every((c, i) => lastMachine!.ram.read(expect.address + 1 + i) === (c.charCodeAt(0) | 0x80));
+      }
       if ("dosCommand" in expect) {
         // The System Master leaves the high-bit Ctrl-D command and its CR in the input buffer.
         const command = "\x04" + expect.dosCommand + "\r";
-        if (!lastRam) return false;
+        if (!lastMachine) return false;
         for (let i = 0; i < command.length; i++) {
-          if (lastRam.read(0x0200 + i) !== (command.charCodeAt(i) | 0x80)) return false;
+          if (lastMachine.ram.read(0x0200 + i) !== (command.charCodeAt(i) | 0x80)) return false;
         }
         return true;
       }

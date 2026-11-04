@@ -32,6 +32,12 @@ def explorer_catalogue():
 
 
 def _dos_observation(text, pc):
+    catalogue = re.fullmatch(r"read \$([0-9A-F]{4}) = \$([0-9A-F]{2}) for `([A-Z0-9 ][A-Z0-9 ]{0,29})`", text)
+    if catalogue:
+        return dict(address=int(catalogue[1], 16), value=int(catalogue[2], 16), catalogueName=catalogue[3])
+    cell = re.fullmatch(r"page ([12]) text \((\d+),(\d+)\) \$([0-9A-F]{2}) → \$([0-9A-F]{2})", text)
+    if cell and int(cell[2]) < 24 and int(cell[3]) < 40 and cell[4] != cell[5]:
+        return dict(page=int(cell[1]), textCell=[int(cell[2]), int(cell[3])], before=int(cell[4], 16), after=int(cell[5], 16))
     command = re.fullmatch(r"DOS command `([A-Z0-9 ,$]+)`", text)
     if command:
         return dict(dosCommand=command[1])
@@ -65,8 +71,10 @@ def dos_walkthroughs(source):
     specs["System Master"] = dict(id="basic-switch", title="HELLO, INT and FP", fromPowerOn=True,
                                   file=dict(name="INTBASIC", type="B", address=0x1000, length=0x3000),
                                   setup="Insert the DOS 3.3 System Master read-only. Start at fresh power-on with the CPU paused.")
+    specs["COLOR DEMO"] = dict(id="color-demo", title="RUN COLOR DEMO", file=dict(name="COLOR DEMO", type="I", entry=0x11e51, length=1921),
+                               setup="Boot the DOS 3.3 System Master read-only. Pause at the first ] prompt with DOS VERSION still at the top left.")
     commands = {"Completed": {"LOAD ANSWER", "LIST"}, "Interrupted": {"LOAD ANSWER", "LIST"},
-                "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}}
+                "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO"}}
     boot_inputs = {
         "INT": "Resume until HELLO finishes at the ] prompt. Pause, queue INT with Return, then run to this checkpoint.",
         "FP": "Resume to the > prompt and enter PRINT 6*7. After 42, pause and queue FP with Return.",

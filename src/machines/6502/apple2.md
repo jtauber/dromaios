@@ -836,6 +836,44 @@ its physical bank. It checks the first instruction fetch and the prompt in
 each interpreter. The [Language Card chapter](../../components/devices/specifications/apple2-language-card.md)
 describes the independent read and write controls.
 
+## Running COLOR DEMO from disk
+
+Boot the DOS 3.3 System Master read-only. At the first Applesoft `]` prompt,
+pause with `DOS VERSION` still in the top-left corner. Choose **RUN COLOR DEMO**
+in **Walkthrough**, type `RUN COLOR DEMO` on the Apple II screen, and press
+Return. Use **Run to checkpoint** for the first stop, then **Next** and
+**Run to checkpoint** for each of the other two. This is the Integer BASIC
+program `COLOR DEMO`. The disk also carries an Applesoft program named
+`COLOR DEMOSOFT`.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| COLOR DEMO | RUN COLOR DEMO | DOS recognizes COLOR DEMO | $ABB5 | read $B50E = $81 for `COLOR DEMO` | $B50C | DOS has matched the filename. The entry starts with 1C 0F (track 28, sector 15), then 81 (locked Integer BASIC), then the name. |
+| COLOR DEMO | RUN COLOR DEMO | Integer BASIC reads line 30's DIM token | $E686 in LC upper | read $8E82 = $4E | $8E7F | The first line begins 47 1E 00 4E. Its length is 71 bytes, its number is 30, and the interpreter has just read DIM. |
+| COLOR DEMO | RUN COLOR DEMO | HOME erases the D in DOS VERSION | $FCA2 in LC upper | page 1 text (0,0) $C4 → $A0 | $0400 | Look at the top-left cell. D has become a space. OS VERSION is still visible to its right. |
+
+In **Disk**, select **\*I 009 COLOR DEMO**. Its catalogue entry is at offset
+`$51` in T17 S14. DOS reads that sector into `$B4BB`, placing the entry at
+`$B50C`. It opens the file, switches from Applesoft to the Integer BASIC that
+[HELLO loaded](#how-hello-loads-integer-basic), then looks up the file again.
+The brief `>` on screen comes from starting the interpreter.
+
+T28 S15 lists eight data sectors on the same track, S14 down to S7. In
+**File sector 0**, the first two bytes, `81 07`, give the length of the
+tokenized program. DOS copies the following 1,921 bytes into main RAM at
+`$8E7F–$95FF`. At the second stop the 6502 is running the interpreter
+in upper RAM. Its `LDA ($E0),Y` at `$E684` reads the token at `$8E82` for
+the first statement, `DIM A$(40)`. The 6502 executes the interpreter's
+instructions while Integer BASIC reads the program as data.
+
+Line 30 also sets `C=-936`, the signed address of the Monitor's HOME routine
+(`$FC58`). Line 200 starts with `TEXT : CALL C`. The display is already in
+text mode. HOME's store at `$FCA0` changes the first character on page one,
+which is the program's first visible effect. Resume with **Run** to see
+`APPLE DEMONSTRATION PROGRAMS` and the prompt `WHICH WOULD YOU LIKE?`.
+Choose `5` to exit, then try `LIST 30` and `LIST 200` at the `>` prompt
+to read the two lines you followed.
+
 ## Disk II controller and media profile
 
 The machine fence above owns slot placement. A focused

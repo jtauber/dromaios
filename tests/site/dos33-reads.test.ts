@@ -80,3 +80,34 @@ test("a DOS command includes its terminator and a bank stop requires a physical 
   trace.interrupt(); assert.ok(!trace.matches({ dosCommand: command })); assert.ok(!trace.matches({ ...store, bank: "bank1" }));
   log.dispose();
 });
+
+test("a catalogue stop distinguishes padded names and a screen stop requires a store to the visible cell", () => {
+  const { machine } = createApple2Session(), trace = createDos33ReadTrace(), log = createApple2ChangeLog(machine);
+  log.recording = false;
+  const step = () => {
+    const record = log.capture(() => machine.cpu.step());
+    trace.observe(machine, record, log.memoryWrites(record));
+  };
+  function entry(name: string): void {
+    machine.ram.write(0xb50e, 0x81);
+    [...name.padEnd(30)].forEach((c, i) => machine.ram.write(0xb50f + i, c.charCodeAt(0) | 0x80));
+  }
+  const file = { catalogueName: "COLOR DEMO", address: 0xb50e, value: 0x81 };
+  const cell = { page: 1, textCell: [0, 0], before: 0xc4, after: 0xa0 } as const;
+  // Two type reads, then repeatedly store a space at $0400.
+  [0xad, 0x0e, 0xb5, 0xad, 0x0e, 0xb5, 0xa9, 0xa0, 0x8d, 0, 4, 0x4c, 8, 0].forEach((b, i) => machine.ram.write(i, b));
+  entry("COLOR DEMOSOFT"); step(); assert.ok(!trace.matches(file));
+  entry("COLOR DEMO"); step(); assert.ok(trace.matches(file));
+  step(); assert.ok(!trace.matches(file));
+  function store(previous: number) {
+    machine.ram.write(0x400, previous); step();
+    const matched = trace.matches(cell);
+    step(); assert.ok(!trace.matches(cell)); // The observation expires on JMP.
+    return matched;
+  }
+  assert.ok(!store(0xa0)); // Already blank.
+  machine.video.read(5); assert.ok(!store(0xc4)); // Page two selected.
+  machine.video.read(4); machine.video.read(0); assert.ok(!store(0xc4)); // Graphics selected.
+  machine.video.read(1); assert.ok(store(0xc4));
+  log.dispose();
+});

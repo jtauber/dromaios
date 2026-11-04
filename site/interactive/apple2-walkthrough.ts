@@ -3,7 +3,7 @@ import type { DebugLocation } from "./instruction-debugger.js";
 import type { RomCheckpoint, RomGuide, RomWalkthrough } from "./rom-guide.js";
 import { romCheckpointPosition } from "./rom-guide.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
-import { dos33BinaryHeader, dos33Catalogue, dos33FileSectors } from "./dos33-catalogue.js";
+import { dos33BasicLength, dos33BinaryHeader, dos33Catalogue, dos33FileSectors } from "./dos33-catalogue.js";
 import { hasDos33Rwts } from "./dos33-reads.js";
 import type { createDos33ReadTrace, LoadObservation } from "./dos33-reads.js";
 import { hex } from "./apple2-explorer.js";
@@ -11,24 +11,27 @@ import { hex } from "./apple2-explorer.js";
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 type LoadCheckpoint = RomCheckpoint & { inspect: number; expect: LoadObservation; space?: "rom" | "lc-upper"; limit?: number };
 type LoadTour = Omit<RomWalkthrough, "steps"> & {
-  file: { name: string; type: "A" } | { name: string; type: "B"; address: number; length: number };
+  file: { name: string; type: "A" } | { name: string; type: "B"; address: number; length: number }
+    | { name: string; type: "I"; entry: number; length: number };
   fromPowerOn?: boolean;
   steps: readonly LoadCheckpoint[];
 };
 const loadStep = (step: RomCheckpoint): step is LoadCheckpoint => "expect" in step;
 const space = (step: LoadCheckpoint) => step.space ?? (parseInt(step.address, 16) < 0xc000 ? "ram" : "rom");
 
-/** A sector tour follows the pinned file chain. A binary tour follows the header's destination wherever DOS allocated the file. */
+/** Enable each tour only for a disk with the catalogue layout or file header its stops depend on. */
 function matchesDisk(image: readonly number[], tour: LoadTour): boolean {
   try {
     const file = dos33Catalogue(image).files.find(f => f.name === tour.file.name && f.type === tour.file.type);
     if (!file) return false;
     const sectors = dos33FileSectors(image, file);
     if (file.count !== sectors.length - 1) return false; // The catalogue sector belongs to the volume.
-    if (tour.file.type === "B") {
+    if (tour.file.type !== "A") {
       const data = sectors.filter(s => s.fileSector !== undefined), first = data[0];
-      if (!first || data.length !== Math.ceil((4 + tour.file.length) / 256)
+      const headerSize = tour.file.type === "B" ? 4 : 2;
+      if (!first || data.length !== Math.ceil((headerSize + tour.file.length) / 256)
         || !data.every((s, i) => s.fileSector === i)) return false;
+      if (tour.file.type === "I") return file.entry === tour.file.entry && dos33BasicLength(image, first.index) === tour.file.length;
       const header = dos33BinaryHeader(image, first.index);
       return header.address === tour.file.address && header.length === tour.file.length;
     }

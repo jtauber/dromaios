@@ -54,6 +54,11 @@ export function dos33Catalogue(bytes: readonly number[]) {
 
 export interface Dos33FileSector { readonly index: number; readonly label: string; readonly detail: string; readonly fileSector?: number }
 
+/** Both BASIC file types prefix their tokenized program with a little-endian length. */
+export function dos33BasicLength(image: readonly number[], sector: number): number {
+  return word(image, sector * 256);
+}
+
 /** The first four bytes of file sector zero are little-endian load address and payload length. */
 export function dos33BinaryHeader(image: readonly number[], sector: number) {
   const base = sector * 256;
@@ -74,7 +79,11 @@ export function dos33FileSectors(bytes: readonly number[], file: Dos33File): Dos
       if (data === undefined) continue;
       const n = first + (at - 0x0c) / 2;
       if (result.length > 35 * 16) throw new Error("The file references more sectors than fit on this disk.");
-      let header = file.type === "A" && n === 0 ? ` The first word gives the Applesoft length (${word(bytes, data * 256)} bytes).` : "";
+      let header = "";
+      if (n === 0 && (file.type === "A" || file.type === "I")) {
+        const language = file.type === "A" ? "Applesoft" : "Integer BASIC";
+        header = ` The first word gives the ${language} length (${dos33BasicLength(bytes, data)} bytes).`;
+      }
       if (file.type === "B" && n === 0) {
         const { address, length } = dos33BinaryHeader(bytes, data);
         header = ` The binary header gives load address $${address.toString(16).toUpperCase().padStart(4, "0")} and length ${length} bytes.`;

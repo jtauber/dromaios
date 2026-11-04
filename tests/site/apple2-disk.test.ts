@@ -189,13 +189,14 @@ function traceInterpreterBoot(dos: ReturnType<typeof dosTerminal>, disk: Uint8Ar
     });
   } finally { detach.forEach(remove => remove()); }
   assert.equal(copied, 12288);
-  const checkStorage = () => {
-    const state = machine.snapshot();
-    assert.deepEqual(state.bank1, new Array(4096).fill(0));
-    assert.deepEqual([...state.bank2, ...state.upper], [...payload]);
-    assert.deepEqual(Array.from({ length: 12288 }, (_, i) => machine.firmware.read(i)), [...rom]);
-  };
-  checkStorage();
+  const state = machine.snapshot();
+  assert.deepEqual(state.bank1, new Array(4096).fill(0));
+  assert.deepEqual([...state.bank2, ...state.upper], [...payload]);
+  assert.deepEqual(Array.from({ length: 12288 }, (_, i) => machine.firmware.read(i)), [...rom]);
+}
+
+function traceInterpreterSwitches(dos: ReturnType<typeof dosTerminal>): void {
+  const { machine } = dos, before = machine.snapshot(), trace = createDos33ReadTrace();
   const jump = { jumpFrom: 0x9de7, indirect: 0x9d5c, target: 0xe000 };
   function switchBasic(command: "INT" | "FP", mapping: string, first: number[], next: number): string {
     let entered = false, fetched = false;
@@ -220,7 +221,8 @@ function traceInterpreterBoot(dos: ReturnType<typeof dosTerminal>, disk: Uint8Ar
   assert.match(dos.command("PRINT 6*7"), />PRINT 6\*7\n42\n+>$/);
   assert.match(switchBasic("FP", "rom", [0x4c, 0x28, 0xf1], 0xf128), />FP\n+\]$/);
   assert.match(dos.command("PRINT 3/2"), /\]PRINT 3\/2\n1\.5\n+\]$/);
-  checkStorage();
+  const after = machine.snapshot();
+  for (const region of ["bank1", "bank2", "upper"] as const) assert.deepEqual(after[region], before[region]);
 }
 
 const romPath = process.env.APPLE2_ROM, diskPath = process.env.APPLE2_DISK;
@@ -251,6 +253,68 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     assert.fail("The bootstrap never read the Disk II latch");
   });
   traceInterpreterBoot(terminal, selected.disk.exportImage(), container.subarray(media.offset));
+  await t.test("RUN COLOR DEMO matches its catalogue name, executes the on-disk tokens and clears the first visible cell", () => {
+    const demo = createApple2Session(rom.image);
+    demo.restore(session.snapshot()); // Keep the first prompt and its DOS banner for the screen comparison.
+    const dos = dosTerminal(demo), { machine } = demo, trace = createDos33ReadTrace();
+    const image = selected.disk.exportImage();
+    const catalogue = { catalogueName: "COLOR DEMO", address: 0xb50e, value: 0x81 };
+    const token = { kind: "read", address: 0x8e82, value: 0x4e } as const;
+    const cell = { page: 1, textCell: [0, 0], before: 0xc4, after: 0xa0 } as const;
+    let matches = 0, executing = false, cleared = false;
+    const writes: Apple2MemoryChange[] = [];
+    const detach = machine.ram.observeWrites(w => { if (executing && !cleared) writes.push({ ...w, region: "ram" }); });
+    let menu: string;
+    try {
+      menu = dos.command("RUN COLOR DEMO", undefined, record => {
+        trace.observe(machine, record, writes);
+        if (record.after.pc === 0xabb5 && trace.matches(catalogue)) {
+          const read = trace.reads.at(-1)!;
+          assert.deepEqual([read.track, read.sector, read.buffer], [17, 14, 0xb4bb]);
+          assert.deepEqual(read.bytes.slice(0x51, 0x51 + 35), [...image.slice(0x11e51, 0x11e51 + 35)]);
+          assert.deepEqual(read.bytes.slice(0x51, 0x54), [28, 15, 0x81]);
+          matches++;
+        }
+        if (record.after.pc === 0xe686 && trace.matches(token)) {
+          assert.equal(matches, 2); // DOS reopens the file after entering Integer BASIC.
+          assert.equal(apple2DebugLocation(machine).space, "lc-upper");
+          const reads = trace.reads.slice(-9);
+          assert.deepEqual(reads.map(r => [r.track, r.sector, r.buffer]),
+            Array.from({ length: 9 }, (_, i) => [28, 15 - i, i === 0 ? 0x9700 : 0x9600]));
+          const data: number[] = [];
+          for (const [i, r] of reads.slice(1).entries()) {
+            const [track, sector] = reads[0]!.bytes.slice(12 + i * 2, 14 + i * 2);
+            const offset = (track! * 16 + sector!) * 256;
+            assert.deepEqual(r.bytes, [...image.subarray(offset, offset + 256)]);
+            data.push(...r.bytes);
+          }
+          assert.deepEqual(data.slice(0, 6), [0x81, 0x07, 0x47, 30, 0, 0x4e]);
+          assert.deepEqual(Array.from({ length: 1921 }, (_, i) => machine.ram.read(0x8e7f + i)), data.slice(2, 1923));
+          assert.equal(record.after.a, 0x4e);
+          assert.equal(executing, false);
+          executing = true;
+        }
+        if (executing && !cleared) {
+          assert.deepEqual(machine.video.snapshot(), { text: true, mixed: false, page2: false, hires: false });
+          if (writes.some(w => w.address >= 0x400 && w.address < 0x800 && w.before !== w.after)) {
+            assert.deepEqual([record.before.pc, record.after.pc], [0xfca0, 0xfca2]);
+            assert.equal(apple2DebugLocation(machine).space, "lc-upper");
+            assert.ok(trace.matches(cell));
+            assert.match(dos.screen(), /^OS VERSION 3\.3/); // screen() trims the newly leading space.
+            cleared = true;
+          }
+        }
+        writes.length = 0;
+      });
+    } finally { detach(); }
+    assert.ok(cleared);
+    assert.match(menu, /APPLE DEMONSTRATION PROGRAMS[\s\S]+WHICH WOULD YOU LIKE\?$/);
+    dos.command("5");
+    assert.match(dos.command("LIST 30"), /30 DIM A\$\(40\)/);
+    assert.match(dos.command("LIST 200"), /200 TEXT\s*:\s*CALL C/);
+    assert.deepEqual(machine.disk.exportImage(), image);
+  });
+  traceInterpreterSwitches(terminal);
   await t.test("BSAVE a 300-byte binary, cold-boot its export, BLOAD every byte and trace the BRUN handoff", async () => {
     // Fork the booted Master at its prompt. The experiment gets its own writable disk.
     const working = createApple2Session(rom.image);
