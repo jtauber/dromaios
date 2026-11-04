@@ -38,6 +38,9 @@ def _dos_observation(text, pc):
     cell = re.fullmatch(r"page ([12]) text \((\d+),(\d+)\) \$([0-9A-F]{2}) → \$([0-9A-F]{2})", text)
     if cell and int(cell[2]) < 24 and int(cell[3]) < 40 and cell[4] != cell[5]:
         return dict(page=int(cell[1]), textCell=[int(cell[2]), int(cell[3])], before=int(cell[4], 16), after=int(cell[5], 16))
+    pixel = re.fullmatch(r"page ([12]) lores \((\d+),(\d+)\) \$([0-9A-F]) → \$([0-9A-F])", text)
+    if pixel and int(pixel[2]) < 40 and int(pixel[3]) < 48 and pixel[4] != pixel[5]:
+        return dict(page=int(pixel[1]), loresPixel=[int(pixel[2]), int(pixel[3])], before=int(pixel[4], 16), after=int(pixel[5], 16))
     command = re.fullmatch(r"DOS command `([A-Z0-9 ,$]+)`", text)
     if command:
         return dict(dosCommand=command[1])
@@ -74,7 +77,7 @@ def dos_walkthroughs(source):
     specs["COLOR DEMO"] = dict(id="color-demo", title="RUN COLOR DEMO", file=dict(name="COLOR DEMO", type="I", entry=0x11e51, length=1921),
                                setup="Boot the DOS 3.3 System Master read-only. Pause at the first ] prompt with DOS VERSION still at the top left.")
     commands = {"Completed": {"LOAD ANSWER", "LIST"}, "Interrupted": {"LOAD ANSWER", "LIST"},
-                "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO"}}
+                "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO", "3"}}
     boot_inputs = {
         "INT": "Resume until HELLO finishes at the ] prompt. Pause, queue INT with Return, then run to this checkpoint.",
         "FP": "Resume to the > prompt and enter PRINT 6*7. After 42, pause and queue FP with Return.",
@@ -99,6 +102,9 @@ def dos_walkthroughs(source):
                     prepare = "Continue the cold boot without entering a command."
                 elif disk == "System Master":
                     prepare = boot_inputs[command]
+                elif command == "3":
+                    prepare = ("Continue Kaleidoscope without entering another key." if previous.get(disk) == command else
+                               "Resume to WHICH WOULD YOU LIKE?, pause, then type 3 and press Return on the screen with Inspect off.")
                 elif previous.get(disk) == command:
                     prepare = f"Continue {command} without entering another command."
                 else:

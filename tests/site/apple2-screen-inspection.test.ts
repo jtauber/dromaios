@@ -4,7 +4,7 @@ import { Cpu6502 } from "../../src/components/cpus/generated/6502-cpu.js";
 import { create6502Apple2 } from "../../src/machines/generated/6502/apple2.js";
 import { Apple2Video } from "../../src/components/devices/generated/apple2-video.js";
 import { Ram } from "../../src/components/memory/ram.js";
-import { apple2ScreenCell, createApple2ScreenWrites } from "../../site/interactive/apple2-screen-inspection.js";
+import { apple2LoresPixel, apple2ScreenCell, createApple2ScreenWrites } from "../../site/interactive/apple2-screen-inspection.js";
 import { createApple2ChangeLog } from "../../site/interactive/apple2-change-log.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import { addMemoryWatch } from "../../site/interactive/apple2-watches.js";
@@ -71,6 +71,33 @@ test("last screen writers include unchanged and RMW stores, retain both pages, a
   assert.deepEqual(log.memoryWrites(undefined), []);
   screen.reset(); assert.equal(screen.at(0x400), undefined); assert.equal(screen.at(0x800), undefined);
   log.dispose();
+});
+
+test("low-resolution inspection follows the displayed page and each pixel keeps the store that changed its own bits", () => {
+  const machine = create6502Apple2({ firmware: null }), { video, ram } = machine, history = createApple2ScreenWrites();
+  ram.write(0, 0xea);
+  const record = machine.cpu.step(), caller = { address: 0, space: "ram" };
+  video.write(0, 0); video.write(2, 0);
+  for (const page of [1, 2]) {
+    video.write(page === 1 ? 4 : 5, 0);
+    for (let y = 0; y < 48; y++) {
+      const address = rows[y >> 1]! + 39 + (page - 1) * 0x400;
+      ram.write(address, 0xa3);
+      assert.deepEqual(apple2LoresPixel(ram, video, 39, y), { x: 39, y, page, address, byte: 0xa3, colour: y & 1 ? 10 : 3 });
+    }
+  }
+  video.write(3, 0); assert.equal(apple2LoresPixel(ram, video, 0, 40), undefined);
+  video.write(7, 0); assert.equal(apple2LoresPixel(ram, video, 0, 39), undefined);
+  let before = 0;
+  for (const after of [0x10, 0x13, 0x13]) {
+    history.observe(record, caller, [{ region: "ram", address: 0x481, before, after }]);
+    before = after;
+  }
+  assert.equal(history.colourChange(0x481, 3)?.sequence, 1);
+  assert.equal(history.colourChange(0x481, 2)?.sequence, 2);
+  assert.equal(history.at(0x481)?.sequence, 3);
+  history.reset();
+  assert.equal(history.colourChange(0x481, 3), undefined);
 });
 
 test("screen write history ignores other RAM and incomplete instructions, and reset restarts numbering", () => {

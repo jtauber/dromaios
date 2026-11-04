@@ -84,15 +84,20 @@ class PublishingTests(unittest.TestCase):
         self.assertEqual(store["expect"], dict(bank="bank2", address=0xd000, value=0xa9))
         self.assertEqual(integer["expect"], floating["expect"])
         self.assertEqual((integer["space"], floating["space"]), ("lc-upper", "rom"))
-        catalogue, token, screen = demo["steps"]
+        catalogue, token, screen, gr, first, mirror = demo["steps"]
         self.assertEqual(demo["file"], dict(name="COLOR DEMO", type="I", entry=0x11e51, length=1921))
         self.assertEqual(catalogue["expect"], dict(address=0xb50e, value=0x81, catalogueName="COLOR DEMO"))
         self.assertEqual(token["expect"], dict(kind="read", address=0x8e82, value=0x4e))
         self.assertEqual(screen["expect"], dict(page=1, textCell=[0, 0], before=0xc4, after=0xa0))
-        self.assertEqual([s["address"] for s in demo["steps"]], ["ABB5", "E686", "FCA2"])
+        self.assertEqual([s["address"] for s in demo["steps"]], ["ABB5", "E686", "FCA2", "E686", "F818", "F818"])
         self.assertEqual((token["space"], screen["space"]), ("lc-upper", "lc-upper"))
         self.assertIn("queue RUN COLOR DEMO", catalogue["prepare"])
         self.assertIn("without entering another command", token["prepare"])
+        self.assertIn("WHICH WOULD YOU LIKE?", gr["prepare"])
+        self.assertEqual(gr["expect"], dict(kind="read", address=0x92c4, value=0x4c))
+        for step, point, address in [(first, [1, 3], 0x481), (mirror, [3, 1], 0x403)]:
+            self.assertEqual(step["expect"], dict(page=1, loresPixel=point, before=0, after=1))
+            self.assertEqual((step["inspect"], step["space"]), (address, "lc-upper"))
         with self.assertRaisesRegex(ValueError, "Invalid observation"):
             dos_walkthroughs(source.replace("T12 S5 →", "T12 S16 →"))
 

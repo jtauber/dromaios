@@ -113,9 +113,10 @@ power-on, successful media replacement, register editing, and execution errors
 clear this history. A cell with no captured store says so; it does not attribute
 initial RAM to an instruction. If an external change differs from the captured
 value, the strip marks that difference. Selecting a coordinate follows the
-currently displayed page, while each page retains its own writers. Graphics
-pixels have no text-cell interpretation; mixed mode still exposes its four text
-rows. The observer does not retain a complete history of a cell.
+currently displayed page, while each page retains its own writers. In mixed
+mode the bottom four rows still show text. Selecting a low-resolution pixel
+shows the last change to its four colour bits. The machine guide follows
+[two such pixels back to their BASIC statements](../../src/machines/6502/apple2.md#kaleidoscope-draws-its-first-pair).
 
 ### Carriage return is cursor work
 

@@ -31,6 +31,7 @@ type Machine = ReturnType<typeof createApple2Session>["machine"];
 export function createApple2Explorer(root: HTMLElement, machine: () => Machine | undefined, run: () => void, shouldUpdate: (id: string) => boolean, navigation: {
   readonly memoryAddress: () => number;
   readonly browseMemory: (address: number) => void;
+  readonly inspectPixel: (x: number, y: number) => void;
   readonly browse: (tool: InspectorTool, address: number, from?: InspectorTool) => void;
 }, reads?: ReturnType<typeof createDos33ReadTrace>) {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
@@ -62,6 +63,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       run();
     },
     browse: navigation.browse,
+    inspectPixel: navigation.inspectPixel,
   });
   const history = createApple2History(root, catalogue);
   function browseCode(target: DebugLocation): string | undefined {

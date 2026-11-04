@@ -188,9 +188,12 @@
 .lab-tool-screen .apple2-display-surround { width: min(100cqw, calc((100cqh - 22px) * 4 / 3 + 22px)); margin: 0; }
 .lab-tool-screen .basic-readout { margin: 0; }
 
-/* Inspection overlays the existing text cells without changing the display raster. */
+/* One text cell covers two vertically adjacent low-resolution pixels. */
 .apple2-screen.is-inspecting .apple2-row > span { cursor: crosshair; }
-.apple2-screen .apple2-row > span.is-inspected { outline: 2px solid #ffcf66; outline-offset: -1px; z-index: 1; }
+.apple2-row > [data-inspected] { position: relative; z-index: 1; }
+.apple2-row > [data-inspected]::after { content: ""; position: absolute; inset: 0; outline: 2px solid #ffcf66; outline-offset: -1px; pointer-events: none; }
+.apple2-row > [data-inspected="top"]::after { bottom: 50%; }
+.apple2-row > [data-inspected="bottom"]::after { top: 50%; }
 .lab-screen-inspector { display: grid; gap: 5px; padding-top: 6px; border-top: 1px solid var(--line); font: 12px/1.5 var(--mono); }
 .lab-screen-inspector[hidden] { display: none; }
 .lab-screen-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

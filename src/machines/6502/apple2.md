@@ -874,6 +874,40 @@ which is the program's first visible effect. Resume with **Run** to see
 Choose `5` to exit, then try `LIST 30` and `LIST 200` at the `>` prompt
 to read the two lines you followed.
 
+### Kaleidoscope draws its first pair
+
+At `WHICH WOULD YOU LIKE?`, pause, turn Screen **Inspect** off for typing,
+and enter `3` with Return. Continue the **RUN COLOR DEMO** walkthrough.
+The menu dispatches with `GOTO 400+N*100`, so choice 3 starts at line 700.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| COLOR DEMO | 3 | Enter Kaleidoscope on line 700 | $E686 in LC upper | read $92C4 = $4C | $92C1 | Integer BASIC has fetched GR. The menu is still visible. Continuing switches the display to mixed low-resolution graphics and clears the drawing area. |
+| COLOR DEMO | 3 | PLOT draws the first coloured point | $F818 in LC upper | page 1 lores (1,3) $0 → $1 | $0481 | Line 760's PLOT I,K changes bits 7–4 of $0481. The point at (1,3) is magenta and its neighbour at (1,2) is still black. |
+| COLOR DEMO | 3 | PLOT draws the mirror across the diagonal | $F818 in LC upper | page 1 lores (3,1) $0 → $1 | $0403 | The next statement on line 760 is PLOT K,I. It swaps the coordinates, colouring (3,1) while (1,3) stays visible. |
+
+Line 700 starts the loops with `W=3` and `I=1`, and sets `K=I+J`. Line 750
+chooses the colour with `COLOR=J*3/(I+3)+I*W/12`. Integer division gives
+zero on the first two passes (`J=0` and `J=1`). Each pass plots eight points
+in black on a black background. At `J=2`, the colour is 1 and `K=3`.
+The first two statements on line 760 draw `(1,3)` and `(3,1)`.
+
+At either pixel stop, choose **Inspect pixel** in the walkthrough, or turn
+on **Inspect** beside the screen and click the coloured square.
+Coordinates count from zero at the top left. Two vertically adjacent squares
+share a byte. The even row uses bits 3–0 and the odd row uses bits 7–4.
+Both points in this pair are on odd rows, so the store changes `$00` to
+`$10`. Use the arrow keys to inspect the other half of the byte.
+
+**Last colour change** links to the 6502 store that changed the selected
+four bits. At both stops it is `STA ($26),Y` at `$F816`. The **PLOT**
+token link distinguishes the BASIC statements behind that same instruction.
+Integer BASIC fetched the first token at `$9319` and the second at `$931E`.
+Its handler at `$EE4B` jumped to the Monitor's plotting routine at `$F800`
+in each case. The inspector retains these observed origins even as later
+instructions update other points. Press **Escape** to return to typing. Run
+to watch the pattern grow, then press Return to go back to the menu.
+
 ## Disk II controller and media profile
 
 The machine fence above owns slot placement. A focused

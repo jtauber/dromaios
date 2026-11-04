@@ -8,6 +8,8 @@ import type { Dos33SectorWrite } from "../../src/components/devices/dos33-disk.j
 import { readApple2Rom, readApple2Disk } from "../../site/interactive/apple2-media.js";
 import type { Apple2MemoryChange } from "../../site/interactive/apple2-inspection.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
+import { createIntegerPlotTrace } from "../../site/interactive/apple2-integer-plot.js";
+import { apple2LoresPixel, createApple2ScreenWrites } from "../../site/interactive/apple2-screen-inspection.js";
 import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
 import { createDos33ReadTrace } from "../../site/interactive/dos33-reads.js";
@@ -225,6 +227,56 @@ function traceInterpreterSwitches(dos: ReturnType<typeof dosTerminal>): void {
   for (const region of ["bank1", "bank2", "upper"] as const) assert.deepEqual(after[region], before[region]);
 }
 
+/** Follow the actual interpreter from choice 3 to the first pair of coloured pixels. */
+function traceKaleidoscope(session: ReturnType<typeof createApple2Session>): void {
+  const { machine } = session, { ram, video } = machine;
+  const trace = createDos33ReadTrace(), plots = createIntegerPlotTrace(), history = createApple2ScreenWrites();
+  const writes: Apple2MemoryChange[] = [];
+  const detach = ram.observeWrites(w => writes.push({ ...w, region: "ram" }));
+  const pair = [[1, 3, 0x0481, 0x9319], [3, 1, 0x0403, 0x931e]] as const;
+  let gr = false, blackPlots = 0, coloured = 0;
+  session.send(apple2Input("3\n"));
+  try {
+    for (let i = 0; i < 200_000 && coloured < pair.length; i++) {
+      writes.length = 0;
+      const caller = apple2DebugLocation(machine), r = session.step();
+      assert.equal(r.outcome, "executed");
+      trace.observe(machine, r, writes);
+      const source = plots.observe(r, caller, ram);
+      history.observe(r, caller, writes, source);
+      if (r.after.pc === 0xe686 && trace.matches({ kind: "read", address: 0x92c4, value: 0x4c })) {
+        assert.equal(caller.space, "lc-upper");
+        assert.equal(ram.read(0x92c2) + 256 * ram.read(0x92c3), 700);
+        assert.ok(video.snapshot().text);
+        gr = true;
+      }
+      if (r.before.pc !== 0xf816) continue;
+      const line = ram.read(0xdc) + 256 * ram.read(0xdd);
+      if (line !== 0x9316 && line !== 0x933d) continue; // The PLOT statements of lines 760 and 770.
+      assert.ok(gr);
+      assert.equal(r.after.pc, 0xf818);
+      assert.equal(writes.length, 1);
+      const w = writes[0]!;
+      if (w.before === w.after) { assert.equal(w.after, 0); blackPlots++; continue; }
+      const [x, y, address, token] = pair[coloured]!;
+      assert.equal(blackPlots, 16);
+      assert.deepEqual([w.address, w.before, w.after], [address, 0, 0x10]);
+      assert.ok(trace.matches({ page: 1, loresPixel: [x, y], before: 0, after: 1 }));
+      assert.ok(!trace.matches({ page: 1, loresPixel: [x, y - 1], before: 0, after: 1 }));
+      assert.equal(apple2LoresPixel(ram, video, x, y)!.colour, 1);
+      assert.equal(apple2LoresPixel(ram, video, x, y - 1)!.colour, 0);
+      const writer = history.colourChange(address, y)!;
+      assert.deepEqual(writer.caller, { space: "lc-upper", address: 0xf816 });
+      assert.deepEqual(writer.bytes, [0x91, 0x26]);
+      assert.equal(writer.plot?.line, 760); assert.equal(writer.plot.token, token);
+      assert.equal(ram.read(token), 0x67);
+      coloured++;
+    }
+    assert.equal(coloured, 2);
+    assert.equal(ram.read(0x0481), 0x10);
+  } finally { detach(); }
+}
+
 const romPath = process.env.APPLE2_ROM, diskPath = process.env.APPLE2_DISK;
 test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writable media", {
   skip: romPath === undefined || diskPath === undefined ? "Set APPLE2_ROM (20 KiB container) and APPLE2_DISK to the selected local media" : false,
@@ -309,6 +361,8 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     } finally { detach(); }
     assert.ok(cleared);
     assert.match(menu, /APPLE DEMONSTRATION PROGRAMS[\s\S]+WHICH WOULD YOU LIKE\?$/);
+    traceKaleidoscope(demo);
+    assert.match(dos.command(""), /WHICH WOULD YOU LIKE\?$/);
     dos.command("5");
     assert.match(dos.command("LIST 30"), /30 DIM A\$\(40\)/);
     assert.match(dos.command("LIST 200"), /200 TEXT\s*:\s*CALL C/);

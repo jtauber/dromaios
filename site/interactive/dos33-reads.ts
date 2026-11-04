@@ -9,6 +9,7 @@ export type LoadObservation = Sector | { readonly jumpFrom: number; readonly ind
   | { readonly dosCommand: string }
   | { readonly catalogueName: string; readonly address: number; readonly value: number }
   | { readonly textCell: readonly [number, number]; readonly page: number; readonly before: number; readonly after: number }
+  | { readonly loresPixel: readonly [number, number]; readonly page: number; readonly before: number; readonly after: number }
   | { readonly bank: "bank1" | "bank2"; readonly address: number; readonly value: number }
   | { readonly kind: "read" | "write"; readonly address: number; readonly value?: number };
 
@@ -57,6 +58,13 @@ export function createDos33ReadTrace() {
     matches(expect: LoadObservation): boolean {
       if ("track" in expect) return latest?.track === expect.track && latest.sector === expect.sector && latest.buffer === expect.buffer;
       if ("bank" in expect) return lastWrites?.some(w => w.region === expect.bank && w.address === expect.address && w.after === expect.value) ?? false;
+      if ("loresPixel" in expect) {
+        const [x, y] = expect.loresPixel, video = lastMachine?.video;
+        if (!video?.visibleLoresRow(y) || video.snapshot().page2 !== (expect.page === 2)) return false;
+        const address = video.loresAddress(y, x);
+        return lastWrites?.some(w => w.region === "ram" && w.address === address
+          && video.loresColour(w.before, y) === expect.before && video.loresColour(w.after, y) === expect.after) ?? false;
+      }
       if ("textCell" in expect) {
         const [row, column] = expect.textCell, video = lastMachine?.video;
         if (!video?.visibleRow(row) || video.snapshot().page2 !== (expect.page === 2)) return false;

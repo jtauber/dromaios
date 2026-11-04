@@ -106,6 +106,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   });
   const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); }, shouldUpdate, {
     memoryAddress: () => inspection.memoryAddress, browseMemory: address => inspection.browseMemory(address), browse: navigation.browse,
+    inspectPixel: (x, y) => { showPanel("screen"); screenInspector?.selectPixel(x, y); },
   }, diskInspector?.trace);
   const screenInspector = createApple2ScreenInspector(root, () => session.machine, {
     memory: address => navigation.browse("memory", address),

@@ -45,6 +45,7 @@ export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, mach
   trace: ReturnType<typeof createDos33ReadTrace> | undefined, actions: {
     runTo(address: string, space: string, when?: () => boolean, limit?: number): void;
     browse(tool: "code" | "memory" | "rom", address: number): void;
+    inspectPixel(x: number, y: number): void;
   }) {
   const source = root.querySelector("[data-load-walkthroughs]");
   const tours: LoadTour[] = source ? JSON.parse(source.textContent!) : [];
@@ -65,7 +66,14 @@ export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, mach
     },
     browse: address => actions.browse("code", address),
     reference: address => actions.browse("rom", address),
-    inspect: step => loadStep(step) ? { label: `Inspect ${step.inspect >= 0xd000 ? "mapped memory" : "RAM"} $${hex(step.inspect)}`, show: () => actions.browse("memory", step.inspect) } : undefined,
+    inspect(step) {
+      if (!loadStep(step)) return undefined;
+      if ("loresPixel" in step.expect) {
+        const [x, y] = step.expect.loresPixel;
+        return { label: `Inspect pixel (${x},${y})`, show: () => actions.inspectPixel(x, y) };
+      }
+      return { label: `Inspect ${step.inspect >= 0xd000 ? "mapped memory" : "RAM"} $${hex(step.inspect)}`, show: () => actions.browse("memory", step.inspect) };
+    },
     position(step, location: DebugLocation | undefined, available, running) {
       if (!loadStep(step)) return romCheckpointPosition(step, location, available, running);
       if (!available || !location) return "Insert the disk specified in the walkthrough setup.";
