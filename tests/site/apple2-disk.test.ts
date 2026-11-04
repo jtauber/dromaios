@@ -413,6 +413,20 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     assert.deepEqual(load.instruction.bytes, relocatedLoad);
     assert.deepEqual(load.accesses.at(-1), { kind: "read", address: 0xb7e9, value: 0x60 });
     assert.deepEqual([load.after.a, load.after.pc], [0x60, 0x9d87]);
+
+    runTo(0x9e2a, { kind: "read", address: 0x9e5c, value: 0xb7 });
+    assert.deepEqual(threeBytes(0x03d9), [0, 0, 0]);
+    for (const [address, value] of [[0x03db, 0xb7], [0x03da, 0xb5], [0x03d9, 0x4c]] as const) {
+      const store = runTo(0x9e2d, { kind: "write", address, value });
+      assert.deepEqual(store.instruction.bytes, [0x9d, 0xd0, 0x03]); // STA $03D0,X
+      assert.equal(store.before.x, address - 0x03d0);
+    }
+    assert.deepEqual(threeBytes(0x03d9), [0x4c, 0xb5, 0xb7]);
+    const vtocRead = { track: 17, sector: 0, buffer: 0xb3bb };
+    const direct = runTo(0xb7b5, { call: { source: 0xb090, target: 0xb7b5 }, requestAt: 0xb7e8, read: vtocRead });
+    assert.deepEqual([direct.after.a, direct.after.y], [0xb7, 0xe8]);
+    assert.ok(!trace.matches({ jumpFrom: 0x03d9, target: 0xb7b5 }));
+    runTo(0xb093, vtocRead);
   });
   await t.test("bootstrap continues identically after restoring a Disk II read", () => {
     for (let i = 0; i < 1_000_000; i++) {
@@ -428,6 +442,37 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     assert.fail("The bootstrap never read the Disk II latch");
   });
   traceInterpreterBoot(terminal, selected.disk.exportImage(), container.subarray(media.offset));
+  await t.test("the queued Monitor example reads a System Master sector through the public RWTS entry", () => {
+    const guest = createApple2Session(rom.image);
+    guest.restore(session.snapshot());
+    const dos = dosTerminal(guest), trace = createDos33ReadTrace(), { ram } = guest.machine;
+    const listing = chapter.match(/^#### Sector-read caller\n\n```text\n([^`]+)\n```$/m);
+    assert.ok(listing);
+    const lines = listing[1]!.split("\n");
+    for (const line of lines) guest.send(apple2Input(line + "\n"));
+
+    const stops: number[] = [], read = { track: 18, sector: 6, buffer: 0x2100 };
+    dos.waitForInput(undefined, record => {
+      trace.observe(guest.machine, record);
+      const pc = record.after.pc;
+      if (pc === 0x03d9) {
+        assert.ok(trace.matches({ call: { source: 0x0304, target: pc }, requestAt: 0x0380, read }));
+        assert.deepEqual([record.after.a, record.after.y], [0x03, 0x80]);
+      } else if (pc === 0xb7b5) {
+        assert.ok(trace.matches({ jumpFrom: 0x03d9, target: pc }));
+        assert.equal(record.after.sp, record.before.sp);
+      } else if (pc === 0x0307) {
+        assert.ok(trace.matches(read));
+        assert.equal(record.after.flags.c, false);
+      } else return;
+      stops.push(pc);
+    });
+    assert.deepEqual(stops, [0x03d9, 0xb7b5, 0x0307]);
+    const expected = [...selected.disk.exportImage().subarray(0x12600, 0x12700)];
+    assert.deepEqual(trace.reads, [{ ...read, number: 1, bytes: expected }]);
+    assert.deepEqual(Array.from({ length: 256 }, (_, i) => ram.read(0x2100 + i)), expected);
+    assert.match(dos.screen(), /\*$/);
+  });
   await t.test("RUN COLOR DEMO matches its catalogue name, executes the on-disk tokens and clears the first visible cell", () => {
     const demo = createApple2Session(rom.image);
     demo.restore(session.snapshot()); // Keep the first prompt and its DOS banner for the screen comparison.

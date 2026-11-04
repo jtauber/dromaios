@@ -703,6 +703,59 @@ The second stop catches the particular write to `$1D86`. The same
 `JMP $1D84` to `JMP $9D84`. At that handoff, the public RWTS entry at
 `$03D9–$03DB` still contains `00 00 00`.
 
+### Installing and calling RWTS
+
+How can a program ask DOS to read a sector without knowing where DOS
+ended up in RAM? The [DOS Manual][dos-manual] gives callers a fixed
+address, `$03D9`. During startup DOS copies a small table to page three.
+The three bytes at that address become a jump to the resident Read/Write
+Track/Sector routine (RWTS).
+
+Select **Installing and calling RWTS** in the laboratory. Start at fresh
+power-on with the read-only DOS 3.3 System Master, or continue from the
+last relocation stop. Use **Run to checkpoint** at each stop.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| RWTS | Boot | Before DOS installs the entry | $9E2A | read $9E5C = $B7 | $03D9 | The entry still reads 00 00 00. X is $0B. Step once through STA $03D0,X to see $B7 appear at $03DB. |
+| RWTS | Boot | The public entry becomes executable | $9E2D | write $03D9 = $4C | $03D9 | DOS copied the bytes backwards. Read them forwards at $03D9 and you get 4C B5 B7, or JMP $B7B5. |
+| RWTS | Boot | DOS calls its own disk routine | $B7B5 | JSR at $B090 with request at $B7E8 for T17 S0 → $B3BB | $B7E8 | DOS called RWTS directly. A=$B7 and Y=$E8 point to its I/O block. The request reads track 17, sector 0 into $B3BB. |
+
+For the second half, choose **Run** in Execution and let HELLO finish at
+the Applesoft `]` prompt, then **Pause**. With screen **Inspect** off,
+paste each line separately on the Apple II screen and press Return after
+each one. Input stays queued until you choose **Run to checkpoint**.
+Applesoft enters the Monitor, which deposits three groups of bytes in
+RAM and starts the caller with `300G`.
+
+#### Sector-read caller
+
+```text
+CALL -151
+300:A9 03 A0 80 20 D9 03 60
+380:01 60 01 00 12 06 A0 03 00 21 00 00 01 00 00 00 00
+3A0:00 01 EF D8
+300G
+```
+
+The Monitor takes hexadecimal input. The eight bytes at `$0300` are
+`LDA #$03`, `LDY #$80`, `JSR $03D9`, and `RTS`. A and Y pass the
+address of our I/O block, `$0380`. Its `12 06` selects track 18
+(decimal), logical sector 6. The block points to the device table at
+`$03A0`, gives `$2100` as the destination, and requests a read with
+command byte `01` at `$038C`.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| RWTS | 300G | The caller enters at the fixed address | $03D9 | JSR at $0304 with request at $0380 for T18 S6 → $2100 | $0380 | Browse code to see the jump DOS installed. A=$03 and Y=$80 point to our request. |
+| RWTS | 300G | The public jump reaches RWTS | $B7B5 | JMP $B7B5 at $03D9 | $03D9 | This is the same routine DOS called during boot. JMP leaves the stack alone, so RWTS will return straight to our caller. |
+| RWTS | 300G | The sector returns to the caller | $0307 | T18 S6 → $2100 | $2100 | Carry is clear. The Disk panel's DOS sector read trace shows the 256 bytes now at $2100–$21FF. Step through RTS to return to the Monitor. |
+
+In a DOS-order image the sector begins at `(18 × 16 + 6) × 256 = $12600`.
+On the System Master its first four bytes are `20 22 3A AB`. Compare
+them with RAM at `$2100` after the return. The caller contains the fixed
+address `$03D9` and no reference to `$B7B5`.
+
 ### Saving ANSWER across a fresh boot
 
 In the laboratory’s **Disk** panel, choose **Insert writable copy…** and

@@ -20,6 +20,12 @@ test("DOS reads require an observed request and successful matching return, and 
       const record = machine.cpu.step();
       assert.equal(record.outcome, "executed");
       trace.observe(machine, record);
+      if (record.after.pc === 0x03d9) {
+        const request = { call: { source: 4, target: 0x03d9 }, requestAt: 0x0380, read: expect };
+        assert.equal(trace.matches(request), machine.ram.read(0x38c) === 1);
+        assert.ok(!trace.matches({ ...request, call: { source: 8, target: 0x03d9 } }));
+        assert.ok(!trace.matches({ ...request, read: { ...expect, buffer: 0x9500 } }));
+      }
       if (interrupt && record.before.pc === 0xb7b5) trace.interrupt();
       if (record.after.pc === 7) return;
     }

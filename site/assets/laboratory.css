@@ -209,6 +209,7 @@
 [data-rom-walkthrough] h2 { font: 600 14px/1.5 var(--mono); color: #ffd18a; margin: 16px 0 10px; }
 [data-rom-walkthrough] h3 { color: var(--accent); font-size: 12px; margin: 16px 0 6px; }
 [data-rom-walkthrough] p { font-size: 12px; line-height: 1.6; }
+[data-walkthrough-prepare] { white-space: pre-line; }
 .lab-walkthrough-setup { padding: 10px; background: #131f33; border-left: 2px solid var(--line); }
 .lab-walkthrough-navigation { display: flex; gap: 6px; margin-top: 8px; }
 

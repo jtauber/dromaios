@@ -12,7 +12,7 @@ type Jump = {
   readonly slotRead?: { readonly sectorId: number; readonly buffer: number };
 };
 export type LoadObservation = Sector | Jump
-  | { readonly requestAt: number; readonly read: Sector }
+  | { readonly requestAt: number; readonly read: Sector; readonly call?: { readonly source: number; readonly target: number } }
   | { readonly firstSector: number; readonly bootSectors: number; readonly ramAt: number; readonly afterInstruction: number }
   | { readonly dosCommand: string }
   | { readonly catalogueName: string; readonly address: number; readonly value: number }
@@ -36,7 +36,7 @@ function readRequest(machine: Machine, entry: number, io: number): Sector | unde
   if (!machine.disk.inspectMedium()) return;
   if (entry === bootEntry) {
     if (io !== 0x37e8 || !bootWrapper.every((byte, i) => ram.read(entry + i) === byte)) return;
-  } else if (!hasDos33Rwts(machine)) return;
+  } else if ((entry !== installedEntry && entry !== 0x03d9) || !hasDos33Rwts(machine)) return;
   if (io + 12 >= 0xc000 || ram.read(io) !== 1 || ram.read(io + 1) !== 0x60
     || ram.read(io + 2) !== 1 || ram.read(io + 12) !== 1) return;
   const track = ram.read(io + 4), sector = ram.read(io + 5), buffer = ram.read(io + 8) + 256 * ram.read(io + 9);
@@ -82,9 +82,10 @@ export function createDos33ReadTrace() {
     matches(expect: LoadObservation): boolean {
       if ("track" in expect) return sameRead(latest, expect);
       if ("requestAt" in expect) {
-        if (!lastMachine || last?.before.pc !== 0x3799 || last.instruction.bytes[0] !== 0x20 || last.after.pc !== bootEntry) return false;
+        const { source, target } = expect.call ?? { source: 0x3799, target: bootEntry };
+        if (!lastMachine || last?.before.pc !== source || last.instruction.bytes[0] !== 0x20 || last.after.pc !== target) return false;
         const io = last.after.a * 256 + last.after.y;
-        return io === expect.requestAt && sameRead(readRequest(lastMachine, bootEntry, io), expect.read);
+        return io === expect.requestAt && sameRead(readRequest(lastMachine, target, io), expect.read);
       }
       if ("bootSectors" in expect) {
         if (!lastMachine || last?.before.pc !== expect.afterInstruction) return false;

@@ -64,7 +64,7 @@ class PublishingTests(unittest.TestCase):
 
     def test_dos_walkthrough_stops_come_from_the_machine_chapter(self):
         source = APPLE2.read_text()
-        complete, cut, binary, boot, demo, startup, relocation = dos_walkthroughs(source)
+        complete, cut, binary, boot, demo, startup, relocation, rwts = dos_walkthroughs(source)
         sector_reads = lambda tour: [(e["track"], e["sector"], e["buffer"]) for step in tour["steps"]
                                      if "track" in (e := step["expect"])]
         common = [(17, 12, 0xb4bb), (12, 6, 0x9700)]
@@ -118,6 +118,18 @@ class PublishingTests(unittest.TestCase):
             ("9D84", 0xb7e9, dict(jumpFrom=0x1e54, target=0x9d84)),
         ])
         self.assertTrue(all(s["limit"] >= 11_791_878 for s in relocation["steps"]))
+        self.assertTrue(rwts["fromPowerOn"])
+        self.assertEqual([(s["address"], s["inspect"], s["expect"]) for s in rwts["steps"]], [
+            ("9E2A", 0x03d9, dict(kind="read", address=0x9e5c, value=0xb7)),
+            ("9E2D", 0x03d9, dict(kind="write", address=0x03d9, value=0x4c)),
+            ("B7B5", 0xb7e8, dict(call=dict(source=0xb090, target=0xb7b5), requestAt=0xb7e8, read=dict(track=17, sector=0, buffer=0xb3bb))),
+            ("03D9", 0x0380, dict(call=dict(source=0x0304, target=0x03d9), requestAt=0x0380, read=dict(track=18, sector=6, buffer=0x2100))),
+            ("B7B5", 0x03d9, dict(jumpFrom=0x03d9, target=0xb7b5)),
+            ("0307", 0x2100, dict(track=18, sector=6, buffer=0x2100)),
+        ])
+        self.assertTrue(all(s["limit"] >= 11_805_069 for s in rwts["steps"][:3]))
+        self.assertIn("CALL -151\n300:A9 03 A0 80 20 D9 03 60", rwts["steps"][3]["prepare"])
+        self.assertIn("without entering another command", rwts["steps"][4]["prepare"])
         for old, new in [("S0–S9 in RAM", "S0–S16 in RAM"), ("in RAM at $3600", "in RAM at $BF00"),
                          ("T0 S10–T2 S4", "T2 S10–T2 S4"), ("T0 S10–T2 S4", "T0 S10–T35 S4"),
                          ("ID 12 into", "ID 16 into")]:

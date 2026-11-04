@@ -47,10 +47,16 @@ def _dos_observation(text, pc):
     store = re.fullmatch(r"write bank ([12]) \$(D[0-9A-F]{3}) = \$([0-9A-F]{2})", text)
     if store:
         return dict(bank=f"bank{store[1]}", address=int(store[2], 16), value=int(store[3], 16))
-    sector = re.fullmatch(r"(?:request at \$([0-9A-F]{4}) for )?T(\d+) S(\d+) → \$([0-9A-F]{4})", text)
-    if sector and int(sector[2]) < 35 and int(sector[3]) < 16 and int(sector[4], 16) <= 0xbf00:
-        read = dict(track=int(sector[2]), sector=int(sector[3]), buffer=int(sector[4], 16))
-        return dict(requestAt=int(sector[1], 16), read=read) if sector[1] else read
+    sector = re.fullmatch(r"(?:(?:JSR at \$(?P<caller>[0-9A-F]{4}) with )?request at \$(?P<io>[0-9A-F]{4}) for )?"
+                          r"T(?P<track>\d+) S(?P<sector>\d+) → \$(?P<buffer>[0-9A-F]{4})", text)
+    if sector and int(sector["track"]) < 35 and int(sector["sector"]) < 16 and int(sector["buffer"], 16) <= 0xbf00:
+        read = dict(track=int(sector["track"]), sector=int(sector["sector"]), buffer=int(sector["buffer"], 16))
+        if not sector["io"]:
+            return read
+        request = dict(requestAt=int(sector["io"], 16), read=read)
+        if sector["caller"]:
+            request["call"] = dict(source=int(sector["caller"], 16), target=int(pc[1:], 16))
+        return request
     boot = re.fullmatch(r"T(\d+) S(\d+)(?:–(?:T(\d+) )?S(\d+))? in RAM at \$([0-9A-F]{4}) after \$([0-9A-F]{4})", text)
     if boot:
         t1, s1 = int(boot[1]), int(boot[2])
@@ -104,9 +110,17 @@ def dos_walkthroughs(source):
                                               (0xada, [0x91, 0x40]), (0xc84, [0xad, 0xe9, 0x37]), (0xd54, [0x4c, 0x84, 0x1d])],
                                    setup="Continue from All 27 reads are complete in Booting from slot 6, or start at fresh power-on "
                                          "with the Apple II Plus ROM container and the read-only DOS 3.3 System Master.")
+    specs["RWTS"] = dict(id="rwts-entry", title="Installing and calling RWTS", fromPowerOn=True,
+                         bootBytes=[*specs["DOS relocation"]["bootBytes"], (0xd27, [0xbd, 0x51, 0x1e, 0x9d, 0xd0, 3]),
+                                    (0xd5a, [0x4c, 0xb5, 0x37]), (0x1f90, [0x20, 0xb5, 0x37]), (0x12600, [0x20, 0x22, 0x3a, 0xab])],
+                         setup="Use the Apple II Plus ROM container and the read-only DOS 3.3 System Master. Start at fresh power-on "
+                               "or continue from Execute the relocated instruction. If DOS is already at the ] prompt, start at The caller enters at the fixed address.")
+    caller = re.search(r"^#### Sector-read caller\n\n```text\n([^`]+)\n```$", source, re.M)
+    if not caller:
+        raise ValueError("The RWTS walkthrough needs its Monitor listing in the machine chapter.")
     commands = {"Completed": {"LOAD ANSWER", "LIST"}, "Interrupted": {"LOAD ANSWER", "LIST"},
                 "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO", "3"},
-                "Disk II": {"Boot"}, "DOS relocation": {"Boot"}}
+                "Disk II": {"Boot"}, "DOS relocation": {"Boot"}, "RWTS": {"Boot", "300G"}}
     boot_inputs = {
         "INT": "Resume until HELLO finishes at the ] prompt. Pause, queue INT with Return, then run to this checkpoint.",
         "FP": "Resume to the > prompt and enter PRINT 6*7. After 42, pause and queue FP with Return.",
@@ -138,6 +152,9 @@ def dos_walkthroughs(source):
                                "Resume to WHICH WOULD YOU LIKE?, pause, then type 3 and press Return on the screen with Inspect off.")
                 elif previous.get(disk) == command:
                     prepare = f"Continue {command} without entering another command."
+                elif command == "300G":
+                    prepare = ("Run to the Applesoft ] prompt, then Pause. With screen Inspect off, paste each line separately "
+                               "on the Apple II screen and press Return after each. The lines will echo when you choose Run to checkpoint.\n\n" + caller[1])
                 else:
                     prepare = f"With the CPU paused, queue {command} and press Return on the screen."
                 previous[disk] = command
@@ -147,8 +164,8 @@ def dos_walkthroughs(source):
                     step["space"] = {"ROM": "rom", "LC upper": "lc-upper", "slot 6": "device"}[mapping]
                 if disk == "System Master" and command == "Boot":
                     step["limit"] = 25_000_000  # Cold boot reaches the first store after 20 million instructions.
-                elif disk == "DOS relocation" or (disk == "Disk II" and address == "3741"):
-                    step["limit"] = 12_000_000  # Direct from power-on: 11.55 million to $3741, 11.79 million to $9D84.
+                elif command == "Boot" and (disk in {"DOS relocation", "RWTS"} or (disk == "Disk II" and address == "3741")):
+                    step["limit"] = 12_000_000  # The late loader, relocation and page-three stops take up to 11.81 million from power-on.
                 specs[disk]["steps"].append(step)
     if any(not tour["steps"] for tour in specs.values()):
         raise ValueError("Each DOS walkthrough needs checkpoints in the machine chapter.")
