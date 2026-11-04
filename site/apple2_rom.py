@@ -98,9 +98,15 @@ def dos_walkthroughs(source):
                                        (0xfd, [0, 0x36, 9, 0x8e, 0xe9, 0x37]), (0x199, [0x20, 0xb5, 0x37]),
                                        (0x141, [0x4c, 0xc8, 0x3f])],
                             setup="Load the Apple II Plus ROM container, insert the DOS 3.3 System Master read-only, and choose Fresh power-on. Leave the CPU paused.")
+    # On disk both the load and the final jump still contain their low-RAM operands.
+    specs["DOS relocation"] = dict(id="dos-relocation", title="Relocating DOS into high RAM", fromPowerOn=True,
+                                   bootBytes=[*specs["Disk II"]["bootBytes"], (0x147, [0x4c, 0x03, 0x1b]),
+                                              (0xada, [0x91, 0x40]), (0xc84, [0xad, 0xe9, 0x37]), (0xd54, [0x4c, 0x84, 0x1d])],
+                                   setup="Continue from All 27 reads are complete in Booting from slot 6, or start at fresh power-on "
+                                         "with the Apple II Plus ROM container and the read-only DOS 3.3 System Master.")
     commands = {"Completed": {"LOAD ANSWER", "LIST"}, "Interrupted": {"LOAD ANSWER", "LIST"},
                 "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO", "3"},
-                "Disk II": {"Boot"}}
+                "Disk II": {"Boot"}, "DOS relocation": {"Boot"}}
     boot_inputs = {
         "INT": "Resume until HELLO finishes at the ] prompt. Pause, queue INT with Return, then run to this checkpoint.",
         "FP": "Resume to the > prompt and enter PRINT 6*7. After 42, pause and queue FP with Return.",
@@ -141,8 +147,8 @@ def dos_walkthroughs(source):
                     step["space"] = {"ROM": "rom", "LC upper": "lc-upper", "slot 6": "device"}[mapping]
                 if disk == "System Master" and command == "Boot":
                     step["limit"] = 25_000_000  # Cold boot reaches the first store after 20 million instructions.
-                elif disk == "Disk II" and address == "3741":
-                    step["limit"] = 12_000_000  # 11,547,436 instructions from power-on with the System Master.
+                elif disk == "DOS relocation" or (disk == "Disk II" and address == "3741"):
+                    step["limit"] = 12_000_000  # Direct from power-on: 11.55 million to $3741, 11.79 million to $9D84.
                 specs[disk]["steps"].append(step)
     if any(not tour["steps"] for tour in specs.values()):
         raise ValueError("Each DOS walkthrough needs checkpoints in the machine chapter.")

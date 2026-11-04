@@ -674,6 +674,35 @@ The result occupies `$1B00–$35FF`, immediately below the ten pages the
 boot sector loaded earlier. The jump to `$3FC8` takes execution into
 those earlier pages while the new block is still intact.
 
+### Relocating DOS into high RAM
+
+With the Apple II Plus ROM container and the read-only System Master
+mounted, select **Relocating DOS into high RAM** in **Walkthrough**.
+Start at **Fresh power-on**, or continue directly from **All 27 reads are
+complete** in **Booting from slot 6**. Choose **Run to checkpoint** for
+the first stop, then **Next** and **Run to checkpoint** for each of the
+other two.
+
+Follow one instruction from track 0, sector 12, offset `$84` within the
+sector. The loader put its three bytes, `AD E9 37`, at `$1D84`. The 6502
+reads the low address byte first, so this is `LDA $37E9`. Its operand
+points to the slot byte in the DOS I/O block. The instruction and the I/O
+block are both moving up by `$8000`. To keep reading the same slot byte,
+the operand must change to `$B7E9`.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| DOS relocation | Boot | Enter the code just loaded from disk | $1B03 | JMP $1B03 at $3747 | $1D84 | Inspect RAM at $1D84. AD E9 37 still encodes LDA $37E9, just as it does on disk. |
+| DOS relocation | Boot | Watch DOS patch the operand | $1BDC | write $1D86 = $B7 | $1D84 | The store at $1BDA has changed the high byte from 37 to B7. The instruction is still at $1D84 and now reads AD E9 B7. |
+| DOS relocation | Boot | Execute the relocated instruction | $9D84 | JMP $9D84 at $1E54 | $B7E9 | Browse code to see AD E9 B7 at $9D84. Inspect $B7E9, then Step once. LDA reads the slot byte, A becomes $60 and PC advances to $9D87. |
+
+The second stop catches the particular write to `$1D86`. The same
+`STA ($40),Y` at `$1BDA` patches many other operands. Later,
+`STA ($42),Y` at `$1C15` copies the three patched bytes to
+`$9D84–$9D86`. The jump at `$1E54` has itself been patched from
+`JMP $1D84` to `JMP $9D84`. At that handoff, the public RWTS entry at
+`$03D9–$03DB` still contains `00 00 00`.
+
 ### Saving ANSWER across a fresh boot
 
 In the laboratory’s **Disk** panel, choose **Insert writable copy…** and

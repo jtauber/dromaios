@@ -13,6 +13,7 @@ import { apple2LoresPixel, createApple2ScreenWrites } from "../../site/interacti
 import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
 import { createDos33ReadTrace } from "../../site/interactive/dos33-reads.js";
+import type { LoadObservation } from "../../site/interactive/dos33-reads.js";
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import { encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
 
@@ -291,13 +292,13 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
   const machine = session.machine, terminal = dosTerminal(session);
   const { command, screen } = terminal;
   const original = machine.disk.snapshot().media;
-  await t.test("cold boot crosses from the Monitor through slot 6 to the loader and its 27 RWTS reads", () => {
+  await t.test("cold boot loads DOS through slot 6 and relocates it into high RAM", () => {
     const boot = createApple2Session(rom.image, { bootstrap, image: selected.disk });
     const { ram } = boot.machine, trace = createDos33ReadTrace(), image = selected.disk.exportImage();
     const ramPage = (start: number) => Array.from({ length: 256 }, (_, i) => ram.read(start + i));
     let latchReads = 0, destination = 0x0800;
     const decoded: number[] = [];
-    function runTo(pc: number): void {
+    function runTo(pc: number, observation?: LoadObservation): Cpu6502StepRecord {
       for (let i = 0; i < 1_000_000; i++) {
         const record = boot.step();
         assert.equal(record.outcome, "executed");
@@ -309,7 +310,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
             decoded.push(access.value);
           }
         }
-        if (record.after.pc === pc) return;
+        if (record.after.pc === pc && (!observation || trace.matches(observation))) return record;
       }
       assert.fail(`Boot never reached $${pc.toString(16)}`);
     }
@@ -386,6 +387,32 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     const handoff = boot.step();
     assert.deepEqual(handoff.instruction.bytes, [0x4c, 0xc8, 0x3f]);
     assert.equal(handoff.after.pc, 0x3fc8);
+
+    const threeBytes = (address: number) => [ram.read(address), ram.read(address + 1), ram.read(address + 2)];
+    const originalLoad = [...image.subarray(0xc84, 0xc87)], relocatedLoad = [0xad, 0xe9, 0xb7];
+    runTo(0x1b03, { jumpFrom: 0x3747, target: 0x1b03 });
+    assert.deepEqual(originalLoad, [0xad, 0xe9, 0x37]);
+    assert.deepEqual(threeBytes(0x1d84), originalLoad);
+    assert.deepEqual(threeBytes(0x1e54), [0x4c, 0x84, 0x1d]);
+
+    const patch = { kind: "write", address: 0x1d86, value: 0xb7 } as const;
+    assert.equal(runTo(0x1bdc, patch).before.pc, 0x1bda);
+    assert.deepEqual(threeBytes(0x1d84), relocatedLoad);
+    assert.notDeepEqual(threeBytes(0x9d84), relocatedLoad);
+    runTo(0x1bdc, { kind: "write", address: 0x1e56, value: 0x9d });
+    assert.ok(!trace.matches(patch)); // Same instruction, this time patching the jump.
+
+    for (const [offset, value] of relocatedLoad.entries()) {
+      const copy = runTo(0x1c17, { kind: "write", address: 0x9d84 + offset, value });
+      assert.equal(copy.before.pc, 0x1c15);
+    }
+    runTo(0x9d84, { jumpFrom: 0x1e54, target: 0x9d84 });
+    assert.deepEqual(threeBytes(0x9d84), relocatedLoad);
+    assert.deepEqual(threeBytes(0x03d9), [0, 0, 0]);
+    const load = boot.step();
+    assert.deepEqual(load.instruction.bytes, relocatedLoad);
+    assert.deepEqual(load.accesses.at(-1), { kind: "read", address: 0xb7e9, value: 0x60 });
+    assert.deepEqual([load.after.a, load.after.pc], [0x60, 0x9d87]);
   });
   await t.test("bootstrap continues identically after restoring a Disk II read", () => {
     for (let i = 0; i < 1_000_000; i++) {

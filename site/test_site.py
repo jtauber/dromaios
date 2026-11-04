@@ -64,7 +64,7 @@ class PublishingTests(unittest.TestCase):
 
     def test_dos_walkthrough_stops_come_from_the_machine_chapter(self):
         source = APPLE2.read_text()
-        complete, cut, binary, boot, demo, startup = dos_walkthroughs(source)
+        complete, cut, binary, boot, demo, startup, relocation = dos_walkthroughs(source)
         sector_reads = lambda tour: [(e["track"], e["sector"], e["buffer"]) for step in tour["steps"]
                                      if "track" in (e := step["expect"])]
         common = [(17, 12, 0xb4bb), (12, 6, 0x9700)]
@@ -111,6 +111,13 @@ class PublishingTests(unittest.TestCase):
             ("379C", "ram", 0x3500, dict(track=2, sector=4, buffer=0x3500)),
             ("3741", "ram", 0x1b00, dict(firstSector=10, bootSectors=27, ramAt=0x1b00, afterInstruction=0x373e)),
         ])
+        self.assertTrue(relocation["fromPowerOn"])
+        self.assertEqual([(s["address"], s["inspect"], s["expect"]) for s in relocation["steps"]], [
+            ("1B03", 0x1d84, dict(jumpFrom=0x3747, target=0x1b03)),
+            ("1BDC", 0x1d84, dict(kind="write", address=0x1d86, value=0xb7)),
+            ("9D84", 0xb7e9, dict(jumpFrom=0x1e54, target=0x9d84)),
+        ])
+        self.assertTrue(all(s["limit"] >= 11_791_878 for s in relocation["steps"]))
         for old, new in [("S0–S9 in RAM", "S0–S16 in RAM"), ("in RAM at $3600", "in RAM at $BF00"),
                          ("T0 S10–T2 S4", "T2 S10–T2 S4"), ("T0 S10–T2 S4", "T0 S10–T35 S4"),
                          ("ID 12 into", "ID 16 into")]:
