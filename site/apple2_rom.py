@@ -47,14 +47,18 @@ def _dos_observation(text, pc):
     store = re.fullmatch(r"write bank ([12]) \$(D[0-9A-F]{3}) = \$([0-9A-F]{2})", text)
     if store:
         return dict(bank=f"bank{store[1]}", address=int(store[2], 16), value=int(store[3], 16))
-    sector = re.fullmatch(r"T(\d+) S(\d+) → \$([0-9A-F]{4})", text)
-    if sector and int(sector[1]) < 35 and int(sector[2]) < 16:
-        return dict(track=int(sector[1]), sector=int(sector[2]), buffer=int(sector[3], 16))
-    boot = re.fullmatch(r"T0 S0(?:–S(\d+))? in RAM at \$([0-9A-F]{4}) after \$([0-9A-F]{4})", text)
+    sector = re.fullmatch(r"(?:request at \$([0-9A-F]{4}) for )?T(\d+) S(\d+) → \$([0-9A-F]{4})", text)
+    if sector and int(sector[2]) < 35 and int(sector[3]) < 16 and int(sector[4], 16) <= 0xbf00:
+        read = dict(track=int(sector[2]), sector=int(sector[3]), buffer=int(sector[4], 16))
+        return dict(requestAt=int(sector[1], 16), read=read) if sector[1] else read
+    boot = re.fullmatch(r"T(\d+) S(\d+)(?:–(?:T(\d+) )?S(\d+))? in RAM at \$([0-9A-F]{4}) after \$([0-9A-F]{4})", text)
     if boot:
-        count, start = int(boot[1] or 0) + 1, int(boot[2], 16)
-        if count <= 16 and start + count * 256 <= 0xc000:
-            return dict(bootSectors=count, ramAt=start, afterInstruction=int(boot[3], 16))
+        t1, s1 = int(boot[1]), int(boot[2])
+        t2, s2 = int(boot[3] or boot[1]), int(boot[4] or boot[2])
+        first, last, start = 16 * t1 + s1, 16 * t2 + s2, int(boot[5], 16)
+        count = last - first + 1
+        if max(t1, t2) < 35 and max(s1, s2) < 16 and count > 0 and start + count * 256 <= 0xc000:
+            return dict(firstSector=first, bootSectors=count, ramAt=start, afterInstruction=int(boot[6], 16))
     access = re.fullmatch(r"(read|write) \$([0-9A-F]{4})(?: = \$([0-9A-F]{2}))?", text)
     if access:
         expect = dict(kind=access[1], address=int(access[2], 16))
@@ -88,10 +92,11 @@ def dos_walkthroughs(source):
                                   setup="Insert the DOS 3.3 System Master read-only. Start at fresh power-on with the CPU paused.")
     specs["COLOR DEMO"] = dict(id="color-demo", title="RUN COLOR DEMO", file=dict(name="COLOR DEMO", type="I", entry=0x11e51, length=1921),
                                setup="Boot the DOS 3.3 System Master read-only. Pause at the first ] prompt with DOS VERSION still at the top left.")
-    # Boot entry, both indirect jumps, and the loader parameters followed by sector one's first instruction.
+    # Identify both boot stages, including the loader's RWTS call and its final jump.
     specs["Disk II"] = dict(id="disk-boot", title="Booting from slot 6", fromPowerOn=True,
                             bootBytes=[(0, [0x01, 0xa5, 0x27]), (0x36, [0x6c, 0x3e, 0]), (0x4a, [0x6c, 0xfd, 8]),
-                                       (0xfd, [0, 0x36, 9, 0x8e, 0xe9, 0x37])],
+                                       (0xfd, [0, 0x36, 9, 0x8e, 0xe9, 0x37]), (0x199, [0x20, 0xb5, 0x37]),
+                                       (0x141, [0x4c, 0xc8, 0x3f])],
                             setup="Load the Apple II Plus ROM container, insert the DOS 3.3 System Master read-only, and choose Fresh power-on. Leave the CPU paused.")
     commands = {"Completed": {"LOAD ANSWER", "LIST"}, "Interrupted": {"LOAD ANSWER", "LIST"},
                 "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO", "3"},
@@ -136,6 +141,8 @@ def dos_walkthroughs(source):
                     step["space"] = {"ROM": "rom", "LC upper": "lc-upper", "slot 6": "device"}[mapping]
                 if disk == "System Master" and command == "Boot":
                     step["limit"] = 25_000_000  # Cold boot reaches the first store after 20 million instructions.
+                elif disk == "Disk II" and address == "3741":
+                    step["limit"] = 12_000_000  # 11,547,436 instructions from power-on with the System Master.
                 specs[disk]["steps"].append(step)
     if any(not tour["steps"] for tour in specs.values()):
         raise ValueError("Each DOS walkthrough needs checkpoints in the machine chapter.")

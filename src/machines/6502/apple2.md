@@ -582,7 +582,7 @@ In the laboratory, load the 20 KiB Apple II Plus ROM container and insert
 the DOS 3.3 System Master read-only. Choose **Fresh power-on** and leave
 the CPU paused. In **Walkthrough**, select **Booting from slot 6** and choose
 **Run to checkpoint**. Use **Next** and **Run to checkpoint** to follow
-the boot from the Monitor to the loader at `$3700`. No keystrokes are needed.
+the boot from the Monitor through the DOS loader's 27 reads. No keystrokes are needed.
 
 | Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -642,6 +642,37 @@ ascending RAM addresses hold the sectors in image order. The last read
 puts a fresh copy of sector zero at `$3600`, while the boot code still
 executes at `$0801`. Its jump at `$084A` selects the next page, `$3700`,
 where sector 1 begins.
+
+#### How the DOS loader reads the next 27 sectors
+
+At `$3700` the loader already has a copy of DOS's Read/Write Track/Sector
+routine (RWTS) in RAM. It describes one read in an I/O block at `$37E8`
+and passes the block's address in A (high byte) and Y (low byte). In this
+block `$37E9` holds the slot (`60` for slot 6), `$37EA` the drive,
+`$37EC–$37ED` the track and DOS-order sector, `$37F0–$37F1` the destination
+(low byte first), and `$37F4` the command (`01` for read).
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| Disk II | Boot | The loader requests its first sector | $37B5 | request at $37E8 for T2 S4 → $3500 | $37E8 | JSR at $3799 has entered RWTS. A=$37 and Y=$E8 point to the request. Find 02 04 for the track and sector, then 00 35 for the destination. |
+| Disk II | Boot | The first read returns | $379C | T2 S4 → $3500 | $3500 | Carry is clear. The 256 bytes now at $3500–$35FF came from disk image offset $02400. Open Disk → DOS sector read trace to inspect the captured bytes. |
+| Disk II | Boot | All 27 reads are complete | $3741 | T0 S10–T2 S4 in RAM at $1B00 after $373E | $1B00 | The last read put track 0, sector 10 at $1B00. All 6,912 bytes in the loaded block match the disk. Step once to execute JMP $3FC8. |
+
+Every successful read returns to `$379C`. The loader moves the destination
+down one page and requests the preceding sector. After sector 0 it continues
+at sector 15 of the previous track. The Disk panel keeps each completed
+read with its track, sector and destination, so you can inspect the three
+parts of the transfer even after the loader has reused the I/O block.
+
+| Reads | Track | DOS-order sectors, in read order | Destination pages, in read order |
+| --- | ---: | --- | --- |
+| 1–5 | 2 | 4 down to 0 | `$3500` down to `$3100` |
+| 6–21 | 1 | 15 down to 0 | `$3000` down to `$2100` |
+| 22–27 | 0 | 15 down to 10 | `$2000` down to `$1B00` |
+
+The result occupies `$1B00–$35FF`, immediately below the ten pages the
+boot sector loaded earlier. The jump to `$3FC8` takes execution into
+those earlier pages while the new block is still intact.
 
 ### Saving ANSWER across a fresh boot
 
@@ -772,8 +803,8 @@ The laboratory uses this table to build both tours. Each stop is immediately
 *after* the indicated read or write, at the next instruction's PC. **Inspect
 RAM** opens the live bytes at the selected address. The Disk panel retains
 the last 64 successful reads with the bytes as they were on return, even
-when DOS has since reused the buffer. The trace recognizes the resident
-RWTS in this System Master and slot 6, drive 1 reads into main RAM. The
+when DOS has since reused the buffer. The trace recognizes the loader and
+resident copies of RWTS in this System Master for slot 6, drive 1 reads into main RAM. The
 slot bootstrap's direct nibble reads are outside that interface.
 
 | Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |

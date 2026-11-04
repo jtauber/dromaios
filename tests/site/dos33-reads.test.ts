@@ -38,6 +38,35 @@ test("DOS reads require an observed request and successful matching return, and 
   trace.clear(); assert.equal(trace.reads.length, 0);
 });
 
+test("the loader request is visible on JSR and only a successful return records a read", () => {
+  const { machine } = createApple2Session(), trace = createDos33ReadTrace();
+  machine.disk.insert(new Dos33Disk(new Uint8Array(Dos33Disk.size)));
+  const put = (at: number, bytes: number[]) => bytes.forEach((b, i) => machine.ram.write(at + i, b));
+  put(0, [0xa9, 0x37, 0xa0, 0xe8, 0x4c, 0x99, 0x37]); // A/Y point at the I/O block.
+  put(0x3799, [0x20, 0xb5, 0x37, 0x4c, 0, 0]); // JSR RWTS, then repeat.
+  put(0x37b5, [0x08, 0x78, 0x20, 0x00, 0x3d, 0xb0, 0x03, 0x28, 0x18, 0x60, 0x28, 0x38, 0x60]);
+  put(0x37e8, [1, 0x60, 1, 0, 2, 4, 0, 0, 0, 0x35, 0, 0, 1]);
+  const read = { track: 2, sector: 4, buffer: 0x3500 }, request = { requestAt: 0x37e8, read };
+  function runTo(pc: number): void {
+    for (let i = 0; i < 32; i++) {
+      const r = machine.cpu.step();
+      trace.observe(machine, r);
+      if (r.after.pc === pc) return;
+    }
+    assert.fail("RWTS did not reach the expected instruction");
+  }
+  put(0x3d00, [0x38, 0x60]); // SEC, RTS
+  runTo(0x37b5);
+  assert.ok(trace.matches(request));
+  assert.ok(!trace.matches({ ...request, requestAt: 0x37e9 }));
+  assert.ok(!trace.matches(read));
+  runTo(0x379c);
+  assert.ok(!trace.matches(request)); assert.ok(!trace.matches(read)); assert.equal(trace.reads.length, 0);
+  put(0x3d00, [0x18, 0x60]); // CLC, RTS
+  runTo(0x37b5); runTo(0x379c);
+  assert.ok(trace.matches(read)); assert.equal(trace.reads.length, 1);
+});
+
 test("a handoff distinguishes direct and indirect jumps to the same destination", () => {
   const { machine } = createApple2Session(), trace = createDos33ReadTrace();
   [0x6c, 0x72, 0xaa].forEach((v, i) => machine.ram.write(i, v));
@@ -69,21 +98,22 @@ test("a boot stop compares every byte of the requested sectors at the instructio
   const { machine } = createApple2Session(), trace = createDos33ReadTrace();
   const image = new Uint8Array(Dos33Disk.size);
   for (let i = 0; i < 2560; i++) {
-    image[i] = (i + (i >>> 8)) & 0xff;
-    machine.ram.write(0x3600 + i, image[i]!);
+    image[2560 + i] = (i + (i >>> 8)) & 0xff;
+    machine.ram.write(0x3600 + i, image[2560 + i]!);
   }
-  const sector = { bootSectors: 10, ramAt: 0x3600, afterInstruction: 0 };
+  const sector = { firstSector: 10, bootSectors: 10, ramAt: 0x3600, afterInstruction: 0 };
   machine.ram.write(0, 0xea);
   trace.observe(machine, machine.cpu.step());
   assert.ok(!trace.matches(sector));
   machine.disk.insert(new Dos33Disk(image));
   const controller = machine.disk.inspect();
   assert.ok(trace.matches(sector));
+  assert.ok(!trace.matches({ ...sector, firstSector: 0 }));
   assert.ok(!trace.matches({ ...sector, afterInstruction: 1 }));
   machine.ram.write(0x3fff, 0);
   assert.ok(!trace.matches(sector));
   assert.ok(trace.matches({ ...sector, bootSectors: 1 }));
-  machine.ram.write(0x3fff, image[2559]!);
+  machine.ram.write(0x3fff, image[5119]!);
   trace.interrupt();
   assert.ok(!trace.matches(sector));
   assert.deepEqual(machine.disk.inspect(), controller);

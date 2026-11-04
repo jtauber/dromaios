@@ -12,7 +12,8 @@ type Jump = {
   readonly slotRead?: { readonly sectorId: number; readonly buffer: number };
 };
 export type LoadObservation = Sector | Jump
-  | { readonly bootSectors: number; readonly ramAt: number; readonly afterInstruction: number }
+  | { readonly requestAt: number; readonly read: Sector }
+  | { readonly firstSector: number; readonly bootSectors: number; readonly ramAt: number; readonly afterInstruction: number }
   | { readonly dosCommand: string }
   | { readonly catalogueName: string; readonly address: number; readonly value: number }
   | { readonly textCell: readonly [number, number]; readonly page: number; readonly before: number; readonly after: number }
@@ -20,17 +21,35 @@ export type LoadObservation = Sector | Jump
   | { readonly bank: "bank1" | "bank2"; readonly address: number; readonly value: number }
   | { readonly kind: "read" | "write"; readonly address: number; readonly value?: number };
 
-// The selected System Master installs JMP $B7B5 at RWTS ($03D9). Its wrapper
-// calls the driver, restores the flags and returns via CLC/RTS or SEC/RTS.
-const entry = 0xb7b5, wrapper = [0x08, 0x78, 0x20, 0x00, 0xbd, 0xb0, 0x03, 0x28, 0x18, 0x60, 0x28, 0x38, 0x60];
+// The System Master uses the same RWTS wrapper during boot and after DOS is installed.
+// Only the high byte of the driver's address changes. Both return via CLC/RTS or SEC/RTS.
+const bootEntry = 0x37b5, installedEntry = 0xb7b5;
+const wrapper = (driverPage: number) => [0x08, 0x78, 0x20, 0x00, driverPage, 0xb0, 0x03, 0x28, 0x18, 0x60, 0x28, 0x38, 0x60];
+const bootWrapper = wrapper(0x3d), installedWrapper = wrapper(0xbd);
 export function hasDos33Rwts({ ram }: Machine): boolean {
   return ram.read(0x03d9) === 0x4c && ram.read(0x03da) === 0xb5 && ram.read(0x03db) === 0xb7
-    && wrapper.every((byte, i) => ram.read(entry + i) === byte);
+    && installedWrapper.every((byte, i) => ram.read(installedEntry + i) === byte);
+}
+
+function readRequest(machine: Machine, entry: number, io: number): Sector | undefined {
+  const { ram } = machine;
+  if (!machine.disk.inspectMedium()) return;
+  if (entry === bootEntry) {
+    if (io !== 0x37e8 || !bootWrapper.every((byte, i) => ram.read(entry + i) === byte)) return;
+  } else if (!hasDos33Rwts(machine)) return;
+  if (io + 12 >= 0xc000 || ram.read(io) !== 1 || ram.read(io + 1) !== 0x60
+    || ram.read(io + 2) !== 1 || ram.read(io + 12) !== 1) return;
+  const track = ram.read(io + 4), sector = ram.read(io + 5), buffer = ram.read(io + 8) + 256 * ram.read(io + 9);
+  if (track < 35 && sector < 16 && buffer + 256 <= 0xc000) return { track, sector, buffer };
+}
+
+function sameRead(actual: Sector | undefined, expected: Sector): boolean {
+  return actual?.track === expected.track && actual.sector === expected.sector && actual.buffer === expected.buffer;
 }
 
 /** Observe DOS's completed reads into main RAM without touching the Disk II switches. */
 export function createDos33ReadTrace() {
-  let pending: (Sector & { stack: number; caller: number }) | undefined;
+  let pending: (Sector & { entry: number; stack: number; caller: number }) | undefined;
   let latest: DosRead | undefined, last: Cpu6502StepRecord | undefined, sequence = 0;
   let lastMachine: Machine | undefined, lastWrites: readonly Apple2MemoryChange[] | undefined;
   const reads: DosRead[] = [];
@@ -41,20 +60,18 @@ export function createDos33ReadTrace() {
     observe(machine: Machine, record: Cpu6502StepRecord, writes?: readonly Apple2MemoryChange[]): void {
       latest = undefined; last = record; lastMachine = machine; lastWrites = writes;
       const { pc, sp } = record.before, { ram } = machine;
-      if (pc === entry) {
+      if (pc === bootEntry || pc === installedEntry) {
         pending = undefined;
-        if (!machine.disk.inspectMedium() || !hasDos33Rwts(machine)) return;
-        const io = record.before.a * 256 + record.before.y;
-        if (io + 12 >= 0xc000 || ram.read(io) !== 1 || ram.read(io + 1) !== 0x60
-          || ram.read(io + 2) !== 1 || ram.read(io + 12) !== 1) return;
-        const track = ram.read(io + 4), sector = ram.read(io + 5), buffer = ram.read(io + 8) + 256 * ram.read(io + 9);
-        if (track >= 35 || sector >= 16 || buffer + 256 > 0xc000) return;
+        const request = readRequest(machine, pc, record.before.a * 256 + record.before.y);
+        if (!request) return;
         const stacked = (offset: number) => ram.read(0x100 + ((sp + offset) & 0xff));
-        pending = { track, sector, buffer, stack: sp, caller: (stacked(1) + 256 * stacked(2) + 1) & 0xffff };
-      } else if (pending && (pc === 0xb7be || pc === 0xb7c1)) {
-        const { track, sector, buffer, stack, caller } = pending;
+        const caller = (stacked(1) + 256 * stacked(2) + 1) & 0xffff;
+        if (pc === bootEntry && caller !== 0x379c) return;
+        pending = { ...request, entry: pc, stack: sp, caller };
+      } else if (pending && (pc === pending.entry + 9 || pc === pending.entry + 12)) {
+        const { track, sector, buffer, entry, stack, caller } = pending;
         pending = undefined;
-        if (pc !== 0xb7be || record.instruction.bytes[0] !== 0x60 || record.after.flags.c
+        if (pc !== entry + 9 || record.instruction.bytes[0] !== 0x60 || record.after.flags.c
           || sp !== stack || record.after.pc !== caller) return;
         latest = { track, sector, buffer, number: ++sequence, bytes: Array.from({ length: 256 }, (_, i) => ram.read(buffer + i)) };
         reads.push(latest);
@@ -63,13 +80,19 @@ export function createDos33ReadTrace() {
     },
     /** A stop describes the boundary just reached, even when several reads share one return PC. */
     matches(expect: LoadObservation): boolean {
-      if ("track" in expect) return latest?.track === expect.track && latest.sector === expect.sector && latest.buffer === expect.buffer;
+      if ("track" in expect) return sameRead(latest, expect);
+      if ("requestAt" in expect) {
+        if (!lastMachine || last?.before.pc !== 0x3799 || last.instruction.bytes[0] !== 0x20 || last.after.pc !== bootEntry) return false;
+        const io = last.after.a * 256 + last.after.y;
+        return io === expect.requestAt && sameRead(readRequest(lastMachine, bootEntry, io), expect.read);
+      }
       if ("bootSectors" in expect) {
         if (!lastMachine || last?.before.pc !== expect.afterInstruction) return false;
         const disk = lastMachine.disk.inspectMedium()?.snapshot();
         if (!disk) return false;
+        const offset = expect.firstSector * 256;
         for (let i = 0; i < expect.bootSectors * 256; i++) {
-          if (lastMachine.ram.read(expect.ramAt + i) !== disk[i]) return false;
+          if (lastMachine.ram.read(expect.ramAt + i) !== disk[offset + i]) return false;
         }
         return true;
       }

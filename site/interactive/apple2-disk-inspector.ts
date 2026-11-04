@@ -36,6 +36,11 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
       row.buffer ?? row.index * 256, row.buffer === undefined ? 5 : 4) : "";
     memory.hidden = row?.buffer === undefined;
     if (row) detail.textContent = `${sectorLabel(row.index)} · image offset $${hex(row.index * 256, 5)}. ${row.detail}`;
+    if (row?.buffer !== undefined && row.bytes && image) {
+      const mounted = image, offset = row.index * 256;
+      detail.textContent += row.bytes.every((byte, i) => byte === mounted[offset + i])
+        ? " All 256 captured bytes match the mounted sector." : " The captured bytes differ from the mounted sector.";
+    }
   }
   function showSource(preferred = ""): void {
     rows = []; detail.textContent = notice;

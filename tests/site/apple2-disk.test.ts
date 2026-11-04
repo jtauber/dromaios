@@ -291,7 +291,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
   const machine = session.machine, terminal = dosTerminal(session);
   const { command, screen } = terminal;
   const original = machine.disk.snapshot().media;
-  await t.test("cold boot crosses from the Monitor to slot 6, then loads and enters the ten-sector loader", () => {
+  await t.test("cold boot crosses from the Monitor through slot 6 to the loader and its 27 RWTS reads", () => {
     const boot = createApple2Session(rom.image, { bootstrap, image: selected.disk });
     const { ram } = boot.machine, trace = createDos33ReadTrace(), image = selected.disk.exportImage();
     const ramPage = (start: number) => Array.from({ length: 256 }, (_, i) => ram.read(start + i));
@@ -323,7 +323,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     assert.ok(latchReads > 0);
     assert.deepEqual(decoded, [...image.subarray(0, 256)]);
     assert.deepEqual(ramPage(0x0800), decoded);
-    assert.ok(trace.matches({ bootSectors: 1, ramAt: 0x0800, afterInstruction: 0xc6f6 }));
+    assert.ok(trace.matches({ firstSector: 0, bootSectors: 1, ramAt: 0x0800, afterInstruction: 0xc6f6 }));
     assert.equal(trace.reads.length, 0);
 
     const jump = boot.step();
@@ -354,7 +354,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
       assert.deepEqual(ramPage(destination), decoded);
     }
     runTo(0x084a);
-    assert.ok(trace.matches({ bootSectors: 10, ramAt: 0x3600, afterInstruction: 0x0848 }));
+    assert.ok(trace.matches({ firstSector: 0, bootSectors: 10, ramAt: 0x3600, afterInstruction: 0x0848 }));
     assert.deepEqual([ram.read(0x08fd), ram.read(0x08fe)], [0, 0x37]);
     runTo(0x3700);
     assert.ok(trace.matches({ jumpFrom: 0x084a, indirect: 0x08fd, target: 0x3700 }));
@@ -363,6 +363,29 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     assert.deepEqual(store.instruction.bytes, [0x8e, 0xe9, 0x37]);
     assert.deepEqual(store.accesses.at(-1), { kind: "write", address: 0x37e9, value: 0x60 });
     assert.equal(store.after.pc, 0x3703);
+
+    const firstRead = { track: 2, sector: 4, buffer: 0x3500 };
+    for (let i = 0; i < 27; i++) {
+      const index = 2 * 16 + 4 - i, buffer = 0x3500 - i * 256;
+      const read = { track: Math.floor(index / 16), sector: index % 16, buffer };
+      runTo(0x37b5);
+      assert.equal(trace.reads.length, i);
+      assert.ok(trace.matches({ requestAt: 0x37e8, read }));
+      assert.equal(trace.matches({ requestAt: 0x37e8, read: firstRead }), i === 0);
+      runTo(0x379c);
+      assert.equal(boot.machine.cpu.snapshot().flags.c, false);
+      assert.equal(trace.matches(firstRead), i === 0);
+      assert.ok(trace.matches(read));
+      const bytes = [...image.subarray(index * 256, (index + 1) * 256)];
+      assert.deepEqual(trace.reads[i], { ...read, number: i + 1, bytes });
+      assert.deepEqual(ramPage(buffer), bytes);
+    }
+    runTo(0x3741);
+    assert.equal(trace.reads.length, 27);
+    assert.ok(trace.matches({ firstSector: 10, bootSectors: 27, ramAt: 0x1b00, afterInstruction: 0x373e }));
+    const handoff = boot.step();
+    assert.deepEqual(handoff.instruction.bytes, [0x4c, 0xc8, 0x3f]);
+    assert.equal(handoff.after.pc, 0x3fc8);
   });
   await t.test("bootstrap continues identically after restoring a Disk II read", () => {
     for (let i = 0; i < 1_000_000; i++) {

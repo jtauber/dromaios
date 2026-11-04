@@ -3,7 +3,7 @@ import type { DebugLocation } from "./instruction-debugger.js";
 import type { RomCheckpoint, RomGuide, RomWalkthrough } from "./rom-guide.js";
 import { romCheckpointPosition } from "./rom-guide.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
-import { dos33BasicLength, dos33BinaryHeader, dos33Catalogue, dos33FileSectors } from "./dos33-catalogue.js";
+import { dos33BasicLength, dos33BinaryHeader, dos33Catalogue, dos33FileSectors, sectorLabel } from "./dos33-catalogue.js";
 import { hasDos33Rwts } from "./dos33-reads.js";
 import type { createDos33ReadTrace, LoadObservation } from "./dos33-reads.js";
 import { hex } from "./apple2-explorer.js";
@@ -83,8 +83,9 @@ export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, mach
       if (location.address === parseInt(step.address, 16) && location.space === space(step) && trace?.matches(step.expect)) {
         const hit = `At checkpoint · ${step.title} ($${step.address}).`;
         if ("bootSectors" in step.expect) {
-          const count = step.expect.bootSectors, sectors = count === 1 ? "sector 0" : `sectors 0–${count - 1}`;
-          return `${hit} All ${(256 * count).toLocaleString("en-US")} bytes match track 0, ${sectors}.`;
+          const { firstSector, bootSectors } = step.expect;
+          const range = bootSectors === 1 ? sectorLabel(firstSector) : `${sectorLabel(firstSector)} through ${sectorLabel(firstSector + bootSectors - 1)}`;
+          return `${hit} All ${(256 * bootSectors).toLocaleString("en-US")} bytes match ${range}.`;
         }
         if ("bank" in step.expect) {
           const offset = step.expect.address - 0xd000, selected = machine()!;
