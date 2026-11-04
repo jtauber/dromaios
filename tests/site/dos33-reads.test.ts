@@ -47,6 +47,11 @@ test("a handoff distinguishes direct and indirect jumps to the same destination"
   trace.observe(machine, machine.cpu.step());
   assert.ok(trace.matches(jump));
   assert.ok(!trace.matches(absolute));
+  const slotRead = { sectorId: 12, buffer: 0x3f00 };
+  machine.ram.write(0x3d, 12); machine.ram.write(0x27, 0x3f);
+  assert.ok(trace.matches({ ...jump, slotRead }));
+  assert.ok(!trace.matches({ ...jump, slotRead: { ...slotRead, sectorId: 14 } }));
+  assert.ok(!trace.matches({ ...jump, slotRead: { ...slotRead, buffer: 0x3e00 } }));
   for (const other of [{ jumpFrom: 1 }, { indirect: 0xaa74 }, { target: 0x6001 }]) {
     assert.ok(!trace.matches({ ...jump, ...other }));
   }
@@ -60,14 +65,14 @@ test("a handoff distinguishes direct and indirect jumps to the same destination"
   assert.ok(!trace.matches(jump), "Arrival via JMP $6000 is a different instruction");
 });
 
-test("a boot sector stop compares the entire mounted sector with RAM at the instruction boundary", () => {
+test("a boot stop compares every byte of the requested sectors at the instruction boundary", () => {
   const { machine } = createApple2Session(), trace = createDos33ReadTrace();
   const image = new Uint8Array(Dos33Disk.size);
-  for (let i = 0; i < 256; i++) {
-    image[i] = i;
-    machine.ram.write(0x0800 + i, i);
+  for (let i = 0; i < 2560; i++) {
+    image[i] = (i + (i >>> 8)) & 0xff;
+    machine.ram.write(0x3600 + i, image[i]!);
   }
-  const sector = { bootSectorAt: 0x0800, afterInstruction: 0 };
+  const sector = { bootSectors: 10, ramAt: 0x3600, afterInstruction: 0 };
   machine.ram.write(0, 0xea);
   trace.observe(machine, machine.cpu.step());
   assert.ok(!trace.matches(sector));
@@ -75,9 +80,10 @@ test("a boot sector stop compares the entire mounted sector with RAM at the inst
   const controller = machine.disk.inspect();
   assert.ok(trace.matches(sector));
   assert.ok(!trace.matches({ ...sector, afterInstruction: 1 }));
-  machine.ram.write(0x08ff, 0);
+  machine.ram.write(0x3fff, 0);
   assert.ok(!trace.matches(sector));
-  machine.ram.write(0x08ff, 255);
+  assert.ok(trace.matches({ ...sector, bootSectors: 1 }));
+  machine.ram.write(0x3fff, image[2559]!);
   trace.interrupt();
   assert.ok(!trace.matches(sector));
   assert.deepEqual(machine.disk.inspect(), controller);

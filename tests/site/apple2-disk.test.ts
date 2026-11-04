@@ -291,10 +291,11 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
   const machine = session.machine, terminal = dosTerminal(session);
   const { command, screen } = terminal;
   const original = machine.disk.snapshot().media;
-  await t.test("cold boot crosses from the Monitor to slot 6, decodes sector zero, then executes from RAM", () => {
+  await t.test("cold boot crosses from the Monitor to slot 6, then loads and enters the ten-sector loader", () => {
     const boot = createApple2Session(rom.image, { bootstrap, image: selected.disk });
-    const { ram } = boot.machine, trace = createDos33ReadTrace(), sector = selected.disk.exportImage().subarray(0, 256);
-    let latchReads = 0;
+    const { ram } = boot.machine, trace = createDos33ReadTrace(), image = selected.disk.exportImage();
+    const ramPage = (start: number) => Array.from({ length: 256 }, (_, i) => ram.read(start + i));
+    let latchReads = 0, destination = 0x0800;
     const decoded: number[] = [];
     function runTo(pc: number): void {
       for (let i = 0; i < 1_000_000; i++) {
@@ -304,7 +305,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
         for (const access of record.accesses) {
           if (access.kind === "read" && access.address === 0xc0ec) latchReads++;
           if (record.before.pc === 0xc6e6 && access.kind === "write") {
-            assert.equal(access.address, 0x0800 + decoded.length);
+            assert.equal(access.address, destination + decoded.length);
             decoded.push(access.value);
           }
         }
@@ -320,9 +321,9 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
 
     runTo(0xc6f8);
     assert.ok(latchReads > 0);
-    assert.deepEqual(decoded, [...sector]);
-    assert.deepEqual(Array.from({ length: 256 }, (_, i) => ram.read(0x0800 + i)), [...sector]);
-    assert.ok(trace.matches({ bootSectorAt: 0x0800, afterInstruction: 0xc6f6 }));
+    assert.deepEqual(decoded, [...image.subarray(0, 256)]);
+    assert.deepEqual(ramPage(0x0800), decoded);
+    assert.ok(trace.matches({ bootSectors: 1, ramAt: 0x0800, afterInstruction: 0xc6f6 }));
     assert.equal(trace.reads.length, 0);
 
     const jump = boot.step();
@@ -332,6 +333,36 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     const first = boot.step();
     assert.deepEqual(first.instruction.bytes, [0xa5, 0x27]);
     assert.deepEqual([first.after.a, first.after.pc], [0x09, 0x0803]);
+
+    const reader = { jumpFrom: 0x0836, indirect: 0x003e, target: 0xc65c };
+    const firstRequest = { ...reader, slotRead: { sectorId: 12, buffer: 0x3f00 } };
+    const hex = (address: number) => address.toString(16).toUpperCase();
+    for (let sector = 9; sector >= 0; sector--) {
+      runTo(0xc65c);
+      assert.ok(trace.matches(reader));
+      assert.equal(trace.matches(firstRequest), sector === 9);
+      const id = ram.read(0x3d);
+      destination = ram.read(0x26) + 256 * ram.read(0x27);
+      assert.equal(destination, 0x3600 + sector * 256);
+      // Check the chapter's map against the request and the actual 256 bytes the card delivered.
+      const range = `$${hex(destination)}–$${hex(destination + 255)}`;
+      assert.ok(chapter.includes(`| ${10 - sector} | ${id} | ${sector} | \`${range}\` |`));
+      decoded.length = 0;
+      runTo(0x0801);
+      assert.ok(trace.matches({ jumpFrom: 0xc6f8, target: 0x0801 }));
+      assert.deepEqual(decoded, [...image.subarray(sector * 256, (sector + 1) * 256)]);
+      assert.deepEqual(ramPage(destination), decoded);
+    }
+    runTo(0x084a);
+    assert.ok(trace.matches({ bootSectors: 10, ramAt: 0x3600, afterInstruction: 0x0848 }));
+    assert.deepEqual([ram.read(0x08fd), ram.read(0x08fe)], [0, 0x37]);
+    runTo(0x3700);
+    assert.ok(trace.matches({ jumpFrom: 0x084a, indirect: 0x08fd, target: 0x3700 }));
+    assert.equal(trace.reads.length, 0);
+    const store = boot.step();
+    assert.deepEqual(store.instruction.bytes, [0x8e, 0xe9, 0x37]);
+    assert.deepEqual(store.accesses.at(-1), { kind: "write", address: 0x37e9, value: 0x60 });
+    assert.equal(store.after.pc, 0x3703);
   });
   await t.test("bootstrap continues identically after restoring a Disk II read", () => {
     for (let i = 0; i < 1_000_000; i++) {

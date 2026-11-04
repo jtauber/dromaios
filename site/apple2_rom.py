@@ -50,18 +50,24 @@ def _dos_observation(text, pc):
     sector = re.fullmatch(r"T(\d+) S(\d+) → \$([0-9A-F]{4})", text)
     if sector and int(sector[1]) < 35 and int(sector[2]) < 16:
         return dict(track=int(sector[1]), sector=int(sector[2]), buffer=int(sector[3], 16))
-    boot_sector = re.fullmatch(r"T0 S0 matches RAM at \$([0-9A-F]{4}) after \$([0-9A-F]{4})", text)
-    if boot_sector and int(boot_sector[1], 16) <= 0xbf00:
-        return dict(bootSectorAt=int(boot_sector[1], 16), afterInstruction=int(boot_sector[2], 16))
+    boot = re.fullmatch(r"T0 S0(?:–S(\d+))? in RAM at \$([0-9A-F]{4}) after \$([0-9A-F]{4})", text)
+    if boot:
+        count, start = int(boot[1] or 0) + 1, int(boot[2], 16)
+        if count <= 16 and start + count * 256 <= 0xc000:
+            return dict(bootSectors=count, ramAt=start, afterInstruction=int(boot[3], 16))
     access = re.fullmatch(r"(read|write) \$([0-9A-F]{4})(?: = \$([0-9A-F]{2}))?", text)
     if access:
         expect = dict(kind=access[1], address=int(access[2], 16))
         if access[3] is not None:
             expect["value"] = int(access[3], 16)
         return expect
-    jump = re.fullmatch(r"JMP \(\$([0-9A-F]{4})\) at \$([0-9A-F]{4})", text)
+    jump = re.fullmatch(r"JMP \(\$([0-9A-F]{4})\) at \$([0-9A-F]{4})(?: for sector ID (\d+) into \$([0-9A-F]{4}))?", text)
     if jump:
-        return dict(indirect=int(jump[1], 16), jumpFrom=int(jump[2], 16), target=int(pc[1:], 16))
+        expect = dict(indirect=int(jump[1], 16), jumpFrom=int(jump[2], 16), target=int(pc[1:], 16))
+        if jump[3] is None:
+            return expect
+        if int(jump[3]) < 16 and int(jump[4], 16) <= 0xbf00:
+            return {**expect, "slotRead": dict(sectorId=int(jump[3]), buffer=int(jump[4], 16))}
     direct = re.fullmatch(r"JMP (\$[0-9A-F]{4}) at \$([0-9A-F]{4})", text)
     if direct and direct[1] == pc:
         return dict(jumpFrom=int(direct[2], 16), target=int(pc[1:], 16))
@@ -82,7 +88,10 @@ def dos_walkthroughs(source):
                                   setup="Insert the DOS 3.3 System Master read-only. Start at fresh power-on with the CPU paused.")
     specs["COLOR DEMO"] = dict(id="color-demo", title="RUN COLOR DEMO", file=dict(name="COLOR DEMO", type="I", entry=0x11e51, length=1921),
                                setup="Boot the DOS 3.3 System Master read-only. Pause at the first ] prompt with DOS VERSION still at the top left.")
-    specs["Disk II"] = dict(id="disk-boot", title="Booting from slot 6", fromPowerOn=True, bootPrefix=[0x01, 0xa5, 0x27],
+    # Boot entry, both indirect jumps, and the loader parameters followed by sector one's first instruction.
+    specs["Disk II"] = dict(id="disk-boot", title="Booting from slot 6", fromPowerOn=True,
+                            bootBytes=[(0, [0x01, 0xa5, 0x27]), (0x36, [0x6c, 0x3e, 0]), (0x4a, [0x6c, 0xfd, 8]),
+                                       (0xfd, [0, 0x36, 9, 0x8e, 0xe9, 0x37])],
                             setup="Load the Apple II Plus ROM container, insert the DOS 3.3 System Master read-only, and choose Fresh power-on. Leave the CPU paused.")
     commands = {"Completed": {"LOAD ANSWER", "LIST"}, "Interrupted": {"LOAD ANSWER", "LIST"},
                 "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO", "3"},

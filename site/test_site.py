@@ -99,12 +99,19 @@ class PublishingTests(unittest.TestCase):
             self.assertEqual(step["expect"], dict(page=1, loresPixel=point, before=0, after=1))
             self.assertEqual((step["inspect"], step["space"]), (address, "lc-upper"))
         self.assertTrue(startup["fromPowerOn"])
-        self.assertEqual(startup["bootPrefix"], [0x01, 0xa5, 0x27])
         self.assertEqual([(s["address"], s.get("space", "ram"), s["inspect"], s["expect"]) for s in startup["steps"]], [
             ("C600", "device", 0x0000, dict(jumpFrom=0xfad2, indirect=0, target=0xc600)),
-            ("C6F8", "device", 0x0800, dict(bootSectorAt=0x0800, afterInstruction=0xc6f6)),
+            ("C6F8", "device", 0x0800, dict(bootSectors=1, ramAt=0x0800, afterInstruction=0xc6f6)),
             ("0801", "ram", 0x0801, dict(jumpFrom=0xc6f8, target=0x0801)),
+            ("C65C", "device", 0x0026, dict(jumpFrom=0x0836, indirect=0x003e, target=0xc65c,
+                                           slotRead=dict(sectorId=12, buffer=0x3f00))),
+            ("084A", "ram", 0x3600, dict(bootSectors=10, ramAt=0x3600, afterInstruction=0x0848)),
+            ("3700", "ram", 0x37e9, dict(jumpFrom=0x084a, indirect=0x08fd, target=0x3700)),
         ])
+        for old, new in [("S0–S9 in RAM", "S0–S16 in RAM"), ("in RAM at $3600", "in RAM at $BF00"),
+                         ("ID 12 into", "ID 16 into")]:
+            with self.assertRaisesRegex(ValueError, "Invalid observation"):
+                dos_walkthroughs(source.replace(old, new))
         with self.assertRaisesRegex(ValueError, "outside the slot 6 ROM"):
             dos_walkthroughs(source.replace("$C600 in slot 6", "$C700 in slot 6"))
         with self.assertRaisesRegex(ValueError, "Invalid observation"):

@@ -5,8 +5,14 @@ import type { createApple2Session } from "./apple2-session.js";
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 type Sector = { readonly track: number; readonly sector: number; readonly buffer: number };
 export type DosRead = Sector & { readonly number: number; readonly bytes: readonly number[] };
-export type LoadObservation = Sector | { readonly jumpFrom: number; readonly indirect?: number; readonly target: number }
-  | { readonly bootSectorAt: number; readonly afterInstruction: number }
+type Jump = {
+  readonly jumpFrom: number;
+  readonly indirect?: number;
+  readonly target: number;
+  readonly slotRead?: { readonly sectorId: number; readonly buffer: number };
+};
+export type LoadObservation = Sector | Jump
+  | { readonly bootSectors: number; readonly ramAt: number; readonly afterInstruction: number }
   | { readonly dosCommand: string }
   | { readonly catalogueName: string; readonly address: number; readonly value: number }
   | { readonly textCell: readonly [number, number]; readonly page: number; readonly before: number; readonly after: number }
@@ -58,12 +64,12 @@ export function createDos33ReadTrace() {
     /** A stop describes the boundary just reached, even when several reads share one return PC. */
     matches(expect: LoadObservation): boolean {
       if ("track" in expect) return latest?.track === expect.track && latest.sector === expect.sector && latest.buffer === expect.buffer;
-      if ("bootSectorAt" in expect) {
+      if ("bootSectors" in expect) {
         if (!lastMachine || last?.before.pc !== expect.afterInstruction) return false;
         const disk = lastMachine.disk.inspectMedium()?.snapshot();
         if (!disk) return false;
-        for (let i = 0; i < 256; i++) {
-          if (lastMachine.ram.read(expect.bootSectorAt + i) !== disk[i]) return false;
+        for (let i = 0; i < expect.bootSectors * 256; i++) {
+          if (lastMachine.ram.read(expect.ramAt + i) !== disk[i]) return false;
         }
         return true;
       }
@@ -98,6 +104,12 @@ export function createDos33ReadTrace() {
       }
       if ("jumpFrom" in expect) {
         if (last?.before.pc !== expect.jumpFrom || last.after.pc !== expect.target) return false;
+        if (expect.slotRead) {
+          // All ten requests use the same jump. Check the arguments the boot sector left for the card.
+          const { ram } = lastMachine!;
+          const buffer = ram.read(0x26) + 256 * ram.read(0x27);
+          if (buffer !== expect.slotRead.buffer || ram.read(0x3d) !== expect.slotRead.sectorId) return false;
+        }
         const [opcode, low, high] = last.instruction.bytes;
         const operand = expect.indirect ?? expect.target;
         return opcode === (expect.indirect === undefined ? 0x4c : 0x6c) && low === (operand & 0xff) && high === (operand >>> 8);

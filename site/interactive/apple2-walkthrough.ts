@@ -13,7 +13,7 @@ type LoadCheckpoint = RomCheckpoint & { inspect: number; expect: LoadObservation
 type LoadTour = Omit<RomWalkthrough, "steps"> & {
   fromPowerOn?: boolean;
   steps: readonly LoadCheckpoint[];
-} & ({ bootPrefix: readonly number[] } | {
+} & ({ bootBytes: readonly (readonly [offset: number, bytes: readonly number[]])[] } | {
   file: { name: string; type: "A" } | { name: string; type: "B"; address: number; length: number }
     | { name: string; type: "I"; entry: number; length: number };
 });
@@ -22,7 +22,7 @@ const space = (step: LoadCheckpoint) => step.space ?? (parseInt(step.address, 16
 
 /** Check the boot bytes or DOS file layout the selected tour depends on. */
 function matchesDisk(image: readonly number[], tour: LoadTour): boolean {
-  if ("bootPrefix" in tour) return tour.bootPrefix.every((byte, offset) => byte === image[offset]);
+  if ("bootBytes" in tour) return tour.bootBytes.every(([offset, bytes]) => bytes.every((byte, i) => byte === image[offset + i]));
   try {
     const file = dos33Catalogue(image).files.find(f => f.name === tour.file.name && f.type === tour.file.type);
     if (!file) return false;
@@ -82,7 +82,10 @@ export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, mach
       if (running) return `Running to ${step.title} at $${step.address}.`;
       if (location.address === parseInt(step.address, 16) && location.space === space(step) && trace?.matches(step.expect)) {
         const hit = `At checkpoint · ${step.title} ($${step.address}).`;
-        if ("bootSectorAt" in step.expect) return `${hit} All 256 bytes match track 0, sector 0.`;
+        if ("bootSectors" in step.expect) {
+          const count = step.expect.bootSectors, sectors = count === 1 ? "sector 0" : `sectors 0–${count - 1}`;
+          return `${hit} All ${(256 * count).toLocaleString("en-US")} bytes match track 0, ${sectors}.`;
+        }
         if ("bank" in step.expect) {
           const offset = step.expect.address - 0xd000, selected = machine()!;
           const rom = selected.firmware.read(offset), byte = selected[step.expect.bank].read(offset);

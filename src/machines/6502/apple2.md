@@ -582,12 +582,12 @@ In the laboratory, load the 20 KiB Apple II Plus ROM container and insert
 the DOS 3.3 System Master read-only. Choose **Fresh power-on** and leave
 the CPU paused. In **Walkthrough**, select **Booting from slot 6** and choose
 **Run to checkpoint**. Use **Next** and **Run to checkpoint** to follow
-the three stops. No keystrokes are needed on the Apple II screen.
+the boot from the Monitor to the loader at `$3700`. No keystrokes are needed.
 
 | Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
 | --- | --- | --- | --- | --- | --- | --- |
 | Disk II | Boot | The Monitor enters slot 6 | $C600 in slot 6 | JMP ($0000) at $FAD2 | $0000 | The pointer contains 00 C6. Browse code to see LDX #$20, the first instruction in the Disk II card's ROM. |
-| Disk II | Boot | The first sector is in RAM | $C6F8 in slot 6 | T0 S0 matches RAM at $0800 after $C6F6 | $0800 | All 256 bytes at $0800–$08FF match the disk. The next instruction, JMP $0801, is still in the card's ROM. |
+| Disk II | Boot | The first sector is in RAM | $C6F8 in slot 6 | T0 S0 in RAM at $0800 after $C6F6 | $0800 | All 256 bytes at $0800–$08FF match the disk. The next instruction, JMP $0801, is still in the card's ROM. |
 | Disk II | Boot | Disk code takes control | $0801 | JMP $0801 at $C6F8 | $0801 | The jump has completed. Step once to execute LDA $27 from disk. A becomes $09 and PC advances to $0803. |
 
 At the first stop the Monitor has found the card during its slot scan. The
@@ -604,6 +604,44 @@ falls through to the jump. Select the third stop to cross that jump. The
 first opcode is the second byte of the sector, `A5`. Its operand, `27`,
 addresses the high byte of the loader's destination pointer, which has
 advanced from page `$08` to page `$09`.
+
+#### How the first sector loads the next ten
+
+The code at `$0801` uses the card again. It puts a destination address in
+`$26–$27` and a sector ID in `$3D`, then jumps through `$3E–$3F` into the
+card's reader at `$C65C`. Each time the card finishes, its familiar
+`JMP $0801` gives control back to the boot sector to set up another read.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| Disk II | Boot | The boot sector calls the card back | $C65C in slot 6 | JMP ($003E) at $0836 for sector ID 12 into $3F00 | $0026 | The pointer at $26–$27 contains 00 3F. At $3D the requested ID is $0C. The card will read track 0 into page $3F. |
+| Disk II | Boot | Ten sectors form the next loader | $084A | T0 S0–S9 in RAM at $3600 after $0848 | $3600 | All 2,560 bytes at $3600–$3FFF match the disk. The first page is another copy of sector zero. The pointer at $08FD–$08FE now contains 00 37. |
+| Disk II | Boot | The next loader takes control | $3700 | JMP ($08FD) at $084A | $37E9 | Browse code to see STX $37E9, the first instruction from image sector 1. Step once to store X ($60) there and advance to $3703. |
+
+The card recognizes the sector ID recorded in each address field on the
+track. The `.dsk` file stores the same sectors in DOS order. For the first
+read, the boot sector indexes its table at `$084D` with 9 and finds
+`$0C`. The card therefore looks for ID 12, and the bytes it reads are at
+image offset `$0900`. Both sector columns below use decimal numbers.
+
+| Read | Sector ID on track 0 | DOS-order image sector | RAM destination |
+| ---: | ---: | ---: | --- |
+| 1 | 12 | 9 | `$3F00–$3FFF` |
+| 2 | 14 | 8 | `$3E00–$3EFF` |
+| 3 | 1 | 7 | `$3D00–$3DFF` |
+| 4 | 3 | 6 | `$3C00–$3CFF` |
+| 5 | 5 | 5 | `$3B00–$3BFF` |
+| 6 | 7 | 4 | `$3A00–$3AFF` |
+| 7 | 9 | 3 | `$3900–$39FF` |
+| 8 | 11 | 2 | `$3800–$38FF` |
+| 9 | 13 | 1 | `$3700–$37FF` |
+| 10 | 0 | 0 | `$3600–$36FF` |
+
+Both the image-sector number and the destination page count down, so
+ascending RAM addresses hold the sectors in image order. The last read
+puts a fresh copy of sector zero at `$3600`, while the boot code still
+executes at `$0801`. Its jump at `$084A` selects the next page, `$3700`,
+where sector 1 begins.
 
 ### Saving ANSWER across a fresh boot
 
