@@ -555,7 +555,8 @@ DOS; DOS runs the disk's HELLO program. In this machine the same 6502 executes
 every stage. No host routine intercepts a ROM call or supplies a DOS command.
 
 Select the ROM container and System Master, then Run. Wait for
-`DOS VERSION 3.3` and the System Master banner. HELLO detects the Language Card
+`DOS VERSION 3.3` and the System Master banner. The [startup walkthrough](#how-dos-starts-hello)
+shows how DOS finds HELLO and starts its first line. HELLO detects the Language Card
 and [loads Integer BASIC into it](#how-hello-loads-integer-basic) before returning to the Applesoft `]` prompt.
 This takes substantially longer than a ROM-only boot; the browser yields
 between bounded instruction batches so Pause remains available.
@@ -960,6 +961,50 @@ appear on the screen. Resume to return to the Applesoft prompt.
 | BEACON | BLOAD BEACON | Finish the first data sector | $ACA5 | write $60FB = $FB | $60FB | DOS has copied 252 bytes from the first sector. The second sector continues at $60FC. |
 | BEACON | BLOAD BEACON | Finish loading all 300 bytes | $ACA5 | write $612B = $AA | $612B | The star byte has arrived from the second sector. BLOAD will return without executing the program. |
 | BEACON | BRUN BEACON | DOS hands control to BEACON | $6000 | JMP ($AA72) at $A394 | $6000 | The DOS jump has completed. The next instruction is LDA $612B, and the program has yet to draw the star. |
+
+## How DOS starts HELLO
+
+On the DOS 3.3 System Master, the startup filename is part of the DOS
+image. At track 1, sector 9, offset `$75` (disk image offset `$01975`),
+the bytes `C8 C5 CC CC CF` spell HELLO with the high bit set. Spaces
+(`A0`) fill the rest of the 30-byte field. The loader brings this name
+into RAM at `$2A75`, and the relocation loop copies it to `$AA75`.
+
+Insert the read-only System Master, choose **Fresh power-on**, and
+select **How DOS starts HELLO** in **Walkthrough**. You can also continue
+from **The public entry becomes executable** in the RWTS walkthrough.
+Use **Run to checkpoint** at each of the three stops, without typing
+anything on the Apple II screen.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| HELLO | Boot | DOS chooses RUN and the startup filename | $9E4D | write $AA5F = $06 | $AA75 | The store at $9E4A selected RUN. Inspect the filename already in RAM. The next jump takes DOS to its command dispatcher. |
+| HELLO | Boot | DOS finds HELLO in the catalogue | $ABB5 | read $B4C8 = $82 for `HELLO` | $B4C6 | The first entry reads 13 0F 82 followed by the name. Its track/sector list is on track 19, sector 15. The type byte marks a locked Applesoft program. |
+| HELLO | Boot | Applesoft reads the first token of line 10 | $00BA | read $0805 = $B2 | $0801 | Read 19 08 (next line at $0819), 0A 00 (line 10), then B2 (REM). A holds B2. The comment text follows the token in RAM. |
+
+During startup DOS writes its internal RUN command number, `06`, to
+`$AA5F`. The dispatcher
+at `$A180` takes the same path to `$A4D1` as it would for a typed
+`RUN HELLO`. The name at `$AA75` tells DOS what to look for. The
+catalogue tells it where to find the file.
+
+At the third stop, open **Disk → DOS sector read trace** to follow the
+file from its catalogue entry into RAM. Sector numbers here are decimal.
+
+| DOS sector | RAM destination | What to look for |
+| --- | --- | --- |
+| T17 S15 | `$B4BB` | HELLO is the first catalogue entry, at offset `$0B`. |
+| T19 S15 | `$9700` | Five track/sector pairs at `$970C` point to the program sectors. |
+| T19 S14 through S10 | `$9600`, reused for each read | In the captured S14 read, `71 04` gives the 1,137-byte file payload length. The line starts at `$9602` and its REM token is at `$9606`. |
+
+DOS skips the two length bytes and copies the program to `$0801`.
+At the third stop, Applesoft has put 10 in its current line number at
+`$0075–$0076`. Its zero-page instruction at `$00B7` now reads
+`LDA $0805`. The byte it fetched came from disk image offset `$13E06`.
+`REM` tells Applesoft to skip the comment `-- DOS 3.3 HELLO` and
+continue at line 20. To follow the program past its opening comments,
+switch to [HELLO, INT and FP](#how-hello-loads-integer-basic) and run
+to **HELLO requests Integer BASIC**.
 
 ## How HELLO loads Integer BASIC
 

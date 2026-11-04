@@ -292,10 +292,10 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
   const machine = session.machine, terminal = dosTerminal(session);
   const { command, screen } = terminal;
   const original = machine.disk.snapshot().media;
-  await t.test("cold boot loads DOS through slot 6 and relocates it into high RAM", () => {
+  await t.test("cold boot loads DOS through slot 6, relocates it, and starts line 10 of HELLO", () => {
     const boot = createApple2Session(rom.image, { bootstrap, image: selected.disk });
     const { ram } = boot.machine, trace = createDos33ReadTrace(), image = selected.disk.exportImage();
-    const ramPage = (start: number) => Array.from({ length: 256 }, (_, i) => ram.read(start + i));
+    const ramBytes = (start: number, count = 256) => Array.from({ length: count }, (_, i) => ram.read(start + i));
     let latchReads = 0, destination = 0x0800;
     const decoded: number[] = [];
     function runTo(pc: number, observation?: LoadObservation): Cpu6502StepRecord {
@@ -323,7 +323,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     runTo(0xc6f8);
     assert.ok(latchReads > 0);
     assert.deepEqual(decoded, [...image.subarray(0, 256)]);
-    assert.deepEqual(ramPage(0x0800), decoded);
+    assert.deepEqual(ramBytes(0x0800), decoded);
     assert.ok(trace.matches({ firstSector: 0, bootSectors: 1, ramAt: 0x0800, afterInstruction: 0xc6f6 }));
     assert.equal(trace.reads.length, 0);
 
@@ -352,7 +352,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
       runTo(0x0801);
       assert.ok(trace.matches({ jumpFrom: 0xc6f8, target: 0x0801 }));
       assert.deepEqual(decoded, [...image.subarray(sector * 256, (sector + 1) * 256)]);
-      assert.deepEqual(ramPage(destination), decoded);
+      assert.deepEqual(ramBytes(destination), decoded);
     }
     runTo(0x084a);
     assert.ok(trace.matches({ firstSector: 0, bootSectors: 10, ramAt: 0x3600, afterInstruction: 0x0848 }));
@@ -379,7 +379,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
       assert.ok(trace.matches(read));
       const bytes = [...image.subarray(index * 256, (index + 1) * 256)];
       assert.deepEqual(trace.reads[i], { ...read, number: i + 1, bytes });
-      assert.deepEqual(ramPage(buffer), bytes);
+      assert.deepEqual(ramBytes(buffer), bytes);
     }
     runTo(0x3741);
     assert.equal(trace.reads.length, 27);
@@ -391,6 +391,9 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     const threeBytes = (address: number) => [ram.read(address), ram.read(address + 1), ram.read(address + 2)];
     const originalLoad = [...image.subarray(0xc84, 0xc87)], relocatedLoad = [0xad, 0xe9, 0xb7];
     runTo(0x1b03, { jumpFrom: 0x3747, target: 0x1b03 });
+    const startupName = Array.from("HELLO".padEnd(30), c => c.charCodeAt(0) | 0x80);
+    assert.deepEqual([...image.subarray(0x1975, 0x1975 + 30)], startupName);
+    assert.deepEqual(ramBytes(0x2a75, 30), startupName);
     assert.deepEqual(originalLoad, [0xad, 0xe9, 0x37]);
     assert.deepEqual(threeBytes(0x1d84), originalLoad);
     assert.deepEqual(threeBytes(0x1e54), [0x4c, 0x84, 0x1d]);
@@ -422,11 +425,37 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
       assert.equal(store.before.x, address - 0x03d0);
     }
     assert.deepEqual(threeBytes(0x03d9), [0x4c, 0xb5, 0xb7]);
+    const selectRun = runTo(0x9e4d, { kind: "write", address: 0xaa5f, value: 6 });
+    assert.equal(selectRun.before.pc, 0x9e4a);
+    assert.deepEqual(ramBytes(0xaa75, 30), startupName);
+    runTo(0xa4d1);
+    runTo(0xa2ed, { kind: "read", address: 0xaa75, value: 0xc8 });
     const vtocRead = { track: 17, sector: 0, buffer: 0xb3bb };
     const direct = runTo(0xb7b5, { call: { source: 0xb090, target: 0xb7b5 }, requestAt: 0xb7e8, read: vtocRead });
     assert.deepEqual([direct.after.a, direct.after.y], [0xb7, 0xe8]);
     assert.ok(!trace.matches({ jumpFrom: 0x03d9, target: 0xb7b5 }));
     runTo(0xb093, vtocRead);
+    runTo(0xabb5, { address: 0xb4c8, value: 0x82, catalogueName: "HELLO" });
+    const catalogue = trace.reads.at(-1)!;
+    assert.deepEqual([catalogue.track, catalogue.sector, catalogue.buffer], [17, 15, 0xb4bb]);
+    assert.deepEqual(ramBytes(0xb4c6, 35), [19, 15, 0x82, ...startupName, 6, 0]);
+
+    runTo(0xb093, { track: 19, sector: 15, buffer: 0x9700 });
+    const pointers = ramBytes(0x970c, 10), file: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const track = pointers[2 * i]!, sector = pointers[2 * i + 1]!;
+      assert.deepEqual([track, sector], [19, 14 - i]);
+      runTo(0xb093, { track, sector, buffer: 0x9600 });
+      const offset = (track * 16 + sector) * 256, bytes = ramBytes(0x9600);
+      assert.deepEqual(bytes, [...image.subarray(offset, offset + 256)]);
+      file.push(...bytes);
+    }
+    assert.deepEqual(file.slice(0, 7), [0x71, 4, 0x19, 8, 10, 0, 0xb2]);
+    const token = runTo(0x00ba, { kind: "read", address: 0x0805, value: 0xb2 });
+    assert.deepEqual(token.instruction.bytes, [0xad, 0x05, 0x08]); // Applesoft patched its zero-page LDA.
+    assert.equal(token.after.a, 0xb2);
+    assert.deepEqual(ramBytes(0x75, 2), [10, 0]);
+    assert.deepEqual(ramBytes(0x0801, 1137), file.slice(2, 2 + 1137));
   });
   await t.test("bootstrap continues identically after restoring a Disk II read", () => {
     for (let i = 0; i < 1_000_000; i++) {

@@ -115,12 +115,20 @@ def dos_walkthroughs(source):
                                     (0xd5a, [0x4c, 0xb5, 0x37]), (0x1f90, [0x20, 0xb5, 0x37]), (0x12600, [0x20, 0x22, 0x3a, 0xab])],
                          setup="Use the Apple II Plus ROM container and the read-only DOS 3.3 System Master. Start at fresh power-on "
                                "or continue from Execute the relocated instruction. If DOS is already at the ] prompt, start at The caller enters at the fixed address.")
+    hello_name = [ord(c) | 0x80 for c in "HELLO".ljust(30)]
+    specs["HELLO"] = dict(id="hello-startup", title="How DOS starts HELLO", fromPowerOn=True,
+                         bootBytes=[*specs["DOS relocation"]["bootBytes"], (0xd41, [0xa9, 6]), (0x1975, hello_name),
+                                    (0x11001, [17, 15]), (0x11f0b, [19, 15, 0x82, *hello_name, 6, 0]),
+                                    (0x13f0c, [19, 14, 19, 13, 19, 12, 19, 11, 19, 10]),
+                                    (0x13e00, [0x71, 0x04, 0x19, 0x08, 10, 0, 0xb2])],
+                         setup="Insert the read-only DOS 3.3 System Master. Start at fresh power-on or continue from "
+                               "The public entry becomes executable in Installing and calling RWTS. Leave the keyboard untouched.")
     caller = re.search(r"^#### Sector-read caller\n\n```text\n([^`]+)\n```$", source, re.M)
     if not caller:
         raise ValueError("The RWTS walkthrough needs its Monitor listing in the machine chapter.")
     commands = {"Completed": {"LOAD ANSWER", "LIST"}, "Interrupted": {"LOAD ANSWER", "LIST"},
                 "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO", "3"},
-                "Disk II": {"Boot"}, "DOS relocation": {"Boot"}, "RWTS": {"Boot", "300G"}}
+                "Disk II": {"Boot"}, "DOS relocation": {"Boot"}, "RWTS": {"Boot", "300G"}, "HELLO": {"Boot"}}
     boot_inputs = {
         "INT": "Resume until HELLO finishes at the ] prompt. Pause, queue INT with Return, then run to this checkpoint.",
         "FP": "Resume to the > prompt and enter PRINT 6*7. After 42, pause and queue FP with Return.",
@@ -164,6 +172,8 @@ def dos_walkthroughs(source):
                     step["space"] = {"ROM": "rom", "LC upper": "lc-upper", "slot 6": "device"}[mapping]
                 if disk == "System Master" and command == "Boot":
                     step["limit"] = 25_000_000  # Cold boot reaches the first store after 20 million instructions.
+                elif disk == "HELLO":
+                    step["limit"] = 16_000_000  # The first line's token is fetched after 15,249,533 instructions from power-on.
                 elif command == "Boot" and (disk in {"DOS relocation", "RWTS"} or (disk == "Disk II" and address == "3741")):
                     step["limit"] = 12_000_000  # The late loader, relocation and page-three stops take up to 11.81 million from power-on.
                 specs[disk]["steps"].append(step)

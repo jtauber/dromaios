@@ -64,7 +64,7 @@ class PublishingTests(unittest.TestCase):
 
     def test_dos_walkthrough_stops_come_from_the_machine_chapter(self):
         source = APPLE2.read_text()
-        complete, cut, binary, boot, demo, startup, relocation, rwts = dos_walkthroughs(source)
+        complete, cut, binary, boot, demo, startup, relocation, rwts, hello = dos_walkthroughs(source)
         sector_reads = lambda tour: [(e["track"], e["sector"], e["buffer"]) for step in tour["steps"]
                                      if "track" in (e := step["expect"])]
         common = [(17, 12, 0xb4bb), (12, 6, 0x9700)]
@@ -130,6 +130,13 @@ class PublishingTests(unittest.TestCase):
         self.assertTrue(all(s["limit"] >= 11_805_069 for s in rwts["steps"][:3]))
         self.assertIn("CALL -151\n300:A9 03 A0 80 20 D9 03 60", rwts["steps"][3]["prepare"])
         self.assertIn("without entering another command", rwts["steps"][4]["prepare"])
+        self.assertTrue(hello["fromPowerOn"])
+        self.assertEqual([(s["address"], s["inspect"], s["expect"]) for s in hello["steps"]], [
+            ("9E4D", 0xaa75, dict(kind="write", address=0xaa5f, value=6)),
+            ("ABB5", 0xb4c6, dict(address=0xb4c8, value=0x82, catalogueName="HELLO")),
+            ("00BA", 0x0801, dict(kind="read", address=0x0805, value=0xb2)),
+        ])
+        self.assertTrue(all(s["limit"] >= 15_249_533 for s in hello["steps"]))
         for old, new in [("S0–S9 in RAM", "S0–S16 in RAM"), ("in RAM at $3600", "in RAM at $BF00"),
                          ("T0 S10–T2 S4", "T2 S10–T2 S4"), ("T0 S10–T2 S4", "T0 S10–T35 S4"),
                          ("ID 12 into", "ID 16 into")]:
