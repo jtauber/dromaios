@@ -64,7 +64,7 @@ class PublishingTests(unittest.TestCase):
 
     def test_dos_walkthrough_stops_come_from_the_machine_chapter(self):
         source = APPLE2.read_text()
-        complete, cut, binary, boot, demo = dos_walkthroughs(source)
+        complete, cut, binary, boot, demo, startup = dos_walkthroughs(source)
         sector_reads = lambda tour: [(e["track"], e["sector"], e["buffer"]) for step in tour["steps"]
                                      if "track" in (e := step["expect"])]
         common = [(17, 12, 0xb4bb), (12, 6, 0x9700)]
@@ -98,6 +98,17 @@ class PublishingTests(unittest.TestCase):
         for step, point, address in [(first, [1, 3], 0x481), (mirror, [3, 1], 0x403)]:
             self.assertEqual(step["expect"], dict(page=1, loresPixel=point, before=0, after=1))
             self.assertEqual((step["inspect"], step["space"]), (address, "lc-upper"))
+        self.assertTrue(startup["fromPowerOn"])
+        self.assertEqual(startup["bootPrefix"], [0x01, 0xa5, 0x27])
+        self.assertEqual([(s["address"], s.get("space", "ram"), s["inspect"], s["expect"]) for s in startup["steps"]], [
+            ("C600", "device", 0x0000, dict(jumpFrom=0xfad2, indirect=0, target=0xc600)),
+            ("C6F8", "device", 0x0800, dict(bootSectorAt=0x0800, afterInstruction=0xc6f6)),
+            ("0801", "ram", 0x0801, dict(jumpFrom=0xc6f8, target=0x0801)),
+        ])
+        with self.assertRaisesRegex(ValueError, "outside the slot 6 ROM"):
+            dos_walkthroughs(source.replace("$C600 in slot 6", "$C700 in slot 6"))
+        with self.assertRaisesRegex(ValueError, "Invalid observation"):
+            dos_walkthroughs(source.replace("JMP $0801 at", "JMP $0800 at"))
         with self.assertRaisesRegex(ValueError, "Invalid observation"):
             dos_walkthroughs(source.replace("T12 S5 →", "T12 S16 →"))
 

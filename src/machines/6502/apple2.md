@@ -576,6 +576,35 @@ arithmetic program, and try LIST and RUN again. DOS and Applesoft work together;
 RUN still prints 5. On the protected System Master, `SAVE TEST` reports
 `WRITE PROTECTED`.
 
+### From slot 6 to the first instruction on disk
+
+In the laboratory, load the 20 KiB Apple II Plus ROM container and insert
+the DOS 3.3 System Master read-only. Choose **Fresh power-on** and leave
+the CPU paused. In **Walkthrough**, select **Booting from slot 6** and choose
+**Run to checkpoint**. Use **Next** and **Run to checkpoint** to follow
+the three stops. No keystrokes are needed on the Apple II screen.
+
+| Disk | Command | Stop | PC | Last observation | Inspect RAM | What to look for |
+| --- | --- | --- | --- | --- | --- | --- |
+| Disk II | Boot | The Monitor enters slot 6 | $C600 in slot 6 | JMP ($0000) at $FAD2 | $0000 | The pointer contains 00 C6. Browse code to see LDX #$20, the first instruction in the Disk II card's ROM. |
+| Disk II | Boot | The first sector is in RAM | $C6F8 in slot 6 | T0 S0 matches RAM at $0800 after $C6F6 | $0800 | All 256 bytes at $0800–$08FF match the disk. The next instruction, JMP $0801, is still in the card's ROM. |
+| Disk II | Boot | Disk code takes control | $0801 | JMP $0801 at $C6F8 | $0801 | The jump has completed. Step once to execute LDA $27 from disk. A becomes $09 and PC advances to $0803. |
+
+At the first stop the Monitor has found the card during its slot scan. The
+card's ROM reads encoded disk bytes through the slot-6 data latch at `$C0EC`.
+Its store at `$C6C6` fills a page starting at `$0800` with six bits per byte.
+The store at `$C6E6` writes each byte again after rotating in the other two
+bits. These latch reads happen before DOS has installed its sector-read routine.
+
+At the second stop, open **Disk → Volume and catalogue → Boot sector** to
+see track 0, sector 0. Compare its opening bytes, `01 A5 27 C9 09`, with
+**Inspect RAM $0800** in the walkthrough. The first byte tells the card
+how many sectors to load. On this disk it is `01`, so the branch at `$C6F6`
+falls through to the jump. Select the third stop to cross that jump. The
+first opcode is the second byte of the sector, `A5`. Its operand, `27`,
+addresses the high byte of the loader's destination pointer, which has
+advanced from page `$08` to page `$09`.
+
 ### Saving ANSWER across a fresh boot
 
 In the laboratory’s **Disk** panel, choose **Insert writable copy…** and

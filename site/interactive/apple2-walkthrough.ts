@@ -9,18 +9,20 @@ import type { createDos33ReadTrace, LoadObservation } from "./dos33-reads.js";
 import { hex } from "./apple2-explorer.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
-type LoadCheckpoint = RomCheckpoint & { inspect: number; expect: LoadObservation; space?: "rom" | "lc-upper"; limit?: number };
+type LoadCheckpoint = RomCheckpoint & { inspect: number; expect: LoadObservation; space?: "rom" | "lc-upper" | "device"; limit?: number };
 type LoadTour = Omit<RomWalkthrough, "steps"> & {
-  file: { name: string; type: "A" } | { name: string; type: "B"; address: number; length: number }
-    | { name: string; type: "I"; entry: number; length: number };
   fromPowerOn?: boolean;
   steps: readonly LoadCheckpoint[];
-};
+} & ({ bootPrefix: readonly number[] } | {
+  file: { name: string; type: "A" } | { name: string; type: "B"; address: number; length: number }
+    | { name: string; type: "I"; entry: number; length: number };
+});
 const loadStep = (step: RomCheckpoint): step is LoadCheckpoint => "expect" in step;
 const space = (step: LoadCheckpoint) => step.space ?? (parseInt(step.address, 16) < 0xc000 ? "ram" : "rom");
 
-/** Enable each tour only for a disk with the catalogue layout or file header its stops depend on. */
+/** Check the boot bytes or DOS file layout the selected tour depends on. */
 function matchesDisk(image: readonly number[], tour: LoadTour): boolean {
+  if ("bootPrefix" in tour) return tour.bootPrefix.every((byte, offset) => byte === image[offset]);
   try {
     const file = dos33Catalogue(image).files.find(f => f.name === tour.file.name && f.type === tour.file.type);
     if (!file) return false;
@@ -58,7 +60,7 @@ export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, mach
       const selected = machine(), image = selected?.disk.inspectMedium()?.snapshot();
       if (image !== lastImage) { lastImage = image; enabled.clear(); }
       if (!enabled.has(load)) enabled.set(load, !!image && matchesDisk(image, load));
-      return !!trace && !!selected && enabled.get(load)! && (load.fromPowerOn === true || hasDos33Rwts(selected));
+      return !!trace && !!selected && enabled.get(load)! && (load.fromPowerOn ? selected.disk.inspect().installed : hasDos33Rwts(selected));
     },
     runTo(address, step) {
       if (loadStep(step)) actions.runTo(address, space(step), () => trace!.matches(step.expect), step.limit);
@@ -80,6 +82,7 @@ export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, mach
       if (running) return `Running to ${step.title} at $${step.address}.`;
       if (location.address === parseInt(step.address, 16) && location.space === space(step) && trace?.matches(step.expect)) {
         const hit = `At checkpoint · ${step.title} ($${step.address}).`;
+        if ("bootSectorAt" in step.expect) return `${hit} All 256 bytes match track 0, sector 0.`;
         if ("bank" in step.expect) {
           const offset = step.expect.address - 0xd000, selected = machine()!;
           const rom = selected.firmware.read(offset), byte = selected[step.expect.bank].read(offset);

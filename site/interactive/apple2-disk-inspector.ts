@@ -51,6 +51,7 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
       }));
     } else if (image && source.value === "volume") {
       rows = [{ key: "vtoc", index: vtoc, label: "Volume table", detail: notice || `Volume ${catalogue?.number}. The first catalogue pointer is at +$01.` },
+        { key: "boot", index: 0, label: "Boot sector", detail: "Compare these first 256 disk bytes with RAM at $0800 after the slot ROM loads the sector." },
         ...(catalogue?.sectors ?? []).map(index => ({ key: String(index), index, label: "Catalogue", detail: "The next catalogue pointer is at +$01." }))];
     } else if (image && catalogue) {
       const file = catalogue.files.find(file => String(file.entry) === source.value);

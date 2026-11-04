@@ -38,13 +38,15 @@ test("DOS reads require an observed request and successful matching return, and 
   trace.clear(); assert.equal(trace.reads.length, 0);
 });
 
-test("a handoff matches the executed indirect jump and expires on the next instruction", () => {
+test("a handoff distinguishes direct and indirect jumps to the same destination", () => {
   const { machine } = createApple2Session(), trace = createDos33ReadTrace();
   [0x6c, 0x72, 0xaa].forEach((v, i) => machine.ram.write(i, v));
   machine.ram.write(0xaa73, 0x60); machine.ram.write(0x6000, 0xea);
   const jump = { jumpFrom: 0, indirect: 0xaa72, target: 0x6000 };
+  const absolute = { jumpFrom: 0, target: 0x6000 };
   trace.observe(machine, machine.cpu.step());
   assert.ok(trace.matches(jump));
+  assert.ok(!trace.matches(absolute));
   for (const other of [{ jumpFrom: 1 }, { indirect: 0xaa74 }, { target: 0x6001 }]) {
     assert.ok(!trace.matches({ ...jump, ...other }));
   }
@@ -54,7 +56,32 @@ test("a handoff matches the executed indirect jump and expires on the next instr
   const direct = createApple2Session().machine;
   [0x4c, 0, 0x60].forEach((v, i) => direct.ram.write(i, v));
   trace.observe(direct, direct.cpu.step());
+  assert.ok(trace.matches(absolute));
   assert.ok(!trace.matches(jump), "Arrival via JMP $6000 is a different instruction");
+});
+
+test("a boot sector stop compares the entire mounted sector with RAM at the instruction boundary", () => {
+  const { machine } = createApple2Session(), trace = createDos33ReadTrace();
+  const image = new Uint8Array(Dos33Disk.size);
+  for (let i = 0; i < 256; i++) {
+    image[i] = i;
+    machine.ram.write(0x0800 + i, i);
+  }
+  const sector = { bootSectorAt: 0x0800, afterInstruction: 0 };
+  machine.ram.write(0, 0xea);
+  trace.observe(machine, machine.cpu.step());
+  assert.ok(!trace.matches(sector));
+  machine.disk.insert(new Dos33Disk(image));
+  const controller = machine.disk.inspect();
+  assert.ok(trace.matches(sector));
+  assert.ok(!trace.matches({ ...sector, afterInstruction: 1 }));
+  machine.ram.write(0x08ff, 0);
+  assert.ok(!trace.matches(sector));
+  machine.ram.write(0x08ff, 255);
+  trace.interrupt();
+  assert.ok(!trace.matches(sector));
+  assert.deepEqual(machine.disk.inspect(), controller);
+  assert.equal(trace.reads.length, 0);
 });
 
 test("a DOS command includes its terminator and a bank stop requires a physical store even with recording off", () => {

@@ -291,6 +291,48 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
   const machine = session.machine, terminal = dosTerminal(session);
   const { command, screen } = terminal;
   const original = machine.disk.snapshot().media;
+  await t.test("cold boot crosses from the Monitor to slot 6, decodes sector zero, then executes from RAM", () => {
+    const boot = createApple2Session(rom.image, { bootstrap, image: selected.disk });
+    const { ram } = boot.machine, trace = createDos33ReadTrace(), sector = selected.disk.exportImage().subarray(0, 256);
+    let latchReads = 0;
+    const decoded: number[] = [];
+    function runTo(pc: number): void {
+      for (let i = 0; i < 1_000_000; i++) {
+        const record = boot.step();
+        assert.equal(record.outcome, "executed");
+        trace.observe(boot.machine, record);
+        for (const access of record.accesses) {
+          if (access.kind === "read" && access.address === 0xc0ec) latchReads++;
+          if (record.before.pc === 0xc6e6 && access.kind === "write") {
+            assert.equal(access.address, 0x0800 + decoded.length);
+            decoded.push(access.value);
+          }
+        }
+        if (record.after.pc === pc) return;
+      }
+      assert.fail(`Boot never reached $${pc.toString(16)}`);
+    }
+    runTo(0xc600);
+    assert.ok(trace.matches({ jumpFrom: 0xfad2, indirect: 0, target: 0xc600 }));
+    assert.equal(apple2DebugLocation(boot.machine).space, "device");
+    assert.deepEqual([ram.read(0), ram.read(1)], [0, 0xc6]);
+    assert.equal(latchReads, 0);
+
+    runTo(0xc6f8);
+    assert.ok(latchReads > 0);
+    assert.deepEqual(decoded, [...sector]);
+    assert.deepEqual(Array.from({ length: 256 }, (_, i) => ram.read(0x0800 + i)), [...sector]);
+    assert.ok(trace.matches({ bootSectorAt: 0x0800, afterInstruction: 0xc6f6 }));
+    assert.equal(trace.reads.length, 0);
+
+    const jump = boot.step();
+    trace.observe(boot.machine, jump);
+    assert.ok(trace.matches({ jumpFrom: 0xc6f8, target: 0x0801 }));
+    assert.deepEqual(apple2DebugLocation(boot.machine), { space: "ram", address: 0x0801 });
+    const first = boot.step();
+    assert.deepEqual(first.instruction.bytes, [0xa5, 0x27]);
+    assert.deepEqual([first.after.a, first.after.pc], [0x09, 0x0803]);
+  });
   await t.test("bootstrap continues identically after restoring a Disk II read", () => {
     for (let i = 0; i < 1_000_000; i++) {
       const record = session.step();

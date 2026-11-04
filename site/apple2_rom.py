@@ -50,6 +50,9 @@ def _dos_observation(text, pc):
     sector = re.fullmatch(r"T(\d+) S(\d+) → \$([0-9A-F]{4})", text)
     if sector and int(sector[1]) < 35 and int(sector[2]) < 16:
         return dict(track=int(sector[1]), sector=int(sector[2]), buffer=int(sector[3], 16))
+    boot_sector = re.fullmatch(r"T0 S0 matches RAM at \$([0-9A-F]{4}) after \$([0-9A-F]{4})", text)
+    if boot_sector and int(boot_sector[1], 16) <= 0xbf00:
+        return dict(bootSectorAt=int(boot_sector[1], 16), afterInstruction=int(boot_sector[2], 16))
     access = re.fullmatch(r"(read|write) \$([0-9A-F]{4})(?: = \$([0-9A-F]{2}))?", text)
     if access:
         expect = dict(kind=access[1], address=int(access[2], 16))
@@ -59,6 +62,9 @@ def _dos_observation(text, pc):
     jump = re.fullmatch(r"JMP \(\$([0-9A-F]{4})\) at \$([0-9A-F]{4})", text)
     if jump:
         return dict(indirect=int(jump[1], 16), jumpFrom=int(jump[2], 16), target=int(pc[1:], 16))
+    direct = re.fullmatch(r"JMP (\$[0-9A-F]{4}) at \$([0-9A-F]{4})", text)
+    if direct and direct[1] == pc:
+        return dict(jumpFrom=int(direct[2], 16), target=int(pc[1:], 16))
     raise ValueError(f"Invalid observation at {pc}: {text}.")
 
 
@@ -76,8 +82,11 @@ def dos_walkthroughs(source):
                                   setup="Insert the DOS 3.3 System Master read-only. Start at fresh power-on with the CPU paused.")
     specs["COLOR DEMO"] = dict(id="color-demo", title="RUN COLOR DEMO", file=dict(name="COLOR DEMO", type="I", entry=0x11e51, length=1921),
                                setup="Boot the DOS 3.3 System Master read-only. Pause at the first ] prompt with DOS VERSION still at the top left.")
+    specs["Disk II"] = dict(id="disk-boot", title="Booting from slot 6", fromPowerOn=True, bootPrefix=[0x01, 0xa5, 0x27],
+                            setup="Load the Apple II Plus ROM container, insert the DOS 3.3 System Master read-only, and choose Fresh power-on. Leave the CPU paused.")
     commands = {"Completed": {"LOAD ANSWER", "LIST"}, "Interrupted": {"LOAD ANSWER", "LIST"},
-                "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO", "3"}}
+                "BEACON": {"BLOAD BEACON", "BRUN BEACON"}, "System Master": {"Boot", "INT", "FP"}, "COLOR DEMO": {"RUN COLOR DEMO", "3"},
+                "Disk II": {"Boot"}}
     boot_inputs = {
         "INT": "Resume until HELLO finishes at the ] prompt. Pause, queue INT with Return, then run to this checkpoint.",
         "FP": "Resume to the > prompt and enter PRINT 6*7. After 42, pause and queue FP with Return.",
@@ -91,10 +100,12 @@ def dos_walkthroughs(source):
         for line in lines[1:]:
             medium, command, title, pc, observed, inspect, note = (c.strip() for c in line.strip("|").split("|"))
             destinations = ("Completed", "Interrupted") if medium == "Both" else (medium,)
-            match = re.fullmatch(r"\$([0-9A-F]{4})(?: in (ROM|LC upper))?", pc)
+            match = re.fullmatch(r"\$([0-9A-F]{4})(?: in (ROM|LC upper|slot 6))?", pc)
             if not match or not re.fullmatch(r"\$[0-9A-F]{4}", inspect):
                 raise ValueError(f"Invalid address in DOS checkpoint {title}.")
             address, mapping = match.groups()
+            if mapping == "slot 6" and not address.startswith("C6"):
+                raise ValueError(f"Address outside the slot 6 ROM in DOS checkpoint {title}.")
             for disk in destinations:
                 if disk not in specs or command not in commands[disk] or not title or not note:
                     raise ValueError(f"Invalid disk, command or description for DOS checkpoint {title}.")
@@ -113,8 +124,8 @@ def dos_walkthroughs(source):
                 step = dict(title=title, address=address, inspect=int(inspect[1:], 16),
                             expect=_dos_observation(observed, "$" + address), observe=note, prepare=prepare)
                 if mapping:
-                    step["space"] = {"ROM": "rom", "LC upper": "lc-upper"}[mapping]
-                if command == "Boot":
+                    step["space"] = {"ROM": "rom", "LC upper": "lc-upper", "slot 6": "device"}[mapping]
+                if disk == "System Master" and command == "Boot":
                     step["limit"] = 25_000_000  # Cold boot reaches the first store after 20 million instructions.
                 specs[disk]["steps"].append(step)
     if any(not tour["steps"] for tour in specs.values()):

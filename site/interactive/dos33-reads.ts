@@ -5,7 +5,8 @@ import type { createApple2Session } from "./apple2-session.js";
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 type Sector = { readonly track: number; readonly sector: number; readonly buffer: number };
 export type DosRead = Sector & { readonly number: number; readonly bytes: readonly number[] };
-export type LoadObservation = Sector | { readonly jumpFrom: number; readonly indirect: number; readonly target: number }
+export type LoadObservation = Sector | { readonly jumpFrom: number; readonly indirect?: number; readonly target: number }
+  | { readonly bootSectorAt: number; readonly afterInstruction: number }
   | { readonly dosCommand: string }
   | { readonly catalogueName: string; readonly address: number; readonly value: number }
   | { readonly textCell: readonly [number, number]; readonly page: number; readonly before: number; readonly after: number }
@@ -57,6 +58,15 @@ export function createDos33ReadTrace() {
     /** A stop describes the boundary just reached, even when several reads share one return PC. */
     matches(expect: LoadObservation): boolean {
       if ("track" in expect) return latest?.track === expect.track && latest.sector === expect.sector && latest.buffer === expect.buffer;
+      if ("bootSectorAt" in expect) {
+        if (!lastMachine || last?.before.pc !== expect.afterInstruction) return false;
+        const disk = lastMachine.disk.inspectMedium()?.snapshot();
+        if (!disk) return false;
+        for (let i = 0; i < 256; i++) {
+          if (lastMachine.ram.read(expect.bootSectorAt + i) !== disk[i]) return false;
+        }
+        return true;
+      }
       if ("bank" in expect) return lastWrites?.some(w => w.region === expect.bank && w.address === expect.address && w.after === expect.value) ?? false;
       if ("loresPixel" in expect) {
         const [x, y] = expect.loresPixel, video = lastMachine?.video;
@@ -89,7 +99,8 @@ export function createDos33ReadTrace() {
       if ("jumpFrom" in expect) {
         if (last?.before.pc !== expect.jumpFrom || last.after.pc !== expect.target) return false;
         const [opcode, low, high] = last.instruction.bytes;
-        return opcode === 0x6c && low === (expect.indirect & 0xff) && high === (expect.indirect >>> 8);
+        const operand = expect.indirect ?? expect.target;
+        return opcode === (expect.indirect === undefined ? 0x4c : 0x6c) && low === (operand & 0xff) && high === (operand >>> 8);
       }
       return last?.accesses.some(a => a.kind === expect.kind && a.address === expect.address
         && (expect.value === undefined || a.value === expect.value)) ?? false;
