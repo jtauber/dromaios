@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Ram } from "../../src/components/memory/ram.js";
-import { applesoftCursor, applesoftVariables, createApplesoftListing } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftVariables, createApplesoftListing } from "../../site/interactive/apple2-applesoft.js";
 
 const keywords: string[] = [];
 keywords[0x83 - 0x80] = "DATA";
@@ -79,4 +79,26 @@ test("scalar records stop at ARYTAB and keep string descriptors separate from th
     assert.match(applesoftVariables(ram).message!, /invalid/);
     assert.deepEqual(entries(), []);
   }
+});
+
+test("array headers bound every element and convert storage order to BASIC subscripts", () => {
+  const ram = new Ram(0xc000), start = 0xa001;
+  const header = [0xc1, 0x80, 35, 0, 3, 0, 3, 0, 2, 0, 2];
+  storeWord(ram, 0x6b, start); storeWord(ram, 0x6d, start + 35);
+  header.forEach((b, i) => ram.write(start + i, b));
+  const [array] = applesoftArrays(ram).arrays;
+  assert.ok(array);
+  assert.deepEqual(array.dimensions, [2, 2, 3]);
+  assert.equal(array.count, 12);
+  const item = (i: number) => applesoftArrayElement(ram, array, i);
+  assert.deepEqual([0, 1, 2, 4, 11].map(i => item(i).name), ["A%(0,0,0)", "A%(1,0,0)", "A%(0,1,0)", "A%(0,0,1)", "A%(1,1,2)"]);
+  assert.equal(item(11).address, start + 33);
+  for (const index of [-1, 12, 1.5]) assert.throws(() => item(index), RangeError);
+  for (const [offset, value] of [[2, 0], [2, 34], [2, 36], [4, 0], [4, 255], [5, 0xff], [6, 0]] as const) {
+    ram.write(start + offset, value);
+    assert.match(applesoftArrays(ram).message!, /invalid/);
+    ram.write(start + offset, header[offset]!);
+  }
+  storeWord(ram, 0x6b, 0xbffd); storeWord(ram, 0x6d, 0xc000);
+  assert.match(applesoftArrays(ram).message!, /invalid/);
 });

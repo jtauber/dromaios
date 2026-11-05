@@ -641,6 +641,30 @@ An empty string has a record and zero character bytes. Try `A$=A$+"!"` at the
 prompt, then `PRINT A$`. The same record now points into the string heap and
 the value link follows it there.
 
+### Following array elements in Memory
+
+Enter `NEW`, enter these lines, and `RUN` the program.
+
+```basic
+10 DIM N%(1,2),R(1),A$(1)
+20 N%(0,1)=1234:N%(1,0)=-42
+30 R(1)=1.5:A$(1)="HELLO"
+```
+
+Expand **N%(1,2)** in **Applesoft variables**. The two upper bounds are
+inclusive, so the array holds six integers. The panel lists them in address
+order. Starting at `N%(0,0)`, the next two elements are `N%(1,0)` and
+`N%(0,1)`. Select each name to see its two bytes in Memory. `FF D6` gives
+−42 and `04 D2` gives 1234. Compare with `PRINT N%(1,0)` and `PRINT N%(0,1)`.
+
+The array table extends from `ARYTAB` up to `STREND`. Each header records the
+name, total record length, number of dimensions, and sizes. The sizes are
+stored in reverse subscript order. For `N%(1,2)` the header contains
+`00 03 00 02`, followed by the six two-byte integers. Real elements occupy
+five bytes. Each string element is a three-byte descriptor. Expand **A$(1)**
+and select `A$(1)` to see the descriptor, then select `"HELLO"` to see its
+characters. Larger arrays have Previous and Next controls to browse all elements.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
@@ -841,6 +865,7 @@ within KEYIN, rather than a separate subroutine.
     {"address": "0067", "name": "TXTTAB", "description": "Applesoft program start", "scope": "workspace", "bytes": 2},
     {"address": "0069", "name": "VARTAB", "description": "Applesoft variable storage start", "scope": "workspace", "bytes": 2},
     {"address": "006B", "name": "ARYTAB", "description": "Applesoft array storage start, just past the scalar records", "scope": "workspace", "bytes": 2},
+    {"address": "006D", "name": "STREND", "description": "First byte after the Applesoft array table", "scope": "workspace", "bytes": 2},
     {"address": "0075", "name": "CURLIN", "description": "Applesoft current line number ($FF high byte in direct mode)", "scope": "workspace", "bytes": 2},
     {"address": "00B8", "name": "TXTPTR", "description": "Applesoft text pointer in the CHRGET routine", "scope": "workspace", "bytes": 2},
     {"address": "0200", "name": "INPUT_BUFFER", "description": "Input buffer (256 bytes)", "scope": "workspace"},

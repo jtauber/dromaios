@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { Apple2Video } from "../../src/components/devices/generated/apple2-video.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { literateBlocks } from "../../src/literate.js";
-import { applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
 import { apple2LoresFrame, apple2TextFrame } from "../../site/interactive/apple2-screen.js";
 import { createApple2Session, apple2Input, apple2ControlKey } from "../../site/interactive/apple2-session.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
@@ -106,7 +106,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
   const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
-  const [scalarExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  const [scalarExample, arrayExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
   assert.ok(scalarExample);
   command("NEW");
   for (const line of scalarExample.lines) command(line.text);
@@ -128,6 +128,33 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   assert.equal(appended.value, '"HELLO!"');
   command("CLEAR");
   assert.deepEqual(applesoftVariables(ram).variables, []);
+
+  assert.ok(arrayExample);
+  command("NEW");
+  for (const line of arrayExample.lines) command(line.text);
+  command("RUN");
+  const { arrays } = applesoftArrays(ram);
+  assert.deepEqual(arrays.map(a => [a.name, a.dimensions]), [["N%", [2, 3]], ["R", [2]], ["A$", [2]]]);
+  const [integers, reals, strings] = arrays;
+  const elements = [
+    applesoftArrayElement(ram, integers!, 1), applesoftArrayElement(ram, integers!, 2),
+    applesoftArrayElement(ram, reals!, 1), applesoftArrayElement(ram, strings!, 1),
+  ];
+  assert.deepEqual(elements.map(v => [v.name, v.value]), [
+    ["N%(1,0)", "-42"], ["N%(0,1)", "1234"], ["R(1)", "1.5"], ["A$(1)", '"HELLO"'],
+  ]);
+  for (const element of elements) {
+    command(`PRINT ${element.name}`);
+    assert.ok(screen().endsWith(`]PRINT ${element.name}\n${element.value.replace(/^"|"$/g, "")}\n\n]`), screen());
+  }
+  const bytesAt = (at: number, count: number) => Array.from({ length: count }, (_, i) => ram.read(at + i));
+  assert.deepEqual(bytesAt(elements[0]!.address, 4), [0xff, 0xd6, 0x04, 0xd2]);
+  assert.deepEqual(bytesAt(elements[2]!.address, 5), [0x81, 0x40, 0, 0, 0]);
+  const chars = elements[3]!.contentsAddress!;
+  assert.deepEqual(bytesAt(elements[3]!.address, 3), [5, chars & 0xff, chars >> 8]);
+  assert.equal(String.fromCharCode(...bytesAt(chars, 5)), "HELLO");
+  command("CLEAR");
+  assert.deepEqual(applesoftArrays(ram).arrays, []);
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.
   const examples = literateBlocks(chapter, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });

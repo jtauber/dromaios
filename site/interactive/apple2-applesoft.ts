@@ -95,10 +95,14 @@ export function applesoftCursor(ram: Memory, latest?: Cpu6502StepRecord) {
   return undefined;
 }
 
-interface ApplesoftVariable {
+type VariableRam = Pick<Ram, "read" | "size">;
+type VariableType = "Real" | "Integer" | "String";
+const elementBytes = { Real: 5, Integer: 2, String: 3 } as const;
+
+export interface ApplesoftVariable {
   readonly name: string;
   readonly address: number;
-  readonly type: "Real" | "Integer" | "String";
+  readonly type: VariableType;
   readonly value: string;
   readonly contentsAddress?: number;
 }
@@ -118,8 +122,29 @@ function realValue(ram: Memory, at: number): string {
   return String(Number(value.toPrecision(9))).replace(/^(-?)0\./, "$1.");
 }
 
+function variableName(first: number, second: number): { name: string; type: VariableType } | undefined {
+  const name = String.fromCharCode(first & 0x7f) + ((second & 0x7f) ? String.fromCharCode(second & 0x7f) : "");
+  if (!/^[A-Z][A-Z0-9]?$/.test(name)) return undefined;
+  if (first & 0x80) return second & 0x80 ? { name: name + "%", type: "Integer" } : undefined;
+  return second & 0x80 ? { name: name + "$", type: "String" } : { name, type: "Real" };
+}
+
+function valueAt(ram: VariableRam, type: VariableType, at: number): Pick<ApplesoftVariable, "value" | "contentsAddress"> {
+  if (type === "Real") return { value: realValue(ram, at) };
+  if (type === "Integer") {
+    const high = ram.read(at);
+    return { value: String((high >= 128 ? high - 256 : high) * 256 + ram.read(at + 1)) };
+  }
+  const length = ram.read(at), pointer = word(ram, at + 1);
+  if (length === 0) return { value: '""' };
+  if (pointer + length > ram.size) return { value: "Outside main RAM" };
+  let characters = "";
+  for (let i = 0; i < length; i++) characters += displayCharacter(ram.read(pointer + i));
+  return { value: `"${characters}"`, contentsAddress: pointer };
+}
+
 /** VARTAB points to seven-byte records. ARYTAB points just past the last one. */
-export function applesoftVariables(ram: Pick<Ram, "read" | "size">): { variables: ApplesoftVariable[]; message?: string } {
+export function applesoftVariables(ram: VariableRam): { variables: ApplesoftVariable[]; message?: string } {
   const start = word(ram, 0x69), end = word(ram, 0x6b);
   if (start === 0 && end === 0) return { variables: [], message: "The Applesoft variable table is uninitialized." };
   if (start === 0 || end < start || end > ram.size || (end - start) % 7 !== 0) {
@@ -129,26 +154,58 @@ export function applesoftVariables(ram: Pick<Ram, "read" | "size">): { variables
   for (let address = start; address < end; address += 7) {
     const first = ram.read(address), second = ram.read(address + 1);
     if ((first & 0x80) && !(second & 0x80)) continue; // DEF FN uses the same table.
-    const name = String.fromCharCode(first & 0x7f) + ((second & 0x7f) ? String.fromCharCode(second & 0x7f) : "");
-    if (!/^[A-Z][A-Z0-9]?$/.test(name)) return { variables: [], message: "Incomplete or invalid Applesoft variable name." };
-    const data = address + 2;
-    if (first & 0x80) {
-      const high = ram.read(data);
-      const integer = (high >= 128 ? high - 256 : high) * 256 + ram.read(data + 1);
-      variables.push({ name: name + "%", address, type: "Integer", value: String(integer) });
-    } else if (second & 0x80) {
-      const length = ram.read(data), pointer = word(ram, data + 1);
-      const entry = { name: name + "$", address, type: "String" } as const;
-      if (length === 0) variables.push({ ...entry, value: '""' });
-      else if (pointer + length > ram.size) variables.push({ ...entry, value: "Outside main RAM" });
-      else {
-        let characters = "";
-        for (let i = 0; i < length; i++) characters += displayCharacter(ram.read(pointer + i));
-        variables.push({ ...entry, value: `"${characters}"`, contentsAddress: pointer });
-      }
-    } else {
-      variables.push({ name, address, type: "Real", value: realValue(ram, data) });
-    }
+    const named = variableName(first, second);
+    if (!named) return { variables: [], message: "Incomplete or invalid Applesoft variable name." };
+    variables.push({ ...named, address, ...valueAt(ram, named.type, address + 2) });
   }
   return { variables };
+}
+
+export interface ApplesoftArray {
+  readonly name: string;
+  readonly type: VariableType;
+  readonly address: number;
+  readonly data: number;
+  readonly dimensions: readonly number[]; // Element counts, in BASIC subscript order.
+  readonly count: number;
+}
+
+/** ARYTAB through STREND holds consecutive arrays, each with a little-endian record length. */
+export function applesoftArrays(ram: VariableRam): { arrays: ApplesoftArray[]; message?: string } {
+  const start = word(ram, 0x6b), end = word(ram, 0x6d);
+  const invalid = { arrays: [], message: "Incomplete or invalid Applesoft array table." };
+  if (start === 0 && end === 0) return { arrays: [] };
+  if (start === 0 || end < start || end > ram.size) return invalid;
+  const arrays: ApplesoftArray[] = [];
+  for (let address = start; address < end;) {
+    if (address + 5 > end) return invalid;
+    const named = variableName(ram.read(address), ram.read(address + 1));
+    const next = address + word(ram, address + 2), rank = ram.read(address + 4);
+    const data = address + 5 + rank * 2;
+    if (!named || !rank || data >= next || next > end) return invalid;
+    const dimensions: number[] = [];
+    let count = 1;
+    for (let at = address + 5; at < data; at += 2) {
+      const size = ram.read(at) * 256 + ram.read(at + 1);
+      count *= size;
+      if (!size || count > next - data) return invalid;
+      dimensions.push(size);
+    }
+    if (count * elementBytes[named.type] !== next - data) return invalid;
+    arrays.push({ ...named, address, data, dimensions: dimensions.reverse(), count });
+    address = next;
+  }
+  return { arrays };
+}
+
+/** The first BASIC subscript varies fastest as element addresses increase. */
+export function applesoftArrayElement(ram: VariableRam, array: ApplesoftArray, index: number): ApplesoftVariable {
+  if (!Number.isInteger(index) || index < 0 || index >= array.count) throw new RangeError("Array element outside its dimensions.");
+  const address = array.data + index * elementBytes[array.type];
+  const subscripts = array.dimensions.map(size => {
+    const subscript = index % size;
+    index = Math.floor(index / size);
+    return subscript;
+  });
+  return { name: `${array.name}(${subscripts.join(",")})`, type: array.type, address, ...valueAt(ram, array.type, address) };
 }
