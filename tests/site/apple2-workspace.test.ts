@@ -115,3 +115,13 @@ test("version 6 adds Saved states beside ROM once and preserves hidden tools and
   migrateApple2Workspace(storage, ids);
   assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, ids), "states"), undefined);
 });
+
+test("version 7 gains the Applesoft listing beside Disassembly and keeps the user's tab selection", () => {
+  const tools = [...ids, "applesoft", "states"];
+  const storage = preferences();
+  storage.setItem("dromaios:workspace:apple2:7", encodeWorkspaceState(original));
+  migrateApple2Workspace(storage, tools);
+  const updated = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools);
+  assert.deepEqual(panelGroup(updated, "applesoft"), { ...panelGroup(original, "code"), panels: ["rom", "code", "applesoft"] });
+  assert.equal(panelGroup(updated, "states"), undefined);
+});

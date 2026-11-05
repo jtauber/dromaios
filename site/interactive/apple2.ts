@@ -12,6 +12,7 @@ import { downloadDiskImage } from "./disk-download.js";
 import { createApple2DiskInspector } from "./apple2-disk-inspector.js";
 import { apple2RomStorage } from "./apple2-rom-storage.js";
 import { createApple2Inspection } from "./apple2-inspection-view.js";
+import { createApplesoftView } from "./apple2-applesoft-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
@@ -64,6 +65,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     else explorer.browse(location.tool, location.address);
     showPanel(location.tool); refreshPanels([location.tool, "rom", "code"]);
   });
+  const applesoft = createApplesoftView(root, address => navigation.browse("memory", address));
   const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
     if (execution.running || selecting) throw new Error("Pause execution before editing a register.");
     editApple2Register(session.machine, register, text);
@@ -181,6 +183,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (execution.error !== undefined) { explorer.fail(execution.error); screenInspector?.reset(); }
     if (execution.error !== undefined) message.textContent = execution.error;
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
+    if (shouldUpdate("applesoft")) applesoft?.(session.machine, latest);
     inspection.refresh(session.machine, latest, changeLog?.current().memoryChanges(latest), !execution.running && !selecting);
     explorer.refresh(execution.records, available && execution.error === undefined, execution.running);
     if (shouldUpdate("log")) changeLog?.refresh();

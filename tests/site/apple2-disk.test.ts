@@ -7,6 +7,7 @@ import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
 import type { Dos33SectorWrite } from "../../src/components/devices/dos33-disk.js";
 import { readApple2Rom, readApple2Disk } from "../../site/interactive/apple2-media.js";
 import type { Apple2MemoryChange } from "../../site/interactive/apple2-inspection.js";
+import { applesoftCursor, applesoftKeywords, createApplesoftListing } from "../../site/interactive/apple2-applesoft.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import { createIntegerPlotTrace } from "../../site/interactive/apple2-integer-plot.js";
 import { apple2LoresPixel, createApple2ScreenWrites } from "../../site/interactive/apple2-screen-inspection.js";
@@ -130,10 +131,19 @@ function traceAnswer(dos: ReturnType<typeof dosTerminal>, image: Uint8Array, com
   assert.deepEqual(copies, completed ? payload.map((b, i) => [0x0801 + i, b]) : []);
   const program = (length: number) => Array.from({ length }, (_, i) => dos.machine.ram.read(0x0801 + i));
   assert.deepEqual(program(completed ? 12 : 2), completed ? payload : [0, 0]);
+  const { ram, firmware } = dos.machine;
+  const readListing = createApplesoftListing(applesoftKeywords(firmware));
+  const lines = readListing(ram).lines;
+  assert.deepEqual(lines, completed ? [{ number: 10, parts: [
+    { text: "PRINT", tokenAddress: 0x0805 }, { text: "6" }, { text: "*", tokenAddress: 0x0807 }, { text: "7" },
+  ] }] : []);
   const text = dos.command("LIST", undefined, record => {
     trace.observe(dos.machine, record);
     if (record.after.pc === (completed ? 0xd715 : 0xd6de)
-      && trace.matches({ kind: "read", address: completed ? 0x0805 : 0x0802, value: completed ? 0xba : 0 })) listing.push(record.after.pc);
+      && trace.matches({ kind: "read", address: completed ? 0x0805 : 0x0802, value: completed ? 0xba : 0 })) {
+      listing.push(record.after.pc);
+      if (completed) assert.deepEqual(applesoftCursor(ram, record), { address: 0x0805, line: undefined, source: "LIST" });
+    }
   });
   assert.equal(listing.length, 1);
   assert.match(text, completed ? /\]LIST\n+10\s+PRINT\s*6\s*\*\s*7\n+\]$/ : /\]LIST\n+\]$/);
@@ -456,6 +466,13 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     assert.equal(token.after.a, 0xb2);
     assert.deepEqual(ramBytes(0x75, 2), [10, 0]);
     assert.deepEqual(ramBytes(0x0801, 1137), file.slice(2, 2 + 1137));
+    const keywords = applesoftKeywords(boot.machine.firmware);
+    assert.equal(keywords.length, 107);
+    const listing = createApplesoftListing(keywords)(ram);
+    assert.deepEqual(listing.lines[0], { number: 10, parts: [
+      { text: "REM", tokenAddress: 0x0805 }, { text: "  -- DOS 3.3 HELLO" },
+    ] });
+    assert.deepEqual(applesoftCursor(ram, token), { address: 0x0805, line: 10, source: "Text pointer" });
   });
   await t.test("bootstrap continues identically after restoring a Disk II read", () => {
     for (let i = 0; i < 1_000_000; i++) {

@@ -586,6 +586,31 @@ saved state to remove both the hook change and the RAM routine, then repeat the
 keypress to see the original output path. The walkthrough's automated check
 executes both paths with the identified ROM.
 
+## Reading an Applesoft listing
+
+Open **Applesoft listing** beside **Disassembly**. Each keyword or operator links
+to its token byte in **Memory**. A line number and its following space come
+first. As in Applesoft’s own `LIST`, each expanded token has a space on either
+side. Characters inside quotes, after `REM`, or in a `DATA` field remain literal.
+An unquoted colon ends a `DATA` field. Angle brackets show the hexadecimal value
+of a byte without a printable character.
+
+Applesoft keeps the start of the program in `TXTTAB` and the start of variable
+storage in `VARTAB`. Each stored line begins with a little-endian link to the
+next line and a two-byte line number. A zero byte ends the text. A two-byte
+zero link ends the program. The panel follows these links in main RAM while the
+motherboard ROM is mapped. It reads keyword names from the installed ROM at
+`$D0D0–$D25E`. The high bit marks the last character of each name, from
+`END` (token `$80`) through `MID$` (`$EA`).
+
+During execution the highlighted keyword is the one under `TXTPTR` on the
+line named by `CURLIN`. When the pointer moves to a literal character or the
+end of the line, the highlight clears. When `LIST` reads a stored byte at
+`$D713`, the panel uses that instruction’s observed read address instead.
+Try the final stops in [How DOS starts HELLO](../../src/machines/6502/apple2.md#how-dos-starts-hello)
+and [Following LOAD ANSWER](../../src/machines/6502/apple2.md#following-load-answer).
+Both read `$0805`. The two programs put different keywords there.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
@@ -783,6 +808,10 @@ within KEYIN, rather than a separate subroutine.
     {"address": "0049", "name": "SPNT", "description": "stack pointer save", "scope": "workspace"},
     {"address": "004E", "name": "RNDL", "description": "random number low", "scope": "workspace", "bytes": 2},
     {"address": "004F", "name": "RNDH", "description": "random number high", "scope": "workspace"},
+    {"address": "0067", "name": "TXTTAB", "description": "Applesoft program start", "scope": "workspace", "bytes": 2},
+    {"address": "0069", "name": "VARTAB", "description": "Applesoft variable storage start", "scope": "workspace", "bytes": 2},
+    {"address": "0075", "name": "CURLIN", "description": "Applesoft current line number ($FF high byte in direct mode)", "scope": "workspace", "bytes": 2},
+    {"address": "00B8", "name": "TXTPTR", "description": "Applesoft text pointer in the CHRGET routine", "scope": "workspace", "bytes": 2},
     {"address": "0200", "name": "INPUT_BUFFER", "description": "Input buffer (256 bytes)", "scope": "workspace"},
     {"address": "03F0", "name": "BRKV", "description": "BRK vector (2 bytes)", "scope": "workspace", "bytes": 2},
     {"address": "03F2", "name": "SOFTEV", "description": "Soft entry (warm start) vector (2 bytes)", "scope": "workspace", "bytes": 2},

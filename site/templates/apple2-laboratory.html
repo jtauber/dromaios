@@ -171,6 +171,11 @@
     {% with log_memory_detail='including Language Card banks', log_ram_edits=true %}
       {% include "instruments/change-log.html" %}
     {% endwith %}
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="applesoft" data-panel-live="true" data-panel-title="Applesoft listing">
+      <p class="lab-hint" data-applesoft-status>Preparing Applesoft listing…</p>
+      <div class="lab-applesoft-source" data-applesoft-source></div>
+      <p><a href="{{ calc_url(apple2_url ~ '#reading-an-applesoft-listing') }}" target="_blank" rel="noopener">Reading an Applesoft listing ↗</a></p>
+    </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="system" data-panel-live="true" data-panel-title="System">
       <div data-hardware-inspect>
         <h2>Memory map</h2>

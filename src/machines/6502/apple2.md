@@ -873,7 +873,10 @@ The first BASIC line starts with its link to `$080A` and the line number
 10. The expression is `BA 36 CA 37` (`PRINT`, `6`, `*`, `7`), followed
 by a zero terminator. The zero link at `$080A–$080B` ends the program;
 the twelfth byte `0A` is beyond that link. During `LIST`, Applesoft reads
-the token at `$0805` and prints `10 PRINT 6 * 7`. `RUN` prints `42`.
+the token at `$0805` and prints `10 PRINT 6 * 7`. At the final stop, open
+**Applesoft listing** beside **Disassembly**. Select the highlighted `PRINT`
+to inspect `$BA` at `$0805`, or select `*` to inspect `$CA` at `$0807`.
+Resume to compare the line with the Apple II screen. `RUN` prints `42`.
 
 On the interrupted disk, the data at T12 S5 is identical. DOS finds no
 pointer to it, so it never reads that sector or copies its payload.
@@ -1001,6 +1004,8 @@ DOS skips the two length bytes and copies the program to `$0801`.
 At the third stop, Applesoft has put 10 in its current line number at
 `$0075–$0076`. Its zero-page instruction at `$00B7` now reads
 `LDA $0805`. The byte it fetched came from disk image offset `$13E06`.
+Open **Applesoft listing** beside **Disassembly**. Line 10 shows the
+highlighted `REM`. Select it to open `$0805` in **Memory**.
 `REM` tells Applesoft to skip the comment `-- DOS 3.3 HELLO` and
 continue at line 20. To follow the program past its opening comments,
 switch to [HELLO, INT and FP](#how-hello-loads-integer-basic) and run
