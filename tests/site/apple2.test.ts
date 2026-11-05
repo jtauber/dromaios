@@ -6,6 +6,7 @@ import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { literateBlocks } from "../../src/literate.js";
 import { applesoftArrayElement, applesoftArrays, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
 import { applesoftStepBoundary } from "../../site/interactive/apple2-applesoft-step.js";
+import { applesoftStack } from "../../site/interactive/apple2-applesoft-stack.js";
 import { createApplesoftBreakpoints } from "../../site/interactive/apple2-applesoft-breakpoints.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
@@ -110,7 +111,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
   const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
-  const [scalarExample, arrayExample, stepExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  const [scalarExample, arrayExample, stepExample, stackExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
   assert.ok(scalarExample);
   command("NEW");
   for (const line of scalarExample.lines) command(line.text);
@@ -223,6 +224,31 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     restored.restore(session.snapshot()); inspected = restored.machine; points.reconnect();
     assert.ok(points.selected(40, 1, sourceAt(40, 1)), "A checkpoint with matching source retains its marker");
     restored.powerOn(); inspected = restored.machine; points.reconnect(); assert.equal(points.active, false);
+  });
+
+  await t.test("RETURN reaches the displayed NEXT statement and leaves the FOR frame active", () => {
+    assert.ok(stackExample); command("NEW");
+    for (const line of stackExample.lines) command(line.text);
+    const source = createApplesoftBreakpoints(() => hardware).listing();
+    const stack = () => applesoftStack(hardware, source);
+    session.send(apple2Input("RUN\n"));
+    before(10, "0805"); assert.deepEqual(stack(), { frames: [] });
+    const loop = (value: string) => ({ kind: "FOR", address: 0x1e7, variable: "I", value, step: "1", limit: "2",
+      destination: { kind: "statement", line: 10, address: 0x080c, text: "GOSUB 100" } });
+    const call = { kind: "GOSUB", address: 0x1e0,
+      destination: { kind: "statement", line: 10, address: 0x0811, text: "NEXT I" } };
+    for (const value of ["1", "2"]) {
+      before(10, "080C"); assert.deepEqual(stack(), { frames: [loop(value)] });
+      before(100, "081E");
+      const saved = session.snapshot();
+      assert.deepEqual(stack(), { frames: [call, loop(value)] }); assert.deepEqual(session.snapshot(), saved);
+      assert.deepEqual(bytesAt(0x1e0, 5), [0xb0, 10, 0, 0x0d, 8]);
+      before(100, "0821"); assert.deepEqual(stack(), { frames: [call, loop(value)] });
+      before(10, "0811"); assert.deepEqual(stack(), { frames: [loop(value)] });
+    }
+    before(20, "0818"); assert.deepEqual(stack(), { frames: [] });
+    assert.equal(stepBasic(), "Applesoft ] prompt."); assert.ok(screen().endsWith("]RUN\n1\n2\n\n]"));
+    assert.ok(stack().message);
   });
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.

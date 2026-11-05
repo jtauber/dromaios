@@ -13,16 +13,16 @@ export const apple2DefaultLayout: WorkspaceLayout = {
       area(.5, split("cpu-details", "horizontal",
         area(.35, split("execution-and-cpu", "vertical", area(.4, group("execution")), area(.35, group("registers")), area(.25, group("instruction")))),
         area(.65, group("code", "applesoft")))))),
-    area(.2632, split("zero-and-memory", "vertical", area(.36, group("zero")), area(.352, group("memory", "watches")), area(.288, group("stack", "calls", "variables")))),
+    area(.2632, split("zero-and-memory", "vertical", area(.36, group("zero")), area(.352, group("memory", "watches")), area(.288, group("stack", "calls", "variables", "applesoft-stack")))),
     area(.2968, group("rom", "walkthrough", "states", "trace", "log", "system", "activity", "disk"))),
 };
 
-export const apple2WorkspaceKey = "dromaios:workspace:apple2:9";
+export const apple2WorkspaceKey = "dromaios:workspace:apple2:10";
 
 /** Introduce new instruments once, retaining the saved arrangement and later choices to hide them. */
 export function migrateApple2Workspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }, ids: readonly string[]): void {
   if (storage.getItem(apple2WorkspaceKey) !== null) return;
-  let version = 8;
+  let version = 9;
   let saved = storage.getItem(`dromaios:workspace:apple2:${version}`);
   while (saved === null && version > 1) {
     version--;
@@ -55,6 +55,7 @@ export function migrateApple2Workspace(storage: { getItem(key: string): string |
   if (version < 6) addTab("walkthrough", "rom");
   if (version < 7) addTab("states", "rom");
   if (version < 8) addTab("applesoft", "code");
-  addTab("variables", "stack");
+  if (version < 9) addTab("variables", "stack");
+  addTab("applesoft-stack", panelGroup(layout, "variables") ? "variables" : "stack");
   storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(layout));
 }

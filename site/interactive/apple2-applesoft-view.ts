@@ -41,7 +41,7 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
           });
           row.append(marker);
         }
-        const span = document.createElement("span");
+        const span = document.createElement("span"); span.tabIndex = -1;
         statements.set(statement.address, { span, line: line.number });
         for (const part of statement.parts) {
           if (part.tokenAddress === undefined) {
@@ -60,7 +60,7 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
     source.replaceChildren(fragment);
     displayed = listing; revision = points.revision;
   }
-  return (machine: Machine, latest?: Cpu6502StepRecord, stop?: DebugStop): void => {
+  const refresh = (machine: Machine, latest?: Cpu6502StepRecord, stop?: DebugStop): void => {
     if (panel.hidden) return;
     const listing = points.listing();
     if (listing !== displayed || revision !== points.revision) render(listing);
@@ -84,4 +84,9 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
     else if (current && cursor) status.textContent = `${cursor.source} · line ${current.line} · ${current.button.textContent} at $${hex(cursor.address)}`;
     else status.textContent = `${listing.lines.length} stored ${listing.lines.length === 1 ? "line" : "lines"} · no current keyword`;
   };
+  return { refresh, reveal(address: number): void {
+    const span = statements.get(address)?.span;
+    span?.focus({ preventScroll: true });
+    span?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  } };
 }

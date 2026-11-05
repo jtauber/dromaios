@@ -134,7 +134,7 @@ function traceAnswer(dos: ReturnType<typeof dosTerminal>, image: Uint8Array, com
   const { ram, firmware } = dos.machine;
   const readListing = createApplesoftListing(applesoftKeywords(firmware));
   const lines = readListing(ram).lines;
-  assert.deepEqual(lines, completed ? [{ number: 10, statements: [{ address: 0x0805, colonBefore: false, parts: [
+  assert.deepEqual(lines, completed ? [{ number: 10, terminator: 0x0809, statements: [{ address: 0x0805, colonBefore: false, parts: [
     { text: "PRINT", tokenAddress: 0x0805 }, { text: "6" }, { text: "*", tokenAddress: 0x0807 }, { text: "7" },
   ] }] }] : []);
   const text = dos.command("LIST", undefined, record => {
@@ -469,7 +469,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     const keywords = applesoftKeywords(boot.machine.firmware);
     assert.equal(keywords.length, 107);
     const listing = createApplesoftListing(keywords)(ram);
-    assert.deepEqual(listing.lines[0], { number: 10, statements: [{ address: 0x0805, colonBefore: false, parts: [
+    assert.deepEqual(listing.lines[0], { number: 10, terminator: 0x0818, statements: [{ address: 0x0805, colonBefore: false, parts: [
       { text: "REM", tokenAddress: 0x0805 }, { text: "  -- DOS 3.3 HELLO" },
     ] }] });
     assert.deepEqual(applesoftCursor(ram, token), { address: 0x0805, line: 10, source: "Text pointer" });

@@ -16,6 +16,7 @@ import { createApplesoftVariablesView } from "./apple2-applesoft-variables-view.
 import { applesoftStepBoundary } from "./apple2-applesoft-step.js";
 import { createApplesoftBreakpoints } from "./apple2-applesoft-breakpoints.js";
 import { createApplesoftView } from "./apple2-applesoft-view.js";
+import { createApplesoftStackView } from "./apple2-applesoft-stack-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
@@ -72,6 +73,9 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const basicStep = root.querySelector<HTMLButtonElement>("[data-applesoft-step]");
   const basicBreakpoints = createApplesoftBreakpoints(() => session.machine);
   const applesoft = createApplesoftView(root, browseMemory, basicBreakpoints);
+  const basicStack = createApplesoftStackView(root, basicBreakpoints.listing, browseMemory, address => {
+    showPanel("applesoft"); refreshPanels(["applesoft"]); applesoft?.reveal(address);
+  });
   const variables = createApplesoftVariablesView(root, browseMemory);
   const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
     if (execution.running || selecting) throw new Error("Pause execution before editing a register.");
@@ -198,7 +202,8 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (execution.error !== undefined) message.textContent = execution.error;
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
     if (shouldUpdate("variables")) variables?.(session.machine);
-    if (shouldUpdate("applesoft")) applesoft?.(session.machine, latest, explorer.stop);
+    if (shouldUpdate("applesoft")) applesoft?.refresh(session.machine, latest, explorer.stop);
+    basicStack?.(session.machine, execution.running);
     inspection.refresh(session.machine, latest, changeLog?.current().memoryChanges(latest), !execution.running && !selecting);
     explorer.refresh(execution.records, available && execution.error === undefined, execution.running);
     if (shouldUpdate("log")) changeLog?.refresh();

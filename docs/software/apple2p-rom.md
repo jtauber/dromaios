@@ -716,6 +716,42 @@ the marked statement or its position within its line clears the marker.
 `NEW` and fresh power-on clear all of them. Restoring a checkpoint keeps
 the markers whose statements still match the restored program.
 
+### Inside a FOR loop and GOSUB
+
+At the `]` prompt, enter `NEW` and then these three lines.
+
+```basic
+10 FOR I=1 TO 2:GOSUB 100:NEXT I
+20 END
+100 PRINT I:RETURN
+```
+
+Open **Applesoft stack** beside **Applesoft variables**. In **Applesoft
+listing**, set a breakpoint on `PRINT I` and run the program. The stack
+shows the innermost frame first. **GOSUB** returns to `NEXT I` on line 10.
+Below it, **FOR** shows `I = 1`, limit 2 and step 1. Its loop body starts
+at `GOSUB 100` on the same line.
+
+Select **10 · NEXT I**. The listing outlines the return destination while
+the execution highlight stays on `PRINT I`. Choose **Step BASIC statement**
+to print 1 and reach `RETURN`. Step again. The highlight moves to `NEXT I`
+and only the loop remains on the stack. Choose **Run**. At the next stop
+on `PRINT I`, both frames are back and `I = 2`.
+
+The stack addresses open the actual bytes in **Memory**. At the first
+breakpoint, the five-byte `GOSUB` record starts at `$01E0`. It holds the
+`$B0` token, caller line 10 and `$080D`, the address of the first digit
+in `GOSUB 100`. On `RETURN` the ROM skips the rest of that statement.
+The eighteen-byte `FOR` record at `$01E7` starts with `$81`. It holds the
+loop variable's value address, the step magnitude and sign, the limit,
+the line number and the text pointer at the end of the `FOR` statement.
+The loop record stores this last pointer high byte first.
+
+The panel reads page-one RAM at a numbered statement stop in the mapped
+Applesoft ROM. At that point the dispatcher's saved 6502 return address
+identifies where to begin walking the records. Pausing elsewhere offers
+**Step BASIC statement** to reach the next such boundary.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,

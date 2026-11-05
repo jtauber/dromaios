@@ -136,3 +136,17 @@ test("version 8 adds Variables beside Stack without reopening a closed Applesoft
   assert.deepEqual(panelGroup(updated, "variables"), { ...layout.root, panels: ["stack", "calls", "code", "variables"] });
   assert.equal(panelGroup(updated, "applesoft"), undefined);
 });
+
+test("version 9 adds Applesoft stack beside Variables or Stack and preserves closed tabs", () => {
+  const tools = ["stack", "variables", "applesoft-stack"];
+  for (const previous of [["variables"], ["stack"]]) {
+    const layout: WorkspaceLayout = { root: { kind: "tabs", id: "basic", panels: previous, active: previous[0]!, collapsed: true } };
+    const storage = preferences(); storage.setItem("dromaios:workspace:apple2:9", encodeWorkspaceState(layout));
+    migrateApple2Workspace(storage, tools);
+    const next = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools);
+    assert.deepEqual(next.root, { ...layout.root, panels: [...previous, "applesoft-stack"] });
+    storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(closePanel(next, "applesoft-stack")));
+    migrateApple2Workspace(storage, tools);
+    assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools), "applesoft-stack"), undefined);
+  }
+});

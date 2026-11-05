@@ -12,6 +12,7 @@ export interface ApplesoftStatement {
 }
 interface ApplesoftLine {
   readonly number: number;
+  readonly terminator: number;
   readonly statements: readonly ApplesoftStatement[];
 }
 
@@ -90,7 +91,7 @@ function decodeProgram(bytes: Uint8Array, start: number, keywords: readonly stri
       }
     }
     flush();
-    lines.push({ number, statements });
+    lines.push({ number, terminator: start + next - 1, statements });
     line = next;
   }
   return invalid;
@@ -156,13 +157,13 @@ export interface ApplesoftVariable {
 }
 
 /** Packed Applesoft reals store an exponent and 31 fraction bits. The leading 1 is implicit. */
-function realValue(ram: Memory, at: number): string {
+export function applesoftReal(ram: Memory, at: number, negative?: boolean): string {
   const exponent = ram.read(at);
   if (exponent === 0) return "0";
   const signAndFraction = ram.read(at + 1);
   const fraction = (signAndFraction & 0x7f) * 2 ** 24 + ram.read(at + 2) * 2 ** 16 + ram.read(at + 3) * 256 + ram.read(at + 4);
   const magnitude = (1 + fraction / 2 ** 31) * 2 ** (exponent - 129);
-  const value = signAndFraction & 0x80 ? -magnitude : magnitude;
+  const value = (negative ?? Boolean(signAndFraction & 0x80)) ? -magnitude : magnitude;
   // PRINT uses nine significant digits, and scientific notation outside this exponent range.
   const [digits, power] = value.toExponential(8).split("e");
   const e = Number(power);
@@ -178,7 +179,7 @@ function variableName(first: number, second: number): { name: string; type: Vari
 }
 
 function valueAt(ram: VariableRam, type: VariableType, at: number): Pick<ApplesoftVariable, "value" | "contentsAddress"> {
-  if (type === "Real") return { value: realValue(ram, at) };
+  if (type === "Real") return { value: applesoftReal(ram, at) };
   if (type === "Integer") {
     const high = ram.read(at);
     return { value: String((high >= 128 ? high - 256 : high) * 256 + ram.read(at + 1)) };
