@@ -39,14 +39,33 @@ test("statement history retains the last 32 dispatches and resolves each recorde
   for (let i = 0; i < 32; i++) history.observe(machine, dispatch);
   assert.equal(history.total, 33); assert.equal(history.visits.length, 32);
   assert.ok(history.visits.every(visit => visit.index === 1 && visit.statement.address === 0x808));
+  const point = (index: number) => ({ line: 10, index, statement: listing().lines[0]!.statements[index]! });
+  assert.deepEqual([history.count(point(0)), history.count(point(1))], [1, 32]);
   const visit = history.visits[0]!;
   program(0x4001);
   assert.equal(resolveApplesoftSource(listing(), visit)?.address, 0x4008, "Identical text elsewhere on the line is a different statement");
+  const prompt = { space: "rom", address: 0xfd6f };
+  history.observe(machine, prompt);
+  assert.deepEqual([history.count(point(0)), history.count(point(1))], [1, 32]);
   ram.write(0x4009, 50);
+  history.observe(machine, prompt);
+  assert.deepEqual([history.count(point(0)), history.count(point(1))], [1, 0]);
   assert.equal(resolveApplesoftSource(listing(), visit), undefined);
   assert.equal(applesoftStatementText(visit.statement), "PRINT 1", "An edit must not rewrite a previous visit");
   history.clear();
   assert.equal(history.total, 0); assert.deepEqual(history.visits, []);
+  assert.equal(history.count(point(0)), 1, "Clearing the history leaves the count measurement running");
+  ram.write(0x4009, 49);
+  assert.equal(history.count(point(1)), 0, "Re-entering an edited statement starts a new count");
+  storeWord(ram, 0xb8, 0x4008); history.observe(machine, dispatch);
+  assert.equal(history.count(point(1)), 1);
+  history.clearCounts();
+  assert.deepEqual([history.count(point(0)), history.count(point(1))], [0, 0]);
+  assert.equal(history.visits.length, 1, "Starting a new measurement preserves history");
+  history.observe(machine, dispatch);
+  storeWord(ram, 0x4001, 0); history.observe(machine, prompt); // NEW
+  program(0x4001);
+  assert.equal(history.count(point(1)), 0);
 });
 
 test("BASIC stack records resolve across line ends, distinguish separate step signs, and stop at damaged frames", () => {

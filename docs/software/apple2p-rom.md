@@ -772,6 +772,24 @@ the history and its link becomes unavailable. Resetting the CPU, starting
 a fresh machine, restoring a saved state, or editing a register or RAM
 in the debugger clears the history.
 
+### Counting Applesoft statement visits
+
+At the `]` prompt, select **Show counts** in **Applesoft listing** and
+choose **Clear counts**. Run the same three-line program with the
+breakpoint on `END`. On line 10, `FOR` has one visit, while `GOSUB`
+and `NEXT` each have two. On line 100,
+`PRINT` and `RETURN` each have two. The highlighted `END` still shows
+`0×`. Step over it and its count becomes `1×`.
+
+To try a longer loop, change the upper bound from 2 to 40, clear the
+counts and run again. At the breakpoint, `PRINT` shows `40×`, even though
+history retains only the most recent 32 visits. Counts accumulate across
+runs, even with **Show counts** off. You can clear the counts and the
+history independently. A count follows its statement when a line moves in
+RAM. Changing the statement or its position within the line starts a new
+count. The debugger actions that reset execution history also reset the
+counts.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,

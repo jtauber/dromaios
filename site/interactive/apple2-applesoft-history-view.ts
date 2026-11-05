@@ -1,13 +1,12 @@
 import { applesoftStatementText, resolveApplesoftSource } from "./apple2-applesoft.js";
 import type { ApplesoftListing, ApplesoftSourcePosition } from "./apple2-applesoft.js";
-import { createApplesoftHistory } from "./apple2-applesoft-history.js";
+import type { ApplesoftHistory } from "./apple2-applesoft-history.js";
 
-export function createApplesoftHistoryView(root: HTMLElement, listing: () => ApplesoftListing, reveal: (address: number) => void) {
+export function createApplesoftHistoryView(root: HTMLElement, history: ApplesoftHistory, listing: () => ApplesoftListing, reveal: (address: number) => void) {
   const panel = root.querySelector<HTMLElement>('[data-workspace-panel="applesoft-history"]');
   if (!panel) return;
   const list = panel.querySelector("ol")!, clear = panel.querySelector<HTMLButtonElement>("[data-basic-history-clear]")!;
   const status = panel.querySelector<HTMLElement>("[data-basic-history-status]")!;
-  const history = createApplesoftHistory(listing);
   const rows = new Map<ApplesoftSourcePosition, HTMLLIElement>();
   let displayed: ApplesoftListing | undefined, latest: ApplesoftSourcePosition | undefined;
   const refresh = (): void => {
@@ -44,5 +43,5 @@ export function createApplesoftHistoryView(root: HTMLElement, listing: () => App
     displayed = source; latest = visits.at(-1);
   };
   clear.addEventListener("click", () => { history.clear(); refresh(); });
-  return { observe: history.observe, reset: history.clear, refresh };
+  return { refresh };
 }

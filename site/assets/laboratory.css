@@ -155,9 +155,14 @@
 .lab-rom-reference h2 { margin: 12px 0; font: 600 14px/1.4 system-ui, sans-serif; }
 .lab-applesoft-variables td:last-child, .lab-applesoft-variables .lab-memory-link { white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
 .lab-applesoft-listing { display: flex; flex-direction: column; align-items: flex-start; }
+.laboratory-page .lab-applesoft-controls label { display: flex; align-items: center; gap: 4px; }
 .lab-applesoft-source { align-self: stretch; overflow: auto; padding: 2px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.65 var(--mono); }
 .lab-applesoft-source .lab-breakpoint-marker::before { content: "○"; }
 .lab-applesoft-source .lab-breakpoint-marker[aria-pressed=true]::before { content: "●"; }
+.lab-applesoft-source .lab-visit-count { display: none; }
+.lab-applesoft-source.show-counts .lab-visit-count { display: inline; margin-right: .3em; color: #7ac9a1; font: 11px var(--mono); }
+.lab-applesoft-source.show-counts .lab-visit-count[data-count="0"] { color: var(--muted); }
+.lab-visit-count::before { content: attr(data-count) "×"; }
 .lab-applesoft-source span[aria-current="true"] { background: #594420; outline: 1px solid #dba94c; color: #ffe8ac; }
 .lab-applesoft-source span[aria-current="true"] .lab-memory-link { color: inherit; }
 .lab-applesoft-source span:focus { outline: 2px solid var(--accent); }

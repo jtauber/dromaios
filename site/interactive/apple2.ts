@@ -18,6 +18,7 @@ import { createApplesoftBreakpoints } from "./apple2-applesoft-breakpoints.js";
 import { createApplesoftView } from "./apple2-applesoft-view.js";
 import { createApplesoftStackView } from "./apple2-applesoft-stack-view.js";
 import { createApplesoftHistoryView } from "./apple2-applesoft-history-view.js";
+import { createApplesoftHistory } from "./apple2-applesoft-history.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
@@ -73,12 +74,13 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const browseMemory = (address: number) => navigation.browse("memory", address);
   const basicStep = root.querySelector<HTMLButtonElement>("[data-applesoft-step]");
   const basicBreakpoints = createApplesoftBreakpoints(() => session.machine);
-  const applesoft = createApplesoftView(root, browseMemory, basicBreakpoints);
+  const basicHistory = basicStep && createApplesoftHistory(basicBreakpoints.listing);
+  const applesoft = basicHistory && createApplesoftView(root, browseMemory, basicBreakpoints, basicHistory);
   function revealStatement(address: number): void {
     showPanel("applesoft"); refreshPanels(["applesoft"]); applesoft?.reveal(address);
   }
   const basicStack = createApplesoftStackView(root, basicBreakpoints.listing, browseMemory, revealStatement);
-  const basicHistory = createApplesoftHistoryView(root, basicBreakpoints.listing, revealStatement);
+  const historyView = basicHistory && createApplesoftHistoryView(root, basicHistory, basicBreakpoints.listing, revealStatement);
   const variables = createApplesoftVariablesView(root, browseMemory);
   const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
     if (execution.running || selecting) throw new Error("Pause execution before editing a register.");
@@ -159,7 +161,8 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   }
 
   function resetExecutionHistory(): void {
-    execution.reset(); changeLog?.reset(); screenInspector?.reset(); basicHistory?.reset();
+    execution.reset(); changeLog?.reset(); screenInspector?.reset();
+    basicHistory?.clear(); basicHistory?.clearCounts();
   }
 
   function requirePaused(): void {
@@ -212,7 +215,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (shouldUpdate("variables")) variables?.(session.machine);
     if (shouldUpdate("applesoft")) applesoft?.refresh(session.machine, latest, explorer.stop);
     basicStack?.(session.machine, execution.running);
-    if (shouldUpdate("applesoft-history")) basicHistory?.refresh();
+    if (shouldUpdate("applesoft-history")) historyView?.refresh();
     inspection.refresh(session.machine, latest, changeLog?.current().memoryChanges(latest), !execution.running && !selecting);
     explorer.refresh(execution.records, available && execution.error === undefined, execution.running);
     if (shouldUpdate("log")) changeLog?.refresh();

@@ -63,8 +63,16 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   assert.equal(hardware.ram.read(0xbfff), 0x5a);
   assert.equal(hardware.cpu.snapshot().pc, 0xfa62);
   assert.equal(hardware.cpu.snapshot().sp, 0xfc);
+  const pointsForHistory = createApplesoftBreakpoints(() => session.machine);
+  const history = createApplesoftHistory(pointsForHistory.listing);
+  function stepWithHistory() {
+    const machine = session.machine, before = apple2DebugLocation(machine);
+    const record = session.step();
+    if (record.outcome === "executed") history.observe(machine, before);
+    return record;
+  }
   const execution = createExecutionController({
-    step: () => session.step(), canStep: () => true, onChange() {}, batchSize: 2000,
+    step: stepWithHistory, canStep: () => true, onChange() {}, batchSize: 2000,
     schedule(callback) { pending.push(callback); return () => {}; },
   });
   function screen(): string {
@@ -162,15 +170,11 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   command("CLEAR");
   assert.deepEqual(applesoftArrays(ram).arrays, []);
 
-  const pointsForHistory = createApplesoftBreakpoints(() => hardware);
-  const history = createApplesoftHistory(pointsForHistory.listing);
   function stepBasic(): string | undefined {
     const debug = createInstructionDebugger(100_000), location = () => apple2DebugLocation(hardware);
     debug.stepUntil(location(), at => applesoftStepBoundary(hardware, at, session.pendingInput));
     while (!debug.beforeStep(location)) {
-      const before = location();
-      assert.equal(session.step().outcome, "executed");
-      history.observe(hardware, before);
+      assert.equal(stepWithHistory().outcome, "executed");
       debug.observeBoundary();
     }
     assert.equal(debug.stop?.kind, "step");
@@ -235,7 +239,10 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     assert.ok(stackExample); command("NEW");
     for (const line of stackExample.lines) command(line.text);
     history.clear();
+    history.clearCounts();
     const source = pointsForHistory.listing();
+    const counts = () => pointsForHistory.listing().lines.map(line =>
+      line.statements.map((statement, index) => history.count({ line: line.number, index, statement })));
     const stack = () => applesoftStack(hardware, source);
     session.send(apple2Input("RUN\n"));
     before(10, "0805"); assert.deepEqual(stack(), { frames: [] });
@@ -254,12 +261,21 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
       before(10, "0811"); assert.deepEqual(stack(), { frames: [loop(value)] });
     }
     before(20, "0818"); assert.deepEqual(stack(), { frames: [] });
+    assert.deepEqual(counts(), [[1, 2, 2], [0], [2, 2]], "The ROM has reached END but has not dispatched it");
     const visits = () => history.visits.map(({ line, statement }) => `${line} ${applesoftStatementText(statement)}`);
     const trip = ["10 GOSUB 100", "100 PRINT I", "100 RETURN", "10 NEXT I"];
     assert.deepEqual(visits(), ["10 FOR I = 1 TO 2", ...trip, ...trip]);
     assert.equal(stepBasic(), "Applesoft ] prompt."); assert.ok(screen().endsWith("]RUN\n1\n2\n\n]"));
     assert.deepEqual(visits(), ["10 FOR I = 1 TO 2", ...trip, ...trip, "20 END"]);
+    assert.deepEqual(counts(), [[1, 2, 2], [1], [2, 2]]);
     assert.ok(stack().message);
+
+    command("10 FOR I=1 TO 40:GOSUB 100:NEXT I");
+    assert.deepEqual(counts(), [[0, 2, 2], [1], [2, 2]]);
+    history.clearCounts(); command("RUN");
+    assert.deepEqual(counts(), [[1, 40, 40], [1], [40, 40]]);
+    assert.equal(history.visits.length, 32);
+    assert.ok(screen().endsWith("39\n40\n\n]"));
   });
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.
