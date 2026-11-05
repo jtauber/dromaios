@@ -125,3 +125,14 @@ test("version 7 gains the Applesoft listing beside Disassembly and keeps the use
   assert.deepEqual(panelGroup(updated, "applesoft"), { ...panelGroup(original, "code"), panels: ["rom", "code", "applesoft"] });
   assert.equal(panelGroup(updated, "states"), undefined);
 });
+
+test("version 8 adds Variables beside Stack without reopening a closed Applesoft listing", () => {
+  const tools = ["stack", "calls", "variables", "applesoft", "code"];
+  const layout: WorkspaceLayout = { root: { kind: "tabs", id: "stack-tools", panels: ["stack", "calls", "code"], active: "calls", collapsed: true } };
+  const storage = preferences();
+  storage.setItem("dromaios:workspace:apple2:8", encodeWorkspaceState(layout));
+  migrateApple2Workspace(storage, tools);
+  const updated = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools);
+  assert.deepEqual(panelGroup(updated, "variables"), { ...layout.root, panels: ["stack", "calls", "code", "variables"] });
+  assert.equal(panelGroup(updated, "applesoft"), undefined);
+});

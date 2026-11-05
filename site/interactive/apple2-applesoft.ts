@@ -16,6 +16,10 @@ export interface ApplesoftListing {
 
 const word = (ram: Memory, at: number) => ram.read(at) | ram.read(at + 1) << 8;
 
+function displayCharacter(byte: number): string {
+  return byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte) : `〈$${byte.toString(16).toUpperCase().padStart(2, "0")}〉`;
+}
+
 /** The verified Apple II Plus ROM marks the last character of each keyword with bit 7. */
 export function applesoftKeywords(firmware: Pick<ExternalRom, "read">): string[] {
   const words: string[] = [];
@@ -53,8 +57,7 @@ function decodeProgram(bytes: Uint8Array, start: number, keywords: readonly stri
       } else {
         if (!comment && byte === 0x22) quoted = !quoted;
         if (!quoted && byte === 0x3a) data = false;
-        literal += byte >= 0x20 && byte <= 0x7e ? String.fromCharCode(byte)
-          : `〈$${byte.toString(16).toUpperCase().padStart(2, "0")}〉`;
+        literal += displayCharacter(byte);
       }
     }
     if (literal) parts.push({ text: literal });
@@ -90,4 +93,62 @@ export function applesoftCursor(ram: Memory, latest?: Cpu6502StepRecord) {
   const line = word(ram, 0x75);
   if (line < 0xff00) return { address: word(ram, 0xb8), line, source: "Text pointer" };
   return undefined;
+}
+
+interface ApplesoftVariable {
+  readonly name: string;
+  readonly address: number;
+  readonly type: "Real" | "Integer" | "String";
+  readonly value: string;
+  readonly contentsAddress?: number;
+}
+
+/** Packed Applesoft reals store an exponent and 31 fraction bits. The leading 1 is implicit. */
+function realValue(ram: Memory, at: number): string {
+  const exponent = ram.read(at);
+  if (exponent === 0) return "0";
+  const signAndFraction = ram.read(at + 1);
+  const fraction = (signAndFraction & 0x7f) * 2 ** 24 + ram.read(at + 2) * 2 ** 16 + ram.read(at + 3) * 256 + ram.read(at + 4);
+  const magnitude = (1 + fraction / 2 ** 31) * 2 ** (exponent - 129);
+  const value = signAndFraction & 0x80 ? -magnitude : magnitude;
+  // PRINT uses nine significant digits, and scientific notation outside this exponent range.
+  const [digits, power] = value.toExponential(8).split("e");
+  const e = Number(power);
+  if (e < -2 || e > 8) return `${Number(digits)}E${e < 0 ? "-" : "+"}${String(Math.abs(e)).padStart(2, "0")}`;
+  return String(Number(value.toPrecision(9))).replace(/^(-?)0\./, "$1.");
+}
+
+/** VARTAB points to seven-byte records. ARYTAB points just past the last one. */
+export function applesoftVariables(ram: Pick<Ram, "read" | "size">): { variables: ApplesoftVariable[]; message?: string } {
+  const start = word(ram, 0x69), end = word(ram, 0x6b);
+  if (start === 0 && end === 0) return { variables: [], message: "The Applesoft variable table is uninitialized." };
+  if (start === 0 || end < start || end > ram.size || (end - start) % 7 !== 0) {
+    return { variables: [], message: "Incomplete or invalid Applesoft variable table." };
+  }
+  const variables: ApplesoftVariable[] = [];
+  for (let address = start; address < end; address += 7) {
+    const first = ram.read(address), second = ram.read(address + 1);
+    if ((first & 0x80) && !(second & 0x80)) continue; // DEF FN uses the same table.
+    const name = String.fromCharCode(first & 0x7f) + ((second & 0x7f) ? String.fromCharCode(second & 0x7f) : "");
+    if (!/^[A-Z][A-Z0-9]?$/.test(name)) return { variables: [], message: "Incomplete or invalid Applesoft variable name." };
+    const data = address + 2;
+    if (first & 0x80) {
+      const high = ram.read(data);
+      const integer = (high >= 128 ? high - 256 : high) * 256 + ram.read(data + 1);
+      variables.push({ name: name + "%", address, type: "Integer", value: String(integer) });
+    } else if (second & 0x80) {
+      const length = ram.read(data), pointer = word(ram, data + 1);
+      const entry = { name: name + "$", address, type: "String" } as const;
+      if (length === 0) variables.push({ ...entry, value: '""' });
+      else if (pointer + length > ram.size) variables.push({ ...entry, value: "Outside main RAM" });
+      else {
+        let characters = "";
+        for (let i = 0; i < length; i++) characters += displayCharacter(ram.read(pointer + i));
+        variables.push({ ...entry, value: `"${characters}"`, contentsAddress: pointer });
+      }
+    } else {
+      variables.push({ name, address, type: "Real", value: realValue(ram, data) });
+    }
+  }
+  return { variables };
 }

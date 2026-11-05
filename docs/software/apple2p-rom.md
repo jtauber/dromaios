@@ -611,6 +611,36 @@ Try the final stops in [How DOS starts HELLO](../../src/machines/6502/apple2.md#
 and [Following LOAD ANSWER](../../src/machines/6502/apple2.md#following-load-answer).
 Both read `$0805`. The two programs put different keywords there.
 
+## Inspecting Applesoft variables
+
+Open **Applesoft variables** beside **Stack**, below **Memory** in the default
+layout. With the Apple II Plus ROM loaded, run to the Applesoft `]` prompt.
+Enter these lines one at a time, then enter `RUN`.
+
+```basic
+10 X=1.5
+20 N%=-42
+30 A$="HELLO"
+```
+
+Enter `PRINT X`, `PRINT N%`, and `PRINT A$`. Compare the screen with the three
+rows in the panel. Select a variable name to see its seven-byte record in
+**Memory**. Select the quoted value of `A$` to see the five characters.
+
+| Variable | PRINT output | What to look for in Memory |
+| --- | --- | --- |
+| X | 1.5 | After the two name bytes, the packed real is `81 40 00 00 00`. The exponent gives a scale of one and the fraction adds one half. |
+| N% | -42 | The two value bytes `FF D6` are a signed integer, high byte first. |
+| A$ | HELLO | The value starts with length `05` followed by the character address, low byte first. Follow the value link to `48 45 4C 4C 4F` in line 30. |
+
+Applesoft keeps scalar records between `VARTAB` and `ARYTAB`. The two name
+bytes hold the significant characters and use their high bits to distinguish
+reals, integers, strings, and function definitions. The panel reads scalar
+records and string contents from main RAM while the Applesoft ROM is mapped.
+An empty string has a record and zero character bytes. Try `A$=A$+"!"` at the
+prompt, then `PRINT A$`. The same record now points into the string heap and
+the value link follows it there.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
@@ -810,6 +840,7 @@ within KEYIN, rather than a separate subroutine.
     {"address": "004F", "name": "RNDH", "description": "random number high", "scope": "workspace"},
     {"address": "0067", "name": "TXTTAB", "description": "Applesoft program start", "scope": "workspace", "bytes": 2},
     {"address": "0069", "name": "VARTAB", "description": "Applesoft variable storage start", "scope": "workspace", "bytes": 2},
+    {"address": "006B", "name": "ARYTAB", "description": "Applesoft array storage start, just past the scalar records", "scope": "workspace", "bytes": 2},
     {"address": "0075", "name": "CURLIN", "description": "Applesoft current line number ($FF high byte in direct mode)", "scope": "workspace", "bytes": 2},
     {"address": "00B8", "name": "TXTPTR", "description": "Applesoft text pointer in the CHRGET routine", "scope": "workspace", "bytes": 2},
     {"address": "0200", "name": "INPUT_BUFFER", "description": "Input buffer (256 bytes)", "scope": "workspace"},

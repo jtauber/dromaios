@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Ram } from "../../src/components/memory/ram.js";
-import { applesoftCursor, createApplesoftListing } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftCursor, applesoftVariables, createApplesoftListing } from "../../site/interactive/apple2-applesoft.js";
 
 const keywords: string[] = [];
 keywords[0x83 - 0x80] = "DATA";
@@ -49,4 +49,34 @@ test("partially written links and out-of-range program pointers yield no navigab
   assert.match(read(ram).message!, /invalid/);
   storeWord(ram, 0x69, 0xc001);
   assert.match(read(ram).message!, /initialized/);
+});
+
+test("scalar records stop at ARYTAB and keep string descriptors separate from their character storage", () => {
+  const ram = new Ram(0xc000), start = 0x2000;
+  const records = [
+    [0x58, 0, 0, 0xff, 0xff, 0xff, 0xff], // X = 0, regardless of the remaining mantissa bytes
+    [0x52, 0x32, 0x80, 0x80, 0, 0, 0],   // R2 = -.5
+    [0x45, 0, 0xa2, 0, 0, 0, 0],         // E = 2**33
+    [0xce, 0xb1, 0x80, 0, 0, 0, 0],      // N1% = -32768
+    [0xc6, 0, 1, 2, 3, 4, 5],             // DEF FN F
+    [0x41, 0x80, 2, 0xfe, 0xbf, 0, 0],   // A$ ends at the last byte of RAM
+    [0x42, 0x80, 0, 0xff, 0xff, 0, 0],   // Empty B$ has no character link
+    [0x43, 0x80, 2, 0xff, 0xbf, 0, 0],   // C$ extends outside RAM
+  ];
+  storeWord(ram, 0x69, start);
+  storeWord(ram, 0x6b, start + records.length * 7);
+  records.flat().forEach((b, i) => ram.write(start + i, b));
+  ram.write(0xbffe, 0x48); ram.write(0xbfff, 0x0d);
+  const entries = () => applesoftVariables(ram).variables;
+  assert.deepEqual(entries().map(v => [v.name, v.value, v.contentsAddress]), [
+    ["X", "0", undefined], ["R2", "-.5", undefined], ["E", "8.58993459E+09", undefined],
+    ["N1%", "-32768", undefined], ["A$", '"H〈$0D〉"', 0xbffe], ["B$", '""', undefined], ["C$", "Outside main RAM", undefined],
+  ]);
+  ram.write(0xbffe, 0x49);
+  assert.equal(entries()[4]?.value, '"I〈$0D〉"');
+  for (const end of [start - 7, start + 8, 0xc001]) {
+    storeWord(ram, 0x6b, end);
+    assert.match(applesoftVariables(ram).message!, /invalid/);
+    assert.deepEqual(entries(), []);
+  }
 });

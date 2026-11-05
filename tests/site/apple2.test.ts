@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { Apple2Video } from "../../src/components/devices/generated/apple2-video.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { literateBlocks } from "../../src/literate.js";
+import { applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
 import { apple2LoresFrame, apple2TextFrame } from "../../site/interactive/apple2-screen.js";
 import { createApple2Session, apple2Input, apple2ControlKey } from "../../site/interactive/apple2-session.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
@@ -102,6 +103,31 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   session.send([3]); runUntil(idle);
   assert.match(screen(), /BREAK IN 10/);
   command("print 1+1"); assert.match(screen(), /\]PRINT 1\+1\n2\n/);
+
+  // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
+  const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
+  const [scalarExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  assert.ok(scalarExample);
+  command("NEW");
+  for (const line of scalarExample.lines) command(line.text);
+  command("RUN");
+  const { variables } = applesoftVariables(ram);
+  assert.deepEqual(variables.map(v => [v.name, v.value]), [["X", "1.5"], ["N%", "-42"], ["A$", '"HELLO"']]);
+  for (const variable of variables) {
+    command(`PRINT ${variable.name}`);
+    const output = variable.value.replace(/^"|"$/g, "");
+    assert.ok(screen().endsWith(`]PRINT ${variable.name}\n${output}\n\n]`), screen());
+  }
+  assert.deepEqual(variables.map(v => ram.read(v.address)), [0x58, 0xce, 0x41]);
+  const string = variables[2]!;
+  assert.equal(string.contentsAddress, 0x081e);
+  assert.equal(String.fromCharCode(...Array.from({ length: 5 }, (_, i) => ram.read(string.contentsAddress! + i))), "HELLO");
+  command('A$=A$+"!"');
+  const appended = applesoftVariables(ram).variables[2]!;
+  assert.equal(appended.address, string.address); assert.notEqual(appended.contentsAddress, string.contentsAddress);
+  assert.equal(appended.value, '"HELLO!"');
+  command("CLEAR");
+  assert.deepEqual(applesoftVariables(ram).variables, []);
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.
   const examples = literateBlocks(chapter, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });

@@ -153,6 +153,7 @@
 .lab-code .flow-conditional td { border-bottom: 1px dotted #7087a5; }
 .lab-code .lab-code-label { white-space: nowrap; text-align: left; color: #ffd18a; }
 .lab-rom-reference h2 { margin: 12px 0; font: 600 14px/1.4 system-ui, sans-serif; }
+.lab-applesoft-variables td:last-child, .lab-applesoft-variables .lab-memory-link { white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
 .lab-applesoft-source { white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.65 var(--mono); }
 .laboratory-page .lab-applesoft-source button[aria-current="true"] { color: #101c30; background: #ffda86; outline: 2px solid #ffda86; font-weight: 700; }
 .lab-reference-current { margin: 10px 0 14px; padding: 10px; background: #131f33; border: 1px solid var(--line); border-radius: 4px; }
