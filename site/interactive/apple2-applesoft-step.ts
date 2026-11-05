@@ -4,9 +4,12 @@ import { hex } from "./apple2-explorer.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
+export const applesoftDispatch = 0xd828;
+export const applesoftLineInput = 0xfd6f;
+
 /** In the verified ROM's statement dispatcher, TXTPTR identifies the byte about to execute. */
 export function applesoftStatement(machine: Machine, at: DebugLocation) {
-  if (at.space !== "rom" || at.address !== 0xd828) return undefined;
+  if (at.space !== "rom" || at.address !== applesoftDispatch) return undefined;
   const word = (address: number) => machine.ram.read(address) | machine.ram.read(address + 1) << 8;
   const line = word(0x75), address = word(0xb8);
   if (line >= 0xff00 || address < word(0x67) || address >= Math.min(word(0x69), machine.ram.size)) return undefined;
@@ -19,7 +22,7 @@ export function applesoftStepBoundary(machine: Machine, at: DebugLocation, queue
   const statement = applesoftStatement(machine, at);
   if (statement) return `Before Applesoft line ${statement.line} at $${hex(statement.address)}.`;
   if (at.space !== "rom") return undefined;
-  if (at.address === 0xfd6f && machine.ram.read(0x33) === 0xdd) {
+  if (at.address === applesoftLineInput && machine.ram.read(0x33) === 0xdd) {
     const sp = machine.cpu.snapshot().sp;
     const stack = (offset: number) => machine.ram.read(0x100 + ((sp + offset) & 0xff));
     // D441 calls D52E, whose JSR at D530 enters GETLN. INPUT has a different caller.

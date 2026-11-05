@@ -5,7 +5,7 @@ import type { ExternalRom } from "../../src/machines/rom-image.js";
 type Memory = Pick<Ram, "read">;
 
 interface ApplesoftPart { readonly text: string; readonly tokenAddress?: number }
-interface ApplesoftStatement {
+export interface ApplesoftStatement {
   readonly address: number;
   readonly colonBefore: boolean;
   readonly parts: ApplesoftPart[];
@@ -110,6 +110,25 @@ export function createApplesoftListing(keywords: readonly string[]) {
       listing = decodeProgram(bytes, start, keywords);
     }
     return listing;
+  };
+}
+
+/** The debugger asks at every statement dispatch. Only program or bounds writes require another sample. */
+export function observeApplesoftListing(ram: Ram, keywords: readonly string[]) {
+  const decode = createApplesoftListing(keywords);
+  let start = 0, end = 0, sample: ApplesoftListing | undefined;
+  const detach = ram.observeWrites(({ address, before, after }) => {
+    if (before !== after && ((address >= start && address < end) || (address >= 0x67 && address <= 0x6a))) sample = undefined;
+  });
+  return {
+    detach,
+    read(): ApplesoftListing {
+      if (!sample) {
+        start = word(ram, 0x67); end = word(ram, 0x69);
+        sample = decode(ram);
+      }
+      return sample;
+    },
   };
 }
 

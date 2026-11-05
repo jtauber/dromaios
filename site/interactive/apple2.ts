@@ -14,6 +14,7 @@ import { apple2RomStorage } from "./apple2-rom-storage.js";
 import { createApple2Inspection } from "./apple2-inspection-view.js";
 import { createApplesoftVariablesView } from "./apple2-applesoft-variables-view.js";
 import { applesoftStepBoundary } from "./apple2-applesoft-step.js";
+import { createApplesoftBreakpoints } from "./apple2-applesoft-breakpoints.js";
 import { createApplesoftView } from "./apple2-applesoft-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
@@ -69,7 +70,8 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   });
   const browseMemory = (address: number) => navigation.browse("memory", address);
   const basicStep = root.querySelector<HTMLButtonElement>("[data-applesoft-step]");
-  const applesoft = createApplesoftView(root, browseMemory);
+  const basicBreakpoints = createApplesoftBreakpoints(() => session.machine);
+  const applesoft = createApplesoftView(root, browseMemory, basicBreakpoints);
   const variables = createApplesoftVariablesView(root, browseMemory);
   const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
     if (execution.running || selecting) throw new Error("Pause execution before editing a register.");
@@ -83,6 +85,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       if (execution.running || selecting) throw new Error("Pause execution before editing RAM.");
       const change = editApple2Memory(session.machine, edit, text);
       if (!change) return;
+      if (basicBreakpoints.active) basicBreakpoints.reconcile();
       explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
       changeLog?.current().recordEdit(change);
       message.textContent = "RAM edited. Execution history cleared; the user edit is recorded in Changes.";
@@ -103,11 +106,11 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       inspection.observe(session.machine, changes);
       screenInspector?.observe(record, before, writes);
       // Complete manual stepping before its single refresh, preserving sample-based highlights.
-      if (!execution.running) explorer.pauseBeforeStep();
+      if (!execution.running) pauseBeforeStep();
       return { record, romMapped };
     },
     canStep: () => session.hasFirmware && !selecting,
-    pauseBeforeStep: () => explorer.pauseBeforeStep(),
+    pauseBeforeStep,
     schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
     onChange: refresh, batchSize: 10000,
   });
@@ -143,6 +146,10 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   root.querySelector<HTMLElement>("[data-rom-explorer]")?.addEventListener("toggle", refresh);
   execution.setDelay(1);
 
+  function pauseBeforeStep(): boolean {
+    return explorer.pauseBeforeStep(basicBreakpoints.active ? basicBreakpoints.match : undefined);
+  }
+
   function requirePaused(): void {
     if (execution.running || selecting) throw new Error("Pause execution before saving, restoring, or comparing a state.");
   }
@@ -161,6 +168,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   }
 
   function refresh(): void {
+    basicBreakpoints.reconnect();
     const available = session.hasFirmware && !selecting;
     run.disabled = !available || execution.running || execution.error !== undefined;
     pause.disabled = !execution.running;

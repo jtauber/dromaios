@@ -695,6 +695,27 @@ If the ROM needs a key, the step pauses at the keyboard poll. Type the input
 on the screen and step again to continue. Breakpoints, watchpoints, Pause,
 and the two-million-instruction limit can stop a step early.
 
+### Running to an Applesoft statement
+
+Each statement in **Applesoft listing** has a circle beside it. Select the
+circle before `N%(1,0)=-42` on line 20 and the one before `N%(0,0)=I` on
+line 40. A filled circle marks a breakpoint. The keyword links still open
+their token bytes in **Memory**.
+
+Run the array program again. At the first stop, the ROM has executed the
+first assignment on line 20. In **Applesoft variables**, `N%(0,1)` holds 1234
+and `N%(1,0)` still holds zero. Choose **Run** in **Execution**. The second
+assignment now takes effect and the machine stops before the loop assignment.
+Choose **Run** again. The same statement is highlighted, this time with
+`I=2` and `N%(0,0)=1` from the first iteration.
+
+Select a filled circle to remove it. These breakpoints work with the listing
+hidden or its live updates turned off. During this laboratory session, a
+breakpoint follows its statement if an earlier line changes length. Changing
+the marked statement or its position within its line clears the marker.
+`NEW` and fresh power-on clear all of them. Restoring a checkpoint keeps
+the markers whose statements still match the restored program.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,

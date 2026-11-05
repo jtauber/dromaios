@@ -6,6 +6,7 @@ import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { literateBlocks } from "../../src/literate.js";
 import { applesoftArrayElement, applesoftArrays, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
 import { applesoftStepBoundary } from "../../site/interactive/apple2-applesoft-step.js";
+import { createApplesoftBreakpoints } from "../../site/interactive/apple2-applesoft-breakpoints.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
 import { apple2LoresFrame, apple2TextFrame } from "../../site/interactive/apple2-screen.js";
@@ -44,7 +45,7 @@ test("frame inspection reads selected RAM cells without guest I/O and blanks gra
 
 test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, breaks, and powers on", {
   skip: romPath === undefined ? "Set APPLE2_ROM to the externally supplied Apple II Plus ROM" : false,
-}, async () => {
+}, async t => {
   assert.ok(romPath);
   const buffer = new Uint8Array(readFileSync(romPath)).buffer;
   const { image } = await readRomFile({ name: "apple2p.rom", size: buffer.byteLength, async arrayBuffer() { return buffer; } }, romImages.firmware, container);
@@ -186,6 +187,43 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   before(50, "086C"); before(50, "0871"); before(50, "087B"); assert.equal(integer(0), "7");
   assert.equal(stepBasic(), "Applesoft ] prompt."); assert.match(screen(), /\n\n\]$/);
   assert.equal(stepBasic(), "Waiting for keyboard input.");
+
+  await t.test("source breakpoints follow assignments across loops, edits and checkpoint restore", () => {
+    let inspected = session.machine;
+    const points = createApplesoftBreakpoints(() => inspected);
+    const debug = createInstructionDebugger(), location = () => apple2DebugLocation(hardware);
+    const sourceAt = (line: number, slot: number) => points.listing().lines.find(l => l.number === line)!.statements[slot]!;
+    const assignment = sourceAt(20, 1), loop = sourceAt(40, 1);
+    assert.ok(points.toggle(20, 1, assignment)); assert.ok(points.toggle(40, 1, loop));
+    function resumeToPoint(line: number, slot: number): void {
+      debug.run(location());
+      let budget = 100_000;
+      while (!debug.beforeStep(location, points.match)) {
+        assert.ok(budget-- > 0, "Expected a statement breakpoint");
+        assert.equal(session.step().outcome, "executed"); debug.observeBoundary();
+      }
+      assert.equal(debug.stop?.kind, "breakpoint");
+      const address = sourceAt(line, slot).address;
+      assert.equal(ram.read(0xb8) | ram.read(0xb9) << 8, address);
+      assert.match(debug.stop.detail!, new RegExp(`line ${line}, statement ${slot + 1} `));
+    }
+    command("5 REM MOVE THE PROGRAM"); // Same statements, different token addresses.
+    session.send(apple2Input("RUN\n"));
+    resumeToPoint(20, 1); assert.notEqual(sourceAt(20, 1).address, assignment.address);
+    assert.deepEqual([integer(2), integer(1)], ["1234", "0"]);
+    resumeToPoint(40, 1); assert.deepEqual([integer(1), integer(0)], ["-42", "0"]);
+    resumeToPoint(40, 1); assert.equal(integer(0), "1");
+    runUntil(idle);
+    command("20 N%(0,1)=1234:N%(1,0)=-43");
+    points.reconcile();
+    assert.equal(points.selected(20, 1, assignment), false);
+    assert.equal(points.toggle(20, 1, assignment), false, "A stale listing cannot arm a different statement");
+    assert.ok(points.selected(40, 1, sourceAt(40, 1)));
+    const restored = createApple2Session(image);
+    restored.restore(session.snapshot()); inspected = restored.machine; points.reconnect();
+    assert.ok(points.selected(40, 1, sourceAt(40, 1)), "A checkpoint with matching source retains its marker");
+    restored.powerOn(); inspected = restored.machine; points.reconnect(); assert.equal(points.active, false);
+  });
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.
   const examples = literateBlocks(chapter, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });

@@ -30,6 +30,21 @@ function program(parts: Readonly<Record<number, readonly number[]>>, budget = 10
 }
 const nested = { 0x200: [0x20, 0, 3, 0xea], 0x300: [0x20, 0, 4, 0x60], 0x400: [0xe8, 0x60] };
 
+test("software breakpoints stop Run and Step at a shared dispatcher and Continue crosses one visit", () => {
+  const p = program({ 0x200: [0xe8, 0x4c, 0, 2] });
+  const match = (location: { address: number }) => location.address === 0x200 ? "BASIC statement" : undefined;
+  const stopped = () => p.debug.beforeStep(p.location, match);
+  p.debug.run(p.location()); assert.ok(stopped());
+  assert.deepEqual(p.debug.stop, { kind: "breakpoint", location: at(0x200), detail: "BASIC statement" });
+  p.debug.run(p.location()); assert.equal(stopped(), false); p.step();
+  assert.equal(stopped(), false); p.step(); assert.ok(stopped());
+  p.debug.stepUntil(p.location(), () => undefined);
+  assert.equal(stopped(), false); p.step(); assert.equal(stopped(), false); p.step();
+  assert.ok(stopped()); assert.equal(p.debug.request, undefined);
+  p.debug.setBreakpoints([{ address: 0x200, enabled: true }]); p.debug.reset();
+  assert.ok(stopped()); assert.equal(p.debug.stop?.detail, undefined); // The CPU breakpoint takes precedence.
+});
+
 test("a software step crosses its starting boundary even when the next visit has the same PC", () => {
   const p = program({ 0x200: [0x4c, 0, 2] }, 1);
   const start = () => p.debug.stepUntil(p.location(), () => "Next iteration");

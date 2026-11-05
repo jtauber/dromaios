@@ -126,8 +126,8 @@
 .lab-breakpoint-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0; }
 .laboratory-page .lab-breakpoint-row label { display: flex; align-items: center; gap: 8px; font: 12px/1.5 var(--mono); }
 .lab-breakpoint-row button { padding: 0 5px; }
-.laboratory-page .lab-code .lab-breakpoint-marker { padding: 0 3px; border: 0; background: transparent; color: #8294ae; font-size: 15px; text-decoration: none; }
-.laboratory-page .lab-code .lab-breakpoint-marker[aria-pressed=true] { color: #ff879c; }
+.laboratory-page :is(.lab-code, .lab-applesoft-source) .lab-breakpoint-marker { padding: 0 3px; border: 0; background: transparent; color: #8294ae; font-size: 15px; text-decoration: none; }
+.laboratory-page :is(.lab-code, .lab-applesoft-source) .lab-breakpoint-marker[aria-pressed=true] { color: #ff879c; }
 .laboratory-page summary { cursor: pointer; color: #b4cce8; font-size: 12px; padding: 6px 0; }
 .laboratory-page .rom-controls { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .laboratory-page .rom-controls button { justify-self: start; }
@@ -156,6 +156,8 @@
 .lab-applesoft-variables td:last-child, .lab-applesoft-variables .lab-memory-link { white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
 .lab-applesoft-listing { display: flex; flex-direction: column; align-items: flex-start; }
 .lab-applesoft-source { align-self: stretch; overflow: auto; padding: 2px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.65 var(--mono); }
+.lab-applesoft-source .lab-breakpoint-marker::before { content: "○"; }
+.lab-applesoft-source .lab-breakpoint-marker[aria-pressed=true]::before { content: "●"; }
 .lab-applesoft-source span[aria-current="true"] { background: #594420; outline: 1px solid #dba94c; color: #ffe8ac; }
 .lab-applesoft-source span[aria-current="true"] .lab-memory-link { color: inherit; }
 .laboratory-page .lab-applesoft-source button[aria-current="true"] { color: #101c30; background: #ffda86; outline: 2px solid #ffda86; font-weight: 700; }

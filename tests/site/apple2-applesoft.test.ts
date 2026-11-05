@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Ram } from "../../src/components/memory/ram.js";
-import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftVariables, createApplesoftListing } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftVariables, createApplesoftListing, observeApplesoftListing } from "../../site/interactive/apple2-applesoft.js";
 
 const keywords: string[] = [];
 keywords[0x83 - 0x80] = "DATA";
@@ -49,6 +49,22 @@ test("partially written links and out-of-range program pointers yield no navigab
   assert.match(read(ram).message!, /invalid/);
   storeWord(ram, 0x69, 0xc001);
   assert.match(read(ram).message!, /initialized/);
+});
+
+test("the debugger listing follows in-place edits, deletion and TXTTAB relocation across dispatches", () => {
+  const ram = new Ram(0xc000), program = observeApplesoftListing(ram, keywords);
+  const line = (at: number, number: number) => {
+    storeWord(ram, at, at + 6); storeWord(ram, at + 2, number); ram.write(at + 4, 0xba);
+    storeWord(ram, 0x67, at); storeWord(ram, 0x69, at + 8);
+  };
+  assert.match(program.read().message!, /initialized/);
+  line(0x801, 10);
+  const original = program.read(); assert.equal(original.lines[0]?.number, 10);
+  ram.write(0x900, 0x12); assert.equal(program.read(), original);
+  ram.write(0x805, 0xb2); assert.equal(program.read().lines[0]?.statements[0]?.parts[0]?.text, "REM");
+  line(0x4001, 20); assert.equal(program.read().lines[0]?.statements[0]?.address, 0x4005);
+  storeWord(ram, 0x4001, 0); assert.match(program.read().message!, /empty/);
+  program.detach();
 });
 
 test("IF highlights its dispatched consequent, but keeps a numeric THEN target with the condition", () => {
