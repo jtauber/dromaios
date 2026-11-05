@@ -21,16 +21,16 @@ test("relocated Applesoft lines retain byte addresses and preserve quoted text, 
   storeWord(ram, start, end); storeWord(ram, start + 2, 100);
   text.forEach((b, i) => ram.write(start + 4 + i, b));
   const listing = read(ram);
-  assert.deepEqual(listing.lines, [{ number: 100, parts: [
-    { text: "DATA", tokenAddress: start + 4 }, { text: '":"〈$BA〉:' },
-    { text: "PRINT", tokenAddress: start + 10 }, { text: '"〈$BA〉":' },
-    { text: "REM", tokenAddress: start + 15 }, { text: "〈$BA〉" },
+  assert.deepEqual(listing.lines, [{ number: 100, statements: [
+    { address: start + 4, colonBefore: false, parts: [{ text: "DATA", tokenAddress: start + 4 }, { text: '":"〈$BA〉' }] },
+    { address: start + 10, colonBefore: true, parts: [{ text: "PRINT", tokenAddress: start + 10 }, { text: '"〈$BA〉"' }] },
+    { address: start + 15, colonBefore: true, parts: [{ text: "REM", tokenAddress: start + 15 }, { text: "〈$BA〉" }] },
   ] }]);
   ram.write(0x76, 0xff);
   assert.equal(applesoftCursor(ram), undefined);
   assert.equal(read(ram), listing);
   ram.write(start + 4, 0xb2);
-  assert.equal(read(ram).lines[0]?.parts.length, 2, "An in-place edit changes how the rest of the line decodes");
+  assert.equal(read(ram).lines[0]?.statements.length, 1, "REM absorbs the rest of the edited line, including colons");
   storeWord(ram, start, 0);
   assert.match(read(ram).message!, /empty/);
 });
@@ -49,6 +49,21 @@ test("partially written links and out-of-range program pointers yield no navigab
   assert.match(read(ram).message!, /invalid/);
   storeWord(ram, 0x69, 0xc001);
   assert.match(read(ram).message!, /initialized/);
+});
+
+test("IF highlights its dispatched consequent, but keeps a numeric THEN target with the condition", () => {
+  const ram = new Ram(0xc000), start = 0x801;
+  const tokens = [...keywords];
+  tokens[0xad - 0x80] = "IF"; tokens[0xab - 0x80] = "GOTO"; tokens[0xc4 - 0x80] = "THEN";
+  // IF X GOTO 20:IF X THEN  30:IF X THEN  PRINT
+  const bytes = [0xad, 88, 0xab, 50, 48, 58, 0xad, 88, 0xc4, 32, 32, 51, 48, 58, 0xad, 88, 0xc4, 32, 32, 0xba];
+  const end = start + 5 + bytes.length;
+  storeWord(ram, 0x67, start); storeWord(ram, 0x69, end + 2); storeWord(ram, start, end);
+  bytes.forEach((byte, i) => ram.write(start + 4 + i, byte));
+  const [line] = createApplesoftListing(tokens)(ram).lines;
+  assert.deepEqual(line!.statements.map(s => [s.address - start - 4, s.parts.map(p => p.text).join("")]), [
+    [0, "IFX"], [2, "GOTO20"], [6, "IFXTHEN  30"], [14, "IFXTHEN"], [19, "  PRINT"],
+  ]);
 });
 
 test("scalar records stop at ARYTAB and keep string descriptors separate from their character storage", () => {

@@ -4,9 +4,15 @@ import type { ExternalRom } from "../../src/machines/rom-image.js";
 
 type Memory = Pick<Ram, "read">;
 
+interface ApplesoftPart { readonly text: string; readonly tokenAddress?: number }
+interface ApplesoftStatement {
+  readonly address: number;
+  readonly colonBefore: boolean;
+  readonly parts: ApplesoftPart[];
+}
 interface ApplesoftLine {
   readonly number: number;
-  readonly parts: readonly { text: string; tokenAddress?: number }[];
+  readonly statements: readonly ApplesoftStatement[];
 }
 
 export interface ApplesoftListing {
@@ -42,26 +48,49 @@ function decodeProgram(bytes: Uint8Array, start: number, keywords: readonly stri
     const next = link - start;
     if (next < line + 5 || next + 2 > bytes.length || bytes[next - 1] !== 0) return invalid;
     const number = bytes[line + 2]! | bytes[line + 3]! << 8;
-    const parts: { text: string; tokenAddress?: number }[] = [];
+    const statements: ApplesoftStatement[] = [];
+    function firstByte(at: number): number {
+      while (bytes[at] === 0x20) at++; // CHRGET skips spaces before dispatch.
+      return at;
+    }
+    function begin(at: number, colonBefore: boolean): ApplesoftPart[] {
+      const parts: ApplesoftPart[] = [];
+      statements.push({ address: start + firstByte(at), colonBefore, parts });
+      return parts;
+    }
+    let parts = begin(line + 4, false);
     let literal = "", quoted = false, comment = false, data = false;
+    function flush(): void {
+      if (literal) parts.push({ text: literal });
+      literal = "";
+    }
     for (let i = line + 4; i < next - 1; i++) {
       const byte = bytes[i]!;
       if (byte === 0) return invalid;
+      if (byte === 0x3a && !comment && !quoted) {
+        flush(); parts = begin(i + 1, true); data = false;
+        continue;
+      }
       const keyword: string | undefined = !comment && !quoted && !data ? keywords[byte - 0x80] : undefined;
       if (keyword !== undefined) {
-        if (literal) parts.push({ text: literal });
-        literal = "";
+        flush();
+        // IF X GOTO n dispatches GOTO just as IF X THEN GOTO n does.
+        if (keyword === "GOTO" && parts.some(part => part.tokenAddress !== undefined && part.text === "IF")) parts = begin(i, false);
         parts.push({ text: keyword, tokenAddress: start + i });
         comment = keyword === "REM";
         data = keyword === "DATA";
+        if (keyword === "THEN") {
+          const nextByte = bytes[firstByte(i + 1)]!;
+          // THEN n branches directly. THEN <statement> enters the dispatcher again.
+          if (nextByte < 0x30 || nextByte > 0x39) parts = begin(i + 1, false);
+        }
       } else {
         if (!comment && byte === 0x22) quoted = !quoted;
-        if (!quoted && byte === 0x3a) data = false;
         literal += displayCharacter(byte);
       }
     }
-    if (literal) parts.push({ text: literal });
-    lines.push({ number, parts });
+    flush();
+    lines.push({ number, statements });
     line = next;
   }
   return invalid;

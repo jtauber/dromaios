@@ -28,7 +28,8 @@ export interface ObservedFrame {
   readonly stackRegister?: string;
 }
 export interface RunToOptions { readonly limit?: number; readonly when?: () => boolean }
-type Plan = { readonly kind: "step" } | { readonly kind: "over"; frame?: number }
+type Plan = { readonly kind: "until"; readonly boundary: (at: DebugLocation) => string | undefined }
+  | { readonly kind: "step" } | { readonly kind: "over"; frame?: number }
   | { readonly kind: "out"; readonly frame: number } | { readonly kind: "target"; readonly address: number; readonly space?: string; readonly when?: () => boolean };
 const sameLocation = (a: DebugLocation, b: DebugLocation) => a.address === b.address && a.space === b.space;
 const matches = (point: { readonly address: number; readonly space?: string }, location: DebugLocation) =>
@@ -74,6 +75,10 @@ export function createInstructionDebugger(budget = 2_000_000) {
       if (!frame) throw new Error("No observed caller. Step into a call before using Step out.");
       start(location, { kind: "out", frame: frame.id }, true);
     },
+    /** Advance at least one instruction, then stop at a boundary identified by the machine's software. */
+    stepUntil(location: DebugLocation, boundary: (at: DebugLocation) => string | undefined): void {
+      start(location, { kind: "until", boundary }, true);
+    },
     runTo(location: DebugLocation, address: number, space?: string, { limit = budget, when }: RunToOptions = {}): void {
       if (!Number.isSafeInteger(address) || address < 0) throw new RangeError("The target address must be a non-negative safe integer.");
       if (!Number.isSafeInteger(limit) || limit < 1) throw new RangeError("The instruction limit must be positive.");
@@ -91,8 +96,13 @@ export function createInstructionDebugger(budget = 2_000_000) {
       const bypass = skip !== undefined && sameLocation(skip, location); skip = undefined;
       if (!bypass && breakpoints.some(point => point.enabled && matches(point, location))) finish("breakpoint", location);
       else if (plan?.kind === "target" && matches(plan, location) && (plan.when?.() ?? true)) finish("target", location);
-      else if (completed && plan) finish(plan.kind, location);
-      else if (plan && remaining === 0) finish("limit", location);
+      else if (plan?.kind === "until") {
+        if (remaining < budget) {
+          const detail = plan.boundary(location);
+          if (detail !== undefined) finish("step", location, detail);
+        }
+      } else if (completed && plan) finish(plan.kind, location);
+      if (plan && remaining === 0) finish("limit", location);
       return stop !== undefined;
     },
     /** Count a completed CPU boundary when the adapter does not supply call tracking. */

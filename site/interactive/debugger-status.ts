@@ -5,6 +5,7 @@ const formatLocation = (location: DebugLocation) => `$${location.address.toStrin
 /** One vocabulary for debugger stops in every laboratory. Details describe the captured machine event. */
 export function debuggerStatus(stop: DebugStop | undefined, request: string | undefined, running: boolean,
   format: (location: DebugLocation) => string = formatLocation): string {
+  if (!stop && running && request === "until") return "Stepping…";
   if (!stop) return running && request ? `Running · ${request === "target" ? "to address" : `step ${request}`}…` : "";
   const reasons = { breakpoint: "Breakpoint", watchpoint: "Watchpoint", step: "Step complete", over: "Step over complete", out: "Step out complete",
     target: "Run-to address reached", limit: "Execution limit reached; destination not reached", pause: "Paused",

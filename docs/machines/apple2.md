@@ -269,7 +269,7 @@ paths before a shared peripheral-inspection abstraction is designed.
 | Saved experiments | Named browser states, validated paused restoration, and captured comparisons of CPU, physical RAM, device fields, and queued keys; workspace and stop preferences retained. | — |
 | Change history | Instruction-attributed before/after values for registers, flags, PC, and physical RAM, including Language Card banks; bounded history with recording and display filters, and explicitly identified user RAM edits. | — |
 | ROM and system | Searchable Monitor reference with PC/Memory following, mapping-aware context, and navigation to Disassembly and Memory; guide-owned routine contracts, byte-checked instruction comments, and five in-lab walkthroughs (reset/echo, carriage return, scrolling, cursor editing, and output-hook redirection) using versioned ROM-only stops; live read/write memory map and structured keyboard, display, and Language Card state with change highlights; bounded instruction-linked device-access history with specification descriptions; disk snapshots. | Further annotations driven by walkthroughs. |
-| Applesoft tools | Live listing of the program in RAM with keyword links to Memory and a highlight for the interpreter text pointer or a captured LIST read. Scalar variables and expandable arrays with Memory links to records, elements, and string contents. | Interpreter state, source stepping, breakpoints, execution history, and profiling. |
+| Applesoft tools | Live listing with keyword links to Memory and highlights for statement stepping, the text pointer, and LIST reads. Scalar variables and expandable arrays with Memory links to records, elements, and string contents. | Interpreter state, source breakpoints, execution history, and profiling. |
 | Disk tools | DOS-order disk insertion, writable copies, export and re-import, checkpoint restoration, controller state, read-only file/sector inspection, and a trace of committed sector writes. | Nibble-stream inspection and disk-read history. |
 | Software selection | Verified Applesoft ROM and pinned DOS System Master. | Explicit software/media profiles and acceptance for additional disks and programs. |
 
@@ -284,9 +284,9 @@ a walkthrough needs them. Keep these observations
 linked to their software identity and avoid inferring routine boundaries from
 sparse labels. This takes priority over new BASIC and disk tools.
 
-Extend the Applesoft tools with interpreter-state inspection
-from the pinned reference, owned by the versioned software guide, then add
-source stepping and breakpoints. The later disk and classroom work includes:
+Extend the Applesoft tools with interpreter-state inspection from the pinned
+reference and source breakpoints at statement dispatch. The versioned software
+guide owns these behaviors. The later disk and classroom work includes:
 
 
 1. **Disk boot:** follow the handoffs from motherboard ROM to slot-6 bootstrap,

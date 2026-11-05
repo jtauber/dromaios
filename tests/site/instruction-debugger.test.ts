@@ -30,6 +30,19 @@ function program(parts: Readonly<Record<number, readonly number[]>>, budget = 10
 }
 const nested = { 0x200: [0x20, 0, 3, 0xea], 0x300: [0x20, 0, 4, 0x60], 0x400: [0xe8, 0x60] };
 
+test("a software step crosses its starting boundary even when the next visit has the same PC", () => {
+  const p = program({ 0x200: [0x4c, 0, 2] }, 1);
+  const start = () => p.debug.stepUntil(p.location(), () => "Next iteration");
+  start(); assert.equal(p.run(), 1);
+  assert.deepEqual(p.debug.stop, { kind: "step", location: at(0x200), detail: "Next iteration" });
+  p.debug.stepUntil(p.location(), () => undefined);
+  assert.equal(p.run(), 1); assert.equal(p.debug.stop?.kind, "limit");
+  p.debug.setBreakpoints([{ address: 0x200, enabled: true }]);
+  start(); assert.equal(p.run(), 1); assert.equal(p.debug.stop?.kind, "breakpoint");
+  start(); p.step(); p.debug.watchpoint(p.location(), "Read watched address");
+  assert.equal(p.run(), 0); assert.equal(p.debug.stop?.kind, "watchpoint");
+});
+
 test("a qualified target waits for a matching visit and its longer limit applies to just that run", () => {
   const p = program({ 0x200: [0xe8, 0x4c, 0, 2] }, 1); // INX, JMP $0200
   let visits = 0;

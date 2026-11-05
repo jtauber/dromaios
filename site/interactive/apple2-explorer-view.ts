@@ -110,9 +110,11 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     },
     controls: (id: string) => id === "code" ? disassembly?.controls : undefined,
     get canStepOut() { return debuggerState.canStepOut; },
+    get stop() { return debuggerState.stop; },
     reset(): void { reads?.interrupt(); debuggerState.reset(); devices?.reset(); watchHistory.reset(); },
     run(): void { debuggerState.run(location()); },
     step(): void { debuggerState.step(location()); },
+    stepUntil(boundary: (at: DebugLocation) => string | undefined): void { debuggerState.stepUntil(location(), boundary); },
     over(): void {
       const selected = machine()!, opcode = apple2StorageReader(selected)(selected.cpu.snapshot().pc);
       debuggerState.over(location(), opcode === undefined ? undefined : catalogue.instructions[opcode]?.stackFlow);

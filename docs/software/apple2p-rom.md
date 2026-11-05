@@ -665,6 +665,36 @@ five bytes. Each string element is a three-byte descriptor. Expand **A$(1)**
 and select `A$(1)` to see the descriptor, then select `"HELLO"` to see its
 characters. Larger arrays have Previous and Next controls to browse all elements.
 
+### Stepping through Applesoft statements
+
+With the array program above in memory, add these two lines at the `]` prompt.
+
+```basic
+40 FOR I=1 TO 2:N%(0,0)=I:NEXT
+50 IF I=3 THEN N%(0,0)=7:END
+```
+
+1. Pause at the prompt. Click the Apple II screen, type `RUN`, and press Return.
+   The keys wait in the keyboard queue. Select **Step BASIC statement** in
+   **Applesoft listing**. The ROM consumes the keys and stops with `DIM`
+   highlighted, before it creates the arrays.
+2. Step again and expand **N%(1,2)** in **Applesoft variables**. Both
+   elements assigned on line 20 are still zero. The next step executes
+   `N%(0,1)=1234` and highlights `N%(1,0)=-42`. One more step changes
+   that second element and highlights the first assignment on line 30.
+3. Follow line 40. Each trip through the loop highlights the assignment
+   and then `NEXT`. At the two stops on `NEXT`, `N%(0,0)` holds 1 and 2.
+   Line 50 tests `I=3`, enters the assignment after `THEN`, and reaches
+   `END` with the element holding 7. Step over `END` to see the `]` prompt.
+
+Each step runs the 6502 until the Applesoft ROM reaches its statement
+dispatcher at `$D828`. There `CURLIN` identifies the numbered line and
+`TXTPTR` points to the first byte of the statement about to execute.
+At the direct prompt the ROM returns from printing `]` at `$FD6F`.
+If the ROM needs a key, the step pauses at the keyboard poll. Type the input
+on the screen and step again to continue. Breakpoints, watchpoints, Pause,
+and the two-million-instruction limit can stop a step early.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
@@ -935,6 +965,8 @@ within KEYIN, rather than a separate subroutine.
     {"address": "FF69", "name": "MONZ", "description": "Read and dispatch a Monitor command.", "scope": "rom"}
   ],
   "notes": [
+    {"address": "D828", "bytes": "F0 2D", "text": "At statement dispatch, TXTPTR points to the byte just fetched. A zero byte ends the line."},
+    {"address": "FD6F", "bytes": "A2 01", "text": "GETLN has printed its prompt. Both direct command entry and program input use this line editor."},
     {"address": "FDED", "bytes": "6C 36 00", "text": "Dispatch through CSWL/CSWH; the hook chooses where output goes."},
     {"address": "FDF4", "bytes": "25 32", "text": "Apply INVFLG to printable output before the screen handler."},
     {"address": "FBF0", "bytes": "A4 24", "text": "Load the column within the text window into Y."},

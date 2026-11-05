@@ -5,6 +5,9 @@ import { Apple2Video } from "../../src/components/devices/generated/apple2-video
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { literateBlocks } from "../../src/literate.js";
 import { applesoftArrayElement, applesoftArrays, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftStepBoundary } from "../../site/interactive/apple2-applesoft-step.js";
+import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
+import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
 import { apple2LoresFrame, apple2TextFrame } from "../../site/interactive/apple2-screen.js";
 import { createApple2Session, apple2Input, apple2ControlKey } from "../../site/interactive/apple2-session.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
@@ -106,7 +109,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
   const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
-  const [scalarExample, arrayExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  const [scalarExample, arrayExample, stepExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
   assert.ok(scalarExample);
   command("NEW");
   for (const line of scalarExample.lines) command(line.text);
@@ -155,6 +158,34 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   assert.equal(String.fromCharCode(...bytesAt(chars, 5)), "HELLO");
   command("CLEAR");
   assert.deepEqual(applesoftArrays(ram).arrays, []);
+
+  function stepBasic(): string | undefined {
+    const debug = createInstructionDebugger(100_000), location = () => apple2DebugLocation(hardware);
+    debug.stepUntil(location(), at => applesoftStepBoundary(hardware, at, session.pendingInput));
+    while (!debug.beforeStep(location)) {
+      assert.equal(session.step().outcome, "executed");
+      debug.observeBoundary();
+    }
+    assert.equal(debug.stop?.kind, "step");
+    return debug.stop.detail;
+  }
+  assert.ok(stepExample);
+  for (const line of stepExample.lines) command(line.text);
+  session.send(apple2Input("RUN\n"));
+  const before = (line: number, address: string) => assert.equal(stepBasic(), `Before Applesoft line ${line} at $${address}.`);
+  const integer = (index: number) => applesoftArrayElement(ram, applesoftArrays(ram).arrays[0]!, index).value;
+  before(10, "0805"); assert.deepEqual(applesoftArrays(ram).arrays, []);
+  before(20, "081D"); assert.deepEqual([integer(2), integer(1)], ["0", "0"]);
+  before(20, "082A"); assert.deepEqual([integer(2), integer(1)], ["1234", "0"]);
+  before(30, "083A"); assert.equal(integer(1), "-42");
+  before(30, "0843");
+  before(40, "0855");
+  for (const value of ["1", "2"]) {
+    before(40, "085C"); before(40, "0866"); assert.equal(integer(0), value);
+  }
+  before(50, "086C"); before(50, "0871"); before(50, "087B"); assert.equal(integer(0), "7");
+  assert.equal(stepBasic(), "Applesoft ] prompt."); assert.match(screen(), /\n\n\]$/);
+  assert.equal(stepBasic(), "Waiting for keyboard input.");
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.
   const examples = literateBlocks(chapter, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });

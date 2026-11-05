@@ -13,6 +13,7 @@ import { createApple2DiskInspector } from "./apple2-disk-inspector.js";
 import { apple2RomStorage } from "./apple2-rom-storage.js";
 import { createApple2Inspection } from "./apple2-inspection-view.js";
 import { createApplesoftVariablesView } from "./apple2-applesoft-variables-view.js";
+import { applesoftStepBoundary } from "./apple2-applesoft-step.js";
 import { createApplesoftView } from "./apple2-applesoft-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
@@ -67,6 +68,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     showPanel(location.tool); refreshPanels([location.tool, "rom", "code"]);
   });
   const browseMemory = (address: number) => navigation.browse("memory", address);
+  const basicStep = root.querySelector<HTMLButtonElement>("[data-applesoft-step]");
   const applesoft = createApplesoftView(root, browseMemory);
   const variables = createApplesoftVariablesView(root, browseMemory);
   const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
@@ -164,6 +166,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     pause.disabled = !execution.running;
     step.disabled = !available || execution.running || execution.error !== undefined;
     stepControls(step.disabled, explorer.canStepOut);
+    if (basicStep) basicStep.disabled = step.disabled || session.machine.language.ramRead();
     reset.disabled = !available;
     power.disabled = selecting;
     for (const control of [keyboard, enter, interrupt]) if (control) control.disabled = !available;
@@ -187,7 +190,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (execution.error !== undefined) message.textContent = execution.error;
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
     if (shouldUpdate("variables")) variables?.(session.machine);
-    if (shouldUpdate("applesoft")) applesoft?.(session.machine, latest);
+    if (shouldUpdate("applesoft")) applesoft?.(session.machine, latest, explorer.stop);
     inspection.refresh(session.machine, latest, changeLog?.current().memoryChanges(latest), !execution.running && !selecting);
     explorer.refresh(execution.records, available && execution.error === undefined, execution.running);
     if (shouldUpdate("log")) changeLog?.refresh();
@@ -287,6 +290,10 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   pause.addEventListener("click", () => { explorer.pause(); execution.stop(); });
   step.addEventListener("click", () => {
     explorer.step(); message.textContent = ""; execution.step();
+  });
+  basicStep?.addEventListener("click", () => {
+    explorer.stepUntil(at => applesoftStepBoundary(session.machine, at, session.pendingInput));
+    message.textContent = ""; execution.run();
   });
   const stepControls = createDebuggerStepControls(root, {
     over: explorer.over, out: explorer.out,
