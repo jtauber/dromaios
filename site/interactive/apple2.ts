@@ -17,6 +17,7 @@ import { applesoftStepBoundary } from "./apple2-applesoft-step.js";
 import { createApplesoftBreakpoints } from "./apple2-applesoft-breakpoints.js";
 import { createApplesoftView } from "./apple2-applesoft-view.js";
 import { createApplesoftStackView } from "./apple2-applesoft-stack-view.js";
+import { createApplesoftHistoryView } from "./apple2-applesoft-history-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
@@ -73,14 +74,16 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const basicStep = root.querySelector<HTMLButtonElement>("[data-applesoft-step]");
   const basicBreakpoints = createApplesoftBreakpoints(() => session.machine);
   const applesoft = createApplesoftView(root, browseMemory, basicBreakpoints);
-  const basicStack = createApplesoftStackView(root, basicBreakpoints.listing, browseMemory, address => {
+  function revealStatement(address: number): void {
     showPanel("applesoft"); refreshPanels(["applesoft"]); applesoft?.reveal(address);
-  });
+  }
+  const basicStack = createApplesoftStackView(root, basicBreakpoints.listing, browseMemory, revealStatement);
+  const basicHistory = createApplesoftHistoryView(root, basicBreakpoints.listing, revealStatement);
   const variables = createApplesoftVariablesView(root, browseMemory);
   const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
     if (execution.running || selecting) throw new Error("Pause execution before editing a register.");
     editApple2Register(session.machine, register, text);
-    explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
+    explorer.reset(); resetExecutionHistory();
     message.textContent = `${register.toUpperCase()} edited. Execution history cleared; RAM and devices preserved.`;
     refresh();
   }, { showPanel, memory: address => navigation.browse("memory", address), history: watch => explorer.watchHistory(watch),
@@ -90,7 +93,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const change = editApple2Memory(session.machine, edit, text);
       if (!change) return;
       if (basicBreakpoints.active) basicBreakpoints.reconcile();
-      explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
+      explorer.reset(); resetExecutionHistory();
       changeLog?.current().recordEdit(change);
       message.textContent = "RAM edited. Execution history cleared; the user edit is recorded in Changes.";
       refreshPanels(["memory", "zero", "stack", "watches", "instruction", "code", "log"]);
@@ -104,6 +107,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const before = apple2DebugLocation(session.machine), romMapped = !session.machine.language.ramRead();
       const record = changeLog ? changeLog.current().capture(() => session.step()) : session.step();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
+      basicHistory?.observe(session.machine, before);
       const changes = changeLog?.current().memoryChanges(record) ?? [];
       const writes = changeLog?.current().memoryWrites(record) ?? [];
       explorer.observe(record, before, inspection.watches, changes, writes);
@@ -134,7 +138,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     restore: saved => withSavedState(saved, prepared => {
       session = prepared.session; diskName = prepared.diskName; flash = prepared.flash; nextFlash = 0;
       if (diskNotice) diskNotice.textContent = "";
-      explorer.reset(); execution.reset(); changeLog?.reset(); screenInspector?.reset();
+      explorer.reset(); resetExecutionHistory();
       if (keyboard) keyboard.value = "";
       message.textContent = `Restored “${saved.name}”. Paused; instruction count restarted.`;
     }),
@@ -152,6 +156,10 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
 
   function pauseBeforeStep(): boolean {
     return explorer.pauseBeforeStep(basicBreakpoints.active ? basicBreakpoints.match : undefined);
+  }
+
+  function resetExecutionHistory(): void {
+    execution.reset(); changeLog?.reset(); screenInspector?.reset(); basicHistory?.reset();
   }
 
   function requirePaused(): void {
@@ -204,6 +212,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (shouldUpdate("variables")) variables?.(session.machine);
     if (shouldUpdate("applesoft")) applesoft?.refresh(session.machine, latest, explorer.stop);
     basicStack?.(session.machine, execution.running);
+    if (shouldUpdate("applesoft-history")) basicHistory?.refresh();
     inspection.refresh(session.machine, latest, changeLog?.current().memoryChanges(latest), !execution.running && !selecting);
     explorer.refresh(execution.records, available && execution.error === undefined, execution.running);
     if (shouldUpdate("log")) changeLog?.refresh();
@@ -243,7 +252,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const verified = await verify(chosen);
       if (token !== selection) return;
       apply(verified);
-      execution.reset(); changeLog?.reset(); screenInspector?.reset(); flash = false; nextFlash = 0;
+      resetExecutionHistory(); flash = false; nextFlash = 0;
       if (keyboard) keyboard.value = "";
     } catch (cause) {
       if (token === selection) {
@@ -314,12 +323,12 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     error: text => { message.textContent = text; },
   });
   reset.addEventListener("click", () => action(() => {
-    explorer.reset(); execution.reset(); session.reset(); changeLog?.reset(); screenInspector?.reset();
+    explorer.reset(); session.reset(); resetExecutionHistory();
     message.textContent = "CPU reset. RAM and device state are preserved; Run continues through the reset firmware.";
     refresh();
   }));
   power.addEventListener("click", () => action(() => {
-    explorer.reset(); execution.reset(); session.powerOn(); changeLog?.reset(); screenInspector?.reset(); flash = false; nextFlash = 0;
+    explorer.reset(); session.powerOn(); resetExecutionHistory(); flash = false; nextFlash = 0;
     if (keyboard) keyboard.value = "";
     message.textContent = session.hasFirmware
       ? `Fresh power-on. The previous program is gone; Run boots ${diskName ? "from the retained disk" : "Applesoft"} again.`
@@ -360,7 +369,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const saved = await romStorage.restore();
       if (saved !== undefined) {
         installRom(saved);
-        execution.reset(); changeLog?.reset(); screenInspector?.reset();
+        resetExecutionHistory();
         storageStatus.textContent = "Remembered ROM restored and verified. Run starts a fresh machine.";
       } else {
         storageStatus.textContent = "Your ROM will be remembered in this browser. Use Saved states in the laboratory to keep an experiment.";

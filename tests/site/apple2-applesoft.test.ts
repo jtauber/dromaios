@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Ram } from "../../src/components/memory/ram.js";
-import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftVariables, createApplesoftListing, observeApplesoftListing } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftStatementText, applesoftVariables, createApplesoftListing, observeApplesoftListing, resolveApplesoftSource } from "../../site/interactive/apple2-applesoft.js";
+import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
+import { createApple2Session } from "../../site/interactive/apple2-session.js";
 import { applesoftStackFrames } from "../../site/interactive/apple2-applesoft-stack.js";
 
 const keywords: string[] = [];
@@ -12,6 +14,40 @@ keywords[0xb2 - 0x80] = "REM";
 function storeWord(ram: Ram, at: number, value: number): void {
   ram.write(at, value & 0xff); ram.write(at + 1, value >> 8);
 }
+
+test("statement history retains the last 32 dispatches and resolves each recorded statement against the current source", () => {
+  const { machine } = createApple2Session(), { ram } = machine;
+  function program(start: number): void {
+    const bytes = [0xba, 49, 0x3a, 0xba, 49]; // 10 PRINT 1:PRINT 1
+    const next = start + 5 + bytes.length;
+    storeWord(ram, 0x67, start); storeWord(ram, 0x69, next + 2);
+    storeWord(ram, start, next); storeWord(ram, start + 2, 10);
+    bytes.forEach((b, i) => ram.write(start + 4 + i, b));
+  }
+  program(0x801);
+  const decode = createApplesoftListing(keywords), listing = () => decode(ram);
+  const history = createApplesoftHistory(listing), dispatch = { space: "rom", address: 0xd828 };
+  storeWord(ram, 0xb8, 0x808); storeWord(ram, 0x75, 0xff00);
+  history.observe(machine, dispatch); // Direct mode.
+  storeWord(ram, 0x75, 10);
+  history.observe(machine, { ...dispatch, space: "lc-bank1" });
+  history.observe(machine, { ...dispatch, address: 0xd829 });
+  storeWord(ram, 0xb8, 0x809); history.observe(machine, dispatch); // Inside a statement.
+  assert.equal(history.total, 0);
+  storeWord(ram, 0xb8, 0x805); history.observe(machine, dispatch);
+  storeWord(ram, 0xb8, 0x808);
+  for (let i = 0; i < 32; i++) history.observe(machine, dispatch);
+  assert.equal(history.total, 33); assert.equal(history.visits.length, 32);
+  assert.ok(history.visits.every(visit => visit.index === 1 && visit.statement.address === 0x808));
+  const visit = history.visits[0]!;
+  program(0x4001);
+  assert.equal(resolveApplesoftSource(listing(), visit)?.address, 0x4008, "Identical text elsewhere on the line is a different statement");
+  ram.write(0x4009, 50);
+  assert.equal(resolveApplesoftSource(listing(), visit), undefined);
+  assert.equal(applesoftStatementText(visit.statement), "PRINT 1", "An edit must not rewrite a previous visit");
+  history.clear();
+  assert.equal(history.total, 0); assert.deepEqual(history.visits, []);
+});
 
 test("BASIC stack records resolve across line ends, distinguish separate step signs, and stop at damaged frames", () => {
   const ram = new Ram(0xc000), start = 0x4001;

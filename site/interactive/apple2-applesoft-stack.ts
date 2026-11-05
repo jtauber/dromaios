@@ -1,4 +1,4 @@
-import { applesoftReal, applesoftVariables } from "./apple2-applesoft.js";
+import { applesoftReal, applesoftStatementText, applesoftVariables } from "./apple2-applesoft.js";
 import type { ApplesoftListing, ApplesoftVariable } from "./apple2-applesoft.js";
 import { applesoftStatement } from "./apple2-applesoft-step.js";
 import { apple2DebugLocation } from "./apple2-debugger.js";
@@ -26,7 +26,7 @@ function continuation(listing: ApplesoftListing, lineNumber: number, pointer: nu
     const nextLine = listing.lines[i]!;
     for (let j = i === index ? slot + 1 : 0; j < nextLine.statements.length; j++) {
       const statement = nextLine.statements[j]!;
-      const text = statement.parts.map(part => part.tokenAddress === undefined ? part.text : ` ${part.text} `).join("").trim();
+      const text = applesoftStatementText(statement);
       if (text) return { kind: "statement", line: nextLine.number, address: statement.address, text };
     }
   }

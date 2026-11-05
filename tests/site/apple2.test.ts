@@ -4,9 +4,10 @@ import { test } from "node:test";
 import { Apple2Video } from "../../src/components/devices/generated/apple2-video.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { literateBlocks } from "../../src/literate.js";
-import { applesoftArrayElement, applesoftArrays, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftStatementText, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
 import { applesoftStepBoundary } from "../../site/interactive/apple2-applesoft-step.js";
 import { applesoftStack } from "../../site/interactive/apple2-applesoft-stack.js";
+import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
 import { createApplesoftBreakpoints } from "../../site/interactive/apple2-applesoft-breakpoints.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
@@ -161,11 +162,15 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   command("CLEAR");
   assert.deepEqual(applesoftArrays(ram).arrays, []);
 
+  const pointsForHistory = createApplesoftBreakpoints(() => hardware);
+  const history = createApplesoftHistory(pointsForHistory.listing);
   function stepBasic(): string | undefined {
     const debug = createInstructionDebugger(100_000), location = () => apple2DebugLocation(hardware);
     debug.stepUntil(location(), at => applesoftStepBoundary(hardware, at, session.pendingInput));
     while (!debug.beforeStep(location)) {
+      const before = location();
       assert.equal(session.step().outcome, "executed");
+      history.observe(hardware, before);
       debug.observeBoundary();
     }
     assert.equal(debug.stop?.kind, "step");
@@ -229,10 +234,12 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   await t.test("RETURN reaches the displayed NEXT statement and leaves the FOR frame active", () => {
     assert.ok(stackExample); command("NEW");
     for (const line of stackExample.lines) command(line.text);
-    const source = createApplesoftBreakpoints(() => hardware).listing();
+    history.clear();
+    const source = pointsForHistory.listing();
     const stack = () => applesoftStack(hardware, source);
     session.send(apple2Input("RUN\n"));
     before(10, "0805"); assert.deepEqual(stack(), { frames: [] });
+    assert.equal(history.total, 0, "Pausing before the first statement has not dispatched it");
     const loop = (value: string) => ({ kind: "FOR", address: 0x1e7, variable: "I", value, step: "1", limit: "2",
       destination: { kind: "statement", line: 10, address: 0x080c, text: "GOSUB 100" } });
     const call = { kind: "GOSUB", address: 0x1e0,
@@ -247,7 +254,11 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
       before(10, "0811"); assert.deepEqual(stack(), { frames: [loop(value)] });
     }
     before(20, "0818"); assert.deepEqual(stack(), { frames: [] });
+    const visits = () => history.visits.map(({ line, statement }) => `${line} ${applesoftStatementText(statement)}`);
+    const trip = ["10 GOSUB 100", "100 PRINT I", "100 RETURN", "10 NEXT I"];
+    assert.deepEqual(visits(), ["10 FOR I = 1 TO 2", ...trip, ...trip]);
     assert.equal(stepBasic(), "Applesoft ] prompt."); assert.ok(screen().endsWith("]RUN\n1\n2\n\n]"));
+    assert.deepEqual(visits(), ["10 FOR I = 1 TO 2", ...trip, ...trip, "20 END"]);
     assert.ok(stack().message);
   });
 

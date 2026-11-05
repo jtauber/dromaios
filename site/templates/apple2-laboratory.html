@@ -177,6 +177,14 @@
       <div class="lab-applesoft-source" data-applesoft-source></div>
       <p><a href="{{ calc_url(apple2_url ~ '#reading-an-applesoft-listing') }}" target="_blank" rel="noopener">Reading an Applesoft listing ↗</a></p>
     </section>
+    <section class="lab-tool lab-panel-body lab-applesoft-history" data-workspace-panel="applesoft-history" data-panel-live="true" data-panel-title="Applesoft history">
+      <div class="basic-controls">
+        <button type="button" data-basic-history-clear disabled>Clear history</button>
+        <a href="{{ calc_url(apple2_url ~ '#following-applesoft-statement-history') }}" target="_blank" rel="noopener">Follow the loop walkthrough ↗</a>
+      </div>
+      <p class="lab-hint" data-basic-history-status>No numbered statements recorded yet.</p>
+      <ol aria-label="Applesoft statement visits"></ol>
+    </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="applesoft-stack" data-panel-title="Applesoft stack">
       <p class="lab-hint" data-basic-stack-status></p>
       <table class="lab-hardware-map lab-basic-stack" hidden>

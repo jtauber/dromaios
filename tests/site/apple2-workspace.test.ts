@@ -150,3 +150,17 @@ test("version 9 adds Applesoft stack beside Variables or Stack and preserves clo
     assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools), "applesoft-stack"), undefined);
   }
 });
+
+test("version 10 adds Applesoft history beside the listing or Disassembly without reopening a closed tool", () => {
+  const tools = ["code", "applesoft", "applesoft-history", "variables", "applesoft-stack"];
+  for (const neighbor of ["applesoft", "code"]) {
+    const layout: WorkspaceLayout = { root: { kind: "tabs", id: "tools", panels: [neighbor, "variables"], active: neighbor, collapsed: true } };
+    const storage = preferences(); storage.setItem("dromaios:workspace:apple2:10", encodeWorkspaceState(layout));
+    migrateApple2Workspace(storage, tools);
+    const next = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools);
+    assert.deepEqual(next.root, { ...layout.root, panels: [neighbor, "variables", "applesoft-history"] });
+    storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(closePanel(next, "applesoft-history")));
+    migrateApple2Workspace(storage, tools);
+    assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools), "applesoft-history"), undefined);
+  }
+});

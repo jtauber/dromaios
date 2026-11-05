@@ -161,6 +161,10 @@
 .lab-applesoft-source span[aria-current="true"] { background: #594420; outline: 1px solid #dba94c; color: #ffe8ac; }
 .lab-applesoft-source span[aria-current="true"] .lab-memory-link { color: inherit; }
 .lab-applesoft-source span:focus { outline: 2px solid var(--accent); }
+.lab-applesoft-history { display: flex; flex-direction: column; align-items: flex-start; }
+.lab-applesoft-history ol { align-self: stretch; overflow: auto; margin: 8px 0 0; padding-inline-start: 6ch; font: 12px/1.7 var(--mono); }
+.lab-applesoft-history li::marker { color: var(--muted); }
+.lab-applesoft-history .lab-memory-link { text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .lab-basic-stack .lab-memory-link { text-align: left; }
 .laboratory-page .lab-applesoft-source button[aria-current="true"] { color: #101c30; background: #ffda86; outline: 2px solid #ffda86; font-weight: 700; }
 .lab-reference-current { margin: 10px 0 14px; padding: 10px; background: #131f33; border: 1px solid var(--line); border-radius: 4px; }

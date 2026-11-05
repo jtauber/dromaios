@@ -752,6 +752,26 @@ Applesoft ROM. At that point the dispatcher's saved 6502 return address
 identifies where to begin walking the records. Pausing elsewhere offers
 **Step BASIC statement** to reach the next such boundary.
 
+### Following Applesoft statement history
+
+Remove the breakpoint on `PRINT I` and let the program finish. At the
+`]` prompt, open **Applesoft history** beside the listing and choose
+**Clear history**. Mark `END` on line 20 and run the three-line program
+again. Read the history from top
+to bottom. It begins with `FOR I = 1 TO 2`. The next four visits are
+`GOSUB 100`, `PRINT I`, `RETURN`, and `NEXT I`. Those four appear a
+second time, including the return to the third statement on line 10.
+The listing now highlights `END`. Step over it to add it to the history.
+
+Each visit records the statement as the ROM begins dispatching it.
+The panel keeps the latest 32 visits, including while another tab is open
+or live updates are off. Select either visit to `NEXT I` to focus its
+statement in the listing. If a line moves in RAM, the link follows it.
+If the statement at that position changes, its recorded text stays in
+the history and its link becomes unavailable. Resetting the CPU, starting
+a fresh machine, restoring a saved state, or editing a register or RAM
+in the debugger clears the history.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,

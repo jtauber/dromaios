@@ -21,6 +21,29 @@ export interface ApplesoftListing {
   readonly message?: string;
 }
 
+export interface ApplesoftSourcePosition {
+  readonly line: number;
+  readonly index: number;
+  statement: ApplesoftStatement;
+}
+
+export function applesoftStatementText(statement: ApplesoftStatement): string {
+  return statement.parts.map(part => part.tokenAddress === undefined ? part.text : ` ${part.text} `).join("").trim();
+}
+
+/** Compare stored tokens and literal text, independently of where BASIC moved the line. */
+export function sameApplesoftSource(a: ApplesoftStatement, b: ApplesoftStatement): boolean {
+  return a === b || a.parts.length === b.parts.length && a.parts.every((part, i) => {
+    const other = b.parts[i]!;
+    return part.text === other.text && (part.tokenAddress === undefined) === (other.tokenAddress === undefined);
+  });
+}
+
+export function resolveApplesoftSource(listing: ApplesoftListing, point: ApplesoftSourcePosition): ApplesoftStatement | undefined {
+  const current = listing.lines.find(line => line.number === point.line)?.statements[point.index];
+  return current && sameApplesoftSource(point.statement, current) ? current : undefined;
+}
+
 const word = (ram: Memory, at: number) => ram.read(at) | ram.read(at + 1) << 8;
 
 function displayCharacter(byte: number): string {
