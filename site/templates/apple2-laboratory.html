@@ -206,6 +206,16 @@
       <p><a href="{{ calc_url(apple2_url ~ '#profiling-applesoft-subroutines') }}" target="_blank" rel="noopener">Follow nested subroutine calls ↗</a></p>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="variables" data-panel-live="true" data-panel-title="Applesoft variables">
+      <details class="lab-applesoft-memory" data-applesoft-memory open hidden>
+        <summary>Memory layout</summary>
+        <p class="lab-hint" data-basic-memory-status></p>
+        <div class="lab-basic-memory-bar" data-basic-memory-bar aria-hidden="true" hidden></div>
+        <table class="lab-hardware-map" hidden>
+          <thead><tr><th scope="col">Region</th><th scope="col">Addresses</th><th scope="col">Bytes</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="lab-hint">The string heap includes space awaiting collection. <a href="{{ calc_url(apple2_url ~ '#understanding-applesoft-memory-layout') }}" target="_blank" rel="noopener">Follow string storage ↗</a></p>
+      </details>
       <p class="lab-hint" data-variables-status>Preparing Applesoft variables…</p>
       <table class="lab-hardware-map lab-applesoft-variables" hidden>
         <thead><tr><th>Variable</th><th>Type</th><th>Value</th></tr></thead>

@@ -178,6 +178,26 @@ export function applesoftCursor(ram: Memory, latest?: Cpu6502StepRecord) {
 }
 
 type VariableRam = Pick<Ram, "read" | "size">;
+
+interface ApplesoftMemoryRegion {
+  readonly name: string;
+  readonly start: number;
+  readonly end: number; // Exclusive, including when it is the first address above main RAM.
+}
+
+/** Applesoft's allocation boundaries, sampled without running its collecting FRE function. */
+export function applesoftMemoryLayout(ram: VariableRam): { regions: ApplesoftMemoryRegion[]; message?: string } {
+  // TXTTAB, VARTAB, ARYTAB, STREND, FRETOP, MEMSIZE.
+  const bounds = [0x67, 0x69, 0x6b, 0x6d, 0x6f, 0x73].map(at => word(ram, at));
+  if (bounds.every(at => at === 0)) return { regions: [], message: "The Applesoft memory layout is uninitialized." };
+  if (bounds[0] === 0 || bounds[1]! < bounds[0]! + 2 || bounds[5]! > ram.size
+    || bounds.some((at, i) => i > 0 && at < bounds[i - 1]!)) {
+    return { regions: [], message: "Incomplete or invalid Applesoft memory boundaries." };
+  }
+  const names = ["Program area", "Scalars", "Arrays", "Free space", "String heap"];
+  return { regions: names.map((name, i) => ({ name, start: bounds[i]!, end: bounds[i + 1]! })) };
+}
+
 type VariableType = "Real" | "Integer" | "String";
 const elementBytes = { Real: 5, Integer: 2, String: 3 } as const;
 

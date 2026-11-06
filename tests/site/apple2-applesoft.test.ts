@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Ram } from "../../src/components/memory/ram.js";
-import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftStatementText, applesoftVariables, createApplesoftListing, observeApplesoftListing, resolveApplesoftSource } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftMemoryLayout, applesoftStatementText, applesoftVariables, createApplesoftListing, observeApplesoftListing, resolveApplesoftSource } from "../../site/interactive/apple2-applesoft.js";
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
 import { createApplesoftProfile } from "../../site/interactive/apple2-applesoft-profile.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
@@ -15,6 +15,30 @@ keywords[0xb2 - 0x80] = "REM";
 function storeWord(ram: Ram, at: number, value: number): void {
   ram.write(at, value & 0xff); ram.write(at + 1, value >> 8);
 }
+
+test("Applesoft memory boundaries retain empty regions and reject overlaps or addresses outside RAM", () => {
+  const ram = new Ram(0xc000), layout = () => applesoftMemoryLayout(ram);
+  assert.match(layout().message!, /uninitialized/);
+  const pointers = [0x67, 0x69, 0x6b, 0x6d, 0x6f, 0x73];
+  const bounds = [0x4001, 0x4003, 0x4003, 0x4003, 0xc000, 0xc000];
+  pointers.forEach((at, i) => storeWord(ram, at, bounds[i]!));
+  assert.deepEqual(layout().regions, [
+    { name: "Program area", start: 0x4001, end: 0x4003 },
+    { name: "Scalars", start: 0x4003, end: 0x4003 },
+    { name: "Arrays", start: 0x4003, end: 0x4003 },
+    { name: "Free space", start: 0x4003, end: 0xc000 },
+    { name: "String heap", start: 0xc000, end: 0xc000 },
+  ]);
+  storeWord(ram, 0x6f, 0x4003);
+  assert.deepEqual(layout().regions[3], { name: "Free space", start: 0x4003, end: 0x4003 });
+  storeWord(ram, 0x6f, 0xc000);
+  for (const [at, value] of [[0x67, 0], [0x69, 0x4002], [0x6b, 0x4002], [0x6d, 0x4002], [0x6f, 0x4002], [0x73, 0xbfff], [0x73, 0xc001]] as const) {
+    storeWord(ram, at, value);
+    assert.deepEqual(layout().regions, []); assert.match(layout().message!, /invalid/);
+    storeWord(ram, at, bounds[pointers.indexOf(at)]!);
+  }
+  assert.equal(layout().message, undefined);
+});
 
 test("subroutine profiles bind exact callers, follow relocated source, and reject stale or unmapped records", () => {
   const { machine } = createApple2Session(), { ram } = machine;

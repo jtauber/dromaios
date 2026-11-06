@@ -641,6 +641,70 @@ An empty string has a record and zero character bytes. Try `A$=A$+"!"` at the
 prompt, then `PRINT A$`. The same record now points into the string heap and
 the value link follows it there.
 
+### Understanding Applesoft memory layout
+
+**Memory layout** in **Applesoft variables** shows five regions in address
+order. The bar uses their actual proportions. The table keeps small and empty
+regions visible, gives byte counts, and links each occupied range to **Memory**.
+Collapse the overview to leave more room for variables and expanded arrays.
+It follows the panel's Live setting and uses the same inspection sample.
+
+| Region | Start pointer | End pointer, exclusive |
+| --- | --- | --- |
+| Program area | `TXTTAB` at `$0067` | `VARTAB` at `$0069` |
+| Scalars | `VARTAB` at `$0069` | `ARYTAB` at `$006B` |
+| Arrays | `ARYTAB` at `$006B` | `STREND` at `$006D` |
+| Free space | `STREND` at `$006D` | `FRETOP` at `$006F` |
+| String heap | `FRETOP` at `$006F` | `MEMSIZE` at `$0073` |
+
+Each pointer occupies two bytes, low byte first. The program area includes
+the final zero link and any gap reserved before the scalar table. The string
+heap includes temporary strings and space awaiting garbage collection.
+Characters held in program literals already belong to the program area.
+The inspector reads these boundaries from main RAM. Invalid or incomplete
+boundaries display a message until they form an ordered range again.
+
+Start with a fresh ROM boot and enter `NEW`, followed by these lines.
+
+```basic
+10 HIMEM:16384
+20 DIM B$(1)
+30 A$="HELLO"
+40 A$=A$+"!"
+50 B$(0)=A$
+60 A$=A$+"?"
+70 A$=""
+80 PRINT FRE(0)
+90 END
+```
+
+Pause, queue `RUN`, and use **Step BASIC statement** in **Applesoft listing**.
+Each stop is before its highlighted statement, so step past a line to see its
+effect. Line 10 sets the upper memory boundary to `$4000` for this experiment.
+This also keeps the free-byte count within `FRE`'s positive signed range.
+Line 20 allocates a 13-byte array record. Creating `A$` adds a seven-byte scalar
+record and moves the array upward. The program area occupies 107 bytes.
+
+| After line | A$ | String heap bytes | Free bytes | What to inspect |
+| --- | --- | --- | --- | --- |
+| 30 | `"HELLO"` | 0 | 14,208 | Its value link leads to the literal at `$081F` in the stored program. |
+| 40 | `"HELLO!"` | 6 | 14,202 | Concatenation allocates six characters at `$3FFA`. |
+| 50 | `"HELLO!"` | 12 | 14,196 | Expand **B$(1)**. Its first element owns a second copy at `$3FF4`. |
+| 60 | `"HELLO!?"` | 19 | 14,189 | The new seven-character value starts at `$3FED`. The earlier A$ allocation remains in the heap. |
+| 70 | `""` | 19 | 14,189 | A$ has zero length. B$(0) still contains `"HELLO!"`. |
+| 80 | `""` | 6 | 14,202 | Collection moves B$(0)'s characters to `$3FFA` and updates its descriptor. |
+
+Line 80 prints `14202`, matching the **Free space** row. Select B$(0)'s
+value before and after that step to follow its changing character address.
+At the prompt, `PRINT B$(0)` still prints `HELLO!`. The ROM's `FRE` function
+calls `GARBAG`, which compacts referenced strings toward the upper boundary,
+then returns the space between `STREND` and `FRETOP`. Merely viewing the panel
+reads the current pointers. [Applesoft ROM disassembly](https://6502disassembly.com/a2-rom/Applesoft.html)
+
+**Fresh power-on** restores the normal ROM-only memory limit for your next
+experiment. The walkthrough's automated check steps this exact program through
+the ROM and compares the regions, string descriptors, and printed results.
+
 ### Following array elements in Memory
 
 Enter `NEW`, enter these lines, and `RUN` the program.
@@ -1033,6 +1097,8 @@ within KEYIN, rather than a separate subroutine.
     {"address": "0069", "name": "VARTAB", "description": "Applesoft variable storage start", "scope": "workspace", "bytes": 2},
     {"address": "006B", "name": "ARYTAB", "description": "Applesoft array storage start, just past the scalar records", "scope": "workspace", "bytes": 2},
     {"address": "006D", "name": "STREND", "description": "First byte after the Applesoft array table", "scope": "workspace", "bytes": 2},
+    {"address": "006F", "name": "FRETOP", "description": "Lowest allocated byte of the Applesoft string heap", "scope": "workspace", "bytes": 2},
+    {"address": "0073", "name": "MEMSIZE", "description": "Applesoft upper memory boundary, exclusive; set by HIMEM", "scope": "workspace", "bytes": 2},
     {"address": "0075", "name": "CURLIN", "description": "Applesoft current line number ($FF high byte in direct mode)", "scope": "workspace", "bytes": 2},
     {"address": "00B8", "name": "TXTPTR", "description": "Applesoft text pointer in the CHRGET routine", "scope": "workspace", "bytes": 2},
     {"address": "0200", "name": "INPUT_BUFFER", "description": "Input buffer (256 bytes)", "scope": "workspace"},
@@ -1106,6 +1172,8 @@ within KEYIN, rather than a separate subroutine.
     {"address": "D93B", "bytes": "4C D2 D7", "text": "GOSUB has found its target. TXTPTR is one byte before that line's header; the five-byte caller record is on the stack."},
     {"address": "D993", "bytes": "85 B9", "text": "RETURN restores the high byte of the caller's text pointer, completing the five-byte frame restoration."},
     {"address": "D9C7", "bytes": "68", "text": "POP discards the last byte of the GOSUB frame. Execution continues in the current routine."},
+    {"address": "E2E5", "bytes": "20 84 E4", "text": "FRE calls GARBAG before computing the available space between STREND and FRETOP."},
+    {"address": "E484", "bytes": "A6 73", "text": "Garbage collection begins at MEMSIZE and compacts referenced strings toward that upper boundary."},
     {"address": "FD6F", "bytes": "A2 01", "text": "GETLN has printed its prompt. Both direct command entry and program input use this line editor."},
     {"address": "FDED", "bytes": "6C 36 00", "text": "Dispatch through CSWL/CSWH; the hook chooses where output goes."},
     {"address": "FDF4", "bytes": "25 32", "text": "Apply INVFLG to printable output before the screen handler."},

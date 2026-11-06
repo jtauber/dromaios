@@ -1,9 +1,10 @@
-import { applesoftArrayElement, applesoftArrays, applesoftVariables } from "./apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftMemoryLayout, applesoftVariables } from "./apple2-applesoft.js";
 import type { ApplesoftArray, ApplesoftVariable } from "./apple2-applesoft.js";
 import { hex } from "./apple2-explorer.js";
 import type { createApple2Session } from "./apple2-session.js";
 import { memoryLink } from "./memory-link.js";
 import { captureMemory } from "./memory-window.js";
+import { createApplesoftMemoryView } from "./apple2-applesoft-memory-view.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 type Browse = (address: number) => void;
@@ -71,7 +72,8 @@ export function createApplesoftVariablesView(root: HTMLElement, browse: Browse) 
   const panel = root.querySelector<HTMLElement>('[data-workspace-panel="variables"]');
   if (!panel) return;
   const status = panel.querySelector<HTMLElement>("[data-variables-status]")!;
-  const table = panel.querySelector<HTMLTableElement>("table")!, rows = variableRows(table, browse);
+  const table = panel.querySelector<HTMLTableElement>(".lab-applesoft-variables")!, rows = variableRows(table, browse);
+  const memory = createApplesoftMemoryView(panel, browse);
   const container = panel.querySelector<HTMLElement>("[data-applesoft-arrays]")!;
   const views = new Map<string, ReturnType<typeof arrayView>>();
   return (machine: Machine): void => {
@@ -80,6 +82,7 @@ export function createApplesoftVariablesView(root: HTMLElement, browse: Browse) 
       : machine.language.ramRead() ? "Language Card RAM is mapped in place of the Applesoft ROM." : undefined;
     const scalars = unavailable ? { variables: [], message: unavailable } : applesoftVariables(machine.ram);
     const { arrays, message } = unavailable ? { arrays: [] } : applesoftArrays(machine.ram);
+    memory(unavailable ? undefined : applesoftMemoryLayout(machine.ram));
     rows(scalars.variables);
     table.hidden = scalars.variables.length === 0;
     status.textContent = scalars.message ?? message ?? (table.hidden && !arrays.length ? "No variables." : "");

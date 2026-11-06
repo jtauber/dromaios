@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { Apple2Video } from "../../src/components/devices/generated/apple2-video.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { literateBlocks } from "../../src/literate.js";
-import { applesoftArrayElement, applesoftArrays, applesoftStatementText, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftMemoryLayout, applesoftStatementText, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
 import { applesoftStepBoundary } from "../../site/interactive/apple2-applesoft-step.js";
 import { applesoftStack } from "../../site/interactive/apple2-applesoft-stack.js";
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
@@ -124,7 +124,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
   const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
-  const [scalarExample, arrayExample, stepExample, stackExample, profileExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  const [scalarExample, memoryExample, arrayExample, stepExample, stackExample, profileExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
   assert.ok(scalarExample);
   command("NEW");
   for (const line of scalarExample.lines) command(line.text);
@@ -328,6 +328,51 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     assert.deepEqual(summary(), []); assert.match(screen(), /UNDEF'D STATEMENT ERROR/);
     program(["10 GOSUB 100:END", "100 PRINT 1/0"]);
     assert.deepEqual(summary(), [[100, 1, 0, 0]]); assert.match(screen(), /DIVISION BY ZERO/);
+  });
+
+  await t.test("string allocation and collection match the guide's memory layout and FRE output", () => {
+    assert.ok(memoryExample);
+    const ceiling = ram.read(0x73) | ram.read(0x74) << 8;
+    command("NEW"); for (const line of memoryExample.lines) command(line.text);
+    session.send(apple2Input("RUN\n"));
+    const sizes = () => applesoftMemoryLayout(ram).regions.map(region => region.end - region.start);
+    const stop = (line: number) => {
+      const statement = pointsForHistory.listing().lines.find(l => l.number === line)!.statements[0]!;
+      before(line, statement.address.toString(16).toUpperCase().padStart(4, "0"));
+    };
+    const scalar = () => applesoftVariables(ram).variables[0]!;
+    const element = () => applesoftArrayElement(ram, applesoftArrays(ram).arrays[0]!, 0);
+    stop(10); stop(20);
+    assert.deepEqual(sizes(), [107, 0, 0, 14228, 0]);
+    stop(30); assert.deepEqual(sizes(), [107, 0, 13, 14215, 0]);
+    const arrayAddress = applesoftArrays(ram).arrays[0]!.address;
+    stop(40); assert.deepEqual(sizes(), [107, 7, 13, 14208, 0]);
+    assert.equal(applesoftArrays(ram).arrays[0]!.address, arrayAddress + 7);
+    assert.equal(scalar().contentsAddress, 0x81f); assert.equal(scalar().value, '"HELLO"');
+    stop(50); assert.deepEqual(sizes(), [107, 7, 13, 14202, 6]);
+    assert.equal(scalar().contentsAddress, 0x3ffa); assert.equal(scalar().value, '"HELLO!"');
+    stop(60); assert.deepEqual(sizes(), [107, 7, 13, 14196, 12]);
+    assert.equal(element().contentsAddress, 0x3ff4); assert.equal(element().value, '"HELLO!"');
+    stop(70); assert.deepEqual(sizes(), [107, 7, 13, 14189, 19]);
+    assert.equal(scalar().contentsAddress, 0x3fed); assert.equal(scalar().value, '"HELLO!?"');
+    stop(80); assert.deepEqual(sizes(), [107, 7, 13, 14189, 19]);
+    assert.equal(scalar().contentsAddress, undefined); assert.equal(scalar().value, '""');
+    const saved = session.snapshot();
+    applesoftMemoryLayout(ram); assert.deepEqual(session.snapshot(), saved, "Inspecting allocation does not collect strings");
+    stop(90); assert.deepEqual(sizes(), [107, 7, 13, 14202, 6]);
+    assert.equal(element().contentsAddress, 0x3ffa); assert.equal(element().value, '"HELLO!"');
+    assert.deepEqual(bytesAt(element().address, 3), [6, 0xfa, 0x3f]);
+    assert.deepEqual(bytesAt(0x3ffa, 6), [..."HELLO!"].map(c => c.charCodeAt(0)));
+    assert.equal(stepBasic(), "Applesoft ] prompt.");
+    assert.ok(screen().endsWith("]RUN\n14202\n\n]"));
+    command("PRINT B$(0)"); assert.ok(screen().endsWith("]PRINT B$(0)\nHELLO!\n\n]"));
+    const restored = createApple2Session(image); restored.restore(saved);
+    const restoredRam = restored.machine.ram;
+    assert.deepEqual(applesoftMemoryLayout(restoredRam).regions.map(region => region.end - region.start), [107, 7, 13, 14189, 19]);
+    assert.equal(applesoftArrayElement(restoredRam, applesoftArrays(restoredRam).arrays[0]!, 0).contentsAddress, 0x3ff4);
+    command("CLEAR"); assert.deepEqual(sizes(), [107, 0, 0, 14228, 0]);
+    command("NEW"); assert.deepEqual(sizes(), [3, 0, 0, 14332, 0]);
+    command(`HIMEM:${ceiling}`);
   });
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.

@@ -154,6 +154,17 @@
 .lab-code .lab-code-label { white-space: nowrap; text-align: left; color: #ffd18a; }
 .lab-rom-reference h2 { margin: 12px 0; font: 600 14px/1.4 system-ui, sans-serif; }
 .lab-applesoft-variables td:last-child, .lab-applesoft-variables .lab-memory-link { white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
+.lab-applesoft-memory { margin-bottom: 12px; }
+.lab-applesoft-memory [data-region="Program area"] { --region-color: #8cc8ed; }
+.lab-applesoft-memory [data-region="Scalars"] { --region-color: #e6bd80; }
+.lab-applesoft-memory [data-region="Arrays"] { --region-color: #b6a0df; }
+.lab-applesoft-memory [data-region="Free space"] { --region-color: #475b71; }
+.lab-applesoft-memory [data-region="String heap"] { --region-color: #7ac9a1; }
+.lab-applesoft-memory th[scope="row"] { white-space: nowrap; }
+.lab-applesoft-memory th[scope="row"]::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 6px; background: var(--region-color); }
+.lab-applesoft-memory td:last-child, .lab-applesoft-memory thead th:last-child { text-align: right; }
+.lab-basic-memory-bar { display: flex; height: 10px; margin: 8px 0 4px; overflow: hidden; border-radius: 2px; }
+.lab-basic-memory-bar span { min-width: 0; background: var(--region-color); }
 .lab-applesoft-listing { display: flex; flex-direction: column; align-items: flex-start; }
 .laboratory-page .lab-applesoft-controls label { display: flex; align-items: center; gap: 4px; }
 .lab-applesoft-source { align-self: stretch; overflow: auto; padding: 2px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.65 var(--mono); }
