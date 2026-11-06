@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { Apple2Video } from "../../src/components/devices/generated/apple2-video.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { literateBlocks } from "../../src/literate.js";
-import { applesoftArrayElement, applesoftArrays, applesoftMemoryLayout, applesoftStatementText, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftDataCursor, applesoftMemoryLayout, applesoftStatementText, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
 import { applesoftStepBoundary } from "../../site/interactive/apple2-applesoft-step.js";
 import { applesoftStack } from "../../site/interactive/apple2-applesoft-stack.js";
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
@@ -124,7 +124,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
   const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
-  const [scalarExample, memoryExample, arrayExample, stepExample, stackExample, profileExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  const [scalarExample, memoryExample, arrayExample, stepExample, stackExample, profileExample, dataExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
   assert.ok(scalarExample);
   command("NEW");
   for (const line of scalarExample.lines) command(line.text);
@@ -373,6 +373,50 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     command("CLEAR"); assert.deepEqual(sizes(), [107, 0, 0, 14228, 0]);
     command("NEW"); assert.deepEqual(sizes(), [3, 0, 0, 14332, 0]);
     command(`HIMEM:${ceiling}`);
+  });
+
+  await t.test("READ and RESTORE expose the saved DATA cursor through rewinding, exhaustion and partial failure", () => {
+    assert.ok(dataExample);
+    command("NEW"); for (const line of dataExample.lines) command(line.text);
+    const cursor = () => applesoftDataCursor(ram, pointsForHistory.listing());
+    const check = (address: number, line?: number, index?: number) => {
+      const value = cursor(); assert.deepEqual([value.address, value.source?.line, value.source?.index], [address, line, index]);
+    };
+    const stop = (line: number, index = 0) => {
+      const statement = pointsForHistory.listing().lines.find(l => l.number === line)!.statements[index]!;
+      before(line, statement.address.toString(16).toUpperCase().padStart(4, "0"));
+    };
+    const value = (name: string) => applesoftVariables(ram).variables.find(v => v.name === name)?.value;
+    session.send(apple2Input("RUN\n"));
+    stop(10); stop(10, 1); stop(20); stop(30); check(0x800);
+    stop(40); check(0x809, 10, 0); assert.equal(value("N"), "12");
+    stop(50); check(0x815, 10, 0); assert.equal(value("A$"), '"RED, BLUE"');
+    stop(50, 1); check(0x81c, 10, 1); assert.equal(value("X"), "-3.5");
+    stop(60); check(0x829, 20, 0); assert.equal(value("B$"), '"DONE"');
+    const saved = session.snapshot(); cursor(); assert.deepEqual(session.snapshot(), saved);
+    stop(70); check(0x800); assert.equal(ram.read(0x7b), 20, "RESTORE leaves DATLIN stale");
+    stop(80); check(0x829, 20, 0);
+    assert.deepEqual([value("M"), value("C$"), value("Y"), value("D$")], ["12", '"RED, BLUE"', "-3.5", '"DONE"']);
+    assert.equal(stepBasic(), "Applesoft ] prompt.");
+    assert.ok(screen().endsWith("?OUT OF DATA ERROR IN 80\n]"));
+    check(0x829, 20, 0); assert.equal(ram.read(0x7b), 80, "The failed search advances DATLIN beyond the saved cursor");
+    for (const name of ["N", "A$", "X", "B$"]) {
+      command(`PRINT ${name}`);
+      assert.ok(screen().endsWith(`]PRINT ${name}\n${value(name)!.replace(/^"|"$/g, "")}\n\n]`));
+    }
+    const restored = createApple2Session(image); restored.restore(saved);
+    const points = createApplesoftBreakpoints(() => restored.machine), restoredRam = restored.machine.ram;
+    assert.equal(applesoftDataCursor(restoredRam, points.listing()).address, 0x829);
+    let budget = 100_000;
+    while (restored.machine.cpu.snapshot().pc !== 0xfd21) {
+      assert.ok(budget-- > 0); assert.equal(restored.step().outcome, "executed");
+    }
+    assert.equal(applesoftVariables(restoredRam).variables.find(v => v.name === "C$")?.value, '"RED, BLUE"');
+    assert.equal(applesoftDataCursor(restoredRam, points.listing()).source?.line, 20);
+    command("RESTORE"); check(0x800);
+    command("READ Q,E$,R,F$,S"); assert.match(screen(), /OUT OF DATA/);
+    check(0x800); assert.deepEqual([value("Q"), value("E$"), value("R"), value("F$")], ["12", '"RED, BLUE"', "-3.5", '"DONE"']);
+    command("READ T"); assert.equal(value("T"), "12"); check(0x809, 10, 0);
   });
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.

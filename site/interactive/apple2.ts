@@ -77,7 +77,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const basicBreakpoints = createApplesoftBreakpoints(() => session.machine);
   const basicHistory = basicStep && createApplesoftHistory(basicBreakpoints.listing);
   const basicProfile = basicStep && createApplesoftProfile(basicBreakpoints.listing);
-  const applesoft = basicHistory && createApplesoftView(root, browseMemory, basicBreakpoints, basicHistory);
+  const applesoft = basicHistory && createApplesoftView(root, browseMemory, basicBreakpoints, basicHistory, revealStatement);
   function revealStatement(address: number): void {
     showPanel("applesoft"); refreshPanels(["applesoft"]); applesoft?.reveal(address);
   }

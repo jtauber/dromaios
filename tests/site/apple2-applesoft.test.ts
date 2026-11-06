@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Ram } from "../../src/components/memory/ram.js";
-import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftMemoryLayout, applesoftStatementText, applesoftVariables, createApplesoftListing, observeApplesoftListing, resolveApplesoftSource } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftDataCursor, applesoftMemoryLayout, applesoftStatementText, applesoftVariables, createApplesoftListing, observeApplesoftListing, resolveApplesoftSource } from "../../site/interactive/apple2-applesoft.js";
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
 import { createApplesoftProfile } from "../../site/interactive/apple2-applesoft-profile.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
@@ -15,6 +15,45 @@ keywords[0xb2 - 0x80] = "REM";
 function storeWord(ram: Ram, at: number, value: number): void {
   ram.write(at, value & 0xff); ram.write(at + 1, value >> 8);
 }
+
+test("DATA cursors resolve by byte address across stale line numbers, multiple statements and source edits", () => {
+  const { machine } = createApple2Session(), { ram } = machine, decode = createApplesoftListing(keywords);
+  function program(start: number): void {
+    let at = start;
+    for (const [number, bytes] of [
+      [10, [0x83, 49, 44, 50, 58, 0x83, 34, 88, 58, 89, 34]], // DATA 1,2:DATA "X:Y"
+      [20, [0xba, 34, 68, 65, 84, 65, 34, 58, 0xb2, 32, 68, 65, 84, 65]], // PRINT "DATA":REM DATA
+    ] as const) {
+      const next = at + 5 + bytes.length;
+      storeWord(ram, at, next); storeWord(ram, at + 2, number);
+      bytes.forEach((byte, i) => ram.write(at + 4 + i, byte)); ram.write(next - 1, 0); at = next;
+    }
+    storeWord(ram, at, 0); storeWord(ram, 0x67, start); storeWord(ram, 0x69, at + 2);
+  }
+  program(0x801);
+  machine.memory.read = () => { throw new Error("Inspection cannot read the guest bus"); };
+  const cursor = () => applesoftDataCursor(ram, decode(ram));
+  storeWord(ram, 0x7b, 80); storeWord(ram, 0x7d, 0x800);
+  assert.deepEqual(cursor(), { address: 0x800, message: "Start of program." });
+  for (const [address, index] of [[0x807, 0], [0x809, 0], [0x810, 1]] as const) {
+    storeWord(ram, 0x7d, address);
+    assert.equal(cursor().source?.line, 10); assert.equal(cursor().source?.index, index);
+  }
+  ram.write(0x80a, 0xb2); assert.equal(cursor().source, undefined, "An edited REM has no DATA source link");
+  for (const address of [0x811, 0x819, 0x823]) {
+    storeWord(ram, 0x7d, address); assert.equal(cursor().source, undefined);
+    assert.match(cursor().message!, /outside/);
+  }
+  storeWord(ram, 0x7d, 0xc000); assert.equal(cursor().address, undefined);
+  assert.match(cursor().message!, /outside main RAM/);
+  storeWord(ram, 0x7d, 0x807); program(0x4001);
+  assert.equal(cursor().source, undefined, "A moved program does not move DATPTR by itself");
+  storeWord(ram, 0x7d, 0x4007); assert.equal(cursor().source?.statement.address, 0x4005);
+  ram.write(0x4005, 0x20); ram.write(0x4006, 0x83);
+  assert.equal(cursor().source?.statement.address, 0x4006, "Padding before a stored DATA token is allowed");
+  storeWord(ram, 0x4001, 0); assert.equal(cursor().address, undefined);
+  assert.match(cursor().message!, /empty/);
+});
 
 test("Applesoft memory boundaries retain empty regions and reject overlaps or addresses outside RAM", () => {
   const ram = new Ram(0xc000), layout = () => applesoftMemoryLayout(ram);

@@ -166,6 +166,8 @@
 .lab-basic-memory-bar { display: flex; height: 10px; margin: 8px 0 4px; overflow: hidden; border-radius: 2px; }
 .lab-basic-memory-bar span { min-width: 0; background: var(--region-color); }
 .lab-applesoft-listing { display: flex; flex-direction: column; align-items: flex-start; }
+.lab-applesoft-data { flex-shrink: 0; align-self: stretch; margin-top: 8px; }
+.lab-applesoft-data p { margin: 4px 0; font-size: 11px; }
 .laboratory-page .lab-applesoft-controls label { display: flex; align-items: center; gap: 4px; }
 .lab-applesoft-source { align-self: stretch; overflow: auto; padding: 2px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.65 var(--mono); }
 .lab-applesoft-source .lab-breakpoint-marker::before { content: "○"; }

@@ -1,5 +1,5 @@
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
-import { applesoftCursor } from "./apple2-applesoft.js";
+import { applesoftCursor, applesoftDataCursor, resolveApplesoftSource } from "./apple2-applesoft.js";
 import type { ApplesoftListing, ApplesoftSourcePosition } from "./apple2-applesoft.js";
 import type { ApplesoftHistory } from "./apple2-applesoft-history.js";
 import type { createApplesoftBreakpoints } from "./apple2-applesoft-breakpoints.js";
@@ -13,13 +13,16 @@ import type { DebugStop } from "./instruction-debugger.js";
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
 export function createApplesoftView(root: HTMLElement, browse: (address: number) => void, points: ReturnType<typeof createApplesoftBreakpoints>,
-  history: ApplesoftHistory) {
+  history: ApplesoftHistory, reveal: (address: number) => void) {
   const panel = root.querySelector<HTMLElement>('[data-workspace-panel="applesoft"]');
   if (!panel) return;
   const status = panel.querySelector<HTMLElement>("[data-applesoft-status]")!;
   const source = panel.querySelector<HTMLElement>("[data-applesoft-source]")!;
   const showCounts = panel.querySelector<HTMLInputElement>("[data-applesoft-show-counts]")!;
   const clearCounts = panel.querySelector<HTMLButtonElement>("[data-applesoft-clear-counts]")!;
+  const data = panel.querySelector<HTMLElement>("[data-applesoft-data]")!;
+  const dataCursor = panel.querySelector<HTMLElement>("[data-basic-data-cursor]")!;
+  let dataKey: string | undefined;
   const counters = new Map<HTMLElement, ApplesoftSourcePosition>();
   let countRevision = -1;
   const tokens = new Map<number, { button: HTMLButtonElement; line: number }>();
@@ -37,6 +40,29 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
       badge.title = label; badge.setAttribute("aria-label", label);
     }
     countRevision = history.countRevision;
+  }
+  function refreshData(machine: Machine, listing: ApplesoftListing): void {
+    const cursor = applesoftDataCursor(machine.ram, listing), key = JSON.stringify(cursor);
+    data.hidden = !!listing.message;
+    if (key === dataKey) return;
+    dataKey = key; dataCursor.replaceChildren();
+    if (listing.message) return;
+    if (cursor.address !== undefined) {
+      const link = memoryLink(cursor.address, browse);
+      link.setAttribute("aria-label", `Saved DATA cursor at $${hex(cursor.address)} in Memory`);
+      dataCursor.append("Saved cursor ", link, " · ");
+    }
+    const point = cursor.source;
+    if (point) {
+      const button = document.createElement("button"); button.type = "button"; button.className = "lab-memory-link";
+      button.textContent = `Line ${point.line}, statement ${point.index + 1}`;
+      button.setAttribute("aria-label", `Show DATA on line ${point.line}, statement ${point.index + 1} in Applesoft listing`);
+      button.addEventListener("click", () => {
+        const current = resolveApplesoftSource(points.listing(), point);
+        if (current) reveal(current.address); else button.disabled = true;
+      });
+      dataCursor.append(button);
+    } else dataCursor.append(cursor.message ?? "");
   }
   showCounts.addEventListener("change", () => {
     source.classList.toggle("show-counts", showCounts.checked);
@@ -92,6 +118,7 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
     const listing = points.listing();
     if (listing !== displayed || revision !== points.revision) render(listing);
     refreshCounts();
+    refreshData(machine, listing);
     if (listing.message) { status.textContent = listing.message; return; }
     const cursor = applesoftCursor(machine.ram, latest);
     const token = cursor && tokens.get(cursor.address);

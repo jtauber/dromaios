@@ -896,6 +896,64 @@ history also clear the profile. Calls already on the stack when a profile
 is cleared or a checkpoint is restored have no observation in the new
 profile. Direct-mode calls remain visible in the stack inspector.
 
+### Following DATA, READ and RESTORE
+
+**DATA reading** below **Applesoft listing** shows the saved DATA cursor.
+Select its address to inspect that byte in **Memory**, or its source link to
+focus the containing `DATA` statement. The execution highlight stays on the
+statement about to run. The cursor display follows the listing's Live setting
+and can be collapsed independently.
+
+Enter `NEW`, then these lines. Pause, queue `RUN`, and use **Step BASIC
+statement** to follow the program.
+
+```basic
+10 DATA 12,"RED, BLUE":DATA -3.5
+20 DATA "DONE"
+30 READ N
+40 READ A$
+50 READ X:READ B$
+60 RESTORE
+70 READ M,C$,Y,D$
+80 READ Z
+```
+
+Executing the three `DATA` statements leaves the cursor at `$0800`, one byte
+before the program's first line header. They store values for later `READ`s.
+Step past each `READ` to see its result in **Applesoft variables**.
+
+| After executing | Variables assigned | Saved cursor | Source link |
+| --- | --- | --- | --- |
+| `30 READ N` | N = 12 | `$0809`, the comma after 12 | Line 10, statement 1 |
+| `40 READ A$` | A$ = `"RED, BLUE"` | `$0815`, the colon between DATA statements | Line 10, statement 1 |
+| First statement on line 50 | X = −3.5 | `$081C`, the line terminator | Line 10, statement 2 |
+| Second statement on line 50 | B$ = `"DONE"` | `$0829`, the line terminator | Line 20, statement 1 |
+| `60 RESTORE` | Earlier values remain available | `$0800` | Start of program |
+| `70 READ M,C$,Y,D$` | M = 12, C$ = `"RED, BLUE"`, Y = −3.5, D$ = `"DONE"` | `$0829` | Line 20, statement 1 |
+
+The comma inside the quoted string belongs to `A$`. Select its value to see
+the characters in program memory. Line 70 reads all four values again after
+`RESTORE`. Stepping line 80 reaches `?OUT OF DATA ERROR IN 80` and the prompt.
+The saved cursor still points to `$0829`. At the prompt, compare the variable
+rows with `PRINT N`, `PRINT A$`, `PRINT X`, and `PRINT B$`.
+
+The pointer lives in `DATPTR` at `$007D–$007E`. A successful `READ` saves it
+after finishing its entire variable list. While a `READ` is running, or if it
+fails partway, this display can still show the earlier saved position. Earlier
+assignments in that failing `READ` may already have taken effect.
+`RESTORE` resets the pointer to `TXTTAB−1`. The ROM also uses `DATLIN` at
+`$007B–$007C` while searching. It retains line 20 after this `RESTORE` and
+reaches line 80 during the unsuccessful search. The inspector resolves the
+saved byte address against the current program to find its source statement.
+These updates follow the ROM's `RESTORE`, `FINDATA`, and `INPDONE` routines.
+[Applesoft ROM disassembly](https://6502disassembly.com/a2-rom/Applesoft.html)
+
+Checkpoint restoration recovers the saved cursor with the machine's RAM.
+Program edits can invalidate its source link until the ROM resets it or
+completes another `READ`. The walkthrough's automated check executes the
+published program, verifies every cursor and value above, and repeats reading
+after both `RESTORE` and checkpoint restoration.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
@@ -1100,6 +1158,8 @@ within KEYIN, rather than a separate subroutine.
     {"address": "006F", "name": "FRETOP", "description": "Lowest allocated byte of the Applesoft string heap", "scope": "workspace", "bytes": 2},
     {"address": "0073", "name": "MEMSIZE", "description": "Applesoft upper memory boundary, exclusive; set by HIMEM", "scope": "workspace", "bytes": 2},
     {"address": "0075", "name": "CURLIN", "description": "Applesoft current line number ($FF high byte in direct mode)", "scope": "workspace", "bytes": 2},
+    {"address": "007B", "name": "DATLIN", "description": "Line most recently searched for DATA; can retain an earlier value after RESTORE", "scope": "workspace", "bytes": 2},
+    {"address": "007D", "name": "DATPTR", "description": "Saved DATA search cursor; updated after a complete READ or reset by RESTORE", "scope": "workspace", "bytes": 2},
     {"address": "00B8", "name": "TXTPTR", "description": "Applesoft text pointer in the CHRGET routine", "scope": "workspace", "bytes": 2},
     {"address": "0200", "name": "INPUT_BUFFER", "description": "Input buffer (256 bytes)", "scope": "workspace"},
     {"address": "03F0", "name": "BRKV", "description": "BRK vector (2 bytes)", "scope": "workspace", "bytes": 2},
@@ -1169,9 +1229,12 @@ within KEYIN, rather than a separate subroutine.
   ],
   "notes": [
     {"address": "D828", "bytes": "F0 2D", "text": "At statement dispatch, TXTPTR points to the byte just fetched. A zero byte ends the line."},
+    {"address": "D849", "bytes": "38", "text": "RESTORE begins subtracting one from TXTTAB to reset DATPTR before the first line header."},
     {"address": "D93B", "bytes": "4C D2 D7", "text": "GOSUB has found its target. TXTPTR is one byte before that line's header; the five-byte caller record is on the stack."},
     {"address": "D993", "bytes": "85 B9", "text": "RETURN restores the high byte of the caller's text pointer, completing the five-byte frame restoration."},
     {"address": "D9C7", "bytes": "68", "text": "POP discards the last byte of the GOSUB frame. Execution continues in the current routine."},
+    {"address": "DCB1", "bytes": "85 7B", "text": "FINDATA records the low byte of a line number while searching, before checking whether that line supplies DATA."},
+    {"address": "DCCE", "bytes": "4C 53 D8", "text": "After the complete READ list succeeds, save its input cursor in DATPTR through SETDA."},
     {"address": "E2E5", "bytes": "20 84 E4", "text": "FRE calls GARBAG before computing the available space between STREND and FRETOP."},
     {"address": "E484", "bytes": "A6 73", "text": "Garbage collection begins at MEMSIZE and compacts referenced strings toward that upper boundary."},
     {"address": "FD6F", "bytes": "A2 01", "text": "GETLN has printed its prompt. Both direct command entry and program input use this line editor."},

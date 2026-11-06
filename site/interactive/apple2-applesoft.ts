@@ -177,6 +177,26 @@ export function applesoftCursor(ram: Memory, latest?: Cpu6502StepRecord) {
   return undefined;
 }
 
+interface ApplesoftDataCursor {
+  readonly address?: number;
+  readonly source?: ApplesoftSourcePosition;
+  readonly message?: string;
+}
+
+/** DATPTR is saved after a complete READ. RESTORE sets it to TXTTAB - 1. */
+export function applesoftDataCursor(ram: Pick<Ram, "read" | "size">, listing: ApplesoftListing): ApplesoftDataCursor {
+  if (listing.message) return { message: listing.message };
+  const address = word(ram, 0x7d), start = word(ram, 0x67);
+  if (address >= ram.size) return { message: "Saved DATA cursor is outside main RAM." };
+  if (start > 0 && address === start - 1) return { address, message: "Start of program." };
+  // DATLIN can be stale after RESTORE or refer to a later line after an unsuccessful search.
+  const line = listing.lines.find(line => address >= line.statements[0]!.address && address <= line.terminator);
+  const source = line && applesoftSourceAt(listing, line.number, address);
+  const first = source?.statement.parts.find(part => part.tokenAddress !== undefined);
+  if (first?.text === "DATA" && first.tokenAddress === source?.statement.address) return { address, source };
+  return { address, message: "Saved cursor is outside this program's DATA statements." };
+}
+
 type VariableRam = Pick<Ram, "read" | "size">;
 
 interface ApplesoftMemoryRegion {
