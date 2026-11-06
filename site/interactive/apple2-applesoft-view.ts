@@ -2,6 +2,7 @@ import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502
 import { applesoftCursor, applesoftDataCursor, resolveApplesoftSource } from "./apple2-applesoft.js";
 import type { ApplesoftListing, ApplesoftSourcePosition } from "./apple2-applesoft.js";
 import { applesoftErrorName, applesoftErrorState } from "./apple2-applesoft-errors.js";
+import { applesoftContinuation } from "./apple2-applesoft-continuation.js";
 import type { ApplesoftHistory } from "./apple2-applesoft-history.js";
 import type { createApplesoftBreakpoints } from "./apple2-applesoft-breakpoints.js";
 import { apple2DebugLocation } from "./apple2-debugger.js";
@@ -26,8 +27,11 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
   const errors = panel.querySelector<HTMLElement>("[data-applesoft-errors]")!;
   const handler = panel.querySelector<HTMLElement>("[data-basic-error-handler]")!;
   const savedError = panel.querySelector<HTMLElement>("[data-basic-error-saved]")!;
+  const continuation = panel.querySelector<HTMLElement>("[data-applesoft-continuation]")!;
+  const continuationState = panel.querySelector<HTMLElement>("[data-basic-continuation]")!;
   let dataKey: string | undefined;
   let errorKey: string | undefined;
+  let continuationKey: string | undefined;
   const counters = new Map<HTMLElement, ApplesoftSourcePosition>();
   let countRevision = -1;
   const tokens = new Map<number, { button: HTMLButtonElement; line: number }>();
@@ -100,6 +104,22 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
     restart.append(" · ", memoryLink(0xdf, browse, `SP $${hex(saved.stack, 2)}`));
     savedError.append(restart);
   }
+  function refreshContinuation(machine: Machine, listing: ApplesoftListing): void {
+    continuation.hidden = !!listing.message;
+    const state = listing.message ? undefined : applesoftContinuation(machine.ram, listing), key = JSON.stringify(state);
+    if (key === continuationKey) return;
+    continuationKey = key; continuationState.replaceChildren();
+    if (!state) return;
+    continuationState.append("Saved ", memoryLink(0x77, browse, `line ${state.line}`), " · ", memoryLink(0x79, browse, "OLDTEXT"), ` = $${hex(state.pointer)}`);
+    const destination = document.createElement("p");
+    if (state.kind === "unavailable") destination.append("CONT unavailable: the saved cursor's high byte is zero.");
+    else {
+      if (state.pointer < machine.ram.size) continuationState.append(" · ", memoryLink(state.pointer, browse, "saved byte"));
+      if (state.destination) destination.append("Continues at ", sourceLink(state.destination, "CONT destination"), " · ", memoryLink(state.destination.statement.address, browse));
+      else destination.append(state.kind === "end" ? "End of program; no next statement." : "Saved cursor does not match a continuation in the current program.");
+    }
+    continuationState.append(destination);
+  }
   showCounts.addEventListener("change", () => {
     source.classList.toggle("show-counts", showCounts.checked);
     clearCounts.hidden = !showCounts.checked;
@@ -156,6 +176,7 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
     refreshCounts();
     refreshData(machine, listing);
     refreshErrors(machine, listing);
+    refreshContinuation(machine, listing);
     if (listing.message) { status.textContent = listing.message; return; }
     const cursor = applesoftCursor(machine.ram, latest);
     const token = cursor && tokens.get(cursor.address);

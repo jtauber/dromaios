@@ -1013,6 +1013,70 @@ The automated acceptance check runs these published lines through the ROM,
 checks the saved bytes and printed results, replays the checkpoint, and checks
 disabling, editing, first-statement restarts, and error code zero.
 
+### Stopping and continuing a program
+
+Expand **Continuation** below **Applesoft listing**. It shows the saved line
+and text cursor, with links to their workspace bytes, the cursor's byte in
+**Memory**, and the next statement in the listing. Navigation does not change
+the execution state. The section follows the listing's Live setting.
+
+**Pause** freezes the emulator wherever the 6502 is executing. BASIC's `STOP`
+instead returns to the `]` prompt, where you can inspect or change variables
+before entering `CONT`. The continuation fields also serve as working storage
+while a program runs; inspect them at the BASIC prompt.
+
+Enter `NEW`, then these lines:
+
+```basic
+10 N=0
+20 FOR I=1 TO 2
+30 GOSUB 100
+40 NEXT I
+50 PRINT N
+60 END
+100 N=N+1:STOP:RETURN
+```
+
+1. Enter `RUN`. At `BREAK IN 100`, pause the emulator. N and I are both 1.
+   The saved line is 100 and the cursor is `$083C`, the colon after `STOP`.
+   The destination link selects **line 100, statement 3**, `RETURN` at `$083D`.
+   Save a checkpoint named **Stopped in subroutine**.
+2. Run the emulator and enter `PRINT N`. It prints 1 and leaves the saved
+   continuation intact. Pause, queue `CONT`, and choose **Step BASIC statement**.
+   Execution stops before that `RETURN`. **Applesoft stack** shows the GOSUB
+   frame above the FOR frame: both survived the trip to the prompt.
+3. Run to the next `BREAK IN 100` and pause. N and I are now 2; the continuation
+   again points to `RETURN`. Continuing once more prints 2 and reaches `END`.
+   N is 2 and I is 3 after the loop finishes.
+4. At this prompt the saved line is 60 and the cursor is `$0830`, its line
+   terminator. The destination is **line 100, statement 1**. `END` also leaves
+   a continuation: another `CONT` would enter the subroutine without a GOSUB
+   call. End of execution need not mean end of the stored program.
+5. Restore **Stopped in subroutine**. The first continuation and N=1, I=1
+   return together. Run, enter `N=10`, then `CONT`. The next stop has N=11,
+   I=2. Another `CONT` prints 11. A direct assignment changes the value used
+   by the continued program without restarting the loop.
+6. Restore again. Run and re-enter line 100, even unchanged. Pause to see
+   **CONT unavailable**. Editing cleared the saved cursor's high byte;
+   remaining bytes are not a valid continuation. Run and enter `CONT` to
+   see `?CAN'T CONTINUE ERROR`.
+
+`OLDIN` at `$0077–$0078` holds the saved line number; `OLDTEXT` at
+`$0079–$007A` holds the cursor used by CONT. The ROM checks the high byte of
+OLDTEXT, then restores the cursor and line. It continues after the saved
+delimiter rather than re-executing STOP. Loop and subroutine records remain
+on the 6502 stack. The inspector resolves the current program's actual
+statement boundaries, skipping empty colon-separated slots. At the final
+line terminator it reports **End of program; no next statement**.
+[Applesoft ROM disassembly](https://6502disassembly.com/a2-rom/Applesoft.html)
+
+Source links describe current program bytes, not a historical copy. An invalid
+cursor or damaged line links cannot produce a destination link. A held link
+checks its destination again before navigating. The automated acceptance runs
+this published program, follows both retained stack frames, replays the
+checkpoint, checks direct commands and edits, and covers same-line, next-line,
+and end-of-program continuations.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
@@ -1217,6 +1281,8 @@ within KEYIN, rather than a separate subroutine.
     {"address": "006F", "name": "FRETOP", "description": "Lowest allocated byte of the Applesoft string heap", "scope": "workspace", "bytes": 2},
     {"address": "0073", "name": "MEMSIZE", "description": "Applesoft upper memory boundary, exclusive; set by HIMEM", "scope": "workspace", "bytes": 2},
     {"address": "0075", "name": "CURLIN", "description": "Applesoft current line number ($FF high byte in direct mode)", "scope": "workspace", "bytes": 2},
+    {"address": "0077", "name": "OLDIN", "description": "Saved line number restored by CONT", "scope": "workspace", "bytes": 2},
+    {"address": "0079", "name": "OLDTEXT", "description": "CONT cursor; also statement-scanner working storage. A zero high byte prevents CONT", "scope": "workspace", "bytes": 2},
     {"address": "007B", "name": "DATLIN", "description": "Line most recently searched for DATA; can retain an earlier value after RESTORE", "scope": "workspace", "bytes": 2},
     {"address": "007D", "name": "DATPTR", "description": "Saved DATA search cursor; updated after a complete READ or reset by RESTORE", "scope": "workspace", "bytes": 2},
     {"address": "00B8", "name": "TXTPTR", "description": "Applesoft text pointer in the CHRGET routine", "scope": "workspace", "bytes": 2},
@@ -1296,6 +1362,9 @@ within KEYIN, rather than a separate subroutine.
   "notes": [
     {"address": "D828", "bytes": "F0 2D", "text": "At statement dispatch, TXTPTR points to the byte just fetched. A zero byte ends the line."},
     {"address": "D849", "bytes": "38", "text": "RESTORE begins subtracting one from TXTTAB to reset DATPTR before the first line header."},
+    {"address": "D87C", "bytes": "85 79", "text": "STOP and END save the current text cursor for CONT when executing a stored program."},
+    {"address": "D89A", "bytes": "A4 7A", "text": "CONT checks the saved cursor's high byte; zero produces CAN'T CONTINUE."},
+    {"address": "D8A3", "bytes": "85 B8", "text": "Restore the low byte of the CONT cursor into TXTPTR before restoring the saved line."},
     {"address": "D93B", "bytes": "4C D2 D7", "text": "GOSUB has found its target. TXTPTR is one byte before that line's header; the five-byte caller record is on the stack."},
     {"address": "D993", "bytes": "85 B9", "text": "RETURN restores the high byte of the caller's text pointer, completing the five-byte frame restoration."},
     {"address": "D9C7", "bytes": "68", "text": "POP discards the last byte of the GOSUB frame. Execution continues in the current routine."},

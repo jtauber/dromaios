@@ -41,6 +41,20 @@ export function applesoftStatementText(statement: ApplesoftStatement): string {
   return statement.parts.map(part => part.tokenAddress === undefined ? part.text : ` ${part.text} `).join("").trim();
 }
 
+/** Skip empty colon-separated slots, continuing into later lines when needed. */
+export function applesoftNextStatement(listing: ApplesoftListing, point: ApplesoftSourcePosition): ApplesoftSourcePosition | undefined {
+  const start = listing.lines.findIndex(line => line.number === point.line);
+  if (start < 0) return;
+  for (let i = start; i < listing.lines.length; i++) {
+    const line = listing.lines[i]!;
+    for (let index = i === start ? point.index + 1 : 0; index < line.statements.length; index++) {
+      const statement = line.statements[index]!;
+      if (applesoftStatementText(statement)) return { line: line.number, index, statement };
+    }
+  }
+  return;
+}
+
 /** Compare stored tokens and literal text, independently of where BASIC moved the line. */
 export function sameApplesoftSource(a: ApplesoftStatement, b: ApplesoftStatement): boolean {
   return a === b || a.parts.length === b.parts.length && a.parts.every((part, i) => {

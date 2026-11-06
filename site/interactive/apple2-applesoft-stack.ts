@@ -1,4 +1,4 @@
-import { applesoftReal, applesoftSourceAt, applesoftStatementText, applesoftVariables } from "./apple2-applesoft.js";
+import { applesoftNextStatement, applesoftReal, applesoftSourceAt, applesoftStatementText, applesoftVariables } from "./apple2-applesoft.js";
 import type { ApplesoftListing, ApplesoftVariable } from "./apple2-applesoft.js";
 import { applesoftStatement } from "./apple2-applesoft-step.js";
 import { apple2DebugLocation } from "./apple2-debugger.js";
@@ -16,16 +16,8 @@ function continuation(listing: ApplesoftListing, lineNumber: number, pointer: nu
   if (lineNumber >= 0xff00 && pointer >= 0x200 && pointer < 0x300) return { kind: "direct" };
   const call = applesoftSourceAt(listing, lineNumber, pointer);
   if (!call?.statement.parts.some(part => part.text === keyword && part.tokenAddress !== undefined && part.tokenAddress <= pointer)) return;
-  const index = listing.lines.findIndex(l => l.number === lineNumber), slot = call.index;
-  // Consecutive colons and a trailing colon have empty slots in the listing.
-  for (let i = index; i < listing.lines.length; i++) {
-    const nextLine = listing.lines[i]!;
-    for (let j = i === index ? slot + 1 : 0; j < nextLine.statements.length; j++) {
-      const statement = nextLine.statements[j]!;
-      const text = applesoftStatementText(statement);
-      if (text) return { kind: "statement", line: nextLine.number, address: statement.address, text };
-    }
-  }
+  const next = applesoftNextStatement(listing, call);
+  if (next) return { kind: "statement", line: next.line, address: next.statement.address, text: applesoftStatementText(next.statement) };
   return { kind: "end" };
 }
 

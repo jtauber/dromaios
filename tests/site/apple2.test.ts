@@ -8,6 +8,7 @@ import { applesoftArrayElement, applesoftArrays, applesoftDataCursor, applesoftM
 import { applesoftStepBoundary } from "../../site/interactive/apple2-applesoft-step.js";
 import { applesoftStack } from "../../site/interactive/apple2-applesoft-stack.js";
 import { applesoftErrorName, applesoftErrorState } from "../../site/interactive/apple2-applesoft-errors.js";
+import { applesoftContinuation } from "../../site/interactive/apple2-applesoft-continuation.js";
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
 import { createApplesoftProfile } from "../../site/interactive/apple2-applesoft-profile.js";
 import { createApplesoftBreakpoints } from "../../site/interactive/apple2-applesoft-breakpoints.js";
@@ -125,7 +126,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
   const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
-  const [scalarExample, memoryExample, arrayExample, stepExample, stackExample, profileExample, dataExample, errorExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  const [scalarExample, memoryExample, arrayExample, stepExample, stackExample, profileExample, dataExample, errorExample, continuationExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
   assert.ok(scalarExample);
   command("NEW");
   for (const line of scalarExample.lines) command(line.text);
@@ -470,6 +471,61 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     assert.equal(state().saved?.code, 0); assert.equal(applesoftErrorName(hardware.firmware, 0), "NEXT WITHOUT FOR");
     assert.equal(state().saved?.pointer, 0x80a); assert.equal(state().saved?.source?.statement.address, 0x80f);
     assert.equal(stepBasic(), "Applesoft ] prompt."); command("POKE 216,0");
+  });
+
+  await t.test("STOP and CONT preserve a loop and subroutine across direct commands and checkpoint restore", () => {
+    assert.ok(continuationExample);
+    command("NEW"); for (const line of continuationExample.lines) command(line.text);
+    const state = () => applesoftContinuation(ram, pointsForHistory.listing());
+    const value = (name: string) => applesoftVariables(ram).variables.find(v => v.name === name)?.value;
+    assert.equal(state().kind, "unavailable");
+    command("RUN"); assert.ok(screen().endsWith("BREAK IN 100\n]"));
+    assert.deepEqual([value("N"), value("I")], ["1", "1"]);
+    const first = state(), saved = session.snapshot();
+    assert.deepEqual([first.line, first.pointer, first.kind], [100, 0x83c, "statement"]);
+    assert.deepEqual([first.destination?.line, first.destination?.index, first.destination?.statement.address], [100, 2, 0x83d]);
+    assert.deepEqual(bytesAt(0x77, 4), [100, 0, 0x3c, 8]);
+    state(); assert.deepEqual(session.snapshot(), saved, "Inspecting a continuation cannot change the paused machine");
+    command("PRINT N"); assert.ok(screen().endsWith("]PRINT N\n1\n\n]")); assert.deepEqual(state(), first);
+    session.send(apple2Input("CONT\n")); before(100, "083D");
+    assert.deepEqual(applesoftStack(hardware, pointsForHistory.listing()).frames.map(frame => frame.kind), ["GOSUB", "FOR"]);
+    before(40, "0821"); assert.deepEqual(applesoftStack(hardware, pointsForHistory.listing()).frames.map(frame => frame.kind), ["FOR"]);
+    runUntil(idle); assert.ok(screen().endsWith("BREAK IN 100\n]"));
+    assert.deepEqual([value("N"), value("I")], ["2", "2"]); assert.deepEqual(state(), first);
+    command("CONT"); assert.ok(screen().endsWith("]CONT\n2\n\n]"));
+    assert.deepEqual([value("N"), value("I")], ["2", "3"]);
+    assert.deepEqual([state().line, state().pointer, state().destination?.line, state().destination?.index], [60, 0x830, 100, 0]);
+
+    const restored = createApple2Session(image); restored.restore(saved);
+    const points = createApplesoftBreakpoints(() => restored.machine), restoredRam = restored.machine.ram;
+    const restoredState = () => applesoftContinuation(restoredRam, points.listing());
+    function restoredCommand(text: string): void {
+      restored.send(apple2Input(text + "\n"));
+      for (let budget = 100_000; budget > 0; budget--) {
+        assert.equal(restored.step().outcome, "executed");
+        if (applesoftStepBoundary(restored.machine, apple2DebugLocation(restored.machine), restored.pendingInput) === "Applesoft ] prompt.") return;
+      }
+      assert.fail(`Restored command did not return to input: ${text}`);
+    }
+    assert.deepEqual(restoredState(), first);
+    restoredCommand("N=10"); assert.deepEqual(restoredState(), first);
+    restoredCommand("CONT"); assert.deepEqual(restoredState(), first);
+    assert.deepEqual(applesoftVariables(restoredRam).variables.map(v => [v.name, v.value]), [["N", "11"], ["I", "2"]]);
+    restoredCommand("CONT");
+    const restoredScreen = apple2TextFrame(restoredRam, restored.machine.video, false)
+      .map(row => row.map(cell => cell.character).join("").trimEnd()).join("\n").trim();
+    assert.ok(restoredScreen.endsWith("]CONT\n11\n\n]"));
+
+    command("RUN"); command("100 N=N+1:STOP:RETURN");
+    assert.deepEqual([state().kind, state().line, state().pointer], ["unavailable", 100, 0x3c]);
+    assert.equal(state().destination, undefined);
+    command("CONT"); assert.ok(screen().endsWith("?CAN'T CONTINUE ERROR\n]"));
+    command("NEW"); command("10 STOP"); command("20 PRINT 42"); command("RUN");
+    assert.deepEqual([state().pointer, state().destination?.line, state().destination?.statement.address], [0x806, 20, 0x80b]);
+    command("CONT"); assert.ok(screen().endsWith("]CONT\n42\n\n]"));
+    assert.equal(state().line, 10, "OLDIN can be stale at a natural program end"); assert.equal(state().kind, "end");
+    command("NEW"); command("10 END"); command("RUN"); assert.equal(state().kind, "end");
+    command("CONT"); assert.ok(screen().endsWith("]CONT\n\n]"));
   });
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.
