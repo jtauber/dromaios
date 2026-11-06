@@ -795,6 +795,62 @@ track is captured, the inspector asks you to enable Live rather than mixing
 versions. Pause or Step refreshes the view, as with the other inspectors.
 Eject, fresh power-on, and checkpoint restore discard the old snapshots.
 
+### Following Disk II activity
+
+The Disk panel's **Disk II activity** view connects the stored track to
+actual controller transfers. Its head window follows the selected track
+and places an outline around the **next** stream position. The 32 bytes
+before that position and the 32 starting there wrap around the track end.
+Address fields, data, and checksums have distinct colours. This window
+inspects stored bytes; a byte being visible does not mean the CPU read it.
+Motor-off and sense/write modes are named explicitly. Selecting the absent
+drive 2 removes the window rather than showing drive 1's stream.
+
+The sixteen map cells use physical address-field order and also name the
+corresponding DOS sector. **A** counts verified address fields: the inspector
+must receive their prologue, all four-and-four pairs, checksum, and `DE AA`.
+**D** counts data fields whose 342 translated values and checksum were
+consumed consecutively and decoded successfully. These checks use captured
+transfers; they do not peek at unread bytes. DOS checks only the first two
+address-epilogue bytes, and the data count is established at the checksum,
+before any data epilogue is read. The stored-track inspector separately
+checks the complete canonical field, including `DE AA EB`.
+
+Repeat the **Sector-read caller** above, with **Record transfers** checked:
+
+1. At the Applesoft prompt, pause and choose **Clear activity**. Queue the
+   Monitor commands, then use the RWTS walkthrough's final checkpoint to
+   stop at `$0307` after the read returns.
+2. The map on track 18 shows verified address and data activity for
+   **P3 → DOS6**. Other cells may also have counts: RWTS reads through the
+   stream while searching for its requested sector. A verified data field
+   alone does not prove DOS copied that sector to RAM.
+3. Expand **Instruction-linked byte history**. The data-check row identifies
+   the checksum at track offset `$061A`, its captured value, and the actual
+   `LDY $C08C,X` instruction at `$B925`. X selects slot 6, so this reads `$C0EC`.
+   Select its PC to browse the responsible code in Disassembly. The row
+   keeps the original instruction bytes even if RAM later changes; navigation
+   uses current storage and refuses an incompatible memory mapping.
+4. Select the **P3 → DOS6** map cell to open the stored sector and encoded
+   fields. Then select the completed DOS read below and **Browse live RAM**.
+   Its 256 captured bytes at `$2100–$21FF` match the data decoded from the
+   observed stream. This joins the controller-level evidence to DOS's return.
+
+The byte history retains 512 transfers, displayed 64 at a time; **Older**,
+**Newer**, and **Follow latest** control browsing. Each row names the
+instruction, stream offset, value, and direction. **Shift write** records
+a byte leaving the write latch, even when an incomplete or invalid field
+never commits a sector. The existing sector-write trace records commits.
+
+Record and Live are independent. Closing a view or turning Live off during
+Run does not stop collection. Record off stops collection and discards any
+partial field; resuming cannot join bytes across that gap. Clear resets the
+history and all sector totals. Eject, media replacement, fresh power-on,
+checkpoint restoration, and execution-history reset start new activity.
+Neither history nor map counters belong to a machine checkpoint. Track
+changes, write shifts, missing bytes, and unobserved host transfers interrupt
+field recognition. Reading these tools never consumes a controller byte.
+
 ### Saving ANSWER across a fresh boot
 
 In the laboratory’s **Disk** panel, choose **Insert writable copy…** and
@@ -1221,6 +1277,14 @@ It preserves write permission and bytes already shifted during an open write.
 `inspectMedium().inspectTrack(track)` returns an immutable copy of the stored
 encoded bytes. Subsequent writes leave that copy unchanged; inspecting it
 does not touch the motor, head, latch, stream position, or pending write.
+`observeTransfers()` reports an immutable event after each actual stream
+advance: read or write direction, half-track and track, preceding position,
+track length, and latch value. It emits nothing for inactive reads, absent
+drive/media, latch loads, or switches that do not shift a byte. Write shifts
+are reported independently of whether their field will commit. Host observers
+are not serialized or restored with the machine and must not access the guest
+bus or throw. The laboratory attaches CPU instruction attribution outside the
+device, keeping hardware and debugger responsibilities separate.
 Insertion and eject reset the byte position and latch, preserving head and controls.
 
 The selected image has 35 tracks of sixteen 256-byte sectors in DOS file order.

@@ -19,6 +19,7 @@ import { createApple2Disassembly } from "./apple2-disassembly-view.js";
 import { createApple2History } from "./apple2-history-view.js";
 import { createApple2RomReference } from "./apple2-rom-reference-view.js";
 import { createApple2DeviceHistoryView } from "./apple2-device-history-view.js";
+import { createApple2DiskActivityView } from "./apple2-disk-activity-view.js";
 import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
 import { createApple2WatchHistory } from "./apple2-watch-history.js";
 import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
@@ -33,6 +34,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   readonly browseMemory: (address: number) => void;
   readonly inspectPixel: (x: number, y: number) => void;
   readonly browse: (tool: InspectorTool, address: number, from?: InspectorTool) => void;
+  readonly browseDiskSector: (track: number, sector: number) => void;
 }, reads?: ReturnType<typeof createDos33ReadTrace>) {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const catalogue = JSON.parse(element("rom-catalogue").textContent!) as RomGuide & {
@@ -74,6 +76,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   }
   const devices = createApple2DeviceHistoryView(root, catalogue.hardware, catalogue.instructions, browseCode,
     address => navigation.browse("memory", address));
+  const diskActivity = createApple2DiskActivityView(root, catalogue.instructions, browseCode, navigation.browseDiskSector);
   const watchHistory = createApple2WatchHistory(catalogue.instructions);
   const watchView = createMemoryWatchHistoryView(root, watchHistory, {
     assembly: entry => disassemble6502(entry.caller.address, entry.bytes, catalogue.instructions),
@@ -111,7 +114,10 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     controls: (id: string) => id === "code" ? disassembly?.controls : undefined,
     get canStepOut() { return debuggerState.canStepOut; },
     get stop() { return debuggerState.stop; },
-    reset(): void { reads?.interrupt(); debuggerState.reset(); devices?.reset(); watchHistory.reset(); },
+    reset(): void { reads?.interrupt(); debuggerState.reset(); devices?.reset(); diskActivity?.clear(); watchHistory.reset(); },
+    captureDiskStep(before: DebugLocation, step: () => Cpu6502StepRecord): Cpu6502StepRecord {
+      return diskActivity ? diskActivity.capture(before, step) : step();
+    },
     run(): void { debuggerState.run(location()); },
     step(): void { debuggerState.step(location()); },
     stepUntil(boundary: (at: DebugLocation) => string | undefined): void { debuggerState.stepUntil(location(), boundary); },
@@ -140,6 +146,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       if (pause) pause.disabled = !running;
       stopStatus.refresh(debuggerState.stop, debuggerState.request, running);
       const selected = machine();
+      if (selected) diskActivity?.refresh(selected.disk, shouldUpdate("disk"));
       walkthrough?.refresh(selected && apple2DebugLocation(selected), available, running);
       if (selected && shouldUpdate("activity")) devices?.refresh(selected.disk.inspect().installed);
       if (shouldUpdate("watches")) watchView?.refresh();

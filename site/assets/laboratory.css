@@ -33,6 +33,23 @@
 [data-dos-encoded] summary { cursor: pointer; color: var(--accent); }
 [data-dos-encoded] > details { margin: 10px 0; }
 [data-dos-track] { width: 5em; }
+[data-disk-activity] { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 8px; }
+[data-disk-activity] summary { cursor: pointer; color: var(--accent); margin-bottom: 8px; }
+.laboratory-page .disk-record { display: flex; align-items: center; gap: 5px; }
+.disk-head { font: 11px/1.8 var(--mono); white-space: pre; overflow-x: auto; }
+.disk-byte-address { color: #ffcb87; }
+.disk-byte-data { color: #91cff5; }
+.disk-byte-checksum { color: #c7a2fa; }
+.disk-byte-gap { color: var(--muted); }
+.disk-byte-next { outline: 2px solid #fff; outline-offset: 1px; background: #30415d; color: #fff; }
+.disk-sector-map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 8px 0; }
+.disk-sector-map button { white-space: pre-line; font: 11px/1.5 var(--mono); text-align: left; }
+.disk-sector-map .disk-sector-found { border-color: #bf944f; color: #ffcb87; }
+.disk-sector-map .disk-sector-data { border-color: #549d83; color: #8bdfb8; }
+.disk-history-scroll { max-height: 360px; overflow: auto; }
+.disk-byte-history { border-collapse: collapse; font: 11px/1.5 var(--mono); width: 100%; }
+.disk-byte-history th, .disk-byte-history td { text-align: left; vertical-align: top; padding: 3px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.disk-byte-history th { position: sticky; top: 0; background: var(--paper); }
 .lab-scroll { overflow: auto; scrollbar-color: #435674 #18253b; }
 .lab-hint, .laboratory-credit { color: var(--muted); font: 11px/1.5 system-ui, sans-serif; margin: 8px 0; }
 .laboratory-credit { padding: 0 4px; margin: 0; }

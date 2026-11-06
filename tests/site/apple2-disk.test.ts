@@ -15,6 +15,7 @@ import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
 import { createDos33ReadTrace } from "../../site/interactive/dos33-reads.js";
 import { inspectDos33Track } from "../../site/interactive/dos33-track.js";
+import { createApple2DiskActivity } from "../../site/interactive/apple2-disk-activity.js";
 import type { LoadObservation } from "../../site/interactive/dos33-reads.js";
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import { encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
@@ -56,7 +57,7 @@ test("Apple II media checks whole containers, bootstrap slices, and selected dis
 });
 
 /** Drive DOS through the keyboard and observe its output in page-one text RAM. */
-function dosTerminal(session: ReturnType<typeof createApple2Session>) {
+function dosTerminal(session: ReturnType<typeof createApple2Session>, step = () => session.step()) {
   const { machine } = session;
   // Independent Apple II page-one text rows, rather than the production video decoder.
   const rows = [0x400, 0x480, 0x500, 0x580, 0x600, 0x680, 0x700, 0x780,
@@ -71,7 +72,7 @@ function dosTerminal(session: ReturnType<typeof createApple2Session>) {
   function waitForInput(limit = 10_000_000, observe?: (step: Cpu6502StepRecord) => void): void {
     let polls = 0;
     for (let steps = 0; steps < limit; steps++) {
-      const record = session.step();
+      const record = step();
       assert.equal(record.outcome, "executed");
       observe?.(record);
       // Start counting only after the final queued key has been acknowledged: KEYIN
@@ -492,7 +493,9 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
   await t.test("the queued Monitor example reads a System Master sector through the public RWTS entry", () => {
     const guest = createApple2Session(rom.image);
     guest.restore(session.snapshot());
-    const dos = dosTerminal(guest), trace = createDos33ReadTrace(), { ram } = guest.machine;
+    const activity = createApple2DiskActivity(); activity.connect(guest.machine.disk);
+    const dos = dosTerminal(guest, () => activity.capture(apple2DebugLocation(guest.machine), () => guest.step()));
+    const trace = createDos33ReadTrace(), { ram } = guest.machine;
     const listing = chapter.match(/^#### Sector-read caller\n\n```text\n([^`]+)\n```$/m);
     assert.ok(listing);
     const lines = listing[1]!.split("\n");
@@ -511,6 +514,16 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
       } else if (pc === 0x0307) {
         assert.ok(trace.matches(read));
         assert.equal(record.after.flags.c, false);
+        const completed = activity.latestData!;
+        assert.deepEqual([completed.field!.track, completed.field!.physicalSector, completed.field!.sector], [18, 3, 6]);
+        assert.deepEqual(completed.field!.bytes, trace.reads.at(-1)!.bytes);
+        assert.equal(completed.position, 0x061a, "Last data check is the checksum actually consumed by RWTS");
+        assert.equal(completed.caller.space, "ram");
+        assert.deepEqual(completed.instruction, [0xbc, 0x8c, 0xc0], "RWTS used LDY $C08C,X with slot offset $60");
+        assert.equal(completed.caller.address, 0xb925);
+        assert.equal(completed.value, guest.machine.disk.inspectMedium()!.inspectTrack(18)[0x061a]);
+        assert.ok(activity.sectors(18)[3]!.addresses > 0);
+        assert.ok(activity.sectors(18)[3]!.data > 0);
       } else return;
       stops.push(pc);
     });

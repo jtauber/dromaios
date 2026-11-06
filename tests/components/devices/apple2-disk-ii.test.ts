@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Apple2DiskII } from "../../../src/components/devices/apple2-disk-ii.js";
+import type { DiskIITransfer } from "../../../src/components/devices/apple2-disk-ii.js";
 import { Dos33Disk } from "../../../src/components/devices/dos33-disk.js";
 import type { Dos33SectorWrite } from "../../../src/components/devices/dos33-disk.js";
 
@@ -41,6 +42,23 @@ test("Disk II streams circular bytes only with motor, drive 1, media, and read m
   disk.read(8); assert.equal(disk.read(12), 0); assert.equal(disk.inspect().position, 2);
   disk.read(9); disk.eject(); assert.equal(disk.read(12), 0);
   assert.equal(disk.inspect().position, 0);
+});
+
+test("transfer observers report only actual stream advances and preserve emulation and snapshot state", () => {
+  const disk = card(), baseline = new Apple2DiskII(disk.snapshot()), events: DiskIITransfer[] = [];
+  const stop = disk.observeTransfers(event => events.push(event));
+  const read = (address: number) => assert.equal(disk.read(address), baseline.read(address));
+  for (const address of [12, 0, 13, 14, 0x100, 9, 11, 12, 10, 12]) read(address);
+  assert.deepEqual(events, [{ kind: "read", halfTrack: 0, track: 0, position: 0, length: 6162, value: 0xff }]);
+  assert.ok(Object.isFrozen(events[0]));
+  for (let i = 0; i < 6162; i++) read(12);
+  assert.equal(events.at(-2)!.position, 6161); assert.equal(events.at(-1)!.position, 0);
+  assert.deepEqual(disk.snapshot(), baseline.snapshot());
+  const count = events.length;
+  disk.inspect(); disk.inspectMedium()!.inspectTrack(0); disk.snapshot(); disk.reset();
+  assert.equal(events.length, count);
+  stop(); read(12); assert.equal(events.length, count);
+  assert.deepEqual(disk.snapshot(), baseline.snapshot());
 });
 
 test("Disk II declares read-only media through the actual DOS write-protect sense sequence", () => {

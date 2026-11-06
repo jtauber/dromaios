@@ -19,6 +19,15 @@ export interface DiskIISnapshot extends DiskIIState {
   readonly shifted?: readonly number[];
 }
 
+export interface DiskIITransfer {
+  readonly kind: "read" | "write"; // Disk → latch, or latch → disk; not the CPU bus direction.
+  readonly halfTrack: number;
+  readonly track: number;
+  readonly position: number; // Position before this transfer advanced the stream.
+  readonly length: number;
+  readonly value: number;
+}
+
 // Adjacent energized phases move a half track; opposite phases use the reference's convention.
 const phaseDelta = [[0, 1, 2, -1], [-1, 0, 1, 2], [-2, -1, 0, 1], [1, -2, -1, 0]] as const;
 const powerOn = { halfTrack: 0, phase: 0, position: 0, motor: false, drive: 1, q6: false, q7: false, latch: 0 };
@@ -29,6 +38,7 @@ export class Apple2DiskII implements MemoryConnection {
   #bootstrap: readonly number[] | null = null;
   #media: Dos33Disk | null = null;
   #shifted: number[] = [];
+  readonly #observers = new Set<(transfer: DiskIITransfer) => void>();
 
   constructor(initialState?: DiskIISnapshot) {
     this.#state = { ...powerOn };
@@ -66,6 +76,12 @@ export class Apple2DiskII implements MemoryConnection {
   inspectMedium(): Pick<Dos33Disk, "snapshot" | "inspectTrack" | "observeWrites"> | null { return this.#media; }
   inspect(): DiskIIState & { readonly installed: boolean; readonly loaded: boolean; readonly writable: boolean } {
     return { ...this.#state, installed: this.#bootstrap !== null, loaded: this.#media !== null, writable: this.#media?.writable ?? false };
+  }
+
+  /** Observe actual stream advances. Observers must not throw or access the guest bus. */
+  observeTransfers(observer: (transfer: DiskIITransfer) => void): () => void {
+    this.#observers.add(observer);
+    return () => { this.#observers.delete(observer); };
   }
 
   /** CPU reset does not power-cycle the controller or rewind the disk. */
@@ -139,7 +155,7 @@ export class Apple2DiskII implements MemoryConnection {
     if (!state.motor || state.drive !== 1 || !this.#media?.writable) return;
     // A full span marks an overlong write. The track position still advances.
     if (this.#shifted.length < dos33SectorSpan) this.#shifted.push(state.latch);
-    state.position = (state.position + 1) % this.#media.trackLength(Math.floor(state.halfTrack / 2));
+    this.#advance("write");
   }
 
   #finishWrite(): void {
@@ -156,6 +172,16 @@ export class Apple2DiskII implements MemoryConnection {
     if (!state.motor || state.drive !== 1 || !this.#media) { state.latch = 0; return; }
     const track = Math.floor(state.halfTrack / 2);
     state.latch = this.#media.read(track, state.position);
-    state.position = (state.position + 1) % this.#media.trackLength(track);
+    this.#advance("read");
+  }
+
+  #advance(kind: DiskIITransfer["kind"]): void {
+    const { halfTrack, position, latch } = this.#state;
+    const track = Math.floor(halfTrack / 2), length = this.#media!.trackLength(track);
+    this.#state.position = (position + 1) % length;
+    if (this.#observers.size) {
+      const transfer = Object.freeze({ kind, halfTrack, track, position, length, value: latch });
+      for (const observer of this.#observers) observer(transfer);
+    }
   }
 }

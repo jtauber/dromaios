@@ -108,6 +108,12 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
   showImage();
   return {
     trace,
+    browseSector(cylinder: number, logical: number): void {
+      source.value = "track"; track.value = String(cylinder); trackNumber = cylinder;
+      showSource(String(logical));
+      panel.querySelector<HTMLDetailsElement>("[data-dos-encoded]")!.open = true;
+      detail.scrollIntoView({ block: "nearest" });
+    },
     refresh(controller: Apple2DiskII, update: boolean): void {
       const current = controller.inspectMedium();
       if (current !== medium) {

@@ -109,7 +109,8 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const execution = createExecutionController({
     step: () => {
       const before = apple2DebugLocation(session.machine), romMapped = !session.machine.language.ramRead();
-      const record = changeLog ? changeLog.current().capture(() => session.step()) : session.step();
+      const perform = () => explorer.captureDiskStep(before, () => session.step());
+      const record = changeLog ? changeLog.current().capture(perform) : perform();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
       basicHistory?.observe(session.machine, before);
       basicProfile?.observe(session.machine, before, record.after);
@@ -130,6 +131,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); }, shouldUpdate, {
     memoryAddress: () => inspection.memoryAddress, browseMemory: address => inspection.browseMemory(address), browse: navigation.browse,
     inspectPixel: (x, y) => { showPanel("screen"); screenInspector?.selectPixel(x, y); },
+    browseDiskSector: (track, sector) => diskInspector?.browseSector(track, sector),
   }, diskInspector?.trace);
   const screenInspector = createApple2ScreenInspector(root, () => session.machine, {
     memory: address => navigation.browse("memory", address),

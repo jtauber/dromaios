@@ -285,6 +285,25 @@
       <h2>Disk II controller</h2><pre data-disk-inspect>No disk controller installed.</pre>
       <p class="lab-hint">Guest writes change the in-memory copy. When the motor is off, export a .dsk to keep the changes. Saved states also retain the mounted disk and its write permission.</p>
       <p><a href="{{ calc_url(apple2_url ~ '#saving-answer-across-a-fresh-boot') }}" target="_blank" rel="noopener">Save and boot ANSWER ↗</a></p>
+      <details data-disk-activity open>
+        <summary>Disk II activity</summary>
+        <div class="basic-controls"><label class="disk-record"><input type="checkbox" data-disk-record checked> Record transfers</label>
+          <button type="button" data-disk-activity-clear>Clear activity</button></div>
+        <p data-disk-head-status class="lab-hint"></p>
+        <div data-disk-head class="disk-head" aria-label="Stored bytes around the next stream position"></div>
+        <p class="lab-hint"><span class="disk-byte-address">Address</span> · <span class="disk-byte-data">Data</span> · <span class="disk-byte-checksum">Checksum</span> · outlined byte = next stream position. This window shows stored bytes, including bytes not yet read.</p>
+        <div data-disk-sector-map class="disk-sector-map" aria-label="Observed sector activity"></div>
+        <p class="lab-hint">P = physical sector; DOS = image sector. Counts: A = address verified through DE AA; D = all 342 data values and their checksum consumed and verified. A data check can happen while DOS searches for another sector; the DOS read trace below identifies returned RAM buffers. Select a cell to browse its stored sector.</p>
+        <p data-disk-last-data class="lab-hint"></p>
+        <details data-disk-byte-history>
+          <summary>Instruction-linked byte history</summary>
+          <div class="basic-controls"><button type="button" data-disk-older>Older</button><button type="button" data-disk-newer>Newer</button><button type="button" data-disk-latest>Follow latest</button></div>
+          <p data-disk-byte-status class="lab-hint" role="status"></p>
+          <div class="disk-history-scroll"><table class="disk-byte-history"><thead><tr><th>#</th><th>Transfer</th><th>Track / offset</th><th>Instruction</th><th>Verified field</th></tr></thead><tbody data-disk-byte-rows></tbody></table></div>
+          <p class="lab-hint">Last 512 transfers, 64 per page. Read means disk → latch; Shift write means latch → disk, which does not guarantee a committed sector. Instructions and bytes are captured; address links browse current mapped code. Live controls display updates; Record controls collection. Pause and Step refresh held views.</p>
+        </details>
+        <p><a href="{{ calc_url(apple2_url ~ '#following-disk-ii-activity') }}" target="_blank" rel="noopener">Follow the head, bytes, and sector checks ↗</a></p>
+      </details>
       <section data-dos-inspector>
         <h2>DOS disk inspector</h2>
         <label>File or trace <select data-dos-source aria-label="File or trace"></select></label>

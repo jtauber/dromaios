@@ -29,16 +29,21 @@ export function decodeDos33DataField(bytes: readonly number[]): Uint8Array | und
   if (start < 0 || bytes[start] !== 0xd5 || bytes[start + 1] !== 0xaa || bytes[start + 2] !== 0xad
     || bytes[end - 3] !== 0xde || bytes[end - 2] !== 0xaa || bytes[end - 1] !== 0xeb
     || bytes.slice(end).some(byte => byte !== 0xff)) return undefined;
+  return decodeDos33Data(bytes.slice(start + 3, end - 3));
+}
 
+/** Decode the 342 translated values and their checksum, without assuming an epilogue was read. */
+export function decodeDos33Data(bytes: readonly number[]): Uint8Array | undefined {
+  if (bytes.length !== 343) return undefined;
   const values = new Uint8Array(342);
   let previous = 0;
   for (let i = 0; i < values.length; i++) {
-    const code = diskByte.indexOf(bytes[start + 3 + i]!);
+    const code = diskByte.indexOf(bytes[i]!);
     if (code < 0) return undefined;
     previous ^= code;
     values[i] = previous;
   }
-  if (bytes[end - 4] !== diskByte[previous]) return undefined;
+  if (bytes[342] !== diskByte[previous]) return undefined;
   return Uint8Array.from({ length: 256 }, (_, i) =>
     (values[86 + i]! << 2) | reversePair(values[i % 86]! >> (2 * Math.floor(i / 86))));
 }

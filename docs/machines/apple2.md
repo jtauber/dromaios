@@ -274,7 +274,7 @@ or unverified behavior in the reference.
 | Change history | Instruction-attributed before/after values for registers, flags, PC, and physical RAM, including Language Card banks; bounded history with recording and display filters, and explicitly identified user RAM edits. | — |
 | ROM and system | Searchable Monitor reference with PC/Memory following, mapping-aware context, and navigation to Disassembly and Memory; guide-owned routine contracts, byte-checked instruction comments, and five in-lab walkthroughs (reset/echo, carriage return, scrolling, cursor editing, and output-hook redirection) using versioned ROM-only stops; live read/write memory map and structured keyboard, display, and Language Card state with change highlights; bounded instruction-linked device-access history with specification descriptions; disk snapshots. | Further annotations driven by walkthroughs. |
 | Applesoft tools | Live listing with statement stepping, breakpoints, optional per-statement visit counts, keyword links to Memory, and highlights for the text pointer and LIST reads. Saved DATA cursor links to Memory and its containing statement, with a READ/RESTORE walkthrough. ONERR handler and saved error workspace link to source and Memory, with a division-by-zero/RESUME walkthrough. CONT workspace links to its saved cursor and next statement, with a STOP/CONT walkthrough through a loop and subroutine. Scalar variables and expandable arrays with Memory links to records, elements, and string contents. Memory layout shows program, scalar, array, free-space, and string-heap regions with byte counts and Memory links. FOR and GOSUB frames link to stack bytes and resuming statements. The last 32 numbered statement visits link back to the listing. Subroutine profiles link callers and targets with call, return, and active counts. | BASIC-level PEEK/POKE and READ/RESTORE event logs; static incoming-jump links in the listing. Elapsed-time profiling depends on a timing contract; current profiles count observed calls and returns. |
-| Disk tools | DOS-order disk insertion, writable copies, export and re-import, checkpoint restoration, controller state, file/sector inspection, committed-write history, and completed DOS read history with captured bytes and RAM links. Encoded-track snapshots expose address/data fields, physical-to-DOS sector mapping, checksums, whole-track bytes, and comparisons with captured transfers. | A head-following encoded-byte window and an activity map of encountered address fields. Stored-track inspection and completed RWTS reads do not establish that byte-level history. |
+| Disk tools | DOS-order disk insertion, writable copies, export and re-import, checkpoint restoration, controller state, file/sector inspection, committed-write history, and completed DOS read history with captured bytes and RAM links. Encoded-track snapshots expose address/data fields, physical-to-DOS sector mapping, checksums, whole-track bytes, and comparisons with captured transfers. A head-following stored-byte window, bounded instruction-linked read/write-shift history, and physical/DOS sector map distinguish observed address verification, consumed data/checksum verification, and DOS returns. Record and Live are independent. | — |
 | Software selection | Verified Applesoft ROM and pinned DOS System Master. | Explicit software/media profiles and acceptance for additional disks and programs. |
 
 The core workspace, CPU, and memory tools have reached the reference's useful
@@ -290,21 +290,17 @@ any future read activity from observed transfers rather than those flags.
 
 Use the remaining parity gaps above to choose concrete investigations:
 
-1. **Disk activity:** connect the stored encoded track to the bytes actually
-   consumed by the CPU, address fields encountered, and successful sector reads.
-   A bounded trace should explain the head-following view and sector activity
-   map without treating a stored-image snapshot as observed bus traffic.
-2. **BASIC event history:** add interpreter-level PEEK/POKE and READ/RESTORE
+1. **BASIC event history:** add interpreter-level PEEK/POKE and READ/RESTORE
    observations with source and Memory links. Existing CPU watch history and
    the saved DATA cursor provide different evidence; keep those distinctions.
-3. **Listing navigation:** add incoming-jump links grounded in parsed Applesoft
+2. **Listing navigation:** add incoming-jump links grounded in parsed Applesoft
    statements, with explicit handling of computed branches and edited source.
-4. **Emulated time:** define and test a 6502 timing/device contract before adding
+3. **Emulated time:** define and test a 6502 timing/device contract before adding
    hardware-speed controls, elapsed subroutine times, or speaker audio.
 
 The [executable chapter](../../src/machines/6502/apple2.md) already contains
-verified boot, RWTS, LOAD, SAVE, binary execution, and Integer BASIC
-walkthroughs. The [ROM guide](../software/apple2p-rom.md) owns Applesoft
+verified boot, RWTS, Disk II byte activity, LOAD, SAVE, binary execution,
+and Integer BASIC walkthroughs. The [ROM guide](../software/apple2p-rom.md) owns Applesoft
 interpreter state and its examples, including DATA/READ, ONERR/RESUME, and
 STOP/CONT. Extend those guides when a new observation needs an annotation or
 acceptance path; completed walkthroughs are not future milestones.
