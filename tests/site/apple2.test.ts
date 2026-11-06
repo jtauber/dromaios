@@ -7,6 +7,7 @@ import { literateBlocks } from "../../src/literate.js";
 import { applesoftArrayElement, applesoftArrays, applesoftDataCursor, applesoftMemoryLayout, applesoftStatementText, applesoftVariables } from "../../site/interactive/apple2-applesoft.js";
 import { applesoftStepBoundary } from "../../site/interactive/apple2-applesoft-step.js";
 import { applesoftStack } from "../../site/interactive/apple2-applesoft-stack.js";
+import { applesoftErrorName, applesoftErrorState } from "../../site/interactive/apple2-applesoft-errors.js";
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
 import { createApplesoftProfile } from "../../site/interactive/apple2-applesoft-profile.js";
 import { createApplesoftBreakpoints } from "../../site/interactive/apple2-applesoft-breakpoints.js";
@@ -124,7 +125,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
   const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
-  const [scalarExample, memoryExample, arrayExample, stepExample, stackExample, profileExample, dataExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  const [scalarExample, memoryExample, arrayExample, stepExample, stackExample, profileExample, dataExample, errorExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
   assert.ok(scalarExample);
   command("NEW");
   for (const line of scalarExample.lines) command(line.text);
@@ -417,6 +418,58 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     command("READ Q,E$,R,F$,S"); assert.match(screen(), /OUT OF DATA/);
     check(0x800); assert.deepEqual([value("Q"), value("E$"), value("R"), value("F$")], ["12", '"RED, BLUE"', "-3.5", '"DONE"']);
     command("READ T"); assert.equal(value("T"), "12"); check(0x809, 10, 0);
+  });
+
+  await t.test("ONERR captures division by zero and RESUME retries only the failing statement, including after restore", () => {
+    assert.ok(errorExample);
+    command("NEW"); for (const line of errorExample.lines) command(line.text);
+    const state = () => applesoftErrorState(ram, pointsForHistory.listing());
+    const value = (name: string) => applesoftVariables(ram).variables.find(v => v.name === name)?.value;
+    session.send(apple2Input("RUN\n"));
+    before(10, "0805"); assert.equal(state().enabled, false);
+    before(20, "080F");
+    assert.equal(state().enabled, true);
+    assert.deepEqual([state().handler.line, state().handler.pointer, state().handler.target], [10, 0x807, 100]);
+    assert.equal(state().handler.source?.statement.address, 0x805);
+    assert.equal(state().handler.destination?.statement.address, 0x835);
+    before(30, "0817"); before(30, "081D"); assert.equal(value("N"), "1"); assert.equal(value("D"), "0");
+    before(100, "0835");
+    assert.deepEqual(bytesAt(0xda, 6), [30, 0, 0x1c, 8, 133, 0xf8]);
+    const saved = state().saved!;
+    assert.deepEqual([saved.line, saved.pointer, saved.code, saved.stack], [30, 0x81c, 133, 0xf8]);
+    assert.equal(applesoftErrorName(hardware.firmware, saved.code), "DIVISION BY ZERO");
+    assert.equal(saved.source?.index, 1); assert.equal(saved.source?.statement.address, 0x81d);
+    before(110, "083D"); assert.equal(value("D"), "2");
+    const checkpoint = session.snapshot(); state(); assert.deepEqual(session.snapshot(), checkpoint);
+    before(30, "081D"); assert.equal(value("N"), "1");
+    assert.equal(hardware.cpu.snapshot().sp, 0xf6, "RESUME restored $F8, then the dispatcher pushed its two-byte return address");
+    before(40, "0828"); assert.equal(value("Q"), "21"); before(50, "082F");
+    assert.equal(stepBasic(), "Applesoft ] prompt."); assert.ok(screen().endsWith("]RUN\n21\n\n]"));
+    assert.deepEqual(state().saved, saved, "Successful RESUME leaves the saved error in RAM");
+    for (const [expression, result] of [["Q", "21"], ["N", "1"], ["PEEK(222)", "133"]]) {
+      command(`PRINT ${expression}`); assert.ok(screen().endsWith(`]PRINT ${expression}\n${result}\n\n]`));
+      assert.equal(state().enabled, false, "Entering a new direct command disables ONERR");
+      assert.equal(state().saved?.code, 133); assert.equal(state().saved?.source, undefined);
+    }
+    const restored = createApple2Session(image); restored.restore(checkpoint);
+    const points = createApplesoftBreakpoints(() => restored.machine), restoredRam = restored.machine.ram;
+    assert.deepEqual(applesoftErrorState(restoredRam, points.listing()).saved, saved);
+    let budget = 100_000;
+    while (restored.machine.cpu.snapshot().pc !== 0xfd21) {
+      assert.ok(budget-- > 0); assert.equal(restored.step().outcome, "executed");
+    }
+    assert.deepEqual(applesoftVariables(restoredRam).variables.filter(v => ["Q", "N"].includes(v.name)).map(v => [v.name, v.value]), [["N", "1"], ["Q", "21"]]);
+    command("POKE 216,0"); assert.equal(state().enabled, false); assert.equal(state().saved?.code, 133);
+    assert.equal(state().saved?.source, undefined);
+    command("RUN"); assert.equal(state().enabled, true);
+    command("30 N=N+1:Q=84/D"); assert.equal(state().enabled, false);
+    assert.equal(state().handler.source, undefined); assert.equal(state().saved?.source, undefined);
+    command("NEW");
+    for (const line of ["10 ONERR GOTO 100", "20 NEXT", "100 END"]) command(line);
+    session.send(apple2Input("RUN\n")); before(10, "0805"); before(20, "080F"); before(100, "0815");
+    assert.equal(state().saved?.code, 0); assert.equal(applesoftErrorName(hardware.firmware, 0), "NEXT WITHOUT FOR");
+    assert.equal(state().saved?.pointer, 0x80a); assert.equal(state().saved?.source?.statement.address, 0x80f);
+    assert.equal(stepBasic(), "Applesoft ] prompt."); command("POKE 216,0");
   });
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.

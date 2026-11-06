@@ -1,6 +1,7 @@
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import { applesoftCursor, applesoftDataCursor, resolveApplesoftSource } from "./apple2-applesoft.js";
 import type { ApplesoftListing, ApplesoftSourcePosition } from "./apple2-applesoft.js";
+import { applesoftErrorName, applesoftErrorState } from "./apple2-applesoft-errors.js";
 import type { ApplesoftHistory } from "./apple2-applesoft-history.js";
 import type { createApplesoftBreakpoints } from "./apple2-applesoft-breakpoints.js";
 import { apple2DebugLocation } from "./apple2-debugger.js";
@@ -22,7 +23,11 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
   const clearCounts = panel.querySelector<HTMLButtonElement>("[data-applesoft-clear-counts]")!;
   const data = panel.querySelector<HTMLElement>("[data-applesoft-data]")!;
   const dataCursor = panel.querySelector<HTMLElement>("[data-basic-data-cursor]")!;
+  const errors = panel.querySelector<HTMLElement>("[data-applesoft-errors]")!;
+  const handler = panel.querySelector<HTMLElement>("[data-basic-error-handler]")!;
+  const savedError = panel.querySelector<HTMLElement>("[data-basic-error-saved]")!;
   let dataKey: string | undefined;
+  let errorKey: string | undefined;
   const counters = new Map<HTMLElement, ApplesoftSourcePosition>();
   let countRevision = -1;
   const tokens = new Map<number, { button: HTMLButtonElement; line: number }>();
@@ -30,6 +35,16 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
   let displayed: ApplesoftListing | undefined;
   let revision = -1;
   let marked: HTMLElement | undefined;
+  function sourceLink(point: ApplesoftSourcePosition, description: string): HTMLButtonElement {
+    const button = document.createElement("button"); button.type = "button"; button.className = "lab-memory-link";
+    button.textContent = `Line ${point.line}, statement ${point.index + 1}`;
+    button.setAttribute("aria-label", `Show ${description} on line ${point.line}, statement ${point.index + 1} in Applesoft listing`);
+    button.addEventListener("click", () => {
+      const current = resolveApplesoftSource(points.listing(), point);
+      if (current) reveal(current.address); else button.disabled = true;
+    });
+    return button;
+  }
   function refreshCounts(): void {
     if (!showCounts.checked || countRevision === history.countRevision) return;
     for (const [badge, point] of counters) {
@@ -53,16 +68,37 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
       dataCursor.append("Saved cursor ", link, " · ");
     }
     const point = cursor.source;
-    if (point) {
-      const button = document.createElement("button"); button.type = "button"; button.className = "lab-memory-link";
-      button.textContent = `Line ${point.line}, statement ${point.index + 1}`;
-      button.setAttribute("aria-label", `Show DATA on line ${point.line}, statement ${point.index + 1} in Applesoft listing`);
-      button.addEventListener("click", () => {
-        const current = resolveApplesoftSource(points.listing(), point);
-        if (current) reveal(current.address); else button.disabled = true;
-      });
-      dataCursor.append(button);
-    } else dataCursor.append(cursor.message ?? "");
+    if (point) dataCursor.append(sourceLink(point, "DATA"));
+    else dataCursor.append(cursor.message ?? "");
+  }
+  function refreshErrors(machine: Machine, listing: ApplesoftListing): void {
+    errors.hidden = !!listing.message;
+    const state = listing.message ? undefined : applesoftErrorState(machine.ram, listing), key = JSON.stringify(state);
+    if (key === errorKey) return;
+    errorKey = key; handler.replaceChildren(); savedError.replaceChildren();
+    if (!state) return;
+    handler.append(memoryLink(0xd8, browse, "ONERR"), state.enabled ? " enabled" : " disabled");
+    if (state.enabled) {
+      const { source, destination, target, pointer } = state.handler;
+      handler.append(" · installed by ");
+      if (source) handler.append(sourceLink(source, "ONERR"));
+      else handler.append("unresolved source");
+      if (pointer < machine.ram.size) handler.append(" · saved text ", memoryLink(pointer, browse));
+      handler.append(" · handler ");
+      if (destination) handler.append(sourceLink(destination, "error handler"));
+      else handler.append(target === undefined ? "unresolved" : `line ${target} is absent`);
+    }
+    const saved = state.saved;
+    if (!saved) { savedError.append("No saved error workspace."); return; }
+    const name = applesoftErrorName(machine.firmware, saved.code);
+    savedError.append("Saved ", memoryLink(0xde, browse, `code ${saved.code} ($${hex(saved.code, 2)})`), name ? ` · ${name}` : "");
+    const restart = document.createElement("p");
+    restart.append("Restart · ", memoryLink(0xda, browse, `line ${saved.line}`), " · ", memoryLink(0xdc, browse, "ERRPOS"), ` = $${hex(saved.pointer)}`);
+    if (saved.pointer < machine.ram.size) restart.append(" · ", memoryLink(saved.pointer, browse, "saved byte"));
+    if (saved.source) restart.append(" · ", sourceLink(saved.source, "restart"));
+    else restart.append(" · no current source link");
+    restart.append(" · ", memoryLink(0xdf, browse, `SP $${hex(saved.stack, 2)}`));
+    savedError.append(restart);
   }
   showCounts.addEventListener("change", () => {
     source.classList.toggle("show-counts", showCounts.checked);
@@ -119,6 +155,7 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
     if (listing !== displayed || revision !== points.revision) render(listing);
     refreshCounts();
     refreshData(machine, listing);
+    refreshErrors(machine, listing);
     if (listing.message) { status.textContent = listing.message; return; }
     const cursor = applesoftCursor(machine.ram, latest);
     const token = cursor && tokens.get(cursor.address);

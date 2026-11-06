@@ -954,6 +954,65 @@ completes another `READ`. The walkthrough's automated check executes the
 published program, verifies every cursor and value above, and repeats reading
 after both `RESTORE` and checkpoint restoration.
 
+### Handling errors with ONERR and RESUME
+
+**Error handling** below **Applesoft listing** shows whether `ONERR` is enabled,
+where it was installed, its handler, and the saved restart state. Source links
+focus statements without moving the execution highlight. Address and workspace
+links open **Memory**. The section follows the listing's Live setting and can
+be collapsed.
+
+Enter `NEW`, then this program. Pause, queue `RUN`, and use **Step BASIC
+statement**.
+
+```basic
+10 ONERR GOTO 100
+20 D=0
+30 N=N+1:Q=42/D
+40 PRINT Q
+50 END
+100 D=2
+110 RESUME
+```
+
+| Pause before | What to inspect |
+| --- | --- |
+| Line 20 | ONERR is enabled. The installation link selects line 10; the handler link selects line 100. Saved text `$0807` points to the digits `100`. |
+| Line 30, statement 2 | N is 1 and D is 0. The next statement attempts `Q=42/D`. |
+| Line 100 | The division failed. Saved code is 133 (`$85`), DIVISION BY ZERO. The restart link selects line 30, statement 2. `ERRPOS` holds `$081C`, the colon before that statement. |
+| Line 110 | The handler has changed D to 2. Save a checkpoint here to repeat the recovery. |
+| Line 30, statement 2 | RESUME returned to the division. N is still 1: the first statement on the line was not repeated. |
+| Line 40 | Q is 21. Step through PRINT and END to reach the prompt. |
+
+At the prompt, compare **Applesoft variables** with `PRINT Q` and `PRINT N`:
+they print 21 and 1. `PRINT PEEK(222)` prints 133 even after successful
+recovery. Restore the checkpoint and step through RESUME again; both the
+saved restart and D=2 return with the machine's RAM.
+
+`ERRFLG` at `$00D8` enables the handler with bit 7. `TXTPSV` at `$00F4–$00F5`
+points just after the installed `GOTO`; `CURLSV` at `$00F6–$00F7` identifies
+the line containing `ONERR`, not the handler's target line. Error delivery
+saves the failing line in `ERRLIN` (`$00DA–$00DB`), its restart cursor in
+`ERRPOS` (`$00DC–$00DD`), the error code in `ERRNUM` (`$00DE`), and the saved
+6502 stack pointer in `ERRSTK` (`$00DF`). RESUME restores the line, cursor,
+and stack pointer. Error numbers are offsets into the ROM's message table,
+so zero is a valid error code: NEXT WITHOUT FOR.
+[Applesoft ROM disassembly](https://6502disassembly.com/a2-rom/Applesoft.html)
+
+These are saved bytes, not an indication that an error is currently being
+handled. RESUME leaves them in place. Entering another command at the prompt,
+including the PRINT checks above, or editing a program line disables ONERR.
+A running handler can also disable it with `POKE 216,0`.
+The inspector then removes source links; Memory still exposes
+the retained values. When enabled, links describe the current program at
+those positions, not a historical copy of the failing source. Mid-instruction
+steps can expose a partly updated record; use BASIC statement boundaries for
+the complete state. No inspector action executes a guest memory access.
+
+The automated acceptance check runs these published lines through the ROM,
+checks the saved bytes and printed results, replays the checkpoint, and checks
+disabling, editing, first-statement restarts, and error code zero.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
@@ -1161,6 +1220,13 @@ within KEYIN, rather than a separate subroutine.
     {"address": "007B", "name": "DATLIN", "description": "Line most recently searched for DATA; can retain an earlier value after RESTORE", "scope": "workspace", "bytes": 2},
     {"address": "007D", "name": "DATPTR", "description": "Saved DATA search cursor; updated after a complete READ or reset by RESTORE", "scope": "workspace", "bytes": 2},
     {"address": "00B8", "name": "TXTPTR", "description": "Applesoft text pointer in the CHRGET routine", "scope": "workspace", "bytes": 2},
+    {"address": "00D8", "name": "ERRFLG", "description": "Bit 7 enables ONERR error handling", "scope": "workspace"},
+    {"address": "00DA", "name": "ERRLIN", "description": "Saved failing line number for RESUME", "scope": "workspace", "bytes": 2},
+    {"address": "00DC", "name": "ERRPOS", "description": "Saved restart cursor before the failed statement or its line header", "scope": "workspace", "bytes": 2},
+    {"address": "00DE", "name": "ERRNUM", "description": "Saved error code; an offset into the ROM message table", "scope": "workspace"},
+    {"address": "00DF", "name": "ERRSTK", "description": "Saved 6502 stack pointer restored by RESUME", "scope": "workspace"},
+    {"address": "00F4", "name": "TXTPSV", "description": "Saved text pointer after GOTO in the installed ONERR statement", "scope": "workspace", "bytes": 2},
+    {"address": "00F6", "name": "CURLSV", "description": "Line containing the installed ONERR statement", "scope": "workspace", "bytes": 2},
     {"address": "0200", "name": "INPUT_BUFFER", "description": "Input buffer (256 bytes)", "scope": "workspace"},
     {"address": "03F0", "name": "BRKV", "description": "BRK vector (2 bytes)", "scope": "workspace", "bytes": 2},
     {"address": "03F2", "name": "SOFTEV", "description": "Soft entry (warm start) vector (2 bytes)", "scope": "workspace", "bytes": 2},
@@ -1237,6 +1303,10 @@ within KEYIN, rather than a separate subroutine.
     {"address": "DCCE", "bytes": "4C 53 D8", "text": "After the complete READ list succeeds, save its input cursor in DATPTR through SETDA."},
     {"address": "E2E5", "bytes": "20 84 E4", "text": "FRE calls GARBAG before computing the available space between STREND and FRETOP."},
     {"address": "E484", "bytes": "A6 73", "text": "Garbage collection begins at MEMSIZE and compacts referenced strings toward that upper boundary."},
+    {"address": "F2D9", "bytes": "66 D8", "text": "With carry set, rotate a one into ERRFLG bit 7 to enable ONERR."},
+    {"address": "F2E9", "bytes": "86 DE", "text": "Save the error code in ERRNUM before recording the failing line, restart cursor, and stack pointer."},
+    {"address": "F318", "bytes": "A5 DA", "text": "RESUME begins restoring the saved line and text cursor to retry the failed statement."},
+    {"address": "F32A", "bytes": "9A", "text": "Restore the saved stack pointer before returning to the statement scanner."},
     {"address": "FD6F", "bytes": "A2 01", "text": "GETLN has printed its prompt. Both direct command entry and program input use this line editor."},
     {"address": "FDED", "bytes": "6C 36 00", "text": "Dispatch through CSWL/CSWH; the hook chooses where output goes."},
     {"address": "FDF4", "bytes": "25 32", "text": "Apply INVFLG to printable output before the screen handler."},

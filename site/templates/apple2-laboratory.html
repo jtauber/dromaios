@@ -179,10 +179,17 @@
       </div>
       <p class="lab-hint" data-applesoft-status>Preparing Applesoft listing…</p>
       <div class="lab-applesoft-source" data-applesoft-source></div>
-      <details class="lab-applesoft-data" data-applesoft-data open hidden>
+      <details class="lab-applesoft-state" data-applesoft-data open hidden>
         <summary>DATA reading</summary>
         <p data-basic-data-cursor></p>
         <p><a href="{{ calc_url(apple2_url ~ '#following-data-read-and-restore') }}" target="_blank" rel="noopener">Follow READ and RESTORE ↗</a></p>
+      </details>
+      <details class="lab-applesoft-state" data-applesoft-errors open hidden>
+        <summary>Error handling</summary>
+        <p data-basic-error-handler></p>
+        <div data-basic-error-saved></div>
+        <p class="lab-hint">Saved bytes may predate this run. Source links describe the current program while ONERR is enabled.</p>
+        <p><a href="{{ calc_url(apple2_url ~ '#handling-errors-with-onerr-and-resume') }}" target="_blank" rel="noopener">Follow ONERR and RESUME ↗</a></p>
       </details>
       <p><a href="{{ calc_url(apple2_url ~ '#reading-an-applesoft-listing') }}" target="_blank" rel="noopener">Reading an Applesoft listing ↗</a></p>
     </section>
