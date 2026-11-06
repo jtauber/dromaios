@@ -19,6 +19,7 @@ import { createApplesoftView } from "./apple2-applesoft-view.js";
 import { createApplesoftStackView } from "./apple2-applesoft-stack-view.js";
 import { createApplesoftHistoryView } from "./apple2-applesoft-history-view.js";
 import { createApplesoftHistory } from "./apple2-applesoft-history.js";
+import { createApplesoftProfile } from "./apple2-applesoft-profile.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
@@ -75,11 +76,12 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const basicStep = root.querySelector<HTMLButtonElement>("[data-applesoft-step]");
   const basicBreakpoints = createApplesoftBreakpoints(() => session.machine);
   const basicHistory = basicStep && createApplesoftHistory(basicBreakpoints.listing);
+  const basicProfile = basicStep && createApplesoftProfile(basicBreakpoints.listing);
   const applesoft = basicHistory && createApplesoftView(root, browseMemory, basicBreakpoints, basicHistory);
   function revealStatement(address: number): void {
     showPanel("applesoft"); refreshPanels(["applesoft"]); applesoft?.reveal(address);
   }
-  const basicStack = createApplesoftStackView(root, basicBreakpoints.listing, browseMemory, revealStatement);
+  const basicStack = basicProfile && createApplesoftStackView(root, basicBreakpoints.listing, browseMemory, revealStatement, basicProfile);
   const historyView = basicHistory && createApplesoftHistoryView(root, basicHistory, basicBreakpoints.listing, revealStatement);
   const variables = createApplesoftVariablesView(root, browseMemory);
   const inspection = createApple2Inspection(root, shouldUpdate, () => refreshPanels(["rom", "code"]), (register, text) => {
@@ -110,6 +112,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const record = changeLog ? changeLog.current().capture(() => session.step()) : session.step();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
       basicHistory?.observe(session.machine, before);
+      basicProfile?.observe(session.machine, before, record.after);
       const changes = changeLog?.current().memoryChanges(record) ?? [];
       const writes = changeLog?.current().memoryWrites(record) ?? [];
       explorer.observe(record, before, inspection.watches, changes, writes);
@@ -163,6 +166,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   function resetExecutionHistory(): void {
     execution.reset(); changeLog?.reset(); screenInspector?.reset();
     basicHistory?.clear(); basicHistory?.clearCounts();
+    basicProfile?.clear();
   }
 
   function requirePaused(): void {

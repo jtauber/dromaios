@@ -8,6 +8,7 @@ import { applesoftArrayElement, applesoftArrays, applesoftStatementText, appleso
 import { applesoftStepBoundary } from "../../site/interactive/apple2-applesoft-step.js";
 import { applesoftStack } from "../../site/interactive/apple2-applesoft-stack.js";
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
+import { createApplesoftProfile } from "../../site/interactive/apple2-applesoft-profile.js";
 import { createApplesoftBreakpoints } from "../../site/interactive/apple2-applesoft-breakpoints.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
@@ -65,10 +66,13 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   assert.equal(hardware.cpu.snapshot().sp, 0xfc);
   const pointsForHistory = createApplesoftBreakpoints(() => session.machine);
   const history = createApplesoftHistory(pointsForHistory.listing);
+  const profile = createApplesoftProfile(pointsForHistory.listing);
   function stepWithHistory() {
     const machine = session.machine, before = apple2DebugLocation(machine);
     const record = session.step();
-    if (record.outcome === "executed") history.observe(machine, before);
+    if (record.outcome === "executed") {
+      history.observe(machine, before); profile.observe(machine, before, record.after);
+    }
     return record;
   }
   const execution = createExecutionController({
@@ -120,7 +124,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
   const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
-  const [scalarExample, arrayExample, stepExample, stackExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  const [scalarExample, arrayExample, stepExample, stackExample, profileExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
   assert.ok(scalarExample);
   command("NEW");
   for (const line of scalarExample.lines) command(line.text);
@@ -276,6 +280,54 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     assert.deepEqual(counts(), [[1, 40, 40], [1], [40, 40]]);
     assert.equal(history.visits.length, 32);
     assert.ok(screen().endsWith("39\n40\n\n]"));
+  });
+
+  await t.test("nested GOSUBs return twice and GOTO adds no call to the subroutine profile", () => {
+    assert.ok(profileExample); command("NEW");
+    for (const line of profileExample.lines) command(line.text);
+    profile.clear(); history.clearCounts();
+    const summary = () => profile.entries().map(p => [p.target.line, p.caller.line, p.caller.index, p.calls, p.returned, p.active]);
+    const stop = (number: number, slot = 0) => {
+      const statement = pointsForHistory.listing().lines.find(line => line.number === number)!.statements[slot]!;
+      before(number, statement.address.toString(16).toUpperCase().padStart(4, "0"));
+    };
+    session.send(apple2Input("RUN\n"));
+    stop(10); assert.deepEqual(summary(), []);
+    for (let i = 1; i <= 2; i++) {
+      stop(10, 1); stop(100); stop(200);
+      assert.deepEqual(summary(), [[100, 10, 1, i, i - 1, 1], [200, 100, 0, i, i - 1, 1]]);
+      const saved = session.snapshot(); profile.entries(); assert.deepEqual(session.snapshot(), saved);
+      stop(210); stop(100, 1);
+      assert.deepEqual(summary(), [[100, 10, 1, i, i - 1, 1], [200, 100, 0, i, i, 0]]);
+      stop(10, 2);
+    }
+    stop(20); stop(200); stop(200, 1);
+    assert.deepEqual(summary(), [[100, 10, 1, 2, 2, 0], [200, 100, 0, 2, 2, 0]]);
+    const conditional = pointsForHistory.listing().lines.find(line => line.number === 200)!.statements[0]!;
+    assert.equal(history.count({ line: 200, index: 0, statement: conditional }), 3);
+    assert.equal(stepBasic(), "Applesoft ] prompt.");
+    assert.deepEqual(summary(), [[100, 10, 1, 2, 2, 0], [200, 100, 0, 2, 2, 0]]);
+  });
+
+  await t.test("profiles distinguish ON GOSUB, POP, STOP/CONT, and failed target lookups", () => {
+    const summary = () => profile.entries().map(p => [p.target.line, p.calls, p.returned, p.active]);
+    function program(lines: string[]): void {
+      command("NEW"); for (const line of lines) command(line); profile.clear(); command("RUN");
+    }
+    program(["10 ON 2 GOSUB 100,200:END", "100 RETURN", "200 POP:END"]);
+    assert.deepEqual(summary(), [[200, 1, 0, 0]]);
+    program(["10 GOSUB 100:END", "100 STOP:RETURN"]);
+    assert.deepEqual(summary(), [[100, 1, 0, 1]]);
+    command("CONT"); assert.deepEqual(summary(), [[100, 1, 1, 0]]);
+    program(["10 GOSUB 100:END", "100 STOP:RETURN"]);
+    profile.clear(); command("CONT"); assert.deepEqual(summary(), []);
+    program(["10 I=0:GOSUB 100:END", "100 I=I+1:IF I=3 THEN STOP", "110 IF I<3 THEN GOSUB 100", "120 RETURN"]);
+    assert.deepEqual(summary(), [[100, 1, 0, 1], [100, 2, 0, 2]]);
+    command("CONT"); assert.deepEqual(summary(), [[100, 1, 1, 0], [100, 2, 2, 0]]);
+    program(["10 GOSUB 999:END"]);
+    assert.deepEqual(summary(), []); assert.match(screen(), /UNDEF'D STATEMENT ERROR/);
+    program(["10 GOSUB 100:END", "100 PRINT 1/0"]);
+    assert.deepEqual(summary(), [[100, 1, 0, 0]]); assert.match(screen(), /DIVISION BY ZERO/);
   });
 
   // The published program executes unchanged; expected blocks are independent of its drawing loops.

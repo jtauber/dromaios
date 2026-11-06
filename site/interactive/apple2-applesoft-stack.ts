@@ -1,4 +1,4 @@
-import { applesoftReal, applesoftStatementText, applesoftVariables } from "./apple2-applesoft.js";
+import { applesoftReal, applesoftSourceAt, applesoftStatementText, applesoftVariables } from "./apple2-applesoft.js";
 import type { ApplesoftListing, ApplesoftVariable } from "./apple2-applesoft.js";
 import { applesoftStatement } from "./apple2-applesoft-step.js";
 import { apple2DebugLocation } from "./apple2-debugger.js";
@@ -14,13 +14,9 @@ interface BasicStack { frames: BasicFrame[]; message?: string }
 /** Both RETURN and NEXT resume after the source statement that installed the record. */
 function continuation(listing: ApplesoftListing, lineNumber: number, pointer: number, keyword: "GOSUB" | "FOR"): Destination | undefined {
   if (lineNumber >= 0xff00 && pointer >= 0x200 && pointer < 0x300) return { kind: "direct" };
-  const index = listing.lines.findIndex(l => l.number === lineNumber);
-  const line = listing.lines[index];
-  if (!line || pointer > line.terminator) return;
-  let slot = line.statements.length - 1;
-  while (slot >= 0 && line.statements[slot]!.address > pointer) slot--;
-  const call = line.statements[slot];
-  if (!call?.parts.some(part => part.text === keyword && part.tokenAddress !== undefined && part.tokenAddress <= pointer)) return;
+  const call = applesoftSourceAt(listing, lineNumber, pointer);
+  if (!call?.statement.parts.some(part => part.text === keyword && part.tokenAddress !== undefined && part.tokenAddress <= pointer)) return;
+  const index = listing.lines.findIndex(l => l.number === lineNumber), slot = call.index;
   // Consecutive colons and a trailing colon have empty slots in the listing.
   for (let i = index; i < listing.lines.length; i++) {
     const nextLine = listing.lines[i]!;

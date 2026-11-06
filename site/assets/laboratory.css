@@ -171,6 +171,8 @@
 .lab-applesoft-history li::marker { color: var(--muted); }
 .lab-applesoft-history .lab-memory-link { text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .lab-basic-stack .lab-memory-link { text-align: left; }
+.lab-basic-profile .lab-memory-link { text-align: left; overflow-wrap: anywhere; }
+.lab-basic-profile td:nth-child(n+3) { text-align: right; }
 .laboratory-page .lab-applesoft-source button[aria-current="true"] { color: #101c30; background: #ffda86; outline: 2px solid #ffda86; font-weight: 700; }
 .lab-reference-current { margin: 10px 0 14px; padding: 10px; background: #131f33; border: 1px solid var(--line); border-radius: 4px; }
 .lab-reference-current h3 { margin: 0; color: #ffd18a; font: 600 12px/1.5 var(--mono); }

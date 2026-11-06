@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { Ram } from "../../src/components/memory/ram.js";
 import { applesoftArrayElement, applesoftArrays, applesoftCursor, applesoftStatementText, applesoftVariables, createApplesoftListing, observeApplesoftListing, resolveApplesoftSource } from "../../site/interactive/apple2-applesoft.js";
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
+import { createApplesoftProfile } from "../../site/interactive/apple2-applesoft-profile.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
 import { applesoftStackFrames } from "../../site/interactive/apple2-applesoft-stack.js";
 
@@ -14,6 +15,39 @@ keywords[0xb2 - 0x80] = "REM";
 function storeWord(ram: Ram, at: number, value: number): void {
   ram.write(at, value & 0xff); ram.write(at + 1, value >> 8);
 }
+
+test("subroutine profiles bind exact callers, follow relocated source, and reject stale or unmapped records", () => {
+  const { machine } = createApple2Session(), { ram } = machine;
+  const tokens = [...keywords]; tokens[0x30] = "GOSUB"; tokens[0x31] = "RETURN";
+  function program(at: number): void {
+    const next = at + 14;
+    storeWord(ram, at, next); storeWord(ram, at + 2, 10);
+    [0xb0, 49, 48, 48, 58, 0xb0, 49, 48, 48, 0].forEach((byte, i) => ram.write(at + 4 + i, byte));
+    storeWord(ram, next, next + 6); storeWord(ram, next + 2, 100); ram.write(next + 4, 0xb1);
+    storeWord(ram, 0x67, at); storeWord(ram, 0x69, next + 8);
+  }
+  program(0x801);
+  const decode = createApplesoftListing(tokens), listing = () => decode(ram), profile = createApplesoftProfile(listing);
+  const address = 0x1f2, summary = () => profile.entries().map(p => [p.caller.index, p.calls, p.returned, p.active]);
+  ram.write(address, 0xb0); storeWord(ram, address + 1, 10); storeWord(ram, address + 3, 0x806);
+  storeWord(ram, address + 5, 0xd822); storeWord(ram, 0xb8, 0x80e);
+  const call = { address: 0xd93b, space: "rom" }, entered = { pc: 0xd7d2, sp: 0xf1 };
+  machine.memory.read = () => { throw new Error("Inspection cannot read the guest bus"); };
+  profile.observe(machine, { ...call, space: "lc-bank1" }, entered); assert.deepEqual(summary(), []);
+  profile.observe(machine, call, entered); assert.deepEqual(summary(), [[0, 1, 0, 1]]);
+  profile.observe(machine, { address: 0xd993, space: "rom" }, { pc: 0xd995, sp: 0xf6 });
+  storeWord(ram, address + 3, 0x80b); profile.observe(machine, call, entered);
+  assert.deepEqual(summary(), [[0, 1, 1, 0], [1, 1, 0, 1]], "Two calls on one line have separate source links");
+  profile.observe(machine, { address: 0xd9c7, space: "rom" }, { pc: 0xd9c8, sp: 0xf6 });
+  program(0x4001);
+  const boundary = () => profile.observe(machine, { address: 0xd530, space: "rom" }, { pc: 0xfd6f, sp: 0xf4 });
+  boundary(); assert.equal(profile.entries()[0]!.caller.statement.address, 0x4005);
+  ram.write(0x4006, 50); boundary();
+  assert.deepEqual(summary(), [[1, 1, 0, 0]], "Editing one caller discards only that row");
+  ram.write(0x4013, 0xb3); boundary(); assert.deepEqual(summary(), [], "Editing the target discards its profile");
+  profile.clear(); program(0x801); storeWord(ram, 0xb8, 0xffff);
+  profile.observe(machine, call, entered); assert.deepEqual(summary(), [], "An invalid target cannot cause an inspector read outside RAM");
+});
 
 test("statement history retains the last 32 dispatches and resolves each recorded statement against the current source", () => {
   const { machine } = createApple2Session(), { ram } = machine;

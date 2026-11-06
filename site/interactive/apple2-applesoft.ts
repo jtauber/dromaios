@@ -27,6 +27,16 @@ export interface ApplesoftSourcePosition {
   statement: ApplesoftStatement;
 }
 
+/** Locate a saved text pointer, which can point inside a statement or at its ending colon. */
+export function applesoftSourceAt(listing: ApplesoftListing, number: number, pointer: number): ApplesoftSourcePosition | undefined {
+  const line = listing.lines.find(line => line.number === number);
+  if (!line || pointer > line.terminator) return;
+  let index = line.statements.length - 1;
+  while (index >= 0 && line.statements[index]!.address > pointer) index--;
+  const statement = line.statements[index];
+  if (statement) return { line: number, index, statement };
+}
+
 export function applesoftStatementText(statement: ApplesoftStatement): string {
   return statement.parts.map(part => part.tokenAddress === undefined ? part.text : ` ${part.text} `).join("").trim();
 }

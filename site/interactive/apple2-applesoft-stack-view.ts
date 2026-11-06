@@ -2,18 +2,22 @@ import type { ApplesoftListing } from "./apple2-applesoft.js";
 import { applesoftStack } from "./apple2-applesoft-stack.js";
 import type { createApple2Session } from "./apple2-session.js";
 import { memoryLink } from "./memory-link.js";
+import type { ApplesoftProfile } from "./apple2-applesoft-profile.js";
+import { createApplesoftProfileView } from "./apple2-applesoft-profile-view.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 
 export function createApplesoftStackView(root: HTMLElement, listing: () => ApplesoftListing,
-  browse: (address: number) => void, reveal: (address: number) => void) {
+  browse: (address: number) => void, reveal: (address: number) => void, profile: ApplesoftProfile) {
   const panel = root.querySelector<HTMLElement>('[data-workspace-panel="applesoft-stack"]');
   if (!panel) return;
   const status = panel.querySelector<HTMLElement>("[data-basic-stack-status]")!;
   const table = panel.querySelector("table")!, body = table.tBodies[0]!;
+  const refreshProfile = createApplesoftProfileView(panel, profile, listing, reveal);
   let displayed: string | undefined;
   return (machine: Machine, running: boolean): void => {
     if (panel.hidden) return;
+    refreshProfile();
     const stack = running ? { frames: [], message: "Running. Stop at a BASIC statement to inspect the stack." } : applesoftStack(machine, listing());
     const key = JSON.stringify(stack);
     if (key === displayed) return;

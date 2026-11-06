@@ -790,6 +790,48 @@ RAM. Changing the statement or its position within the line starts a new
 count. The debugger actions that reset execution history also reset the
 counts.
 
+### Profiling Applesoft subroutines
+
+Enter `NEW` at the `]` prompt and then enter these lines.
+
+```basic
+10 FOR I=1 TO 2:GOSUB 100:NEXT I
+20 GOTO 200
+100 GOSUB 200:RETURN
+200 IF I=3 THEN END
+210 RETURN
+```
+
+In **Applesoft stack**, choose **Clear profile**. Set a breakpoint on
+the `IF` on line 200 and run. The stack has two calls, from line 10 to
+100 and from line 100 to 200. The profile groups calls by target and
+caller statement. Each row shows one call, zero returned and one active.
+Select the caller on line 10 to focus the second statement on that line.
+The target links open the first statement of each subroutine.
+
+Run to the same breakpoint again. Both rows now show two calls, one
+returned and one active. Run once more. `NEXT I` has finished the loop
+with `I=3`, and line 20 has jumped to 200. Each profile row now shows
+two calls, two returned and zero active. Step to its `END`. With
+**Show counts** enabled, the listing now shows three visits to the `IF`.
+Step once more to reach the prompt.
+
+The profile observes successful numbered `GOSUB` calls, including the
+selected target of `ON … GOSUB`. At `$D93B` the ROM has found the
+destination line and saved its caller on the 6502 stack. `RETURN`
+finishes restoring that caller's text pointer at `$D993`.
+`POP` discards the frame through `$D9C7` and leaves the returned count
+alone. Failed target lookups add no call. `STOP` and `END` can preserve
+active frames for `CONT`, so a call can remain active at the prompt.
+
+**Clear profile** begins a new observation period. Subsequent calls
+are counted even while the panel is hidden. The profile follows matching
+caller and target statements when program lines move, and removes a row
+when either statement changes. Debugger actions that reset execution
+history also clear the profile. Calls already on the stack when a profile
+is cleared or a checkpoint is restored have no observation in the new
+profile. Direct-mode calls remain visible in the stack inspector.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,
@@ -1061,6 +1103,9 @@ within KEYIN, rather than a separate subroutine.
   ],
   "notes": [
     {"address": "D828", "bytes": "F0 2D", "text": "At statement dispatch, TXTPTR points to the byte just fetched. A zero byte ends the line."},
+    {"address": "D93B", "bytes": "4C D2 D7", "text": "GOSUB has found its target. TXTPTR is one byte before that line's header; the five-byte caller record is on the stack."},
+    {"address": "D993", "bytes": "85 B9", "text": "RETURN restores the high byte of the caller's text pointer, completing the five-byte frame restoration."},
+    {"address": "D9C7", "bytes": "68", "text": "POP discards the last byte of the GOSUB frame. Execution continues in the current routine."},
     {"address": "FD6F", "bytes": "A2 01", "text": "GETLN has printed its prompt. Both direct command entry and program input use this line editor."},
     {"address": "FDED", "bytes": "6C 36 00", "text": "Dispatch through CSWL/CSWH; the hook chooses where output goes."},
     {"address": "FDF4", "bytes": "25 32", "text": "Apply INVFLG to printable output before the screen handler."},
