@@ -288,11 +288,22 @@
       <section data-dos-inspector>
         <h2>DOS disk inspector</h2>
         <label>File or trace <select data-dos-source aria-label="File or trace"></select></label>
+        <label data-dos-track-control hidden>Track <input data-dos-track aria-label="Track" type="number" min="0" max="34" step="1" value="0" required></label>
         <label>Sector <select data-dos-sector aria-label="Sector" size="4"></select></label>
         <button type="button" data-dos-memory hidden>Browse live RAM</button>
         <button type="button" data-dos-clear>Clear write trace</button>
         <p data-dos-detail class="lab-hint"></p>
         <pre data-dos-dump class="basic-readout"></pre>
+        <details data-dos-encoded hidden>
+          <summary>Encoded track</summary>
+          <p data-dos-encoded-detail class="lab-hint"></p>
+          <pre data-dos-address-field class="basic-readout"></pre>
+          <p data-dos-data-field class="lab-hint"></p>
+          <pre data-dos-encoded-dump class="basic-readout"></pre>
+          <details><summary>Whole track</summary><pre data-dos-track-dump class="basic-readout"></pre></details>
+          <p class="lab-hint">Offsets here are bytes into the stored encoded track. This is the mounted medium’s canonical stream, not a recording of bytes consumed by the CPU or a physical disk’s flux. A trace row retains its decoded transfer; its encoded view may reflect later writes.</p>
+          <p><a href="{{ calc_url(apple2_url ~ '#inspecting-the-encoded-track') }}" target="_blank" rel="noopener">From encoded sector to RAM ↗</a></p>
+        </details>
         <p class="lab-hint">Track and sector numbers are decimal. File and write dumps show hexadecimal image offsets. Read dumps show RAM addresses at the time DOS returned. Each trace keeps the last 64 transfers of its kind from this mount.</p>
         <p><a href="{{ calc_url(apple2_url ~ '#following-the-sector-writes') }}" target="_blank" rel="noopener">Follow SAVE ANSWER ↗</a> · <a href="{{ calc_url(apple2_url ~ '#following-load-answer') }}" target="_blank" rel="noopener">Follow LOAD ANSWER ↗</a></p>
       </section>

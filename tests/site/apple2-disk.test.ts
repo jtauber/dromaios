@@ -14,6 +14,7 @@ import { apple2LoresPixel, createApple2ScreenWrites } from "../../site/interacti
 import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
 import { createDos33ReadTrace } from "../../site/interactive/dos33-reads.js";
+import { inspectDos33Track } from "../../site/interactive/dos33-track.js";
 import type { LoadObservation } from "../../site/interactive/dos33-reads.js";
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 import { encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
@@ -517,6 +518,13 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     const expected = [...selected.disk.exportImage().subarray(0x12600, 0x12700)];
     assert.deepEqual(trace.reads, [{ ...read, number: 1, bytes: expected }]);
     assert.deepEqual(Array.from({ length: 256 }, (_, i) => ram.read(0x2100 + i)), expected);
+    const before = guest.machine.snapshot();
+    const field = inspectDos33Track(guest.machine.disk.inspectMedium()!.inspectTrack(18))[3]!;
+    assert.deepEqual([field.addressOffset, field.dataOffset, field.volume, field.track, field.physicalSector, field.sector, field.checksum],
+      [0x04ad, 0x04c1, 254, 18, 3, 6, 0xef]);
+    assert.ok(field.addressValid);
+    assert.deepEqual(field.bytes, trace.reads[0]!.bytes);
+    assert.deepEqual(guest.machine.snapshot(), before, "Encoded inspection never consumes a byte or changes the machine");
     assert.match(dos.screen(), /\*$/);
   });
   await t.test("RUN COLOR DEMO matches its catalogue name, executes the on-disk tokens and clears the first visible cell", () => {
@@ -773,6 +781,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
     rwts(1, 0x21); // Read into a different buffer through the same DOS entry point.
     const buffer = (address: number) => Uint8Array.from({ length: 256 }, (_, i) => machine.ram.read(address + i));
     assert.deepEqual(buffer(0x2100), payload);
+    assert.deepEqual(inspectDos33Track(machine.disk.inspectMedium()!.inspectTrack(18))[3]!.bytes, [...payload]);
 
     const expected = master.slice();
     expected.set(payload, 0x12600); // DOS-order file offset: (18 × 16 + 6) × 256.

@@ -757,6 +757,44 @@ On the System Master its first four bytes are `20 22 3A AB`. Compare
 them with RAM at `$2100` after the return. The caller contains the fixed
 address `$03D9` and no reference to `$B7B5`.
 
+### Inspecting the encoded track
+
+After the sector-read caller returns, choose **Disk → DOS sector read
+trace**, select **T18 S6 → $2100**, and open **Encoded track**. The upper
+dump keeps the bytes DOS returned; **Browse live RAM** opens their
+destination. The encoded view inspects the mounted medium without reading
+the controller or advancing the CPU.
+
+The address field identifies **physical sector 3**, which DOS maps to
+**logical sector 6**. These are two numbers for the same sector. The
+inspector decodes its four-and-four pairs and verifies the XOR checksum.
+It then decodes the six-and-two data field and checks all 256 bytes against
+both the displayed image and the captured read.
+
+| Part | Encoded-track offset | What to look for |
+| --- | --- | --- |
+| Address field | $04AD | `D5 AA 96`, four pairs for volume 254, track 18, physical sector 3, and checksum $EF, then `DE AA EB`. |
+| Data field | $04C1 | `D5 AA AD`, 342 translated values, one checksum byte, then `DE AA EB`. |
+| Data checksum | $061A | The final translated XOR value; the inspector verifies it before accepting decoded bytes. |
+| Decoded sector | Image $12600 or RAM $2100 | The first four bytes on the System Master are `20 22 3A AB`; all 256 bytes should match the captured read. |
+
+**Whole track** expands the complete stored stream. To browse without
+running DOS, choose **Track sectors**, enter a decimal track number from
+0 to 34, and select its DOS sector. The encoded offsets always start at
+zero for that track; they are neither image offsets nor RAM addresses.
+
+The address and data formats follow the
+[16-sector GCR layout](https://ciderpress2.com/formatdoc/Nibble-notes.html).
+Our canonical stream has fixed byte gaps and 6,162 bytes per track. It
+does not preserve physical sync-bit lengths, flux, or copy protection.
+The encoded view is a snapshot of that stream, not a history of controller
+reads. After a write, an older read or write row may differ from the current
+encoding; the comparison reports that difference. With **Live** off during
+Run, already captured tracks remain held. If the disk changes before another
+track is captured, the inspector asks you to enable Live rather than mixing
+versions. Pause or Step refreshes the view, as with the other inspectors.
+Eject, fresh power-on, and checkpoint restore discard the old snapshots.
+
 ### Saving ANSWER across a fresh boot
 
 In the laboratory’s **Disk** panel, choose **Insert writable copy…** and
@@ -1180,6 +1218,9 @@ all of these. Snapshot restoration validates the fields, owns the bootstrap
 and disk data, and resumes at the same byte without executing a guest access.
 It preserves write permission and bytes already shifted during an open write.
 `inspect()` reveals control state without copying the medium or advancing it.
+`inspectMedium().inspectTrack(track)` returns an immutable copy of the stored
+encoded bytes. Subsequent writes leave that copy unchanged; inspecting it
+does not touch the motor, head, latch, stream position, or pending write.
 Insertion and eject reset the byte position and latch, preserving head and controls.
 
 The selected image has 35 tracks of sixteen 256-byte sectors in DOS file order.

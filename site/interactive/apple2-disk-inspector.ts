@@ -3,16 +3,7 @@ import type { Dos33SectorWrite } from "../../src/components/devices/dos33-disk.j
 import { dos33Catalogue, dos33FileSectors, sectorLabel, vtoc } from "./dos33-catalogue.js";
 import { createDos33ReadTrace } from "./dos33-reads.js";
 import { hex } from "./apple2-explorer.js";
-
-function sectorDump(bytes: readonly number[], base: number, digits: number): string {
-  const lines = [];
-  for (let i = 0; i < 256; i += 16) {
-    const row = bytes.slice(i, i + 16);
-    const text = row.map(byte => { const c = byte & 0x7f; return c >= 32 && c < 127 ? String.fromCharCode(c) : "."; }).join("");
-    lines.push(`${hex(base + i, digits)}  ${row.map(byte => hex(byte, 2)).join(" ")}  ${text}`);
-  }
-  return lines.join("\n");
-}
+import { createApple2DiskTrackInspector, diskByteDump } from "./apple2-disk-track.js";
 
 /** File rows browse the committed image. Trace rows keep the bytes at the time of transfer. */
 export function createApple2DiskInspector(root: HTMLElement, browseMemory: (address: number) => void) {
@@ -20,6 +11,10 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
   if (!panel) return undefined;
   const source = panel.querySelector<HTMLSelectElement>("[data-dos-source]")!;
   const sector = panel.querySelector<HTMLSelectElement>("[data-dos-sector]")!;
+  const trackControl = panel.querySelector<HTMLElement>("[data-dos-track-control]")!;
+  const track = panel.querySelector<HTMLInputElement>("[data-dos-track]")!;
+  let trackNumber = 0;
+  const encoded = createApple2DiskTrackInspector(panel);
   const detail = panel.querySelector<HTMLElement>("[data-dos-detail]")!, dump = panel.querySelector<HTMLElement>("[data-dos-dump]")!;
   let medium: ReturnType<Apple2DiskII["inspectMedium"]> = null, detach: (() => void) | undefined;
   let image: readonly number[] | null = null, catalogue: ReturnType<typeof dos33Catalogue> | undefined, notice = "";
@@ -32,7 +27,7 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
   let rows: Row[] = [];
   function showBytes(): void {
     const row = rows[sector.selectedIndex];
-    dump.textContent = row && image ? sectorDump(row.bytes ?? image.slice(row.index * 256, (row.index + 1) * 256),
+    dump.textContent = row && image ? diskByteDump(row.bytes ?? image.slice(row.index * 256, (row.index + 1) * 256),
       row.buffer ?? row.index * 256, row.buffer === undefined ? 5 : 4) : "";
     memory.hidden = row?.buffer === undefined;
     if (row) detail.textContent = `${sectorLabel(row.index)} · image offset $${hex(row.index * 256, 5)}. ${row.detail}`;
@@ -41,9 +36,11 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
       detail.textContent += row.bytes.every((byte, i) => byte === mounted[offset + i])
         ? " All 256 captured bytes match the mounted sector." : " The captured bytes differ from the mounted sector.";
     }
+    encoded.show(medium, image, row);
   }
   function showSource(preferred = ""): void {
     rows = []; detail.textContent = notice;
+    trackControl.hidden = source.value !== "track";
     if (image && source.value === "writes") {
       detail.textContent = "No completed writes in this trace.";
       rows = writes.map(({ number, write }) => ({ key: String(number), index: write.track * 16 + write.sector,
@@ -54,6 +51,9 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
         key: String(number), index: track * 16 + sector, label: `Read #${number} → $${hex(buffer)}`, buffer, bytes,
         detail: `RWTS returned these 256 bytes in RAM $${hex(buffer)}–$${hex(buffer + 255)}.`,
       }));
+    } else if (image && source.value === "track") {
+      rows = Array.from({ length: 16 }, (_, i) => ({ key: String(i), index: trackNumber * 16 + i,
+        label: "Stored sector", detail: "Decoded bytes in DOS image order." }));
     } else if (image && source.value === "volume") {
       rows = [{ key: "vtoc", index: vtoc, label: "Volume table", detail: notice || `Volume ${catalogue?.number}. The first catalogue pointer is at +$01.` },
         { key: "boot", index: 0, label: "Boot sector", detail: "Compare these first 256 disk bytes with RAM at $0800 after the slot ROM loads the sector." },
@@ -82,7 +82,7 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
       try { catalogue = dos33Catalogue(image); notice = ""; }
       catch (error) { notice = (error as Error).message; }
     }
-    source.replaceChildren(new Option("Volume and catalogue", "volume"), new Option("Sector write trace", "writes"),
+    source.replaceChildren(new Option("Volume and catalogue", "volume"), new Option("Track sectors", "track"), new Option("Sector write trace", "writes"),
       new Option("DOS sector read trace", "reads"),
       ...(catalogue?.files ?? []).map(file => new Option(`${file.locked ? "*" : ""}${file.type} ${String(file.count).padStart(3, "0")} ${file.name}`, String(file.entry))));
     source.disabled = !image;
@@ -90,6 +90,11 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
     showSource(selectedSector);
   }
   source.onchange = () => { followLatest = true; showSource(); };
+  track.onchange = () => {
+    if (track.validity.valid && Number.isInteger(track.valueAsNumber)) trackNumber = track.valueAsNumber;
+    else track.value = String(trackNumber);
+    showSource(sector.value);
+  };
   sector.onchange = () => { followLatest = sector.selectedIndex === rows.length - 1; showBytes(); };
   clear.onclick = () => {
     if (source.value === "reads") { trace.clear(); readNumber = 0; }
@@ -112,7 +117,7 @@ export function createApple2DiskInspector(root: HTMLElement, browseMemory: (addr
           writes.push({ number: ++sequence, write });
           if (writes.length > 64) writes.shift();
         });
-        if (!medium) showImage();
+        showImage();
       }
       if (!update || !medium || !panel.getClientRects().length) return;
       const committed = medium.snapshot();

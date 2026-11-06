@@ -260,6 +260,10 @@ paths before a shared peripheral-inspection abstraction is designed.
 
 ### Replacement progress
 
+Reviewed against the current implementation and the pinned reference on
+2026-11-06. This compares observable tools, not identical panel arrangements
+or unverified behavior in the reference.
+
 | Capability | Current Dromaios laboratory | Remaining reference parity |
 | --- | --- | --- |
 | Workspace | Dark workspace with draggable panels, resizable splits, tab groups, collapse/expand and close/reopen controls, keyboard arrangement, saved layout, and per-inspector Live toggles. | — |
@@ -269,39 +273,41 @@ paths before a shared peripheral-inspection abstraction is designed.
 | Saved experiments | Named browser states, validated paused restoration, and captured comparisons of CPU, physical RAM, device fields, and queued keys; workspace and stop preferences retained. | — |
 | Change history | Instruction-attributed before/after values for registers, flags, PC, and physical RAM, including Language Card banks; bounded history with recording and display filters, and explicitly identified user RAM edits. | — |
 | ROM and system | Searchable Monitor reference with PC/Memory following, mapping-aware context, and navigation to Disassembly and Memory; guide-owned routine contracts, byte-checked instruction comments, and five in-lab walkthroughs (reset/echo, carriage return, scrolling, cursor editing, and output-hook redirection) using versioned ROM-only stops; live read/write memory map and structured keyboard, display, and Language Card state with change highlights; bounded instruction-linked device-access history with specification descriptions; disk snapshots. | Further annotations driven by walkthroughs. |
-| Applesoft tools | Live listing with statement stepping, breakpoints, optional per-statement visit counts, keyword links to Memory, and highlights for the text pointer and LIST reads. Saved DATA cursor links to Memory and its containing statement, with a READ/RESTORE walkthrough. ONERR handler and saved error workspace link to source and Memory, with a division-by-zero/RESUME walkthrough. CONT workspace links to its saved cursor and next statement, with a STOP/CONT walkthrough through a loop and subroutine. Scalar variables and expandable arrays with Memory links to records, elements, and string contents. Memory layout shows program, scalar, array, free-space, and string-heap regions with byte counts and Memory links. FOR and GOSUB frames link to stack bytes and resuming statements. The last 32 numbered statement visits link back to the listing. Subroutine profiles link callers and targets with call, return, and active counts. | Additional interpreter state and timing measurements. |
-| Disk tools | DOS-order disk insertion, writable copies, export and re-import, checkpoint restoration, controller state, read-only file/sector inspection, and a trace of committed sector writes. | Nibble-stream inspection and disk-read history. |
+| Applesoft tools | Live listing with statement stepping, breakpoints, optional per-statement visit counts, keyword links to Memory, and highlights for the text pointer and LIST reads. Saved DATA cursor links to Memory and its containing statement, with a READ/RESTORE walkthrough. ONERR handler and saved error workspace link to source and Memory, with a division-by-zero/RESUME walkthrough. CONT workspace links to its saved cursor and next statement, with a STOP/CONT walkthrough through a loop and subroutine. Scalar variables and expandable arrays with Memory links to records, elements, and string contents. Memory layout shows program, scalar, array, free-space, and string-heap regions with byte counts and Memory links. FOR and GOSUB frames link to stack bytes and resuming statements. The last 32 numbered statement visits link back to the listing. Subroutine profiles link callers and targets with call, return, and active counts. | BASIC-level PEEK/POKE and READ/RESTORE event logs; static incoming-jump links in the listing. Elapsed-time profiling depends on a timing contract; current profiles count observed calls and returns. |
+| Disk tools | DOS-order disk insertion, writable copies, export and re-import, checkpoint restoration, controller state, file/sector inspection, committed-write history, and completed DOS read history with captured bytes and RAM links. Encoded-track snapshots expose address/data fields, physical-to-DOS sector mapping, checksums, whole-track bytes, and comparisons with captured transfers. | A head-following encoded-byte window and an activity map of encountered address fields. Stored-track inspection and completed RWTS reads do not establish that byte-level history. |
 | Software selection | Verified Applesoft ROM and pinned DOS System Master. | Explicit software/media profiles and acceptance for additional disks and programs. |
 
-Layout parity is the first replacement slice, not a claim of complete tool
-parity. The reference's absent audio and incorrect writable/drive-2 behavior
-remain governed by the hardware acceptance checkpoints above.
+The core workspace, CPU, and memory tools have reached the reference's useful
+scope, with independently tested inspection boundaries. Disk writing, export,
+and checkpoint continuation go beyond its read-only implementation. The
+reference's absent audio and incorrect writable/drive-2 behavior remain
+governed by the hardware acceptance checkpoints above. The reference sector
+map marks address fields as found by peeking ahead in the stored stream; its
+`sectorsRead` flags are never set. Retain the useful visualization, but derive
+any future read activity from observed transfers rather than those flags.
 
 ## Next implementation slices
 
-Continue deepening the ROM and existing inspectors: extend annotations where
-a walkthrough needs them. Keep these observations
-linked to their software identity and avoid inferring routine boundaries from
-sparse labels. This takes priority over new BASIC and disk tools.
+Use the remaining parity gaps above to choose concrete investigations:
 
-Extend the Applesoft tools with interpreter-state inspection from the pinned
-reference. The versioned software guide owns these behaviors. The later disk
-and classroom work includes:
+1. **Disk activity:** connect the stored encoded track to the bytes actually
+   consumed by the CPU, address fields encountered, and successful sector reads.
+   A bounded trace should explain the head-following view and sector activity
+   map without treating a stored-image snapshot as observed bus traffic.
+2. **BASIC event history:** add interpreter-level PEEK/POKE and READ/RESTORE
+   observations with source and Memory links. Existing CPU watch history and
+   the saved DATA cursor provide different evidence; keep those distinctions.
+3. **Listing navigation:** add incoming-jump links grounded in parsed Applesoft
+   statements, with explicit handling of computed branches and edited source.
+4. **Emulated time:** define and test a 6502 timing/device contract before adding
+   hardware-speed controls, elapsed subroutine times, or speaker audio.
 
-
-1. **Disk boot:** follow the handoffs from motherboard ROM to slot-6 bootstrap,
-   disk-loaded code, DOS, and HELLO. Show where bytes arrive in RAM and when
-   execution moves into them. Report observed handoffs rather than assuming a
-   fixed boot sequence from instruction counts or elapsed time.
-2. **Disk reads:** connect controller switches and the byte stream to address
-   fields, sector decoding, checksums, and destination buffers. Distinguish
-   bytes consumed by the CPU from a read-only view of the stored image.
-3. **DOS commands and files:** trace CATALOG and LOAD HELLO through routines,
-   catalogue entries, track/sector lists, and memory. Connect the visible
-   result to the disk structures and code responsible for it.
-4. **Applesoft in ROM:** use a small program to connect its listing and tokens
-   to interpreter routines, variables, and execution state, drawing on the
-   reference's existing BASIC instruments.
+The [executable chapter](../../src/machines/6502/apple2.md) already contains
+verified boot, RWTS, LOAD, SAVE, binary execution, and Integer BASIC
+walkthroughs. The [ROM guide](../software/apple2p-rom.md) owns Applesoft
+interpreter state and its examples, including DATA/READ, ONERR/RESUME, and
+STOP/CONT. Extend those guides when a new observation needs an annotation or
+acceptance path; completed walkthroughs are not future milestones.
 
 Keep the CPU's encoding knowledge in its executable specification; avoid a
 second handwritten opcode table for the explorer. ROM/DOS symbols, comments,

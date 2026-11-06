@@ -29,6 +29,10 @@
 [data-dos-inspector] h2 { font: 600 14px/1.4 system-ui, sans-serif; }
 [data-dos-inspector] label { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); align-items: start; gap: 6px; margin: 6px 0; }
 [data-dos-inspector] pre { overflow-x: auto; }
+[data-dos-encoded] { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 8px; }
+[data-dos-encoded] summary { cursor: pointer; color: var(--accent); }
+[data-dos-encoded] > details { margin: 10px 0; }
+[data-dos-track] { width: 5em; }
 .lab-scroll { overflow: auto; scrollbar-color: #435674 #18253b; }
 .lab-hint, .laboratory-credit { color: var(--muted); font: 11px/1.5 system-ui, sans-serif; margin: 8px 0; }
 .laboratory-credit { padding: 0 4px; margin: 0; }

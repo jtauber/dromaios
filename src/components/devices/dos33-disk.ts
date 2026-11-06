@@ -1,7 +1,7 @@
 import { checkUnsigned } from "../validation.ts";
 
 /** DOS-order sectors indexed by the sector number recorded in each address field. */
-const dosSector = [0, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 15] as const;
+export const dos33LogicalSectors = Object.freeze([0, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 15]);
 const diskByte: readonly number[] = [
   0x96, 0x97, 0x9a, 0x9b, 0x9d, 0x9e, 0x9f, 0xa6, 0xa7, 0xab, 0xac, 0xad, 0xae, 0xaf, 0xb2, 0xb3,
   0xb4, 0xb5, 0xb6, 0xb7, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf, 0xcb, 0xcd, 0xce, 0xcf, 0xd3,
@@ -23,7 +23,7 @@ export interface Dos33SectorWrite {
 function reversePair(value: number): number { return ((value & 1) << 1) | ((value & 2) >> 1); }
 
 /** Decode one complete DOS data field between optional FF sync bytes. */
-function decodeDataField(bytes: readonly number[]): Uint8Array | undefined {
+export function decodeDos33DataField(bytes: readonly number[]): Uint8Array | undefined {
   const start = bytes.findIndex(byte => byte !== 0xff);
   const end = start + dataFieldSize;
   if (start < 0 || bytes[start] !== 0xd5 || bytes[start + 1] !== 0xaa || bytes[start + 2] !== 0xad
@@ -66,6 +66,12 @@ export class Dos33Disk {
   snapshot(): readonly number[] { return this.#snapshot ??= Object.freeze(Array.from(this.#bytes)); }
   exportImage(): Uint8Array { return this.#bytes.slice(); }
 
+  /** Capture the stored encoded stream without consuming a controller byte. */
+  inspectTrack(track: number): readonly number[] {
+    this.trackLength(track); // Validate before indexing; the returned copy survives later writes.
+    return Object.freeze(Array.from(this.#tracks[track]!));
+  }
+
   /** Observe accepted fields, including identical rewrites. Observers must not throw or modify the medium. */
   observeWrites(observer: (write: Dos33SectorWrite) => void): () => void {
     this.#observers.add(observer);
@@ -80,9 +86,9 @@ export class Dos33Disk {
     // RWTS reads through DE AA of the address epilogue, then switches to writing.
     if (!this.writable || sector < 0 || sector >= 16 || within < addressFieldSize - 1
       || within > addressFieldSize + dataGap || within + bytes.length > dos33SectorSpan) return;
-    const data = decodeDataField(bytes);
+    const data = decodeDos33DataField(bytes);
     if (!data) return;
-    const logical = dosSector[sector]!;
+    const logical = dos33LogicalSectors[sector]!;
     this.#bytes.set(data, (track * 16 + logical) * 256);
     this.#tracks[track] = this.#encodeTrack(track);
     this.#snapshot = undefined;
@@ -113,7 +119,7 @@ export class Dos33Disk {
       result.push(0xde, 0xaa, 0xeb);
       gap(dataGap);
       result.push(0xd5, 0xaa, 0xad);
-      const start = (track * 16 + dosSector[sector]!) * 256;
+      const start = (track * 16 + dos33LogicalSectors[sector]!) * 256;
       // The 86 auxiliary values hold reversed low-bit pairs from three groups.
       const values = new Uint8Array(342);
       for (let i = 0; i < 256; i++) {
