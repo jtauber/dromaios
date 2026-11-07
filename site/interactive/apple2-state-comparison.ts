@@ -27,7 +27,7 @@ export function compareApple2States(saved: Apple2SessionState, current: Apple2Se
     });
   }
   const devices: { name: string; before: string; after: string }[] = [];
-  for (const part of ["keyboard", "video", "language", "disk"] as const) {
+  for (const part of ["clock", "keyboard", "video", "language", "disk"] as const) {
     for (const name of new Set([...Object.keys(before[part]), ...Object.keys(after[part])])) {
       if (name === "media" || name === "bootstrap") continue;
       const value = String(Reflect.get(before[part], name) ?? (name === "writable" ? false : "")),

@@ -57,7 +57,7 @@ references, zero-filled RAM/ROM, and local bounds checks. For example,
 `image ram 03 { C8 }` starts address 3 at decimal 200. Omitting images leaves
 all eight bytes zero.
 
-Without a CPU, `memory =`, `map`, `ports`, `reset`, `reset-devices`, and `end`
+Without a CPU, `memory =`, `map`, `ports`, `reset`, `reset-devices`, `clock`, and `end`
 are errors. Flat `ram` and `memory address { ... }` shorthand still requires a
 CPU and cannot be mixed with named components. Adding a CPU requires its complete
 state and memory connection, as described below.
@@ -175,7 +175,8 @@ the flat `ram` declaration or `memory address { bytes }` shorthand. All referenc
 are resolved after parsing, so images and connections may precede their targets.
 
 Component names are case-sensitive: a lowercase letter followed by lowercase
-letters, digits, or underscores. `cpu`, `memory`, `ports`, `reset`, and `snapshot` are reserved
+letters, digits, or underscores. `cpu`, `memory`, `ports`, `reset`, `snapshot`,
+`clock`, `step`, and `interrupt` are reserved
 for the factory API; `window` and `discard` are reserved routing words. Every component name is unique within the machine. The
 available kinds are:
 
@@ -313,6 +314,25 @@ A name cannot occur twice in either reset list. Neither declaration invokes a
 reset during construction. Input offers and output callbacks remain host code;
 see [generated factories](definitions.md#generated-factories) for the binding API.
 
+### CPU clock
+
+`clock cpu` opts a composed machine into clocked execution. It requires a CPU
+with declared instruction and vector-interrupt timing, currently the 6502.
+It adds `machine.clock`, `machine.step()`, and `machine.interrupt(source)`.
+Each successful call adds the returned record's `clocks` to `clock.ticks`.
+Ignored interrupts add zero; a throwing CPU call adds nothing and retains its
+completed effects. Direct CPU calls bypass this counter. The declaration
+appears at most once and cannot be used in flat-RAM examples or component-only
+definitions. The 8088's separate board clock and interrupt-acknowledgement wiring
+are not yet expressed by this declaration.
+
+The counter starts at zero, survives machine reset, and is included as
+`clock: { ticks }` in complete machine snapshots. Restoration requires a
+nonnegative safe integer. Counts beyond JavaScript's exact integer range throw
+without changing the counter; the just-completed CPU effects remain visible.
+The clock has no frequency, device scheduling, per-access timestamps, or host
+pacing. CPU reset has no declared duration and adds no time.
+
 ## CPU state fields
 
 All fields listed for the selected CPU are required, including every flag.
@@ -411,8 +431,9 @@ lesson.machine:3:6: Memory block extends beyond address FFFF
 
 This version describes named components with an optional CPU, RAM/ROM images,
 6502/6809/8080/8088/68000 memory maps with conditional windows, 8080/8088 byte ports,
-chapter-defined devices, and explicit reset wiring. Interrupt wiring, clocks,
-and scripted host input are not currently expressed. The
+chapter-defined devices, explicit reset wiring, and a CPU instruction clock.
+Interrupt wiring, device clock scheduling, and scripted host input are not
+currently expressed. The
 [Apple II target](apple2.md) drives the next extensions:
 declarative hardware descriptions and connections, with shared
 TypeScript support for execution and host interaction. The language does not

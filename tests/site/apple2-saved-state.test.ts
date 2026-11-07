@@ -16,8 +16,10 @@ const diskBytes = new Uint8Array(Dos33Disk.size);
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const media = { bytes: 20480, offset: 8192, sha256: "0".repeat(64),
   bootstrap: { bytes: 256, offset: 0, sha256: digest(bootstrap) }, disk: { bytes: diskBytes.length, sha256: digest(diskBytes) } };
-function saved(session = createApple2Session(), name = "Before echo"): Apple2SavedState {
-  return { version: 1, machine: "apple2-plus", name, savedAt: "2026-10-07T12:00:00.000Z",
+function saved(session = createApple2Session(), name = "Before echo"): Extract<Apple2SavedState, { version: 3 }> {
+  const bytes = session.machine.disk.snapshot().media;
+  return { version: 3, diskSha256: bytes === null ? null : digest(Uint8Array.from(bytes)),
+    machine: "apple2-plus", name, savedAt: "2026-10-07T12:00:00.000Z",
     diskName: session.machine.disk.inspect().loaded ? "test.dsk" : null, flash: true, state: session.snapshot() };
 }
 function storage() {
@@ -31,7 +33,7 @@ test("session snapshots restore independent CPU, physical banks, devices, media 
   const session = createApple2Session(null, { bootstrap: [...bootstrap], image: new Dos33Disk(diskBytes) });
   const machine = session.machine;
   machine.ram.write(0x200, 0xe8); editApple2Register(machine, "pc", "0200");
-  machine.cpu.step(); machine.keyboard.offer(65); session.send([66, 13]);
+  machine.step(); machine.keyboard.offer(65); session.send([66, 13]);
   machine.video.read(5); machine.language.read(3); machine.language.read(3);
   machine.bank1.write(0, 11); machine.bank2.write(0, 22); machine.upper.write(0, 33);
   machine.disk.read(9); machine.disk.read(12);
@@ -47,6 +49,7 @@ test("session snapshots restore independent CPU, physical banks, devices, media 
   session.restore(before);
   assert.deepEqual(Array.from({ length: 12 }, () => session.machine.disk.read(12)), sequence);
   session.powerOn();
+  assert.equal(session.machine.clock.ticks, 0);
   assert.equal(session.pendingInput, 0); assert.equal(session.machine.ram.read(0x200), 0);
   assert.deepEqual(session.machine.disk.snapshot().media, [...diskBytes]);
   session.eject(); const ejected = session.snapshot(); session.restore(ejected); session.powerOn();
@@ -59,6 +62,8 @@ test("invalid session snapshots and mismatched firmware leave current hardware a
     { ...before, hardware: { ...before.hardware, firmware: romImages.firmware.sha256 } }];
   malformed.push(
     { ...before, hardware: { ...before.hardware, keyboard: undefined } },
+    { ...before, hardware: { ...before.hardware, clock: { ticks: -1 } } },
+    { ...before, hardware: { ...before.hardware, clock: undefined } },
     { ...before, hardware: { ...before.hardware, cpu: { a: 0 } } },
     { ...before, hardware: { ...before.hardware, bank1: [-1, ...before.hardware.bank1.slice(1)] } },
     { ...before, hardware: { ...before.hardware, language: { ...before.hardware.language, bank2: 1 } } },
@@ -89,14 +94,14 @@ test("named storage survives fresh readers, avoids silent replacement, and prese
 test("damaged entries remain deletable and incompatible machine versions are rejected", async () => {
   const memory = storage(), store = apple2SavedStates(() => memory), first = saved(); store.save(first);
   const key = [...memory.values.keys()][0]!;
-  for (const value of ["{", "null", "{}", JSON.stringify({ ...first, version: 2 }),
+  for (const value of ["{", "null", "{}", JSON.stringify({ ...first, version: 4 }),
     JSON.stringify({ ...first, machine: "other" }), JSON.stringify({ ...first, name: "wrong name" }),
     JSON.stringify({ ...first, savedAt: "bad" }), " ".repeat(1_000_001)]) {
     memory.values.set(key, value); assert.throws(() => store.read(first.name));
     assert.deepEqual(store.names(), [first.name]);
   }
   store.remove(first.name); assert.deepEqual(store.names(), []);
-  await assert.rejects(prepareApple2SavedState({ ...first, version: 3 } as unknown as Apple2SavedState, null, media), /version/);
+  await assert.rejects(prepareApple2SavedState({ ...first, version: 4 } as unknown as Apple2SavedState, null, media), /version/);
 });
 
 test("preparation rechecks saved bootstrap and disk identities and never changes the original session", async () => {
@@ -109,7 +114,7 @@ test("preparation rechecks saved bootstrap and disk identities and never changes
     const altered = structuredClone(first); (altered.state.hardware.disk[field] as number[])[0] = 99;
     await assert.rejects(prepareApple2SavedState(altered, null, media), /bootstrap|match/);
   }
-  await assert.rejects(prepareApple2SavedState({ ...first, diskName: null }, null, media), /name/);
+  await assert.rejects(prepareApple2SavedState({ ...first, diskName: null, diskSha256: null }, null, media), /name/);
   assert.deepEqual(original.snapshot(), before);
 });
 
@@ -135,12 +140,29 @@ test("new checkpoints restore a local disk's bytes, name and permission after ej
   assert.equal((await prepareApple2SavedState(empty, null, media)).diskName, null);
 });
 
+test("new checkpoints preserve CPU clocks while legacy formats explicitly start at zero", async () => {
+  const session = createApple2Session();
+  session.machine.ram.write(0, 0xea); session.machine.step();
+  const current = await encodeApple2SavedState(saved(session));
+  assert.equal(current.version, 3);
+  assert.equal((await prepareApple2SavedState(current, null, media)).session.machine.clock.ticks, 2);
+  const { clock: omitted, ...hardware } = session.snapshot().hardware;
+  const state = { ...session.snapshot(), hardware };
+  const { version: ignored, diskSha256, ...details } = saved(session);
+  for (const legacy of [{ ...details, state, version: 1 }, { ...details, state, version: 2, diskSha256 }] as const) {
+    const restored = await prepareApple2SavedState(legacy, null, media);
+    assert.deepEqual(restored.session.snapshot(), { ...state, hardware: { ...hardware, clock: { ticks: 0 } } });
+    await assert.rejects(prepareApple2SavedState({ ...legacy, state: session.snapshot() }, null, media), /snapshot/);
+  }
+  await assert.rejects(prepareApple2SavedState({ ...current, state } as Apple2SavedState, null, media), /snapshot/);
+});
+
 test("comparisons distinguish hidden physical banks, net changes, flags, devices and equal-length changed input queues", () => {
   const session = createApple2Session(); session.send([65]); const before = session.snapshot();
   session.machine.ram.write(0x10, 1); session.machine.ram.write(0x10, 0);
   session.machine.ram.write(0x20, 0x42); session.machine.bank1.write(0, 11); session.machine.bank2.write(0, 22);
   session.machine.upper.write(0x1fff, 33); editApple2Register(session.machine, "x", "FF");
-  session.machine.ram.write(0, 0xe8); session.machine.cpu.step(); // INX wraps and sets Z.
+  session.machine.ram.write(0, 0xe8); session.machine.step(); // INX wraps and sets Z.
   session.machine.keyboard.offer(66); session.machine.video.read(5);
   const after = { ...session.snapshot(), input: [67] };
   const diff = compareApple2States(before, after);
@@ -149,7 +171,8 @@ test("comparisons distinguish hidden physical banks, net changes, flags, devices
   assert.deepEqual(diff.memory.map(({ region, address }) => [region, address]), [
     ["ram", 0], ["ram", 0x20], ["bank1", 0xd000], ["bank2", 0xd000], ["upper", 0xffff],
   ]);
-  assert.equal(diff.devices.length, 3); assert.equal(diff.inputChanged, true);
+  assert.equal(diff.devices.length, 4); assert.equal(diff.inputChanged, true);
+  assert.deepEqual(diff.devices[0], { name: "clock.ticks", before: "0", after: "2" });
   const same = compareApple2States(before, before);
   assert.deepEqual(same, { registers: [], flags: [], memory: [], devices: [], inputChanged: false });
 });
@@ -174,9 +197,13 @@ test("a saved real-ROM session repeats queued-key execution exactly after restor
   const session = createApple2Session(rom.image);
   for (let count = 0; count < 100_000 && session.machine.cpu.snapshot().pc !== 0xfd21; count++) session.step();
   assert.equal(session.machine.cpu.snapshot().pc, 0xfd21);
+  assert.ok(session.machine.clock.ticks > 0);
   session.send([65, 13]); const initial = saved(session);
   const records = Array.from({ length: 500 }, () => session.step()), after = session.snapshot();
   const prepared = await prepareApple2SavedState(initial, rom.image, media);
   assert.deepEqual(Array.from({ length: 500 }, () => prepared.session.step()), records);
   assert.deepEqual(prepared.session.snapshot(), after);
+  const elapsed = prepared.session.machine.clock.ticks;
+  prepared.session.reset(); assert.equal(prepared.session.machine.clock.ticks, elapsed);
+  prepared.session.powerOn(); assert.equal(prepared.session.machine.clock.ticks, 0);
 });

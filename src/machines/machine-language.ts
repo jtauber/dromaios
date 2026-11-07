@@ -164,7 +164,7 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
         break;
       }
       default:
-        if (!composition.read(declaration)) fail(declaration, `Unknown declaration ${describe(declaration)}; expected ram, cpu, memory, end, components, image, map, ports, reset, or reset-devices`);
+        if (!composition.read(declaration)) fail(declaration, `Unknown declaration ${describe(declaration)}; expected ram, cpu, memory, end, components, image, map, ports, reset, reset-devices, or clock`);
     }
   }
   if (!composition.present && ram === undefined) fail(syntax.current(), "Missing ram declaration");

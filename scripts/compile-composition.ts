@@ -111,6 +111,17 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
     const connection = machine.ports !== undefined ? (machine.cpu === "8088" ? ", { ports }" : ", ports")
       : machine.resetDevices !== undefined ? ", { resetDevices }" : "";
     body.push(`const cpu = new ${cpuClass}(${memory}, initialState === undefined ? ${JSON.stringify(machine.initialState, null, 2)} : initialState.cpu${connection});`);
+    if (machine.clock !== undefined) {
+      imports.push(`import { InstructionClock } from "${posix.relative(from, "instruction-clock.js")}";`);
+      fields.push('readonly clock: ReturnType<InstructionClock["snapshot"]>');
+      snapshots.push("clock: clock.snapshot()");
+      body.push("const clock = new InstructionClock(initialState?.clock);",
+        "const step = (): ReturnType<typeof cpu.stepTimed> => {",
+        "  const record = instance.cpu.stepTimed();", "  clock.advance(record.clocks);", "  return record;", "};",
+        "const interrupt = (...args: Parameters<typeof cpu.interruptTimed>): ReturnType<typeof cpu.interruptTimed> => {",
+        "  const record = instance.cpu.interruptTimed(...args);", "  clock.advance(record.clocks);", "  return record;", "};");
+      returned.push("clock", "step", "interrupt");
+    }
     if (machine.reset !== undefined) {
       body.push("const reset = (): ReturnType<typeof cpu.reset> => {", "  // Follow the current CPU, including one restored from a host snapshot.", "  const record = instance.cpu.reset();",
         ...machine.reset.slice(1).map(target => `  ${part(target)}.reset();`), "  return record;", "};");
@@ -121,7 +132,7 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
     if (machine.reset !== undefined) returned.push("reset");
     if (machine.endAddress !== undefined) returned.push(`endAddress: ${machine.endAddress}`);
   }
-  const snapshotFields = [...(machine.cpu === undefined ? [] : ["cpu"]), ...machine.components
+  const snapshotFields = [...(machine.cpu === undefined ? [] : ["cpu", ...(machine.clock === undefined ? [] : ["clock"])]), ...machine.components
     .filter(component => component.kind !== "rom" || externalImages.has(component.name)).map(component => component.name)];
   body.unshift(`if (initialState !== undefined) checkMachineSnapshot(initialState, ${JSON.stringify(snapshotFields)});`);
   body.push(`const snapshot = (): { ${fields.join("; ")} } => ({ ${snapshots.join(", ")} });`);

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { parseMachine as parseDefinition } from "../../src/machines/machine-language.js";
+import { machineChapterSource } from "../../src/machines/machine-chapter.js";
 
 function parseMachine(source: string, filename?: string) {
   const machine = parseDefinition(source, filename);
@@ -18,6 +19,19 @@ const direct = `components { ram=ram 10000 input=byte-input output=byte-output }
 memory=ram
 ${cpu8080}`;
 const mapped = readFileSync("src/machines/68000/echo-example.machine", "utf8");
+
+test("clock cpu requires a composed timed CPU and has one unambiguous declaration", () => {
+  const apple2 = machineChapterSource(readFileSync("src/machines/6502/apple2.md", "utf8"), "apple2.md");
+  const parsed = parseMachine(apple2, "apple2.md");
+  assert.ok("clock" in parsed); assert.equal(parsed.clock, "cpu");
+  assert.throws(() => parseMachine(apple2 + "\nclock cpu", "apple2.md"), /Duplicate clock/);
+  assert.throws(() => parseMachine(apple2.replace("clock cpu", "clock ram"), "apple2.md"), /Expected "cpu"/);
+  assert.throws(() => parseMachine(`${direct}\nclock cpu`), /requires timed instructions/);
+  assert.throws(() => parseMachine("components { ram=ram 10 } clock cpu"), /requires a cpu/);
+  for (const name of ["clock", "step", "interrupt"]) {
+    assert.throws(() => parseMachine(`components { ${name}=ram 10 }`), /Reserved component name/);
+  }
+});
 
 test("memory windows resolve pure flag selectors, offsets, and explicit per-direction fallbacks", () => {
   const source = `${cpu8080}

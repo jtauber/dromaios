@@ -1,4 +1,15 @@
 ==================
+Vector interrupt timing
+==================
+execution {
+  timing offers "irq" 7, "nmi" 7
+}
+---
+(source_file
+  (execution_declaration
+    (timing_policy (string (string_content)) (number) (string (string_content)) (number))))
+
+==================
 State declarations and mapped arrays
 ==================
 cpu "8008"

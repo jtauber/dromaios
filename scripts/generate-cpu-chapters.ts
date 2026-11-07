@@ -54,7 +54,8 @@ export function generateCpuChapters() {
       const pcBits = pcType;
       const maximumPc = execution.mode === "segmented" ? 2 ** execution.memoryBits - 1
         : pcBits === undefined ? undefined : 2 ** pcBits - 1;
-      return `  ${JSON.stringify(cpu)}: { name: ${JSON.stringify(chapter.interface!.name)}, module: "generated/${name}-cpu", state: state${index}, ramSize: ${2 ** execution.memoryBits}, maximumPc: ${maximumPc} },`;
+      const timedExecution = "timing" in execution && execution.timing !== undefined ? execution.interrupt : null;
+      return `  ${JSON.stringify(cpu)}: { name: ${JSON.stringify(chapter.interface!.name)}, module: "generated/${name}-cpu", state: state${index}, ramSize: ${2 ** execution.memoryBits}, maximumPc: ${maximumPc}, timedExecution: ${JSON.stringify(timedExecution)} },`;
     }), "} as const;", "export interface ChapterStates {",
     ...publicChapters.map(({ name, cpu, chapter }) =>
       `  ${JSON.stringify(cpu)}: import("./state/${name}.ts").${chapter.interface!.name}State;`),

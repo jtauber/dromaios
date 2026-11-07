@@ -1,6 +1,6 @@
 [
   "cpu" "memory" "end" "components" "map" "image"
-  "ports" "in" "out" "reset" "reset-devices" "unmapped" "external" "sha256"
+  "ports" "in" "out" "reset" "reset-devices" "unmapped" "external" "sha256" "clock"
   "window" "read" "write" "discard" "offset" "when" "and"
 ] @keyword
 (ram_declaration "ram" @keyword)

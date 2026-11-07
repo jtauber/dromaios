@@ -26,7 +26,7 @@ test("word public names, memory projection, and snapshot views follow chapter de
   assert.notEqual(record.before.flags, record.after.flags);
   assert.deepEqual(cpuModels["68000"], {
     name: "Cpu68000", module: "generated/68000-cpu", state: cpuModels["68000"].state,
-    ramSize: 0x1000000, maximumPc: 0xffffffff,
+    ramSize: 0x1000000, maximumPc: 0xffffffff, timedExecution: null,
   });
 });
 

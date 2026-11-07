@@ -18,6 +18,7 @@ module.exports = grammar({
       $.external_image,
       $.ports_block,
       $.reset_block,
+      $.clock_declaration,
     )),
 
     ram_declaration: $ => seq('ram', field('size', $.number)),
@@ -79,6 +80,7 @@ module.exports = grammar({
       $.component_name, field('address', $.number),
     ),
     reset_block: $ => seq(choice('reset', 'reset-devices'), '{', repeat($.component_name), '}'),
+    clock_declaration: _ => seq('clock', 'cpu'),
 
     comment: _ => token(seq('//', /[^\r\n]*/)),
   },

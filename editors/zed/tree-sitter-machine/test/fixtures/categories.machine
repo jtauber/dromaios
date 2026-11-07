@@ -21,3 +21,4 @@ map 10000 {
         write = discard
     }
 }
+clock cpu

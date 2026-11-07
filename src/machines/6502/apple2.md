@@ -161,6 +161,7 @@ cpu 6502 {
 }
 
 reset { cpu }
+clock cpu
 ```
 
 CPU reset preserves RAM, firmware, the keyboard latch, display switches, all
@@ -170,8 +171,31 @@ including its stack-pointer and interrupt-mask changes. Firmware may then
 clear the strobe and initialize its own workspace. Fresh construction, followed
 by reset, represents power-on in this deterministic model.
 
+### CPU clocks
+
+`clock cpu` gives the machine a clock measured in 6502 clock periods. Call
+`machine.step()` to execute an instruction and add its declared duration to
+`machine.clock.ticks`; the returned record includes `clocks`. The same path is
+used by Step and every instruction in a Run batch. Pausing, inspecting hardware,
+and editing registers or RAM consume no CPU clocks. CPU reset preserves the
+total and adds no time: the CPU's reset contract does not yet declare a duration.
+Fresh power-on starts at zero. These are emulated clocks, independent of the
+browser's speed and the instruction-history counter.
+
+`machine.interrupt("irq" | "nmi")` also counts the CPU's declared boundary:
+seven clocks for accepted entry, zero for an ignored IRQ. This entry point does
+not wire any Apple II device to an interrupt line. Direct calls to `machine.cpu`
+remain available for isolated CPU work but bypass the machine clock; machine
+runners must use the machine entry points. Unsupported instructions and failed
+steps add no time and preserve any completed CPU or device effects.
+
+The clock belongs to the hardware snapshot and restores exactly. It counts
+completed execution boundaries; it does not timestamp individual bus accesses,
+advance the disk stream or video by elapsed time, generate speaker audio, or
+pace Run at the hardware frequency. Those require further device timing work.
+
 `snapshot()` captures CPU, all four RAM components, keyboard, display and Language Card latches,
-the disk controller with its bootstrap and media bytes, and the firmware digest
+the CPU clock, the disk controller with its bootstrap and media bytes, and the firmware digest
 (or `null` when not installed). Restoration requires a matching binding: the
 same verified image for a digest, or `null` for absence. It creates independent
 hardware without resetting or executing. Snapshot inspection performs no
@@ -197,7 +221,7 @@ refresh on demand. These switches never stop execution or history capture, and
 are remembered separately from the layout. All inspectors start Live except Memory.
 The screen and machine/media controls always stay current.
 The **Execution** panel contains Run, Pause, Step, Reset CPU, Fresh power-on,
-the instruction count, and status messages. Below Screen, it shares a narrow
+the instruction count, elapsed CPU clocks, and status messages. Below Screen, it shares a narrow
 column with MOS 6502 and Instruction; Disassembly spans the height beside them.
 It can be moved, collapsed, or reopened through **Panels**, like the other tools.
 The screen accepts typing and pasting
@@ -428,19 +452,22 @@ to the workspace and are not part of the saved machine.
 
 **Restore** checks the saved machine version, complete component state, firmware
 identity, and any stored bootstrap/disk identities before replacing the current
-experiment. Version 2 saves the SHA-256 of the disk at capture time, so a
+experiment. Version 3 saves elapsed CPU clocks and the SHA-256 of the disk at capture time, so a
 file written by DOS survives restoration. Version 1 states still verify their
-disk against the original System Master digest. Load the matching verified ROM first; its bytes are not duplicated
+disk against the original System Master digest; version 2 retains its saved disk
+digest. Versions 1 and 2 did not record clocks, so restoring them starts the
+clock at zero. Load the matching verified ROM first; its bytes are not duplicated
 inside a saved state. Restoration executes no instruction or reset and always
 leaves the machine paused. It clears executed-instruction history, the Changes
 log, observed calls, device activity, last-writer attribution, and temporary
-run-to requests. The instruction counter restarts at zero. Layout and saved
+run-to requests. The instruction counter restarts at zero; the CPU clock resumes
+from the saved total. Layout and saved
 breakpoint/watchpoint preferences remain; Fresh power-on uses the restored
 experiment's media selection. Invalid data or failed verification leaves the
 current machine and its queued input untouched.
 
 **Compare** captures saved → current differences while paused: registers,
-flags, physical RAM bytes, device fields, and the host input queue. It does not
+flags, physical RAM bytes, elapsed CPU clocks, device fields, and the host input queue. It does not
 change either machine. This is a net comparison, so a byte changed and then
 restored to its saved value is absent. For mounted disks, Compare shows a
 change in write permission and the first file byte that differs. Memory links browse the current mapped

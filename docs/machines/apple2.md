@@ -290,12 +290,11 @@ any future read activity from observed transfers rather than those flags.
 
 Use the remaining parity gaps above to choose concrete investigations:
 
-The next foundation is **emulated time**: connect the
-[6502's instruction clocks](../../src/components/cpus/specifications/6502.md#instruction-clocks)
-to an Apple II machine clock with explicit pause, reset, and checkpoint rules.
-Define how devices advance before adding hardware-speed controls, elapsed
-subroutine times, or speaker audio; instruction totals alone do not timestamp
-individual bus accesses.
+The [machine clock](../../src/machines/6502/apple2.md#cpu-clocks) now accumulates
+the 6502's instruction and interrupt clocks, with explicit pause, reset, and
+checkpoint rules. Next, use it for measured execution intervals and define how
+devices advance before adding hardware-speed controls or speaker audio;
+instruction totals alone do not timestamp individual bus accesses.
 
 The [executable chapter](../../src/machines/6502/apple2.md) already contains
 verified boot, RWTS, Disk II byte activity, LOAD, SAVE, binary execution,

@@ -16,6 +16,7 @@ async function load(source: string, path: string, t: TestContext) {
   const filename = join(directory, "src/machines/generated", path.replace(/\.(?:machine|md)$/, ".ts"));
   mkdirSync(dirname(filename), { recursive: true });
   cpSync("dist/src/machines/snapshot.js", join(directory, "src/machines/snapshot.js"));
+  cpSync("dist/src/machines/instruction-clock.js", join(directory, "src/machines/instruction-clock.js"));
   writeFileSync(filename, compileMachine(source, path));
   return import(pathToFileURL(filename).href);
 }

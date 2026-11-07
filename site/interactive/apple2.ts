@@ -152,7 +152,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       if (diskNotice) diskNotice.textContent = "";
       explorer.reset(); resetExecutionHistory();
       if (keyboard) keyboard.value = "";
-      message.textContent = `Restored “${saved.name}”. Paused; instruction count restarted.`;
+      message.textContent = `Restored “${saved.name}”. Paused; CPU clocks restored, instruction count restarted.`;
     }),
     compare: saved => withSavedState(saved, prepared => ({ saved: prepared.session.snapshot(), current: session.snapshot() })),
     memory: change => {
@@ -214,7 +214,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     diskInspector?.refresh(session.machine.disk, shouldUpdate("disk"));
     if (exportDisk) exportDisk.disabled = selecting || !drive.loaded || drive.motor;
     eject.disabled = !available || !drive.loaded;
-    status.textContent = `${!session.hasFirmware ? "Hardware ready · no ROM installed" : execution.running ? "Running" : "Paused"} · ${execution.steps.toLocaleString()} instructions`;
+    status.textContent = `${!session.hasFirmware ? "Hardware ready · no ROM installed" : execution.running ? "Running" : "Paused"} · ${execution.steps.toLocaleString()} instructions · ${session.machine.clock.ticks.toLocaleString()} CPU clocks`;
     status.setAttribute("aria-live", execution.running ? "off" : "polite");
     element<HTMLElement>("rom-status").textContent = rom ? `Loaded: ${rom.name} · verified`
       : restoring ? "Checking saved ROM…" : "No ROM loaded.";

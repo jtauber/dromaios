@@ -47,7 +47,7 @@ export function createApple2Session(firmware: RomImage | null = null, disk?: { r
     step() {
       requireFirmware();
       if (input.length && machine.keyboard.offer(input[0]!)) input.shift();
-      return machine.cpu.step();
+      return machine.step();
     },
     reset(): void { requireFirmware(); machine.reset(); input = []; },
     powerOn(): void {

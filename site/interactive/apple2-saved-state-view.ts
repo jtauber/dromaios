@@ -8,7 +8,7 @@ import { hex } from "./apple2-explorer.js";
 
 /** Named browser states and explicit, paused comparisons; no execution or device access belongs here. */
 export function createApple2SavedStateView(root: HTMLElement, actions: {
-  capture(): Pick<Apple2SavedState, "state" | "diskName" | "flash">;
+  capture(): { readonly state: Apple2SessionState; readonly diskName: string | null; readonly flash: boolean };
   restore(saved: Apple2SavedState): Promise<void>;
   compare(saved: Apple2SavedState): Promise<{ saved: Apple2SessionState; current: Apple2SessionState }>;
   memory(change: Apple2MemoryChange): string | undefined;

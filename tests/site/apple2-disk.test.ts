@@ -58,7 +58,7 @@ test("Apple II media checks whole containers, bootstrap slices, and selected dis
 });
 
 /** Drive DOS through the keyboard and observe its output in page-one text RAM. */
-function dosTerminal(session: ReturnType<typeof createApple2Session>, step = () => session.step()) {
+function dosTerminal(session: ReturnType<typeof createApple2Session>, step: () => Cpu6502StepRecord = () => session.step()) {
   const { machine } = session;
   // Independent Apple II page-one text rows, rather than the production video decoder.
   const rows = [0x400, 0x480, 0x500, 0x580, 0x600, 0x680, 0x700, 0x780,
@@ -488,7 +488,7 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
       if (!record.accesses.some(access => access.kind === "read" && access.address === 0xc0ec)) continue;
       const saved = machine.snapshot(), resumed = create6502Apple2({ firmware: rom.image }, saved);
       screen(); machine.disk.inspect(); assert.deepEqual(machine.snapshot(), saved);
-      for (let step = 0; step < 1000; step++) assert.deepEqual(session.step(), resumed.cpu.step());
+      for (let step = 0; step < 1000; step++) assert.deepEqual(session.step(), resumed.step());
       assert.deepEqual(machine.snapshot(), resumed.snapshot());
       return;
     }

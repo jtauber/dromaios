@@ -1,4 +1,11 @@
 ==================
+CPU clock
+==================
+clock cpu
+---
+(source_file (clock_declaration))
+
+==================
 Flat memory and contextual hexadecimal
 ==================
 ram 10000

@@ -1,4 +1,6 @@
 import type { MachineSyntax, Token } from "./syntax.ts";
+import { cpuModels } from "../../components/cpus/models.ts";
+import type { CpuModel } from "../../components/cpus/models.ts";
 import { deviceModels, isDeviceKind } from "../../components/devices/models.ts";
 import type { DeviceKind } from "../../components/devices/models.ts";
 import { readMemoryWindow } from "./memory-window.ts";
@@ -42,6 +44,7 @@ export interface CompositionDefinition extends ComponentsDefinition {
   readonly unmappedPorts?: number;
   readonly reset?: readonly string[];
   readonly resetDevices?: readonly string[];
+  readonly clock?: "cpu";
 }
 
 /** Read wiring as data; resolve forward references after all declarations and the CPU are known. */
@@ -111,14 +114,14 @@ export function compositionSyntax(syntax: MachineSyntax) {
     get present(): boolean { return declarations.size > 0; },
     read(declaration: Token): boolean {
       const keyword = declaration.text;
-      if (!["components", "map", "image", "ports", "reset", "reset-devices", "memory"].includes(keyword)) return false;
+      if (!["components", "map", "image", "ports", "reset", "reset-devices", "memory", "clock"].includes(keyword)) return false;
       if (keyword !== "image" && declarations.has(keyword)) fail(declaration, `Duplicate ${keyword} declaration`);
       declarations.set(keyword, declaration);
       switch (keyword) {
         case "components":
           block("components", () => {
             const token = name();
-            if (["cpu", "memory", "ports", "reset", "snapshot", "window", "discard"].includes(token.text)) fail(token, `Reserved component name ${token.text}`);
+            if (["cpu", "memory", "ports", "reset", "snapshot", "window", "discard", "clock", "step", "interrupt"].includes(token.text)) fail(token, `Reserved component name ${token.text}`);
             if (components.has(token.text)) fail(token, `Duplicate component ${token.text}`);
             expect("=");
             const kind = take();
@@ -131,6 +134,9 @@ export function compositionSyntax(syntax: MachineSyntax) {
               components.set(token.text, { name: token.text, kind: kind.text });
             } else fail(kind, `Expected component kind ram, rom, or ${Object.keys(deviceModels).join(", ")}`);
           });
+          break;
+        case "clock":
+          expect("cpu");
           break;
         case "memory":
           expect("=");
@@ -219,8 +225,11 @@ export function compositionSyntax(syntax: MachineSyntax) {
       }
       return finishComponents();
     },
-    finish(cpu: string, requiredSize: number): CompositionDefinition {
+    finish(cpu: CpuModel, requiredSize: number): CompositionDefinition {
       const definition = finishComponents();
+      if (declarations.has("clock") && cpuModels[cpu].timedExecution !== "vectors") {
+        fail(declarations.get("clock")!, "clock cpu requires timed instructions and vector interrupts (currently CPU 6502)");
+      }
       if (direct && mapSize !== undefined) fail(declarations.get("map")!, "Choose memory = component or map, not both");
       let connection: CompositionDefinition["connection"];
       if (direct) {
@@ -270,6 +279,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
       }
       return {
         ...definition, connection,
+        ...(declarations.has("clock") ? { clock: "cpu" as const } : {}),
         ...(declarations.has("ports") ? { ports: ports.map(({ direction, port, component, address }) => ({ direction, port, component, address })) } : {}),
         ...(unmappedPorts === undefined ? {} : { unmappedPorts }),
         ...(resets.has("reset") ? { reset: resets.get("reset")!.map(token => token.text) } : {}),

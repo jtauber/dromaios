@@ -45,7 +45,7 @@ for (const [text, category] of [
   ['false', 'boolean'], ['fault', 'constant'], ['flags', 'keyword'],
   ['byte-input', 'type'], ['ram', 'variable'], ['rom', 'type'],
   ['dead', 'variable'], ['0FFH', 'number'], ['00', 'number'], ['ram', 'keyword'],
-  ['external', 'keyword'], ['sha256', 'keyword'],
+  ['external', 'keyword'], ['sha256', 'keyword'], ['clock', 'keyword'],
   ['window', 'keyword'], ['read', 'keyword'], ['write', 'keyword'], ['discard', 'keyword'],
   ['offset', 'keyword'], ['when', 'keyword'], ['and', 'keyword'], ['ramRead', 'property'],
   ['378ba00c86a64cca49cedaca7de8d5d351983ebc295d9d11e0752febfc346249', 'string'],
