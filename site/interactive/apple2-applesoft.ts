@@ -197,6 +197,14 @@ interface ApplesoftDataCursor {
   readonly message?: string;
 }
 
+/** Resolve a byte within DATA independently of the ROM's possibly stale DATLIN. */
+export function applesoftDataSource(listing: ApplesoftListing, address: number): ApplesoftSourcePosition | undefined {
+  const line = listing.lines.find(line => address >= line.statements[0]!.address && address <= line.terminator);
+  const source = line && applesoftSourceAt(listing, line.number, address);
+  const first = source?.statement.parts.find(part => part.tokenAddress !== undefined);
+  if (first?.text === "DATA" && first.tokenAddress === source?.statement.address) return source;
+}
+
 /** DATPTR is saved after a complete READ. RESTORE sets it to TXTTAB - 1. */
 export function applesoftDataCursor(ram: Pick<Ram, "read" | "size">, listing: ApplesoftListing): ApplesoftDataCursor {
   if (listing.message) return { message: listing.message };
@@ -204,10 +212,8 @@ export function applesoftDataCursor(ram: Pick<Ram, "read" | "size">, listing: Ap
   if (address >= ram.size) return { message: "Saved DATA cursor is outside main RAM." };
   if (start > 0 && address === start - 1) return { address, message: "Start of program." };
   // DATLIN can be stale after RESTORE or refer to a later line after an unsuccessful search.
-  const line = listing.lines.find(line => address >= line.statements[0]!.address && address <= line.terminator);
-  const source = line && applesoftSourceAt(listing, line.number, address);
-  const first = source?.statement.parts.find(part => part.tokenAddress !== undefined);
-  if (first?.text === "DATA" && first.tokenAddress === source?.statement.address) return { address, source };
+  const source = applesoftDataSource(listing, address);
+  if (source) return { address, source };
   return { address, message: "Saved cursor is outside this program's DATA statements." };
 }
 
@@ -344,4 +350,14 @@ export function applesoftArrayElement(ram: VariableRam, array: ApplesoftArray, i
     return subscript;
   });
   return { name: `${array.name}(${subscripts.join(",")})`, type: array.type, address, ...valueAt(ram, array.type, address) };
+}
+
+/** Resolve a ROM assignment pointer to a scalar value or array element, not its name record. */
+export function applesoftVariableAt(ram: VariableRam, address: number): ApplesoftVariable | undefined {
+  const scalar = applesoftVariables(ram).variables.find(variable => variable.address + 2 === address);
+  if (scalar) return { ...scalar, address };
+  for (const array of applesoftArrays(ram).arrays) {
+    const index = (address - array.data) / elementBytes[array.type];
+    if (Number.isInteger(index) && index >= 0 && index < array.count) return applesoftArrayElement(ram, array, index);
+  }
 }

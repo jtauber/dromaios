@@ -954,6 +954,44 @@ completes another `READ`. The walkthrough's automated check executes the
 published program, verifies every cursor and value above, and repeats reading
 after both `RESTORE` and checkpoint restoration.
 
+### Following Applesoft events
+
+Open **Applesoft events** beside the listing. **Record** collects the last 200
+PEEK, POKE, READ and RESTORE events, even when the panel is hidden. **Live**
+controls display updates during Run; Pause and Step refresh a held view. Turning
+Record back on, or clearing events, starts observation at the next statement
+dispatch. Reset, fresh power-on, checkpoint restoration and debugger edits clear
+the history; it is an observation of this execution, not saved machine state.
+
+At the prompt, enter `POKE 4096,42`, then `PRINT PEEK(4096)`. The screen prints
+42; the two events show `$1000 ← $2A (42)` and `$1000 → $2A (42)`. Both are direct
+commands. Put the same operations in a numbered program to get links to their
+source statements. Each event uses the CPU's actual transfer, including values
+returned by device reads. Opening the panel never repeats an I/O access. A POKE
+event records a bus write; it does not promise that a device or ROM stored it.
+
+Run the [DATA example](#following-data-read-and-restore) with Record enabled.
+There are eight READ assignments and one explicit RESTORE before line 80 runs
+out of data. Each READ row links its destination value or array element to
+Memory, its consumed DATA byte to Memory, and both source statements to the
+listing. String rows also link their character storage. Values are captured at
+assignment time; Memory links browse those addresses in the current machine.
+Listing links follow relocated, unchanged statements and reject edited ones.
+
+Now enter `RESTORE`, then `READ Q,E$,R,F$,S`. Although the fifth variable raises
+OUT OF DATA and the saved cursor remains `$0800`, the first four assignments
+appear: Q = 12, E$ = `"RED, BLUE"`, R = −3.5 and F$ = `"DONE"`. The next `READ T`
+starts again with 12. The log retains completed assignments independently of
+whether their enclosing statement eventually succeeds. INPUT and GET do not
+produce READ events, and the internal rewind during RUN is not a RESTORE event.
+
+The verified ROM performs PEEK's transfer at `$E76F` and POKE's at `$E781`.
+READ reaches `$DC2E` with the DATA item cursor, then `$DC72` after assignment;
+`FORPNT` identifies the destination. RESTORE finishes the two-byte cursor store
+at `$D855`. These hooks apply only while the original ROM is mapped, including
+a transfer that itself switches the Language Card mapping.
+[Applesoft ROM disassembly](https://6502disassembly.com/a2-rom/Applesoft.html)
+
 ### Handling errors with ONERR and RESUME
 
 **Error handling** below **Applesoft listing** shows whether `ONERR` is enabled,
@@ -1362,16 +1400,21 @@ within KEYIN, rather than a separate subroutine.
   "notes": [
     {"address": "D828", "bytes": "F0 2D", "text": "At statement dispatch, TXTPTR points to the byte just fetched. A zero byte ends the line."},
     {"address": "D849", "bytes": "38", "text": "RESTORE begins subtracting one from TXTTAB to reset DATPTR before the first line header."},
+    {"address": "D855", "bytes": "84 7E", "text": "Complete the high byte of DATPTR. RESTORE and successful READ lists share this store."},
     {"address": "D87C", "bytes": "85 79", "text": "STOP and END save the current text cursor for CONT when executing a stored program."},
     {"address": "D89A", "bytes": "A4 7A", "text": "CONT checks the saved cursor's high byte; zero produces CAN'T CONTINUE."},
     {"address": "D8A3", "bytes": "85 B8", "text": "Restore the low byte of the CONT cursor into TXTPTR before restoring the saved line."},
     {"address": "D93B", "bytes": "4C D2 D7", "text": "GOSUB has found its target. TXTPTR is one byte before that line's header; the five-byte caller record is on the stack."},
     {"address": "D993", "bytes": "85 B9", "text": "RETURN restores the high byte of the caller's text pointer, completing the five-byte frame restoration."},
     {"address": "D9C7", "bytes": "68", "text": "POP discards the last byte of the GOSUB frame. Execution continues in the current routine."},
+    {"address": "DC2E", "bytes": "24 11", "text": "The input cursor has reached the item's first byte. During READ it points into DATA; VALTYP chooses string or numeric conversion."},
+    {"address": "DC72", "bytes": "20 B7 00", "text": "An input item has been assigned at FORPNT. READ can still fail on a later variable before saving DATPTR."},
     {"address": "DCB1", "bytes": "85 7B", "text": "FINDATA records the low byte of a line number while searching, before checking whether that line supplies DATA."},
     {"address": "DCCE", "bytes": "4C 53 D8", "text": "After the complete READ list succeeds, save its input cursor in DATPTR through SETDA."},
     {"address": "E2E5", "bytes": "20 84 E4", "text": "FRE calls GARBAG before computing the available space between STREND and FRETOP."},
     {"address": "E484", "bytes": "A6 73", "text": "Garbage collection begins at MEMSIZE and compacts referenced strings toward that upper boundary."},
+    {"address": "E76F", "bytes": "B1 50", "text": "PEEK performs its actual memory read through LINNUM. The returned byte becomes its result."},
+    {"address": "E781", "bytes": "91 50", "text": "POKE writes the accumulator through LINNUM. A device address can have effects beyond storing a byte."},
     {"address": "F2D9", "bytes": "66 D8", "text": "With carry set, rotate a one into ERRFLG bit 7 to enable ONERR."},
     {"address": "F2E9", "bytes": "86 DE", "text": "Save the error code in ERRNUM before recording the failing line, restart cursor, and stack pointer."},
     {"address": "F318", "bytes": "A5 DA", "text": "RESUME begins restoring the saved line and text cursor to retry the failed statement."},

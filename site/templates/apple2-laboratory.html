@@ -207,6 +207,15 @@
       <p class="lab-hint" data-basic-history-status>No numbered statements recorded yet.</p>
       <ol aria-label="Applesoft statement visits"></ol>
     </section>
+    <section class="lab-tool lab-panel-body lab-applesoft-history" data-workspace-panel="applesoft-events" data-panel-live="true" data-panel-title="Applesoft events">
+      <div class="basic-controls">
+        <label><input type="checkbox" data-basic-events-record checked> Record</label>
+        <button type="button" data-basic-events-clear disabled>Clear events</button>
+        <a href="{{ calc_url(apple2_url ~ '#following-applesoft-events') }}" target="_blank" rel="noopener">Follow memory and DATA events ↗</a>
+      </div>
+      <p class="lab-hint" data-basic-events-status>Recording · 0 events</p>
+      <ol aria-label="Applesoft events"></ol>
+    </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="applesoft-stack" data-panel-title="Applesoft stack">
       <p class="lab-hint" data-basic-stack-status></p>
       <table class="lab-hardware-map lab-basic-stack" hidden>

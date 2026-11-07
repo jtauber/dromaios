@@ -201,6 +201,7 @@
 .lab-applesoft-source span[aria-current="true"] .lab-memory-link { color: inherit; }
 .lab-applesoft-source span:focus { outline: 2px solid var(--accent); }
 .lab-applesoft-history { display: flex; flex-direction: column; align-items: flex-start; }
+.lab-applesoft-history .basic-controls label { display: inline-flex; align-items: center; gap: 6px; }
 .lab-applesoft-history ol { align-self: stretch; overflow: auto; margin: 8px 0 0; padding-inline-start: 6ch; font: 12px/1.7 var(--mono); }
 .lab-applesoft-history li::marker { color: var(--muted); }
 .lab-applesoft-history .lab-memory-link { text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }

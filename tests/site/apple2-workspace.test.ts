@@ -164,3 +164,17 @@ test("version 10 adds Applesoft history beside the listing or Disassembly withou
     assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools), "applesoft-history"), undefined);
   }
 });
+
+test("version 11 introduces Applesoft events once and keeps previously hidden history closed", () => {
+  const tools = ["code", "applesoft", "applesoft-history", "applesoft-events"];
+  for (const neighbor of ["applesoft", "code"]) {
+    const layout: WorkspaceLayout = { root: { kind: "tabs", id: "tools", panels: [neighbor], active: neighbor, collapsed: true } };
+    const storage = preferences(); storage.setItem("dromaios:workspace:apple2:11", encodeWorkspaceState(layout));
+    migrateApple2Workspace(storage, tools);
+    const next = decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools);
+    assert.deepEqual(next.root, { ...layout.root, panels: [neighbor, "applesoft-events"] });
+    storage.setItem(apple2WorkspaceKey, encodeWorkspaceState(closePanel(next, "applesoft-events")));
+    migrateApple2Workspace(storage, tools);
+    assert.equal(panelGroup(decodeWorkspaceState(storage.getItem(apple2WorkspaceKey)!, tools), "applesoft-events"), undefined);
+  }
+});

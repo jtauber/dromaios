@@ -11,6 +11,7 @@ import { applesoftErrorName, applesoftErrorState } from "../../site/interactive/
 import { applesoftContinuation } from "../../site/interactive/apple2-applesoft-continuation.js";
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
 import { createApplesoftProfile } from "../../site/interactive/apple2-applesoft-profile.js";
+import { createApplesoftEvents } from "../../site/interactive/apple2-applesoft-events.js";
 import { createApplesoftBreakpoints } from "../../site/interactive/apple2-applesoft-breakpoints.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
@@ -69,11 +70,13 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   const pointsForHistory = createApplesoftBreakpoints(() => session.machine);
   const history = createApplesoftHistory(pointsForHistory.listing);
   const profile = createApplesoftProfile(pointsForHistory.listing);
+  const events = createApplesoftEvents(pointsForHistory.listing);
   function stepWithHistory() {
     const machine = session.machine, before = apple2DebugLocation(machine);
     const record = session.step();
     if (record.outcome === "executed") {
       history.observe(machine, before); profile.observe(machine, before, record.after);
+      events.observe(machine, before, record);
     }
     return record;
   }
@@ -85,9 +88,9 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     return apple2TextFrame(session.machine.ram, session.machine.video, false)
       .map(row => row.map(cell => cell.character).join("").trimEnd()).join("\n").trim();
   }
-  function runUntil(ready: () => boolean): void {
+  function runUntil(ready: () => boolean, batches = 200): void {
     execution.run();
-    for (let batch = 0; batch < 200 && !ready(); batch++) pending.shift()!();
+    for (let batch = 0; batch < batches && !ready(); batch++) pending.shift()!();
     assert.equal(execution.error, undefined);
     assert.ok(ready(), `Condition not reached:\n${screen()}`);
     execution.stop();
@@ -380,6 +383,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
   await t.test("READ and RESTORE expose the saved DATA cursor through rewinding, exhaustion and partial failure", () => {
     assert.ok(dataExample);
     command("NEW"); for (const line of dataExample.lines) command(line.text);
+    events.clear();
     const cursor = () => applesoftDataCursor(ram, pointsForHistory.listing());
     const check = (address: number, line?: number, index?: number) => {
       const value = cursor(); assert.deepEqual([value.address, value.source?.line, value.source?.index], [address, line, index]);
@@ -402,6 +406,16 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     assert.equal(stepBasic(), "Applesoft ] prompt.");
     assert.ok(screen().endsWith("?OUT OF DATA ERROR IN 80\n]"));
     check(0x829, 20, 0); assert.equal(ram.read(0x7b), 80, "The failed search advances DATLIN beyond the saved cursor");
+    const assignments = () => events.entries.filter(e => e.kind === "READ");
+    assert.deepEqual(assignments().map(e => [e.variable.name, e.variable.value, e.origin.source?.line, e.origin.source?.index, e.data.source.line, e.data.source.index]), [
+      ["N", "12", 30, 0, 10, 0], ["A$", '"RED, BLUE"', 40, 0, 10, 0],
+      ["X", "-3.5", 50, 0, 10, 1], ["B$", '"DONE"', 50, 1, 20, 0],
+      ["M", "12", 70, 0, 10, 0], ["C$", '"RED, BLUE"', 70, 0, 10, 0],
+      ["Y", "-3.5", 70, 0, 10, 1], ["D$", '"DONE"', 70, 0, 20, 0],
+    ]);
+    assert.deepEqual(events.entries.filter(e => e.kind === "RESTORE").map(e => [e.previous, e.address, e.origin.line]), [[0x829, 0x800, 60]], "RUN's internal rewind is not a RESTORE statement");
+    assert.deepEqual(assignments().slice(0, 4).map(e => e.data.address), [0x807, 0x80a, 0x818, 0x823]);
+    assert.equal(assignments()[1]!.variable.contentsAddress, 0x80b);
     for (const name of ["N", "A$", "X", "B$"]) {
       command(`PRINT ${name}`);
       assert.ok(screen().endsWith(`]PRINT ${name}\n${value(name)!.replace(/^"|"$/g, "")}\n\n]`));
@@ -415,10 +429,47 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     }
     assert.equal(applesoftVariables(restoredRam).variables.find(v => v.name === "C$")?.value, '"RED, BLUE"');
     assert.equal(applesoftDataCursor(restoredRam, points.listing()).source?.line, 20);
-    command("RESTORE"); check(0x800);
+    events.clear(); command("RESTORE"); check(0x800);
     command("READ Q,E$,R,F$,S"); assert.match(screen(), /OUT OF DATA/);
     check(0x800); assert.deepEqual([value("Q"), value("E$"), value("R"), value("F$")], ["12", '"RED, BLUE"', "-3.5", '"DONE"']);
+    assert.deepEqual(assignments().map(e => e.variable.name), ["Q", "E$", "R", "F$"], "Completed assignments remain despite the failed fifth item and unchanged DATPTR");
+    assert.ok(events.entries.every(e => e.origin.line >= 0xff00 && !e.origin.source));
     command("READ T"); assert.equal(value("T"), "12"); check(0x809, 10, 0);
+  });
+
+  await t.test("Applesoft events capture executed bus values, array destinations and bounded recording", () => {
+    command("NEW");
+    command("10 POKE 4096,42:PRINT PEEK(4096)");
+    command("20 END"); events.clear(); command("RUN");
+    assert.match(screen(), /\]RUN\n42\n/);
+    assert.deepEqual(events.entries.map(e => [e.kind, e.kind !== "READ" && e.address, "value" in e && e.value, e.origin.source?.index]), [
+      ["POKE", 0x1000, 42, 0], ["PEEK", 0x1000, 42, 1],
+    ]);
+    command("A=PEEK(49232)"); // The guest read switches to graphics; the history must not perform it again.
+    assert.equal(session.machine.video.snapshot().text, false);
+    const access = events.entries.at(-1)!;
+    assert.equal(access.kind, "PEEK"); assert.ok("address" in access && access.address === 0xc050);
+    command("TEXT");
+    events.record(false); command("POKE 4096,99"); assert.equal(events.entries.at(-1), access);
+    events.record(true); command("PRINT PEEK(4096)"); assert.match(screen(), /\n99\n/);
+    assert.equal(events.entries.at(-1)?.kind, "PEEK");
+    command("NEW");
+    for (const line of ['10 DATA 1.5,-42,"A:B,C"', '20 DIM N%(1),A$(1):READ X,N%(1),A$(1)', '30 END']) command(line);
+    events.clear(); command("RUN");
+    const reads = events.entries.filter(e => e.kind === "READ");
+    assert.deepEqual(reads.map(e => [e.variable.name, e.variable.value]), [["X", "1.5"], ["N%(1)", "-42"], ["A$(1)", '"A:B,C"']]);
+    assert.equal(reads[1]!.variable.address, applesoftArrayElement(ram, applesoftArrays(ram).arrays[0]!, 1).address);
+    assert.ok(reads.every(e => e.origin.source?.line === 20 && e.origin.source.index === 1));
+    command("PRINT X;N%(1);A$(1)"); assert.match(screen(), /\n1\.5-42A:B,C\n/);
+    command("NEW"); command("POKE 4096,1"); command("10 INPUT A(PEEK(4096))"); events.clear();
+    command("RUN"); command("7"); command("PRINT A(1)"); assert.match(screen(), /\n7\n/);
+    assert.equal(events.total, 1, "INPUT assignments are not READ events");
+    assert.equal(events.entries[0]?.kind, "PEEK"); assert.equal(events.entries[0]?.origin.source?.line, 10);
+    command("NEW"); command("10 FOR I=1 TO 205:A=PEEK(4096):NEXT"); events.clear();
+    session.send(apple2Input("RUN\n")); runUntil(idle, 1000);
+    assert.equal(events.total, 205); assert.equal(events.entries.length, 200); assert.equal(events.entries[0]!.number, 6);
+    assert.ok(events.entries.every(e => e.kind === "PEEK"));
+    events.clear(); assert.equal(events.total, 0); assert.deepEqual(events.entries, []);
   });
 
   await t.test("ONERR captures division by zero and RESUME retries only the failing statement, including after restore", () => {
