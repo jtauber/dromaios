@@ -16,9 +16,9 @@ const diskBytes = new Uint8Array(Dos33Disk.size);
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const media = { bytes: 20480, offset: 8192, sha256: "0".repeat(64),
   bootstrap: { bytes: 256, offset: 0, sha256: digest(bootstrap) }, disk: { bytes: diskBytes.length, sha256: digest(diskBytes) } };
-function saved(session = createApple2Session(), name = "Before echo"): Extract<Apple2SavedState, { version: 3 }> {
+function saved(session = createApple2Session(), name = "Before echo"): Extract<Apple2SavedState, { version: 4 }> {
   const bytes = session.machine.disk.snapshot().media;
-  return { version: 3, diskSha256: bytes === null ? null : digest(Uint8Array.from(bytes)),
+  return { version: 4, diskSha256: bytes === null ? null : digest(Uint8Array.from(bytes)),
     machine: "apple2-plus", name, savedAt: "2026-10-07T12:00:00.000Z",
     diskName: session.machine.disk.inspect().loaded ? "test.dsk" : null, flash: true, state: session.snapshot() };
 }
@@ -94,14 +94,14 @@ test("named storage survives fresh readers, avoids silent replacement, and prese
 test("damaged entries remain deletable and incompatible machine versions are rejected", async () => {
   const memory = storage(), store = apple2SavedStates(() => memory), first = saved(); store.save(first);
   const key = [...memory.values.keys()][0]!;
-  for (const value of ["{", "null", "{}", JSON.stringify({ ...first, version: 4 }),
+  for (const value of ["{", "null", "{}", JSON.stringify({ ...first, version: 5 }),
     JSON.stringify({ ...first, machine: "other" }), JSON.stringify({ ...first, name: "wrong name" }),
     JSON.stringify({ ...first, savedAt: "bad" }), " ".repeat(1_000_001)]) {
     memory.values.set(key, value); assert.throws(() => store.read(first.name));
     assert.deepEqual(store.names(), [first.name]);
   }
   store.remove(first.name); assert.deepEqual(store.names(), []);
-  await assert.rejects(prepareApple2SavedState({ ...first, version: 4 } as unknown as Apple2SavedState, null, media), /version/);
+  await assert.rejects(prepareApple2SavedState({ ...first, version: 5 } as unknown as Apple2SavedState, null, media), /version/);
 });
 
 test("preparation rechecks saved bootstrap and disk identities and never changes the original session", async () => {
@@ -140,18 +140,22 @@ test("new checkpoints restore a local disk's bytes, name and permission after ej
   assert.equal((await prepareApple2SavedState(empty, null, media)).diskName, null);
 });
 
-test("new checkpoints preserve CPU clocks while legacy formats explicitly start at zero", async () => {
+test("new checkpoints preserve speaker and clocks; older formats supply only their missing state", async () => {
   const session = createApple2Session();
   session.machine.ram.write(0, 0xea); session.machine.step();
+  session.machine.speaker.read(0);
   const current = await encodeApple2SavedState(saved(session));
-  assert.equal(current.version, 3);
+  assert.equal(current.version, 4);
   assert.equal((await prepareApple2SavedState(current, null, media)).session.machine.clock.ticks, 2);
-  const { clock: omitted, ...hardware } = session.snapshot().hardware;
+  assert.equal((await prepareApple2SavedState(current, null, media)).session.machine.speaker.level(), true);
+  const { clock: omitted, speaker: omittedSpeaker, ...hardware } = session.snapshot().hardware;
   const state = { ...session.snapshot(), hardware };
   const { version: ignored, diskSha256, ...details } = saved(session);
-  for (const legacy of [{ ...details, state, version: 1 }, { ...details, state, version: 2, diskSha256 }] as const) {
+  for (const legacy of [{ ...details, state, version: 1 }, { ...details, state, version: 2, diskSha256 },
+    { ...details, state: { ...state, hardware: { ...hardware, clock: { ticks: 2 } } }, version: 3, diskSha256 }] as const) {
     const restored = await prepareApple2SavedState(legacy, null, media);
-    assert.deepEqual(restored.session.snapshot(), { ...state, hardware: { ...hardware, clock: { ticks: 0 } } });
+    assert.deepEqual(restored.session.snapshot(), { ...state, hardware: { ...hardware,
+      clock: { ticks: legacy.version === 3 ? 2 : 0 }, speaker: { level: false } } });
     await assert.rejects(prepareApple2SavedState({ ...legacy, state: session.snapshot() }, null, media), /snapshot/);
   }
   await assert.rejects(prepareApple2SavedState({ ...current, state } as Apple2SavedState, null, media), /snapshot/);

@@ -22,6 +22,8 @@ owns character/strobe state and all C000–C01F aliases. The
 [video chapter](../../components/devices/specifications/apple2-video.md) owns
 C050–C057 display switches, interleaved display addresses, character attributes,
 and low- and high-resolution colour decoding.
+The [speaker chapter](../../components/devices/specifications/apple2-speaker.md)
+owns the output latch toggled by reads or writes throughout C030–C03F.
 The [Language Card chapter](../../components/devices/specifications/apple2-language-card.md)
 owns C080–C08F selection and write-protection latches. Two 4 KiB RAM banks
 share D000–DFFF, followed by 8 KiB of common RAM at E000–FFFF. ROM supplies
@@ -36,6 +38,7 @@ bootstrap, both windows are unanswered and the Monitor falls through to Applesof
 components {
     ram = ram C000
     keyboard = apple2-keyboard
+    speaker = apple2-speaker
     video = apple2-video
     firmware = rom 3000
     language = apple2-language-card
@@ -48,6 +51,7 @@ components {
 map 10000 {
     0000 = ram
     C000 = keyboard
+    C030 = speaker
     C050 = video
     C080 = language
     C0E0 = window 10 {
@@ -164,7 +168,7 @@ reset { cpu }
 clock cpu 1.023 MHz
 ```
 
-CPU reset preserves RAM, firmware, the keyboard latch, display switches, all
+CPU reset preserves RAM, firmware, the keyboard and speaker latches, display switches, all
 Language Card latches, and the disk controller, head, and stream position. It follows the
 [6502 reset contract](../../components/cpus/specifications/6502.md#reset-and-instruction-boundaries),
 including its stack-pointer and interrupt-mask changes. Firmware may then
@@ -200,11 +204,11 @@ steps add no time and preserve any completed CPU or device effects.
 
 The clock belongs to the hardware snapshot and restores exactly. It counts
 completed execution boundaries; it does not timestamp individual bus accesses,
-advance the disk stream or video by elapsed time, or generate speaker audio.
-Those require further device timing work. Browser Run pacing uses the declared
-nominal frequency without changing these device contracts.
+advance the disk stream or video by elapsed time. Those require further device
+timing work. Browser Run pacing uses the declared nominal frequency; speaker
+audio samples the output latch at completed instruction boundaries.
 
-`snapshot()` captures CPU, all four RAM components, keyboard, display and Language Card latches,
+`snapshot()` captures CPU, all four RAM components, keyboard, speaker, display and Language Card latches,
 the CPU clock, the disk controller with its bootstrap and media bytes, and the firmware digest
 (or `null` when not installed). Restoration requires a matching binding: the
 same verified image for a digest, or `null` for absence. It creates independent
@@ -249,6 +253,61 @@ its host-time budget at the current machine clock. Late callbacks retain at most
 16 milliseconds of clock budget. Speed is a view setting, preserved across reset
 and restoration but starting at Normal when the page opens; it is not saved in
 hardware checkpoints. CPU reset still adds no emulated time.
+
+### Speaker sound
+
+**Sound** is initially off. Enable it with a click, then use **Normal** Run to
+hear the guest's speaker output. It uses the chip's declared clock rate, not
+the number of instructions or browser frames. **Unlimited** is muted and
+accumulates no sound for later playback. Manual Step is silent; Step over,
+Step out, and run-to requests can sound while they run at Normal speed.
+Pause, any debugger stop, execution failure, reset, fresh power-on, restore,
+media replacement, and hiding the page cancel queued audio immediately.
+Re-enabling or resuming starts at the current output level without inventing
+a toggle. Playback preferences and audio queues are never checkpoint state.
+
+The browser observes the latch after every successful instruction. A changed
+level takes effect at that instruction's ending CPU clock; two or more accesses
+within one instruction retain only their net level in the audible waveform.
+The hardware device still performs each modeled toggle. The **System** panel
+shows the latch without accessing C030, and **Device activity → Speaker** shows
+the actual transfers with their instruction-end clock counts. Repeated accesses
+may be grouped, retaining their count and first/last clock boundaries.
+
+Audio samples average the held level over each sample interval, preserving phase
+across Run batches. Browser output uses modest fixed gain and an 80 Hz high-pass
+filter to remove the held DC level; this is a listening approximation, not an
+electrical model of the original amplifier and cone. Playback retains at most
+120 milliseconds of queued sound. If the host cannot keep up with the nominal
+CPU rate, there can be gaps; it does not stretch a tone to conceal slow execution.
+An unavailable or suspended audio device never stops the emulated CPU. Toggle
+Sound off and on to retry after a browser audio interruption.
+
+A simple independent timing check is this loop, placed at 0200:
+
+```asm
+0200  BIT $C030
+0203  LDX #$CB
+0205  DEX
+0206  BNE $0205
+0208  JMP $0200
+```
+
+Between speaker accesses it consumes `2 + 203×2 + 202×3 + 2 + 3 + 4 = 1023`
+CPU clocks. That is one millisecond at the declared rate: two toggles complete
+a **500 Hz** period. The [speaker tests](../../../tests/machines/6502/apple2-speaker.test.ts)
+check the edge clocks and sampled waveform with different batch sizes. With the
+verified ROM, they also call the Monitor's BELL2 at FBDD, whose `LDY #$C0` loop
+toggles the speaker 192 times, and replay it from a checkpoint. This is sound
+produced by executing the ROM, not a prerecorded bell.
+
+To hear it in the laboratory, enable Sound, select Normal, and use **Fresh
+power-on → Run**. The startup path calls the Monitor bell before Applesoft's
+prompt. With Applesoft already waiting for input, type `PRINT CHR$(7)` and
+press Return. Use Pause, then **Device activity → Speaker**, to inspect its
+accesses; the CPU clock marker can measure the surrounding execution too.
+
+### Clock measurements
 
 **Mark clock** records the current total while paused. **Since marker** then
 shows clocks consumed by subsequent execution, including ordinary Run; pausing
@@ -505,7 +564,9 @@ to the workspace and are not part of the saved machine.
 
 **Restore** checks the saved machine version, complete component state, firmware
 identity, and any stored bootstrap/disk identities before replacing the current
-experiment. Version 3 saves elapsed CPU clocks and the SHA-256 of the disk at capture time, so a
+experiment. Version 4 also saves the speaker latch; restoring versions 1–3
+initializes that previously unmodeled latch to low. Version 3 introduced elapsed CPU clocks
+and the SHA-256 of the disk at capture time, so a
 file written by DOS survives restoration. Version 1 states still verify their
 disk against the original System Master digest; version 2 retains its saved disk
 digest. Versions 1 and 2 did not record clocks, so restoring them starts the

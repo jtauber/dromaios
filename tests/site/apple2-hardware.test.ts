@@ -12,7 +12,7 @@ import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
 const file = "src/machines/6502/apple2.md";
 const machine = parseMachine(machineChapterSource(readFileSync(file, "utf8"), file), file);
 assert.ok("connection" in machine);
-const chapters = Object.fromEntries(["apple2-keyboard", "apple2-video", "apple2-language-card"].map(kind => {
+const chapters = Object.fromEntries(["apple2-keyboard", "apple2-speaker", "apple2-video", "apple2-language-card"].map(kind => {
   const file = `src/components/devices/specifications/${kind}.md`;
   return [kind, compileDeviceChapter(readFileSync(file, "utf8"), file)];
 }));
@@ -86,7 +86,8 @@ test("device descriptions and aliases come from executable chapters, including u
     assert.deepEqual(apple2DeviceAccess(catalogue, 0xc010 + alias, "write"), acknowledge);
   }
   assert.match(apple2DeviceAccess(catalogue, 0xc000, "write")!.description, /Unbound write/);
-  assert.equal(apple2DeviceAccess(catalogue, 0xc030, "read")!.device, "unmapped");
+  assert.equal(apple2DeviceAccess(catalogue, 0xc030, "read")!.device, "speaker");
+  assert.equal(apple2DeviceAccess(catalogue, 0xc020, "read")!.device, "unmapped");
   assert.match(apple2DeviceAccess(catalogue, 0xc600, "read")!.description, /bootstrap ROM/);
   assert.match(apple2DeviceAccess(catalogue, 0xc600, "write")!.description, /discarded/);
   assert.equal(apple2DeviceAccess(catalogue, 0xd000, "read"), undefined);

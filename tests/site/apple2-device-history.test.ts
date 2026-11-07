@@ -8,6 +8,21 @@ import { createApple2Session } from "../../site/interactive/apple2-session.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 
 const instructions = instructionCatalogue6502(Object.values(families).flat());
+
+test("speaker history retains instruction-end clocks, including the span of repeated toggles", () => {
+  const { machine } = createApple2Session(), history = createApple2DeviceHistory(instructions);
+  [0xad, 0x30, 0xc0, 0x4c, 0, 2].forEach((byte, i) => machine.ram.write(0x200 + i, byte));
+  machine.cpu = new Cpu6502(machine.memory, { ...machine.cpu.snapshot(), pc: 0x200 });
+  for (let i = 0; i < 3; i++) {
+    const before = apple2DebugLocation(machine), record = machine.step();
+    history.observe(record, before, machine.clock.ticks);
+  }
+  const entries = history.entries();
+  assert.equal(entries.length, 1); assert.equal(entries[0]!.count, 2);
+  assert.equal(entries[0]!.firstClock, 4); assert.equal(entries[0]!.lastClock, 11);
+  assert.equal(machine.speaker.level(), false);
+  history.entries(); assert.equal(machine.speaker.level(), false, "Inspection cannot toggle the output");
+});
 function program(bytes: number[], capacity?: number) {
   const session = createApple2Session(), { machine } = session, history = createApple2DeviceHistory(instructions, capacity);
   bytes.forEach((byte, index) => machine.ram.write(0x200 + index, byte));

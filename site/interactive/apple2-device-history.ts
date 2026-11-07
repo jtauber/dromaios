@@ -6,6 +6,8 @@ export interface Apple2DeviceEvent {
   readonly first: number;
   readonly last: number;
   readonly count: number;
+  readonly firstClock?: number;
+  readonly lastClock?: number;
   readonly caller: DebugLocation;
   readonly bytes: readonly number[];
   readonly address: number;
@@ -24,7 +26,7 @@ export function createApple2DeviceHistory(instructions: InstructionCatalogue, ca
     get accesses() { return accesses; },
     get discarded() { return discarded; },
     entries(): readonly Apple2DeviceEvent[] { return [...entries].reverse(); },
-    observe(record: Cpu6502StepRecord, caller: DebugLocation): void {
+    observe(record: Cpu6502StepRecord, caller: DebugLocation, clocks?: number): void {
       if (record.outcome !== "executed") return;
       sequence++;
       const roles = instructions[record.instruction.bytes[0]!]?.accesses;
@@ -32,12 +34,14 @@ export function createApple2DeviceHistory(instructions: InstructionCatalogue, ca
         if (access.address < 0xc000 || access.address >= 0xd000) continue;
         accesses++;
         const event: Apple2DeviceEvent = { first: sequence, last: sequence, count: 1, caller: { ...caller }, bytes: [...record.instruction.bytes],
+          ...(clocks === undefined ? {} : { firstClock: clocks, lastClock: clocks }),
           ...access, role: roles?.[index] ?? access.kind };
         const previous = entries.at(-1);
         if (previous && previous.caller.address === caller.address && previous.caller.space === caller.space
           && previous.address === event.address && previous.kind === event.kind && previous.role === event.role && previous.value === event.value
           && previous.bytes.length === event.bytes.length && previous.bytes.every((byte, i) => byte === event.bytes[i])) {
-          entries[entries.length - 1] = { ...previous, last: sequence, count: previous.count + 1 };
+          entries[entries.length - 1] = { ...previous, last: sequence, count: previous.count + 1,
+            ...(clocks === undefined ? {} : { lastClock: clocks }) };
         } else {
           entries.push(event);
           if (entries.length > capacity) discarded += entries.shift()!.count;

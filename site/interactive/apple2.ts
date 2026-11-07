@@ -4,6 +4,7 @@ import { editApple2Memory } from "./apple2-memory-edit.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createExecutionController } from "./execution-controller.js";
 import { createClockPacing } from "./clock-pacing.js";
+import { createApple2Sound } from "./apple2-sound-view.js";
 import { createExecutionIntervalView } from "./execution-interval-view.js";
 import { createApple2Session, apple2ControlKey, apple2ScreenKey, apple2Input } from "./apple2-session.js";
 import { createApple2ScreenInspector } from "./apple2-screen-inspector-view.js";
@@ -62,6 +63,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const romStorage = apple2RomStorage(() => window.localStorage, romImages.firmware, media);
   let session = createApple2Session(), rom: Apple2RomFile | undefined, diskName: string | null = null;
   const intervals = createExecutionIntervalView(root, () => session.machine.clock);
+  const sound = createApple2Sound(root, () => session.machine);
   const hertz = session.machine.clock.hertz;
   if (hertz === undefined) throw new Error("The Apple II chapter must declare its CPU clock frequency.");
   const normalPacing = createClockPacing({ ticks: () => session.machine.clock.ticks, hertz, now: () => performance.now() });
@@ -124,6 +126,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       const perform = () => explorer.captureDiskStep(before, () => session.step());
       const record = changeLog ? changeLog.current().capture(perform) : perform();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
+      sound.observe();
       basicHistory?.observe(session.machine, before);
       basicProfile?.observe(session.machine, before, record.after);
       basicEvents?.observe(session.machine, before, record);
@@ -248,6 +251,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (execution.error !== undefined) { explorer.fail(execution.error); screenInspector?.reset(); }
     if (execution.error !== undefined) message.textContent = execution.error;
     intervals.refresh({ running: execution.running, unavailable: selecting, stop: explorer.stop?.kind });
+    sound.refresh({ running: execution.running, normal: normalSpeed, unavailable: selecting });
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
     if (shouldUpdate("variables")) variables?.(session.machine);
     if (shouldUpdate("applesoft")) applesoft?.refresh(session.machine, latest, explorer.stop);

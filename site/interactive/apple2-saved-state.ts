@@ -14,19 +14,23 @@ interface SavedExperiment {
   readonly state: Apple2SessionState;
 }
 
+type BeforeSpeakerState = Omit<Apple2SessionState, "hardware"> & {
+  readonly hardware: Omit<Apple2SessionState["hardware"], "speaker">;
+};
 type LegacySessionState = Omit<Apple2SessionState, "hardware"> & {
-  readonly hardware: Omit<Apple2SessionState["hardware"], "clock">;
+  readonly hardware: Omit<Apple2SessionState["hardware"], "clock" | "speaker">;
 };
 
-/** Versions 1 and 2 predate the clock; version 1 also assumes the System Master disk. */
-export type Apple2SavedState = (SavedExperiment & { readonly version: 3; readonly diskSha256: string | null })
+/** Versions 1–3 predate the speaker; 1–2 also predate the clock. */
+export type Apple2SavedState = (SavedExperiment & { readonly version: 4; readonly diskSha256: string | null })
+  | (Omit<SavedExperiment, "state"> & { readonly state: BeforeSpeakerState; readonly version: 3; readonly diskSha256: string | null })
   | (Omit<SavedExperiment, "state"> & { readonly state: LegacySessionState }
     & ({ readonly version: 1 } | { readonly version: 2; readonly diskSha256: string | null }));
 
 export async function encodeApple2SavedState(experiment: SavedExperiment): Promise<Apple2SavedState> {
   const bytes = experiment.state.hardware.disk.media;
   const diskSha256 = bytes === null ? null : await sha256(Uint8Array.from(bytes));
-  return { ...experiment, version: 3, diskSha256 };
+  return { ...experiment, version: 4, diskSha256 };
 }
 
 function checkName(name: string): void {
@@ -40,7 +44,7 @@ function decodeSavedState(text: string): Apple2SavedState {
   if (text.length > 1_000_000) throw new Error("Saved state is too large.");
   const value: unknown = JSON.parse(text);
   const version = (value as Partial<Apple2SavedState> | null)?.version;
-  if (version !== 1 && version !== 2 && version !== 3) throw new Error("This saved state uses a different machine version.");
+  if (version !== 1 && version !== 2 && version !== 3 && version !== 4) throw new Error("This saved state uses a different machine version.");
   checkMachineSnapshot(value, ["version", "machine", "name", "savedAt", "diskName", "flash", "state", ...(version !== 1 ? ["diskSha256"] : [])]);
   const saved = value as Apple2SavedState;
   if (saved.machine !== "apple2-plus") throw new Error("This saved state belongs to a different machine.");
@@ -103,12 +107,14 @@ export async function prepareApple2SavedState(saved: Apple2SavedState, firmware:
   decodeSavedState(JSON.stringify(saved));
   const session = createApple2Session();
   if (firmware !== null) session.installFirmware(firmware);
-  if (saved.version === 3) session.restore(saved.state);
+  if (saved.version === 4) session.restore(saved.state);
   else {
-    // Historical elapsed time was not recorded. Validate the old shape before adding a zero origin.
+    // Validate each old shape before supplying state that its version could not record.
     checkMachineSnapshot(saved.state, ["hardware", "input"]);
-    checkMachineSnapshot(saved.state.hardware, Object.keys(session.machine.snapshot()).filter(field => field !== "clock"));
-    session.restore({ ...saved.state, hardware: { ...saved.state.hardware, clock: { ticks: 0 } } });
+    checkMachineSnapshot(saved.state.hardware, Object.keys(session.machine.snapshot())
+      .filter(field => field !== "speaker" && (saved.version === 3 || field !== "clock")));
+    session.restore({ ...saved.state, hardware: { ...saved.state.hardware, speaker: { level: false },
+      clock: saved.version === 3 ? saved.state.hardware.clock : { ticks: 0 } } });
   }
   const snapshot = session.machine.disk.snapshot();
   if (snapshot.bootstrap !== null && await sha256(Uint8Array.from(snapshot.bootstrap)) !== media.bootstrap.sha256) {

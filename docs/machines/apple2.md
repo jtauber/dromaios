@@ -128,7 +128,7 @@ delivery, and scheduling host work.
 | Keyboard and display switches | Keyboard and display switches generate from device chapters, with state, offers, effects, reset, and snapshots. |
 | Banked memory | Conditional windows now select independent read/write destinations through pure device views. The machine chapter names both lower banks and common upper storage. |
 | Video | Read-only generated views own text and graphics addresses, character attributes, colour decoding, and visible rows. The host reads RAM and draws decoded cells; the chapter declares its high-resolution colour-pair approximation. |
-| Disk and speaker time | The machine counts CPU clocks, but devices still have no elapsed-time scheduler. Define observable transitions before claiming timed disk behavior or producing audio. |
+| Disk and speaker time | Speaker audio now samples the output latch at completed instruction boundaries. Disk rotation and motor delays still need elapsed-time behavior; individual bus-cycle timestamps remain unmodeled. |
 | Inspection | Use captured CPU records and device snapshots. The laboratory previews mapped storage directly; unavailable device bytes are marked explicitly instead of masquerading as read results. |
 
 Do not copy the reference's CPU, DOM-dependent device logging, or global
@@ -201,15 +201,15 @@ restores the edited bytes and write permission so DOS can save another file.
 The [interrupted SAVE check](../../src/machines/6502/apple2.md#interrupting-save-answer)
 compares checkpoint continuation and fresh power-on during the same sector write.
 
-Speaker transitions must be timestamped in emulated time. Check a known
-software-driven tone, browser audio enablement, pause/resume, and silence on
-stop/reset according to the declared contracts. Device results must be
-independent of browser frame rate and host scheduling. Address the necessary
-6502 timing and bus-access fidelity explicitly; static opcode costs alone
-cannot establish those properties.
+The [speaker contract](../../src/machines/6502/apple2.md#speaker-sound) samples
+the chapter-defined output latch at instruction-end CPU clocks. Independent
+checks cover a 500 Hz software loop, the real Monitor bell, batching, checkpoint
+replay, and bounded cancellable audio. Sound is opt-in during Normal Run; Pause,
+reset, restore, and Unlimited are silent. This does not claim within-instruction
+edge timing or an electrical model of the speaker.
 
-These four checkpoints define the first usable Apple II Plus release. Sound
-remains unfinished.
+These four checkpoints define the first usable Apple II Plus release. The first
+sound profile is now implemented; disk and bus-cycle timing remain approximate.
 Understanding the working ROM and DOS configuration still precedes games such
 as Mystery House and Ultima IV. Playing a game and explaining its software
 remain separate acceptance targets.
@@ -293,9 +293,9 @@ Use the remaining parity gaps above to choose concrete investigations:
 The [machine clock](../../src/machines/6502/apple2.md#cpu-clocks) now accumulates
 the 6502's instruction and interrupt clocks, with explicit pause, reset, and
 checkpoint rules. The browser uses it for measured execution intervals and
-Normal/Unlimited Run pacing at the chapter's nominal CPU frequency. Next, define
-how devices advance before adding timed disk behavior or speaker audio;
-instruction totals alone do not timestamp individual bus accesses.
+Normal/Unlimited Run pacing at the chapter's nominal CPU frequency, with speaker
+audio sampled at instruction boundaries. Next, define how Disk II advances with
+elapsed time; instruction totals alone do not timestamp individual bus accesses.
 
 The [executable chapter](../../src/machines/6502/apple2.md) already contains
 verified boot, RWTS, Disk II byte activity, LOAD, SAVE, binary execution,

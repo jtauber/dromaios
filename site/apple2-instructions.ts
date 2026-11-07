@@ -14,7 +14,7 @@ const machine = parseMachine(machineChapterSource(readFileSync(file, "utf8"), fi
 const firmware = "components" in machine ? machine.externalImages?.find(image => image.component === "firmware") : undefined;
 if (firmware === undefined) throw new Error("The Apple II machine must declare its firmware identity.");
 if (!("connection" in machine)) throw new Error("Apple II must declare its hardware wiring.");
-const devices = Object.fromEntries(["apple2-keyboard", "apple2-video", "apple2-language-card"].map(kind => {
+const devices = Object.fromEntries(["apple2-keyboard", "apple2-speaker", "apple2-video", "apple2-language-card"].map(kind => {
   const file = `src/components/devices/specifications/${kind}.md`;
   return [kind, compileDeviceChapter(readFileSync(file, "utf8"), file)];
 }));

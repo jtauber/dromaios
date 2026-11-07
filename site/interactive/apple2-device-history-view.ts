@@ -38,6 +38,8 @@ export function createApple2DeviceHistoryView(root: HTMLElement, hardware: Apple
       description.href = `${panel!.dataset.repository}/blob/main/${device.source}`;
       description.target = "_blank"; description.rel = "noopener";
       detail.append(`#${entry.first}${entry.last !== entry.first ? `–${entry.last}` : ""} · ${assembly} · ${apple2ComponentNames[device.device] ?? "Unmapped"}`, document.createElement("br"), description);
+      if (entry.firstClock !== undefined) detail.append(document.createElement("br"),
+        `Instruction-end CPU clocks: ${entry.firstClock.toLocaleString()}${entry.lastClock !== entry.firstClock ? `–${entry.lastClock!.toLocaleString()}` : ""}`);
       row.append(title, detail); output.append(row);
     }
     status.textContent = `${history.accesses.toLocaleString()} accesses · ${shown} / ${entries.length} groups shown`

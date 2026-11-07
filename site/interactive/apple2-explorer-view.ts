@@ -130,7 +130,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     fail(detail: string): void { debuggerState.fail(location(), detail); },
     observe(record: Cpu6502StepRecord, before: DebugLocation, watches: readonly MemoryWatch[], changes: readonly Apple2MemoryChange[], writes: readonly Apple2MemoryChange[]): void {
       if (reads) reads.observe(machine()!, record, writes);
-      devices?.observe(record, before);
+      devices?.observe(record, before, machine()!.clock.ticks);
       watchHistory.observe(record, before, watches, writes);
       debuggerState.observe(apple2DebugStep(record, before, location(), catalogue.instructions));
       const hit = apple2Watchpoint(watches, record, catalogue.instructions, changes);

@@ -28,6 +28,7 @@ export function createApple2SystemView(root: HTMLElement, catalogue: Apple2Hardw
       const character = keyboard.key >= 0x20 && keyboard.key <= 0x7e ? ` '${String.fromCharCode(keyboard.key)}'` : "";
       const values: Record<string, string> = {
         key: `$${hex(keyboard.key, 2)}${character}`, strobe: on(keyboard.strobe),
+        speaker: state.speaker.level ? "High" : "Low",
         text: video.text ? "Text" : "Graphics", mixed: video.mixed ? "Bottom 4 text rows" : "Full screen", page: video.page2 ? "2" : "1",
         hires: video.hires ? "High resolution" : "Low resolution", bank: language.bank2 ? "2" : "1",
         ramRead: language.ram_read ? "RAM" : "ROM", ramWrite: language.ram_write ? "Enabled" : "Protected", prewrite: on(language.prewrite),

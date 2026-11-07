@@ -22,13 +22,13 @@ export interface Apple2HardwareCatalogue {
 
 /** Small, detached observations: no guest reads, RAM copies, or disk-image snapshots. */
 export function apple2HardwareState(machine: Machine) {
-  return { keyboard: machine.keyboard.snapshot(), video: machine.video.snapshot(), language: machine.language.snapshot(),
+  return { keyboard: machine.keyboard.snapshot(), speaker: machine.speaker.snapshot(), video: machine.video.snapshot(), language: machine.language.snapshot(),
     disk: machine.disk.inspect(), firmware: machine.firmware.loaded };
 }
 export type Apple2HardwareState = ReturnType<typeof apple2HardwareState>;
 export const apple2ComponentNames: Readonly<Record<string, string>> = {
   ram: "Main RAM", firmware: "ROM", bank1: "LC bank 1", bank2: "LC bank 2", upper: "LC upper RAM",
-  keyboard: "Keyboard", video: "Display", language: "Language Card", disk: "Disk II",
+  keyboard: "Keyboard", speaker: "Speaker", video: "Display", language: "Language Card", disk: "Disk II",
 };
 
 /** Evaluate the exported routing declarations against observed selector values, never the guest bus. */
