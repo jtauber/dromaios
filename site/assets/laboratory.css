@@ -59,6 +59,9 @@
 .laboratory-page .basic-message { min-height: 0; margin: 8px 0 0; font: 12px/1.5 system-ui, sans-serif; color: #ffd18a; }
 .lab-machine-controls .basic-message:empty { display: none; }
 .laboratory-page .basic-controls button:first-child { background: #304e73; color: #eff6ff; }
+.laboratory-page .execution-speed { margin-block: 8px; }
+.laboratory-page .execution-speed button[aria-pressed=false] { background: #101c30; color: var(--ink); }
+.laboratory-page .execution-speed button[aria-pressed=true] { background: #304e73; color: #eff6ff; }
 .laboratory-page :is(.apple2-memory-byte, .lab-memory-byte).is-changed { background: #594420; color: #ffe0a2; }
 .lab-tool-registers :is(.apple2-registers, .lab-registers) { display: grid; grid-template-columns: repeat(auto-fit, minmax(8ch, 1fr)); gap: 3px 16px; font: 21px/1.25 var(--mono); }
 .lab-tool-registers :is(.apple2-registers, .lab-registers) :is(.apple2-cpu-value, .lab-cpu-value) { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; min-width: 0; }

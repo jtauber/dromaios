@@ -44,7 +44,7 @@ export interface CompositionDefinition extends ComponentsDefinition {
   readonly unmappedPorts?: number;
   readonly reset?: readonly string[];
   readonly resetDevices?: readonly string[];
-  readonly clock?: "cpu";
+  readonly clock?: { readonly source: "cpu"; readonly hertz?: number };
 }
 
 /** Read wiring as data; resolve forward references after all declarations and the CPU are known. */
@@ -63,6 +63,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
   let mapSize: number | undefined;
   let unmapped: number | undefined;
   let unmappedPorts: number | undefined;
+  let hertz: number | undefined;
 
   function name(): Token {
     const token = take();
@@ -137,6 +138,17 @@ export function compositionSyntax(syntax: MachineSyntax) {
           break;
         case "clock":
           expect("cpu");
+          if (/^[\d.+$-]/.test(current().text)) {
+            const amount = take();
+            if (!/^\d+(?:\.\d+)?$/.test(amount.text)) fail(amount, "Expected a decimal clock frequency");
+            const unit = take();
+            const exponent = unit.text === "Hz" ? 0 : unit.text === "kHz" ? 3 : unit.text === "MHz" ? 6 : undefined;
+            if (exponent === undefined) fail(unit, "Expected clock frequency unit Hz, kHz, or MHz");
+            hertz = Number(`${amount.text}e${exponent}`);
+            if (!Number.isFinite(hertz) || hertz <= 0 || hertz > Number.MAX_SAFE_INTEGER) {
+              fail(amount, "Clock frequency must be positive and at most 9007199254740991 Hz");
+            }
+          }
           break;
         case "memory":
           expect("=");
@@ -279,7 +291,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
       }
       return {
         ...definition, connection,
-        ...(declarations.has("clock") ? { clock: "cpu" as const } : {}),
+        ...(declarations.has("clock") ? { clock: { source: "cpu" as const, ...(hertz === undefined ? {} : { hertz }) } } : {}),
         ...(declarations.has("ports") ? { ports: ports.map(({ direction, port, component, address }) => ({ direction, port, component, address })) } : {}),
         ...(unmappedPorts === undefined ? {} : { unmappedPorts }),
         ...(resets.has("reset") ? { reset: resets.get("reset")!.map(token => token.text) } : {}),

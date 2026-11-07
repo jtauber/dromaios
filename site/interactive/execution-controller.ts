@@ -1,3 +1,10 @@
+export interface ExecutionPacing {
+  /** Forget host time spent paused, restoring hardware, or using another speed. */
+  restart(): void;
+  beginBatch(): void;
+  canStep(): boolean;
+}
+
 interface ExecutionOptions<Record> {
   readonly step: () => Record;
   readonly canStep: () => boolean;
@@ -7,11 +14,17 @@ interface ExecutionOptions<Record> {
   /** Schedule one callback, returning a function that cancels it. */
   readonly schedule: (callback: () => void, delayMs: number) => () => void;
   readonly batchSize?: number;
+  /** Optional host-time bound as well as the instruction limit. */
+  readonly batchTimeMs?: number;
+  readonly now?: () => number;
 }
 
 /** Yield between bounded batches; manual Step always executes just one instruction. */
-export function createExecutionController<Record>({ step, canStep, pauseBeforeStep, onChange, schedule, batchSize = 1 }: ExecutionOptions<Record>) {
+export function createExecutionController<Record>({ step, canStep, pauseBeforeStep, onChange, schedule,
+  batchSize = 1, batchTimeMs, now = () => performance.now(),
+}: ExecutionOptions<Record>) {
   if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 10_000) throw new RangeError("Instruction batch size must be in 1..10000.");
+  if (batchTimeMs !== undefined && (!Number.isFinite(batchTimeMs) || batchTimeMs <= 0)) throw new RangeError("The batch time limit must be positive.");
   let running = false;
   let delayMs = 1000;
   let error: string | undefined;
@@ -19,6 +32,7 @@ export function createExecutionController<Record>({ step, canStep, pauseBeforeSt
   let generation = 0;
   const records: Record[] = [];
   let steps = 0;
+  let pacing: ExecutionPacing | undefined;
 
   function cancelPending(): void {
     generation++;
@@ -44,8 +58,12 @@ export function createExecutionController<Record>({ step, canStep, pauseBeforeSt
       // Cancellation also rejects callbacks already queued by the host before STOP.
       if (!running || token !== generation) return;
       cancel = () => {};
+      pacing?.beginBatch();
+      const deadline = batchTimeMs === undefined ? undefined : now() + batchTimeMs;
       for (let count = 0; count < batchSize && running && error === undefined && canStep(); count++) {
         if (pauseBeforeStep?.()) { running = false; break; }
+        if (pacing && !pacing.canStep()) break;
+        if (deadline !== undefined && now() >= deadline) break;
         advance();
       }
       if (error !== undefined || !canStep()) running = false;
@@ -62,6 +80,7 @@ export function createExecutionController<Record>({ step, canStep, pauseBeforeSt
     run(): void {
       if (running || error !== undefined || !canStep()) return;
       running = true;
+      pacing?.restart();
       queue();
       onChange();
     },
@@ -79,6 +98,13 @@ export function createExecutionController<Record>({ step, canStep, pauseBeforeSt
       if (!Number.isSafeInteger(value) || value <= 0) throw new RangeError("The instruction delay must be a positive integer.");
       delayMs = value;
       cancelPending();
+      pacing?.restart();
+      if (running) queue();
+    },
+    setPacing(value: ExecutionPacing | undefined): void {
+      cancelPending();
+      pacing = value;
+      pacing?.restart();
       if (running) queue();
     },
     reset(): void {

@@ -2,8 +2,15 @@
 CPU clock
 ==================
 clock cpu
+clock cpu 1.023 MHz
+clock cpu 1023 kHz
+clock cpu 1023000 Hz
 ---
-(source_file (clock_declaration))
+(source_file
+  (clock_declaration)
+  (clock_declaration (frequency) (frequency_unit))
+  (clock_declaration (frequency) (frequency_unit))
+  (clock_declaration (frequency) (frequency_unit)))
 
 ==================
 Flat memory and contextual hexadecimal

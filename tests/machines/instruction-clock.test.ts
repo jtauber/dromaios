@@ -4,6 +4,7 @@ import { InstructionClock } from "../../src/machines/instruction-clock.js";
 
 test("instruction clocks retain exact totals, own their snapshots, and reject invalid or overflowing time", () => {
   const clock = new InstructionClock();
+  assert.equal(clock.hertz, undefined);
   clock.advance(2); clock.advance(7); clock.advance(0);
   const saved = clock.snapshot(), restored = new InstructionClock(saved);
   assert.equal(clock.ticks, 9);
@@ -21,4 +22,13 @@ test("instruction clocks retain exact totals, own their snapshots, and reject in
   full.advance(0);
   assert.throws(() => full.advance(1), RangeError);
   assert.equal(full.ticks, Number.MAX_SAFE_INTEGER);
+});
+
+test("instruction clock frequency is optional immutable configuration, outside its snapshot", () => {
+  const clock = new InstructionClock(undefined, 1_023_000);
+  assert.equal(clock.hertz, 1_023_000);
+  assert.deepEqual(clock.snapshot(), { ticks: 0 });
+  for (const hertz of [0, -1, Infinity, NaN, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => new InstructionClock(undefined, hertz), /frequency/);
+  }
 });

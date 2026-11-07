@@ -47,6 +47,8 @@ class MachineLexer(RegexLexer):
     tokens = {"root": [
         (r"//[^\n]*", Comment.Single),
         (words(keywords, suffix=r"\b"), Keyword),
+        (r"\b\d+\.\d+\b", Number),
+        (r"\b(?:Hz|kHz|MHz)\b", Keyword.Type),
         (r"\b[0-9][0-9a-fA-F]*\b", Number),
         (r"\b[A-Z][A-Z\d_]*\b", Name.Constant),
         (r"=", Operator), (r"[{}\[\]]", Punctuation), (r"\s+|.", Text),

@@ -14,9 +14,12 @@ function program() {
 test("Apple II machine clocks count each completed instruction and replay exactly from a checkpoint", () => {
   const machine = program();
   assert.equal(machine.clock.ticks, 0);
+  assert.equal(machine.clock.hertz, 1_023_000);
   const clocks = [machine.step().clocks, machine.step().clocks, machine.step().clocks];
   assert.equal(machine.clock.ticks, 7);
   const saved = machine.snapshot(), restored = create6502Apple2({ firmware: null }, saved);
+  assert.deepEqual(saved.clock, { ticks: 7 }, "Frequency is chapter configuration, not mutable checkpoint state");
+  assert.equal(restored.clock.hertz, 1_023_000);
   for (let i = 0; i < 3; i++) {
     const record = machine.step();
     clocks.push(record.clocks);

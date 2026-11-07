@@ -115,7 +115,7 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
       imports.push(`import { InstructionClock } from "${posix.relative(from, "instruction-clock.js")}";`);
       fields.push('readonly clock: ReturnType<InstructionClock["snapshot"]>');
       snapshots.push("clock: clock.snapshot()");
-      body.push("const clock = new InstructionClock(initialState?.clock);",
+      body.push(`const clock = new InstructionClock(initialState?.clock${machine.clock.hertz === undefined ? "" : `, ${machine.clock.hertz}`});`,
         "const step = (): ReturnType<typeof cpu.stepTimed> => {",
         "  const record = instance.cpu.stepTimed();", "  clock.advance(record.clocks);", "  return record;", "};",
         "const interrupt = (...args: Parameters<typeof cpu.interruptTimed>): ReturnType<typeof cpu.interruptTimed> => {",

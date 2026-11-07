@@ -161,7 +161,7 @@ cpu 6502 {
 }
 
 reset { cpu }
-clock cpu
+clock cpu 1.023 MHz
 ```
 
 CPU reset preserves RAM, firmware, the keyboard latch, display switches, all
@@ -173,7 +173,16 @@ by reset, represents power-on in this deterministic model.
 
 ### CPU clocks
 
-`clock cpu` gives the machine a clock measured in 6502 clock periods. Call
+`clock cpu 1.023 MHz` gives the machine a clock measured in 6502 clock periods,
+with a nominal rate of 1,023,000 periods per second. The frequency uses decimal
+notation and an explicit unit; register values and addresses remain hexadecimal.
+This is the nominal processor rate in Apple's
+[reference manual, hardware timing section](https://apple2history.org/dl/Apple_II_Redbook.pdf).
+It is a pacing target, not a model of the motherboard's individual clock waveforms
+or video-related clock stretching. The generated `machine.clock.hertz` exposes
+this chapter configuration; only elapsed ticks belong in a checkpoint.
+
+Call
 `machine.step()` to execute an instruction and add its declared duration to
 `machine.clock.ticks`; the returned record includes `clocks`. The same path is
 used by Step and every instruction in a Run batch. Pausing, inspecting hardware,
@@ -191,8 +200,9 @@ steps add no time and preserve any completed CPU or device effects.
 
 The clock belongs to the hardware snapshot and restores exactly. It counts
 completed execution boundaries; it does not timestamp individual bus accesses,
-advance the disk stream or video by elapsed time, generate speaker audio, or
-pace Run at the hardware frequency. Those require further device timing work.
+advance the disk stream or video by elapsed time, or generate speaker audio.
+Those require further device timing work. Browser Run pacing uses the declared
+nominal frequency without changing these device contracts.
 
 `snapshot()` captures CPU, all four RAM components, keyboard, display and Language Card latches,
 the CPU clock, the disk controller with its bootstrap and media bytes, and the firmware digest
@@ -224,6 +234,21 @@ The **Execution** panel contains Run, Pause, Step, Reset CPU, Fresh power-on,
 the instruction count, elapsed CPU clocks, and status messages. Below Screen, it shares a narrow
 column with MOS 6502 and Instruction; Disassembly spans the height beside them.
 It can be moved, collapsed, or reopened through **Panels**, like the other tools.
+
+**Normal** is the default Run speed, limiting execution to the chapter's nominal
+CPU clock rate. **Unlimited** removes that limit. Both modes yield between
+batches, after at most 10,000 instructions or about 8 milliseconds of CPU/debugger
+work; rendering inspectors adds host time. A busy browser or expensive inspectors
+can make either mode slower than the target. Individual instructions finish
+before yielding, and their clocks count identically in both modes. Step is
+immediate; Step over, Step out, and run-to stops use the selected Run speed.
+
+Speed can change while running. Pause, returning from a hidden tab, restoring a
+checkpoint, and changing speed never accrue a catch-up debt: a new Run starts
+its host-time budget at the current machine clock. Late callbacks retain at most
+16 milliseconds of clock budget. Speed is a view setting, preserved across reset
+and restoration but starting at Normal when the page opens; it is not saved in
+hardware checkpoints. CPU reset still adds no emulated time.
 
 **Mark clock** records the current total while paused. **Since marker** then
 shows clocks consumed by subsequent execution, including ordinary Run; pausing

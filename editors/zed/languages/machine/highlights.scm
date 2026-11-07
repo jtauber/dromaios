@@ -12,6 +12,8 @@
 (state_group name: (field_name) @keyword)
 (component_name) @variable
 (number) @number
+(frequency) @number
+(frequency_unit) @type
 (digest) @string
 (byte) @number
 (boolean) @boolean

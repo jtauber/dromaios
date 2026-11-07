@@ -128,7 +128,7 @@ delivery, and scheduling host work.
 | Keyboard and display switches | Keyboard and display switches generate from device chapters, with state, offers, effects, reset, and snapshots. |
 | Banked memory | Conditional windows now select independent read/write destinations through pure device views. The machine chapter names both lower banks and common upper storage. |
 | Video | Read-only generated views own text and graphics addresses, character attributes, colour decoding, and visible rows. The host reads RAM and draws decoded cells; the chapter declares its high-resolution colour-pair approximation. |
-| Disk and speaker time | No current machine clock or device scheduler. Define emulated elapsed time and observable transitions before claiming timed disk behavior or producing audio. |
+| Disk and speaker time | The machine counts CPU clocks, but devices still have no elapsed-time scheduler. Define observable transitions before claiming timed disk behavior or producing audio. |
 | Inspection | Use captured CPU records and device snapshots. The laboratory previews mapped storage directly; unavailable device bytes are marked explicitly instead of masquerading as read results. |
 
 Do not copy the reference's CPU, DOM-dependent device logging, or global
@@ -267,7 +267,7 @@ or unverified behavior in the reference.
 | Capability | Current Dromaios laboratory | Remaining reference parity |
 | --- | --- | --- |
 | Workspace | Dark workspace with draggable panels, resizable splits, tab groups, collapse/expand and close/reopen controls, keyboard arrangement, saved layout, and per-inspector Live toggles. | — |
-| Execution and display | Reference bitmap characters, shared text/graphics raster, colour/green monochrome and scanline toggles, direct screen typing, text-cell inspection with Memory/write-watch navigation and last-writer attribution, local media selection, a dockable Execution panel below Screen by default. | Reference speed controls require an explicit timing model; do not label instruction batching as a hardware clock. |
+| Execution and display | Reference bitmap characters, shared text/graphics raster, colour/green monochrome and scanline toggles, direct screen typing, text-cell inspection with Memory/write-watch navigation and last-writer attribution, local media selection, a dockable Execution panel with clock measurements and Normal/Unlimited Run speed below Screen by default. | Device timing remains approximate; nominal CPU pacing does not time individual bus accesses. |
 | CPU inspection | Registers and flags with last-instruction change highlights and previous values; paused register editing; next-instruction preview with branch tests, address calculations, declared assignments, and chapter-derived explanations; disassembly with PC/MEM selection, address browsing, run-to stops and saved mapping-aware breakpoints; Step over / Step out with bounded observed caller tracking, a dockable Call stack with address links and ROM labels, and explicit stop reasons; captured disassembly of the last twelve instructions, selectable captured changes and ordered accesses for each retained step. | — |
 | Memory | Zero page, full-address-space scrolling memory with a header address field and fixed/PC/changed-RAM following, stack entries/full-page toggle and push/pull addresses; per-panel 8/16-byte rows with optional Apple II characters; last-instruction changes and next-instruction fetch/read/write marks across all three views, including named workspace words and pending stack accesses; paused editing of visible physical RAM; clickable operand addresses and saved byte/word watches with pointer navigation, captured access history per watch, and data-read, bus-write, and changed-RAM stops, independent of display refresh and log recording; shared back/forward address browsing across Memory, Disassembly, and ROM. | — |
 | Saved experiments | Named browser states, validated paused restoration, and captured comparisons of CPU, physical RAM, device fields, and queued keys; workspace and stop preferences retained. | — |
@@ -292,8 +292,9 @@ Use the remaining parity gaps above to choose concrete investigations:
 
 The [machine clock](../../src/machines/6502/apple2.md#cpu-clocks) now accumulates
 the 6502's instruction and interrupt clocks, with explicit pause, reset, and
-checkpoint rules. Next, use it for measured execution intervals and define how
-devices advance before adding hardware-speed controls or speaker audio;
+checkpoint rules. The browser uses it for measured execution intervals and
+Normal/Unlimited Run pacing at the chapter's nominal CPU frequency. Next, define
+how devices advance before adding timed disk behavior or speaker audio;
 instruction totals alone do not timestamp individual bus accesses.
 
 The [executable chapter](../../src/machines/6502/apple2.md) already contains

@@ -14,6 +14,10 @@ data-disk-bytes="{{ media.disk.bytes }}" data-disk-sha256="{{ media.disk.sha256 
   <button type="button" data-machine-reset disabled>Reset CPU</button>
   <button type="button" data-machine-power disabled>Fresh power-on</button>
 </div>
+<div class="basic-controls execution-speed" role="group" aria-label="Run speed">
+  <button type="button" data-machine-speed="normal" aria-pressed="true" disabled>Normal</button>
+  <button type="button" data-machine-speed="unlimited" aria-pressed="false" disabled>Unlimited</button>
+</div>
 {% endmacro %}
 
 {% macro clock_measurements() %}

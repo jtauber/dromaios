@@ -179,6 +179,8 @@ declared devices. Reuse the existing connections when restoring state.
 A [`clock cpu` declaration](language.md#cpu-clock) also returns `clock`,
 `step()`, and `interrupt(source)`. These entry points follow the current CPU,
 accumulate its returned clock counts, and include the total in snapshots.
+An optional frequency, as in `clock cpu 1.023 MHz`, also sets `clock.hertz`;
+this configuration comes from the chapter, not the snapshot.
 Use them for clocked machine execution; calling `cpu.step()` directly bypasses
 the machine clock. The [Apple II chapter](../../src/machines/6502/apple2.md#cpu-clocks)
 defines how its browser controls and saved experiments use this boundary.

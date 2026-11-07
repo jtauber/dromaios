@@ -80,7 +80,9 @@ module.exports = grammar({
       $.component_name, field('address', $.number),
     ),
     reset_block: $ => seq(choice('reset', 'reset-devices'), '{', repeat($.component_name), '}'),
-    clock_declaration: _ => seq('clock', 'cpu'),
+    clock_declaration: $ => seq('clock', 'cpu', optional(seq($.frequency, $.frequency_unit))),
+    frequency: _ => /[0-9]+(\.[0-9]+)?/,
+    frequency_unit: _ => choice('Hz', 'kHz', 'MHz'),
 
     comment: _ => token(seq('//', /[^\r\n]*/)),
   },

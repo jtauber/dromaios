@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { createExecutionIntervals, executionIntervalText } from "../../site/interactive/execution-intervals.js";
 import type { MeasuredStep } from "../../site/interactive/execution-intervals.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
+import { createClockPacing } from "../../site/interactive/clock-pacing.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
 import { apple2DebugLocation, apple2DebugStep } from "../../site/interactive/apple2-debugger.js";
 import { instructionCatalogue6502 } from "../../site/6502-instruction-catalogue.js";
@@ -20,7 +21,7 @@ const nested = {
   0x400: [0xe6, 0x10, 0x60],                        // INC $10; RTS
 };
 
-function example(batchSize = 2, budget = 100, session = createApple2Session()) {
+function example(batchSize = 2, budget = 100, session = createApple2Session(), paced = false) {
   if (!session.hasFirmware) {
     for (const [address, bytes] of Object.entries(nested)) bytes.forEach((byte, i) => session.machine.ram.write(+address + i, byte));
     editApple2Register(session.machine, "pc", "0200");
@@ -28,6 +29,7 @@ function example(batchSize = 2, budget = 100, session = createApple2Session()) {
   const intervals = createExecutionIntervals(() => session.machine.clock), debug = createInstructionDebugger(budget);
   const location = () => apple2DebugLocation(session.machine), jobs: (() => void)[] = [];
   let writeStop = false;
+  let hostTime = 0;
   const execution = createExecutionController({
     step() {
       const before = location(), record = session.hasFirmware ? session.step() : session.machine.step();
@@ -37,9 +39,12 @@ function example(batchSize = 2, budget = 100, session = createApple2Session()) {
       return record;
     },
     canStep: () => true, pauseBeforeStep: () => debug.beforeStep(location), batchSize,
-    schedule(callback) { jobs.push(callback); return () => {}; },
+    schedule(callback) { jobs.push(() => { hostTime += 0.001; callback(); }); return () => {}; },
     onChange() { intervals.update(execution.running, execution.error ? "error" : debug.stop?.kind); },
   });
+  if (paced) execution.setPacing(createClockPacing({
+    ticks: () => session.machine.clock.ticks, hertz: session.machine.clock.hertz!, now: () => hostTime,
+  }));
   function start(action: MeasuredStep): void {
     if (action === "step") debug.step(location());
     else if (action === "over") debug.over(location(), catalogue[session.machine.memory.read(location().address)]?.stackFlow);
@@ -139,17 +144,19 @@ test("verified Monitor SETNORM takes 17 clocks for Step over, or 6 for JSR plus 
   const chapter = readFileSync("src/machines/6502/apple2.md", "utf8"), bytes = new Uint8Array(readFileSync(process.env.APPLE2_ROM!));
   const media = JSON.parse(chapter.match(/```json\n([\s\S]*?)```/)![1]!);
   const rom = await readApple2Rom({ name: "apple2p.rom", size: bytes.length, async arrayBuffer() { return bytes.buffer; } }, romImages.firmware, media);
-  const session = createApple2Session(rom.image), p = example(2, 100, session);
-  assert.deepEqual(Array.from({ length: 5 }, (_, i) => session.machine.firmware.read(0x2e84 + i)), [0xa0, 0xff, 0x84, 0x32, 0x60]);
-  p.intervals.mark(); p.start("step"); // CLD at FA62: two clocks.
-  assert.deepEqual(p.result().interval, { action: "step", clocks: 2, stop: "step" });
-  const before = session.snapshot();
-  p.start("over"); p.finish();
-  assert.deepEqual(p.result().interval, { action: "over", clocks: 17, stop: "over" });
-  assert.equal(session.machine.cpu.snapshot().pc, 0xfa66); assert.equal(session.machine.ram.read(0x32), 0xff);
-  assert.equal(p.result().marker?.clocks, 19);
-  session.restore(before); p.debug.reset(); p.execution.reset();
-  p.start("step"); assert.equal(p.result().interval?.clocks, 6);
-  p.start("out"); p.finish(); assert.equal(p.result().interval?.clocks, 11);
-  assert.equal(session.machine.clock.ticks, 19);
+  for (const paced of [false, true]) {
+    const session = createApple2Session(rom.image), p = example(2, 100, session, paced);
+    assert.deepEqual(Array.from({ length: 5 }, (_, i) => session.machine.firmware.read(0x2e84 + i)), [0xa0, 0xff, 0x84, 0x32, 0x60]);
+    p.intervals.mark(); p.start("step"); // CLD at FA62: two clocks.
+    assert.deepEqual(p.result().interval, { action: "step", clocks: 2, stop: "step" });
+    const before = session.snapshot();
+    p.start("over"); p.finish();
+    assert.deepEqual(p.result().interval, { action: "over", clocks: 17, stop: "over" });
+    assert.equal(session.machine.cpu.snapshot().pc, 0xfa66); assert.equal(session.machine.ram.read(0x32), 0xff);
+    assert.equal(p.result().marker?.clocks, 19);
+    session.restore(before); p.debug.reset(); p.execution.reset();
+    p.start("step"); assert.equal(p.result().interval?.clocks, 6);
+    p.start("out"); p.finish(); assert.equal(p.result().interval?.clocks, 11);
+    assert.equal(session.machine.clock.ticks, 19);
+  }
 });

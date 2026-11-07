@@ -21,4 +21,4 @@ map 10000 {
         write = discard
     }
 }
-clock cpu
+clock cpu 1.023 MHz

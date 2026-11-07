@@ -7,7 +7,7 @@ and source diagnostics.
 A flat-RAM definition uses `ram`, `cpu`, `memory`, and optional `end`. A composed
 definition instead names its components and connects memory and devices explicitly.
 A component-only definition omits the CPU and its wiring.
-All numeric data is hexadecimal by default. Register and flag names are uppercase by
+Numeric data is hexadecimal, except unit-bearing clock frequencies, which are decimal. Register and flag names are uppercase by
 convention; flags use `1` for set and `0` for clear.
 
 See [machine definitions](definitions.md) for example source files and
@@ -96,10 +96,10 @@ state and memory connection, as described below.
   are errors. Control latches such as `interruptEnabled` and `halted` use the
   Boolean values `true` and `false`. Numeric flag bits map to the same Boolean
   state internally.
-- All numeric data is unsigned hexadecimal. Thus bare `10` means sixteen,
+- CPU and memory data is unsigned hexadecimal. Thus bare `10` means sixteen,
   `100` means 256, and `FF` means 255. This applies equally to registers,
   addresses, RAM size, and bytes. Leading zeros affect presentation only.
-  The first version has no decimal notation.
+  Only clock frequencies use decimal notation, with an explicit unit.
 - Outside memory and image byte bodies, explicit forms are optional aliases: `0x100`,
   `0X100`, `$100`, `100h`, and `100H` mean the same as bare `100`, for every CPU.
   Suffix-form numbers start with a decimal digit (`0FFH`); the preferred bare
@@ -330,8 +330,16 @@ The counter starts at zero, survives machine reset, and is included as
 `clock: { ticks }` in complete machine snapshots. Restoration requires a
 nonnegative safe integer. Counts beyond JavaScript's exact integer range throw
 without changing the counter; the just-completed CPU effects remain visible.
-The clock has no frequency, device scheduling, per-access timestamps, or host
-pacing. CPU reset has no declared duration and adds no time.
+An optional decimal frequency follows the CPU selector: `clock cpu 1.023 MHz`.
+Units are `Hz`, `kHz`, or `MHz`, with exactly that capitalization. Values are
+positive decimal integers or fractions (no sign, exponent, or hexadecimal aliases),
+at most 9,007,199,254,740,991 Hz. `1.023 MHz`, `1023 kHz`, and `1023000 Hz` mean
+the same rate. The generated `clock.hertz` exposes this fixed configuration;
+it is undefined for plain `clock cpu` and is not stored in snapshots.
+
+Host runners may use the frequency to pace execution; the generated machine
+never waits on host time. It has no device scheduling or per-access timestamps.
+CPU reset has no declared duration and adds no time.
 
 ## CPU state fields
 

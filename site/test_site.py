@@ -253,6 +253,7 @@ class PublishingTests(unittest.TestCase):
         source = APPLE2.read_text()
         markdown = Markdown(extensions=["fenced_code", ChapterRendering(APPLE2, "/demo/", lambda *_: "")])
         output = markdown.convert(source)
+        self.assertIn('<span class="m">1.023</span> <span class="kt">MHz</span>', output)
         self.assertEqual(CpuBlocks(output, "machine").blocks, re.findall(r"^```machine\n(.*?)^```$", source, re.M | re.S))
         self.assertEqual(chapter_link("apple2.md#using-the-browser-machine", APPLE2, "/demo/"),
                          f"/demo/{MACHINES[APPLE2]}#using-the-browser-machine")

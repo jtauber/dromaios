@@ -580,6 +580,9 @@ figcaption { font: 12px/1.7 system-ui, sans-serif; color: var(--muted); margin-t
 .basic-controls button { padding: 9px 13px; border: 1px solid #b8c5b9; background: var(--paper); color: var(--ink); font-size: 12px; }
 .basic-controls button:first-child { background: var(--ink); color: white; }
 .basic-controls button:disabled { opacity: .45; }
+.execution-speed { align-items: center; font-size: 12px; }
+.execution-speed button[aria-pressed=false] { background: var(--paper); color: var(--ink); }
+.execution-speed button[aria-pressed=true] { background: var(--ink); color: white; }
 .basic-machine .basic-readout { font: 11px/1.7 var(--mono); overflow-wrap: anywhere; margin-block: 10px 16px; }
 .serial-screen { height: 360px; overflow: auto; margin: 0 0 18px; padding: 20px; background: #20342d; color: #edf0cd; font: 13px/1.5 var(--mono); tab-size: 8; border: 1px solid #13271e; }
 .basic-keyboard textarea { width: 100%; resize: vertical; min-height: 44px; padding: 10px; border: 1px solid #b8c5b9; background: var(--paper); color: var(--ink); font: 14px var(--mono); }

@@ -3,6 +3,7 @@ import { editApple2Register } from "./apple2-register-edit.js";
 import { editApple2Memory } from "./apple2-memory-edit.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createExecutionController } from "./execution-controller.js";
+import { createClockPacing } from "./clock-pacing.js";
 import { createExecutionIntervalView } from "./execution-interval-view.js";
 import { createApple2Session, apple2ControlKey, apple2ScreenKey, apple2Input } from "./apple2-session.js";
 import { createApple2ScreenInspector } from "./apple2-screen-inspector-view.js";
@@ -61,6 +62,11 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const romStorage = apple2RomStorage(() => window.localStorage, romImages.firmware, media);
   let session = createApple2Session(), rom: Apple2RomFile | undefined, diskName: string | null = null;
   const intervals = createExecutionIntervalView(root, () => session.machine.clock);
+  const hertz = session.machine.clock.hertz;
+  if (hertz === undefined) throw new Error("The Apple II chapter must declare its CPU clock frequency.");
+  const normalPacing = createClockPacing({ ticks: () => session.machine.clock.ticks, hertz, now: () => performance.now() });
+  const speedButtons = root.querySelectorAll<HTMLButtonElement>("[data-machine-speed]");
+  let normalSpeed = true;
   let diskMode: Apple2DiskMode = writableDisk ? "read-only" : "system-master";
   let selecting = false, selection = 0, flash = false, nextFlash = 0, restoring = false;
   const renderScreen = createApple2Screen(screen, element<HTMLInputElement>("apple2-scanlines"));
@@ -133,7 +139,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     canStep: () => session.hasFirmware && !selecting,
     pauseBeforeStep,
     schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
-    onChange: refresh, batchSize: 10000,
+    onChange: refresh, batchSize: 10000, batchTimeMs: 8,
   });
   const explorer = createApple2Explorer(root, () => session.machine, () => { message.textContent = ""; execution.run(); }, shouldUpdate, {
     memoryAddress: () => inspection.memoryAddress, browseMemory: address => inspection.browseMemory(address), browse: navigation.browse,
@@ -167,6 +173,17 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   });
   root.querySelector<HTMLElement>("[data-rom-explorer]")?.addEventListener("toggle", refresh);
   execution.setDelay(1);
+  execution.setPacing(normalPacing);
+  for (const button of speedButtons) {
+    button.title = button.dataset.machineSpeed === "normal"
+      ? `Limit Run to ${hertz.toLocaleString()} CPU clocks per second; busy inspectors may make it slower.`
+      : "Run as fast as the browser allows, yielding between batches.";
+    button.addEventListener("click", () => {
+      normalSpeed = button.dataset.machineSpeed === "normal";
+      execution.setPacing(normalSpeed ? normalPacing : undefined);
+      refresh();
+    });
+  }
 
   function pauseBeforeStep(): boolean {
     return explorer.pauseBeforeStep(basicBreakpoints.active ? basicBreakpoints.match : undefined);
@@ -207,6 +224,10 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (basicStep) basicStep.disabled = step.disabled || session.machine.language.ramRead();
     reset.disabled = !available;
     power.disabled = selecting;
+    for (const button of speedButtons) {
+      button.disabled = selecting;
+      button.setAttribute("aria-pressed", String((button.dataset.machineSpeed === "normal") === normalSpeed));
+    }
     for (const control of [keyboard, enter, interrupt]) if (control) control.disabled = !available;
     loadRom.disabled = file.disabled = forgetRom.disabled = selecting;
     loadDisk.disabled = diskFile.disabled = selecting || rom?.bootstrap === undefined;
