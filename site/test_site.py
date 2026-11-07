@@ -56,6 +56,8 @@ class PublishingTests(unittest.TestCase):
         source = APPLE2_ROM.read_text()
         self.assertEqual(chapter_link("../software/apple2p-rom.md#rom-walkthrough", APPLE2_ROM.parent.parent / "machines/apple2.md", "/demo/"),
                          "/demo/machines/apple-ii-plus/#rom-walkthrough")
+        self.assertEqual(chapter_link("../../../docs/software/mystery-house.md#start-in-the-laboratory", APPLE2, "/demo/"),
+                         "/demo/software/mystery-house/#start-in-the-laboratory")
         for broken in ["", source.replace(catalogue["sha256"], "0" * 64),
                        source.replace('"FC58"', '"FA62"'), source.replace('"FC58"', '"C058"'),
                        source.replace('"HOME"', '"RESET"')]:

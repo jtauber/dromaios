@@ -132,6 +132,8 @@ examples add polling and consuming input reads with the same devices.
   PIAs, SAM, text/semigraphics, and the verified Color BASIC transcript.
 - [Apple II Plus ROM walkthrough](software/apple2p-rom.md): versioned routine stops
   and an execution path from reset to the prompt, keyboard acknowledgement, and echo.
+- [Mystery House](software/mystery-house.md): selected disk, native cold boot,
+  independently checked opening scenes, and saved-session replay.
 
 - [Apple II Plus chapter](../src/machines/6502/apple2.md): executable ROM/keyboard/video
   composition, external firmware identity, and browser BASIC controls.

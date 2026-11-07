@@ -451,6 +451,10 @@ from reset to the Applesoft prompt, then trace a keypress to its screen write.
 The software guide owns the versioned labels and walkthrough; these do not
 change the machine's wiring or firmware execution.
 
+For a complete game startup, follow [Mystery House](../../../docs/software/mystery-house.md).
+Its software guide identifies the selected disk and follows the first commands
+from the front yard into the hall, using this same machine and laboratory.
+
 Use **Load ROM…** to choose the matching local file, then **Run**. The file
 picker stays hidden behind the button; the separate loaded-file status identifies
 the installed ROM, including one restored from browser storage. Once loaded,

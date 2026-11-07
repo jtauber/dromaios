@@ -19,6 +19,7 @@ from lessons import BASIC_LESSONS
 
 ROOT = Path(__file__).resolve().parent.parent
 CHAPTERS = ROOT / "src/components/cpus/specifications"
+MYSTERY_HOUSE = ROOT / "docs/software/mystery-house.md"
 REPOSITORY = "https://github.com/jtauber/dromaios"
 # The editor already owns the highlighted keyword vocabulary.
 QUERY = (ROOT / "editors/zed/languages/cpu/highlights.scm").read_text()
@@ -99,6 +100,8 @@ def chapter_link(href, source, base):
         raise ValueError(f"{source.name}: missing linked source {href}")
     if destination == APPLE2_ROM:
         path = f"{base}machines/apple-ii-plus/"
+    elif destination == MYSTERY_HOUSE:
+        path = f"{base}software/mystery-house/"
     elif destination in MACHINES:
         path = f"{base}{MACHINES[destination]}"
     elif destination.parent == BASIC_LESSONS and destination.suffix == ".md":

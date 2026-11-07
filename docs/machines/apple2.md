@@ -288,6 +288,12 @@ any future read activity from observed transfers rather than those flags.
 
 ## Next implementation slices
 
+The first [Mystery House session](../software/mystery-house.md) now cold-boots
+the selected disk and reaches the entry hall through three player commands.
+Its opening pictures match an independent game runner, and a saved checkpoint
+replays the first move exactly. Game-level save/restore and later play remain
+concrete compatibility targets; the software guide owns this acceptance record.
+
 Use the remaining parity gaps above to choose concrete investigations:
 
 The [machine clock](../../src/machines/6502/apple2.md#cpu-clocks) now accumulates

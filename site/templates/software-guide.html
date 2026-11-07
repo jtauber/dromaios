@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="{{ calc_url('assets/highlight.css') }}">{% endblock %}
+{% block description %}{{ description }}{% endblock %}
+{% block main %}
+<main id="main" class="chapter-layout">
+  <aside class="chapter-sidebar" aria-label="Software contents">
+    <a class="back-link" href="{{ calc_url(machine_url) }}">← {{ machine_name }}</a>
+    <p class="eyebrow">In this guide</p><nav><ol>{% for item in toc %}<li><a href="#{{ item.id }}">{{ item.name }}</a></li>{% endfor %}</ol></nav>
+  </aside>
+  <div class="chapter-main">
+    <header class="chapter-header"><p class="eyebrow">Software exploration · {{ machine_name }}</p><h1>{{ title }}</h1>
+      <p><a class="button button-primary" href="{{ calc_url(lab_url) }}">Open the {{ machine_name }} laboratory →</a></p>
+      <p class="chapter-source"><a href="{{ source_url }}">Guide source ↗</a></p>
+    </header>
+    <article class="chapter-prose" aria-label="Software guide">{{ content }}</article>
+  </div>
+</main>
+{% endblock %}

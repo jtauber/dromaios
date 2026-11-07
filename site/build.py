@@ -24,7 +24,7 @@ from machines import ALTAIR, APPLE2, COCO, XT, MACHINES, media_record, rom_conta
 from apple2_rom import APPLE2_ROM, explorer_catalogue, dos_walkthroughs
 from coco_rom import coco_annotations
 from xt_rom import ultima_walkthrough, xt_annotations
-from rendering import CHAPTERS, REPOSITORY, ChapterRendering, github_slug
+from rendering import CHAPTERS, MYSTERY_HOUSE, REPOSITORY, ChapterRendering, github_slug
 
 SITE = Path(__file__).resolve().parent
 ROOT = SITE.parent
@@ -138,6 +138,10 @@ def build(base):
     }
     site.render_template("apple2.html", f"{apple2['apple2_url']}index.html", apple2)
     site.render_template("apple2-laboratory.html", f"{apple2['apple2_lab_url']}index.html", {**apple2, "title": "Apple II Plus laboratory"})
+    site.render_template("software-guide.html", "software/mystery-house/index.html", {
+        **render_guide(MYSTERY_HOUSE), "machine_url": apple2["apple2_url"], "lab_url": apple2["apple2_lab_url"],
+        "machine_name": "Apple II Plus", "description": "Boot Mystery House and follow its first commands from the yard into the hall.",
+    })
     def machine_guide(source, processor, short_name, description):
         url = MACHINES[source]
         lab_url = f"{url}laboratory/"
