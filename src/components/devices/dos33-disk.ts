@@ -48,7 +48,7 @@ export function decodeDos33Data(bytes: readonly number[]): Uint8Array | undefine
     (values[86 + i]! << 2) | reversePair(values[i % 86]! >> (2 * Math.floor(i / 86))));
 }
 
-/** Owned DOS-order sectors and their canonical, access-driven track streams. */
+/** Owned DOS-order sectors and their canonical encoded track streams. */
 export class Dos33Disk {
   static readonly size = 35 * 16 * 256;
   readonly writable: boolean;

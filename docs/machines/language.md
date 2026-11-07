@@ -338,7 +338,15 @@ the same rate. The generated `clock.hertz` exposes this fixed configuration;
 it is undefined for plain `clock cpu` and is not stored in snapshots.
 
 Host runners may use the frequency to pace execution; the generated machine
-never waits on host time. It has no device scheduling or per-access timestamps.
+never waits on host time. An optional target list connects completed CPU clocks
+to devices: `clock cpu 1.023 MHz { disk }`. Targets must be distinct, declared
+components with the `advanceCpuClocks` capability (currently Disk II). After
+each successful instruction or interrupt, generation updates the machine clock
+and then calls each listed device with the elapsed count, in declaration order.
+Device effects during an instruction see the preceding boundary; there are no
+per-access timestamps. Direct CPU calls bypass both the counter and these devices.
+An empty or omitted list connects no devices. A device failure preserves earlier
+effects and propagates; the host must stop rather than retry the boundary.
 CPU reset has no declared duration and adds no time.
 
 ## CPU state fields
@@ -439,9 +447,9 @@ lesson.machine:3:6: Memory block extends beyond address FFFF
 
 This version describes named components with an optional CPU, RAM/ROM images,
 6502/6809/8080/8088/68000 memory maps with conditional windows, 8080/8088 byte ports,
-chapter-defined devices, explicit reset wiring, and a CPU instruction clock.
-Interrupt wiring, device clock scheduling, and scripted host input are not
-currently expressed. The
+chapter-defined devices, explicit reset wiring, and a CPU instruction clock with
+explicit device recipients. Interrupt wiring, independent device clocks, event
+scheduling, and scripted host input are not currently expressed. The
 [Apple II target](apple2.md) drives the next extensions:
 declarative hardware descriptions and connections, with shared
 TypeScript support for execution and host interaction. The language does not

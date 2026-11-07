@@ -12,6 +12,11 @@ function card(): Apple2DiskII {
   return disk;
 }
 
+function readByte(disk: Apple2DiskII): number | "bus-error" {
+  disk.advanceCpuClocks(32);
+  return disk.read(12);
+}
+
 test("Disk II exposes only installed switches and bootstrap; invalid accesses have no effects", () => {
   const absent = new Apple2DiskII();
   for (const address of [0, 9, 12, 0x100, 0x1ff]) assert.equal(absent.read(address), "bus-error");
@@ -27,18 +32,18 @@ test("Disk II exposes only installed switches and bootstrap; invalid accesses ha
   assert.deepEqual(disk.snapshot(), before);
 });
 
-test("Disk II streams circular bytes only with motor, drive 1, media, and read mode", () => {
+test("Disk II rotates circular bytes only with motor, drive 1 and media, independently of polling", () => {
   const disk = card();
   assert.equal(disk.read(12), 0); assert.equal(disk.inspect().position, 0);
   disk.write(9, 0); // Writes select switches too.
-  for (let position = 0; position < 6163; position++) assert.equal(disk.read(12), media.read(0, position % 6162));
+  for (let position = 0; position < 6163; position++) assert.equal(readByte(disk), media.read(0, position % 6162));
   assert.equal(disk.inspect().position, 1);
   assert.equal(disk.read(0), 0xff); // Even addresses sample the latch without advancing this profile.
   assert.equal(disk.read(1), 0); // Odd addresses leave the bus undriven (modeled as zero).
   disk.read(11); assert.equal(disk.read(12), 0);
   disk.read(3); assert.equal(disk.inspect().halfTrack, 0, "Absent drive 2 does not move drive 1");
   assert.equal(disk.inspect().position, 1);
-  disk.read(10); assert.equal(disk.read(12), 0xff);
+  disk.read(10); assert.equal(readByte(disk), 0xff);
   disk.read(8); assert.equal(disk.read(12), 0); assert.equal(disk.inspect().position, 2);
   disk.read(9); disk.eject(); assert.equal(disk.read(12), 0);
   assert.equal(disk.inspect().position, 0);
@@ -47,7 +52,10 @@ test("Disk II streams circular bytes only with motor, drive 1, media, and read m
 test("transfer observers report only actual stream advances and preserve emulation and snapshot state", () => {
   const disk = card(), baseline = new Apple2DiskII(disk.snapshot()), events: DiskIITransfer[] = [];
   const stop = disk.observeTransfers(event => events.push(event));
-  const read = (address: number) => assert.equal(disk.read(address), baseline.read(address));
+  const read = (address: number) => {
+    if (address === 12) { disk.advanceCpuClocks(32); baseline.advanceCpuClocks(32); }
+    assert.equal(disk.read(address), baseline.read(address));
+  };
   for (const address of [12, 0, 13, 14, 0x100, 9, 11, 12, 10, 12]) read(address);
   assert.deepEqual(events, [{ kind: "read", halfTrack: 0, track: 0, position: 0, length: 6162, value: 0xff }]);
   assert.ok(Object.isFrozen(events[0]));
@@ -70,7 +78,7 @@ test("Disk II declares read-only media through the actual DOS write-protect sens
   assert.equal(disk.read(0), 0x5a);
   disk.write(12, 0xff); // Write mode never emits onto the protected medium.
   assert.equal(disk.read(12), 0x5a); assert.equal(disk.inspect().position, 0);
-  disk.read(14); assert.equal(disk.read(12), 0xff);
+  disk.read(14); assert.equal(readByte(disk), 0xff);
   assert.deepEqual(disk.snapshot().media, original);
 });
 
@@ -88,14 +96,14 @@ function startWrite(position = 1210): Apple2DiskII {
   const disk = card();
   disk.insert(new Dos33Disk(new Uint8Array(Dos33Disk.size), { writable: true }));
   disk.read(9);
-  for (let i = 0; i < position; i++) disk.read(12);
+  for (let i = 0; i < position; i++) readByte(disk);
   disk.read(13); assert.equal(disk.read(14), 0); // Writable drive 1.
-  disk.write(15, frame[0]!); disk.read(12);
+  disk.write(15, frame[0]!); disk.read(12); disk.advanceCpuClocks(32);
   return disk;
 }
 
 function shift(disk: Apple2DiskII, bytes: readonly number[]): void {
-  for (const byte of bytes) { disk.write(13, byte); disk.read(12); }
+  for (const byte of bytes) { disk.write(13, byte); disk.read(12); disk.advanceCpuClocks(32); }
 }
 
 test("write observers capture immutable DOS-order sectors on commit, including identical rewrites", () => {
@@ -118,7 +126,7 @@ test("Disk II restores between latch load and shift and publishes a complete sec
   shift(disk, frame.slice(1, 170)); disk.write(13, frame[170]!);
   const saved = disk.snapshot(), restored = new Apple2DiskII(saved);
   for (const card of [disk, restored]) {
-    card.read(12); shift(card, frame.slice(171));
+    card.read(12); card.advanceCpuClocks(32); shift(card, frame.slice(171));
     assert.deepEqual(card.exportImage(), new Uint8Array(Dos33Disk.size));
     card.read(14);
     const expected = new Uint8Array(Dos33Disk.size);
@@ -160,14 +168,53 @@ test("Disk II stepping, inspection, reset, restoration, and replacement preserve
   assert.equal(disk.inspect().halfTrack, 0);
   for (let i = 0; i < 40; i++) for (const address of [7, 1, 3, 5]) disk.read(address);
   assert.equal(disk.inspect().halfTrack, 68);
-  disk.read(12);
+  readByte(disk);
   const saved = disk.snapshot(), resumed = new Apple2DiskII(saved);
   disk.inspect(); disk.reset(); assert.deepEqual(disk.snapshot(), saved);
-  for (let i = 0; i < 100; i++) assert.equal(disk.read(12), resumed.read(12));
+  for (let i = 0; i < 100; i++) assert.equal(readByte(disk), readByte(resumed));
   assert.deepEqual(disk.snapshot(), resumed.snapshot());
   disk.insert(media); assert.equal(disk.inspect().position, 0); assert.equal(disk.inspect().halfTrack, 68);
   assert.equal(resumed.inspect().position, 101);
-  for (const patch of [{ phase: 4 }, { halfTrack: 69 }, { drive: 0 }, { position: 6162 }, { motor: 1 }, { latch: 256 }, { extra: true }, { media: null, position: 1 }]) {
+  for (const patch of [{ phase: 4 }, { halfTrack: 69 }, { drive: 0 }, { position: 6162 }, { motor: 1 }, { latch: 256 }, { extra: true }, { byteClocks: 32 }, { byteClocks: -1 }, { writeStart: 0 }, { media: null, position: 1 }]) {
     assert.throws(() => new Apple2DiskII({ ...saved, ...patch } as never));
   }
+});
+
+test("rotation, byte readiness and missed bytes depend on elapsed clocks, never on polling", () => {
+  const disk = card(), idle = new Apple2DiskII(disk.snapshot());
+  for (const d of [disk, idle]) d.read(9);
+  disk.advanceCpuClocks(31); idle.advanceCpuClocks(31);
+  const waiting = disk.snapshot();
+  for (let i = 0; i < 100; i++) assert.equal(disk.read(12), 0);
+  assert.deepEqual(disk.snapshot(), waiting);
+  disk.advanceCpuClocks(1); idle.advanceCpuClocks(1);
+  assert.equal(disk.inspect().position, 1); assert.equal(disk.inspect().byteClocks, 0);
+  assert.equal(disk.read(12), 0xff); assert.equal(disk.read(12), 0xff, "A CPU read does not clear the latch");
+  assert.deepEqual(disk.snapshot(), idle.snapshot());
+  disk.advanceCpuClocks(7); assert.equal(disk.read(12), 0xff);
+  disk.advanceCpuClocks(1); assert.equal(disk.read(12), 0, "The modeled valid-byte window lasts eight clocks");
+  disk.advanceCpuClocks(24 + 47 * 32); // Bytes pass even though no disk read occurs.
+  assert.equal(disk.inspect().position, 49);
+  assert.equal(disk.read(12), 0xd5, "The latest byte at position 48 replaces unread earlier bytes");
+  disk.advanceCpuClocks(6162 * 32);
+  assert.equal(disk.inspect().position, 49); assert.equal(disk.read(12), 0xd5);
+});
+
+test("rotation phase survives batching, motor stop and checkpoints; invalid elapsed clocks have no effect", () => {
+  const disk = card(); disk.read(9); disk.advanceCpuClocks(53);
+  const saved = disk.snapshot(), batched = new Apple2DiskII(saved), stepped = new Apple2DiskII(saved);
+  batched.advanceCpuClocks(12345);
+  for (let i = 0; i < 12345; i++) { stepped.advanceCpuClocks(1); stepped.read(12); }
+  assert.deepEqual(stepped.snapshot(), batched.snapshot());
+  disk.read(8); const stopped = disk.snapshot(); disk.advanceCpuClocks(9999); disk.reset();
+  assert.deepEqual(disk.snapshot(), stopped);
+  disk.read(9); disk.advanceCpuClocks(11); assert.equal(disk.inspect().position, 2);
+  disk.read(11); const absent = disk.snapshot(); disk.advanceCpuClocks(320); assert.deepEqual(disk.snapshot(), absent);
+  disk.read(10); disk.read(13); disk.advanceCpuClocks(64);
+  assert.equal(disk.inspect().position, 4, "Sensing write protection does not stop the disk");
+  const before = disk.snapshot();
+  for (const clocks of [-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER]) assert.throws(() => disk.advanceCpuClocks(clocks));
+  disk.advanceCpuClocks(0); assert.deepEqual(disk.snapshot(), before);
+  assert.equal(saved.byteClocks, 21);
+  disk.insert(media); assert.equal(disk.inspect().byteClocks, 0);
 });

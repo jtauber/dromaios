@@ -3,6 +3,8 @@ import type { Apple2SessionState } from "./apple2-session.js";
 import type { Apple2Media } from "./apple2-media.js";
 import type { RomImage } from "../../src/machines/rom-image.js";
 import { checkMachineSnapshot } from "../../src/machines/snapshot.js";
+import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
+import { checkUnsigned } from "../../src/components/validation.js";
 import { sha256 } from "./rom-file.js";
 
 interface SavedExperiment {
@@ -14,15 +16,20 @@ interface SavedExperiment {
   readonly state: Apple2SessionState;
 }
 
+type BeforeRotationHardware = Omit<Apple2SessionState["hardware"], "disk"> & {
+  readonly disk: Omit<Apple2SessionState["hardware"]["disk"], "byteClocks" | "writeStart">;
+};
+type BeforeRotationState = Omit<Apple2SessionState, "hardware"> & { readonly hardware: BeforeRotationHardware };
 type BeforeSpeakerState = Omit<Apple2SessionState, "hardware"> & {
-  readonly hardware: Omit<Apple2SessionState["hardware"], "speaker">;
+  readonly hardware: Omit<BeforeRotationHardware, "speaker">;
 };
 type LegacySessionState = Omit<Apple2SessionState, "hardware"> & {
-  readonly hardware: Omit<Apple2SessionState["hardware"], "clock" | "speaker">;
+  readonly hardware: Omit<BeforeRotationHardware, "clock" | "speaker">;
 };
 
-/** Versions 1–3 predate the speaker; 1–2 also predate the clock. */
-export type Apple2SavedState = (SavedExperiment & { readonly version: 4; readonly diskSha256: string | null })
+/** Versions 1–4 predate rotation; 1–3 predate the speaker; 1–2 predate the clock. */
+export type Apple2SavedState = (SavedExperiment & { readonly version: 5; readonly diskSha256: string | null })
+  | (Omit<SavedExperiment, "state"> & { readonly state: BeforeRotationState; readonly version: 4; readonly diskSha256: string | null })
   | (Omit<SavedExperiment, "state"> & { readonly state: BeforeSpeakerState; readonly version: 3; readonly diskSha256: string | null })
   | (Omit<SavedExperiment, "state"> & { readonly state: LegacySessionState }
     & ({ readonly version: 1 } | { readonly version: 2; readonly diskSha256: string | null }));
@@ -30,7 +37,7 @@ export type Apple2SavedState = (SavedExperiment & { readonly version: 4; readonl
 export async function encodeApple2SavedState(experiment: SavedExperiment): Promise<Apple2SavedState> {
   const bytes = experiment.state.hardware.disk.media;
   const diskSha256 = bytes === null ? null : await sha256(Uint8Array.from(bytes));
-  return { ...experiment, version: 4, diskSha256 };
+  return { ...experiment, version: 5, diskSha256 };
 }
 
 function checkName(name: string): void {
@@ -44,7 +51,7 @@ function decodeSavedState(text: string): Apple2SavedState {
   if (text.length > 1_000_000) throw new Error("Saved state is too large.");
   const value: unknown = JSON.parse(text);
   const version = (value as Partial<Apple2SavedState> | null)?.version;
-  if (version !== 1 && version !== 2 && version !== 3 && version !== 4) throw new Error("This saved state uses a different machine version.");
+  if (version !== 1 && version !== 2 && version !== 3 && version !== 4 && version !== 5) throw new Error("This saved state uses a different machine version.");
   checkMachineSnapshot(value, ["version", "machine", "name", "savedAt", "diskName", "flash", "state", ...(version !== 1 ? ["diskSha256"] : [])]);
   const saved = value as Apple2SavedState;
   if (saved.machine !== "apple2-plus") throw new Error("This saved state belongs to a different machine.");
@@ -107,14 +114,24 @@ export async function prepareApple2SavedState(saved: Apple2SavedState, firmware:
   decodeSavedState(JSON.stringify(saved));
   const session = createApple2Session();
   if (firmware !== null) session.installFirmware(firmware);
-  if (saved.version === 4) session.restore(saved.state);
+  if (saved.version === 5) session.restore(saved.state);
   else {
     // Validate each old shape before supplying state that its version could not record.
     checkMachineSnapshot(saved.state, ["hardware", "input"]);
     checkMachineSnapshot(saved.state.hardware, Object.keys(session.machine.snapshot())
-      .filter(field => field !== "speaker" && (saved.version === 3 || field !== "clock")));
-    session.restore({ ...saved.state, hardware: { ...saved.state.hardware, speaker: { level: false },
-      clock: saved.version === 3 ? saved.state.hardware.clock : { ticks: 0 } } });
+      .filter(field => (saved.version === 4 || field !== "speaker") && (saved.version >= 3 || field !== "clock")));
+    const disk = saved.state.hardware.disk;
+    checkMachineSnapshot(disk, ["bootstrap", "media", "halfTrack", "phase", "position", "motor", "drive", "q6", "q7", "latch",
+      ...(Object.hasOwn(disk, "writable") ? ["writable"] : []), ...(Object.hasOwn(disk, "shifted") ? ["shifted"] : [])]);
+    checkUnsigned("Saved Disk II latch", disk.latch, 0xff);
+    // Old writes advanced on each shift. Recover their field anchor; elapsed phase was never recorded.
+    const length = disk.media === null ? 1 : new Dos33Disk(disk.media).trackLength(Math.floor(disk.halfTrack / 2));
+    const writeStart = disk.shifted?.length ? (disk.position - disk.shifted.length + length) % length : undefined;
+    session.restore({ ...saved.state, hardware: { ...saved.state.hardware,
+      speaker: saved.version === 4 ? saved.state.hardware.speaker : { level: false },
+      clock: saved.version === 3 || saved.version === 4 ? saved.state.hardware.clock : { ticks: 0 },
+      disk: { ...disk, byteClocks: 0, latch: disk.q7 ? disk.latch : 0, ...(writeStart === undefined ? {} : { writeStart }) },
+    } });
   }
   const snapshot = session.machine.disk.snapshot();
   if (snapshot.bootstrap !== null && await sha256(Uint8Array.from(snapshot.bootstrap)) !== media.bootstrap.sha256) {

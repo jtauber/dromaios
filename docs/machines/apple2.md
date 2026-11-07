@@ -128,7 +128,7 @@ delivery, and scheduling host work.
 | Keyboard and display switches | Keyboard and display switches generate from device chapters, with state, offers, effects, reset, and snapshots. |
 | Banked memory | Conditional windows now select independent read/write destinations through pure device views. The machine chapter names both lower banks and common upper storage. |
 | Video | Read-only generated views own text and graphics addresses, character attributes, colour decoding, and visible rows. The host reads RAM and draws decoded cells; the chapter declares its high-resolution colour-pair approximation. |
-| Disk and speaker time | Speaker audio now samples the output latch at completed instruction boundaries. Disk rotation and motor delays still need elapsed-time behavior; individual bus-cycle timestamps remain unmodeled. |
+| Disk and speaker time | Speaker audio now samples the output latch at completed instruction boundaries. Disk II now rotates canonical bytes from CPU clocks; motor delays and bit-level disk behavior remain approximate; individual bus-cycle timestamps remain unmodeled. |
 | Inspection | Use captured CPU records and device snapshots. The laboratory previews mapped storage directly; unavailable device bytes are marked explicitly instead of masquerading as read results. |
 
 Do not copy the reference's CPU, DOM-dependent device logging, or global
@@ -186,7 +186,7 @@ vectors, stream restoration, head movement, missing media, and absent drive 2.
 
 The browser accepts the selected local media, remains schedulable during disk
 polling, and preserves controller state during pause and inspection. The chapter
-explicitly declares the access-driven stream, simplified head, and immediate
+explicitly declares clock-driven canonical bytes, a simplified head, and immediate
 motor-off behavior; these are not rotational or copy-protection compatibility.
 
 ### 4. Writable disks and sound
@@ -294,8 +294,9 @@ The [machine clock](../../src/machines/6502/apple2.md#cpu-clocks) now accumulate
 the 6502's instruction and interrupt clocks, with explicit pause, reset, and
 checkpoint rules. The browser uses it for measured execution intervals and
 Normal/Unlimited Run pacing at the chapter's nominal CPU frequency, with speaker
-audio sampled at instruction boundaries. Next, define how Disk II advances with
-elapsed time; instruction totals alone do not timestamp individual bus accesses.
+audio sampled at instruction boundaries. Disk II now advances its canonical track
+and read-ready window from those clocks. Motor delays and bit-level sequencing
+remain possible refinements; instruction totals alone do not timestamp individual bus accesses.
 
 The [executable chapter](../../src/machines/6502/apple2.md) already contains
 verified boot, RWTS, Disk II byte activity, LOAD, SAVE, binary execution,

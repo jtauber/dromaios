@@ -40,7 +40,7 @@ export function createApple2DiskActivityView(root: HTMLElement, instructions: In
       stored = { image, track, bytes, fields: inspectDos33Track(bytes) };
     }
     headStatus.textContent = `Drive 1 · track ${track} · half-track ${state.halfTrack} · next position $${hex(state.position)}`
-      + ` · ${state.motor ? "motor on" : "motor off"} · ${state.q7 ? "write mode" : state.q6 ? "write-protect sense" : "read mode"}`;
+      + ` · byte phase ${state.byteClocks}/32 clocks · ${state.motor ? "motor on" : "motor off"} · ${state.q7 ? "write mode" : state.q6 ? "write-protect sense" : "read mode"}`;
     const window = dos33HeadWindow(stored.bytes, stored.fields, state.position);
     for (let i = 0; i < window.length; i += 16) {
       const row = document.createElement("div"); row.append(`${hex(window[i]!.offset)}  `);

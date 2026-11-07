@@ -63,3 +63,29 @@ test("the head window wraps, marks the next byte and distinguishes stored field 
     assert.deepEqual(next, { offset: position, value: track[position], next: true, part });
   }
 });
+
+test("clocked reads can miss gap bytes and repeat a ready byte, but cannot miss field bytes or borrow an earlier revolution", () => {
+  function run(mode: "gap" | "repeat" | "missing-data" | "revolution") {
+    const stream = createDos33StreamInspector(); let number = 0, previous = 1196;
+    const results: NonNullable<ReturnType<typeof stream.consume>>[] = [];
+    function consume(value: number, position: number, distance = position - previous) {
+      const result = stream.consume({ kind: "read", track: 18, halfTrack: 36, length: 6162,
+        position, distance, value, number: ++number });
+      previous = position; if (result) results.push(result);
+    }
+    address.forEach((byte, i) => consume(byte, 1197 + i));
+    // The CPU did not read the address epilogue's EB or the gap. The complete address is still evidence.
+    data.forEach((byte, i) => {
+      if (mode === "missing-data" && i === 17) return;
+      consume(byte, 1217 + i, mode === "revolution" && i === 0 ? 6162 : undefined);
+      if (mode === "repeat" && i % 31 === 0) consume(byte, 1217 + i, 0);
+    });
+    return results;
+  }
+  for (const mode of ["gap", "repeat"] as const) {
+    const results = run(mode); assert.equal(results.length, 2);
+    assert.equal(results[1]!.kind, "data"); assert.equal(results[1]!.valid, true);
+    assert.equal(results[1]!.sector, 6);
+  }
+  for (const mode of ["missing-data", "revolution"] as const) assert.equal(run(mode).length, 1);
+});

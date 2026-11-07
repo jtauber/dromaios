@@ -64,7 +64,7 @@ test("hardware observation does not read the guest bus, acknowledge keys, change
   const { machine } = createApple2Session();
   machine.keyboard.offer(65); machine.language.read(1);
   machine.disk.install(new Array(256).fill(0)); machine.disk.insert(new Dos33Disk(new Uint8Array(Dos33Disk.size)));
-  machine.disk.read(9); machine.disk.read(12);
+  machine.disk.read(9); machine.disk.advanceCpuClocks(32); machine.disk.read(12);
   const before = apple2HardwareState(machine);
   const fail = () => { throw new Error("Inspection touched guest state or copied memory"); };
   machine.memory.read = machine.keyboard.read = machine.video.read = machine.language.read = machine.disk.read = fail;

@@ -16,9 +16,9 @@ const diskBytes = new Uint8Array(Dos33Disk.size);
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const media = { bytes: 20480, offset: 8192, sha256: "0".repeat(64),
   bootstrap: { bytes: 256, offset: 0, sha256: digest(bootstrap) }, disk: { bytes: diskBytes.length, sha256: digest(diskBytes) } };
-function saved(session = createApple2Session(), name = "Before echo"): Extract<Apple2SavedState, { version: 4 }> {
+function saved(session = createApple2Session(), name = "Before echo"): Extract<Apple2SavedState, { version: 5 }> {
   const bytes = session.machine.disk.snapshot().media;
-  return { version: 4, diskSha256: bytes === null ? null : digest(Uint8Array.from(bytes)),
+  return { version: 5, diskSha256: bytes === null ? null : digest(Uint8Array.from(bytes)),
     machine: "apple2-plus", name, savedAt: "2026-10-07T12:00:00.000Z",
     diskName: session.machine.disk.inspect().loaded ? "test.dsk" : null, flash: true, state: session.snapshot() };
 }
@@ -94,14 +94,14 @@ test("named storage survives fresh readers, avoids silent replacement, and prese
 test("damaged entries remain deletable and incompatible machine versions are rejected", async () => {
   const memory = storage(), store = apple2SavedStates(() => memory), first = saved(); store.save(first);
   const key = [...memory.values.keys()][0]!;
-  for (const value of ["{", "null", "{}", JSON.stringify({ ...first, version: 5 }),
+  for (const value of ["{", "null", "{}", JSON.stringify({ ...first, version: 6 }),
     JSON.stringify({ ...first, machine: "other" }), JSON.stringify({ ...first, name: "wrong name" }),
     JSON.stringify({ ...first, savedAt: "bad" }), " ".repeat(1_000_001)]) {
     memory.values.set(key, value); assert.throws(() => store.read(first.name));
     assert.deepEqual(store.names(), [first.name]);
   }
   store.remove(first.name); assert.deepEqual(store.names(), []);
-  await assert.rejects(prepareApple2SavedState({ ...first, version: 5 } as unknown as Apple2SavedState, null, media), /version/);
+  await assert.rejects(prepareApple2SavedState({ ...first, version: 6 } as unknown as Apple2SavedState, null, media), /version/);
 });
 
 test("preparation rechecks saved bootstrap and disk identities and never changes the original session", async () => {
@@ -145,17 +145,20 @@ test("new checkpoints preserve speaker and clocks; older formats supply only the
   session.machine.ram.write(0, 0xea); session.machine.step();
   session.machine.speaker.read(0);
   const current = await encodeApple2SavedState(saved(session));
-  assert.equal(current.version, 4);
+  assert.equal(current.version, 5);
   assert.equal((await prepareApple2SavedState(current, null, media)).session.machine.clock.ticks, 2);
   assert.equal((await prepareApple2SavedState(current, null, media)).session.machine.speaker.level(), true);
-  const { clock: omitted, speaker: omittedSpeaker, ...hardware } = session.snapshot().hardware;
+  const { clock: omitted, speaker: omittedSpeaker, disk: currentDisk, ...rest } = session.snapshot().hardware;
+  const { byteClocks, writeStart, ...disk } = currentDisk;
+  const hardware = { ...rest, disk };
   const state = { ...session.snapshot(), hardware };
   const { version: ignored, diskSha256, ...details } = saved(session);
   for (const legacy of [{ ...details, state, version: 1 }, { ...details, state, version: 2, diskSha256 },
-    { ...details, state: { ...state, hardware: { ...hardware, clock: { ticks: 2 } } }, version: 3, diskSha256 }] as const) {
+    { ...details, state: { ...state, hardware: { ...hardware, clock: { ticks: 2 } } }, version: 3, diskSha256 },
+    { ...details, state: { ...state, hardware: { ...hardware, clock: { ticks: 2 }, speaker: { level: true } } }, version: 4, diskSha256 }] as const) {
     const restored = await prepareApple2SavedState(legacy, null, media);
     assert.deepEqual(restored.session.snapshot(), { ...state, hardware: { ...hardware,
-      clock: { ticks: legacy.version === 3 ? 2 : 0 }, speaker: { level: false } } });
+      disk: currentDisk, clock: { ticks: legacy.version >= 3 ? 2 : 0 }, speaker: { level: legacy.version === 4 } } });
     await assert.rejects(prepareApple2SavedState({ ...legacy, state: session.snapshot() }, null, media), /snapshot/);
   }
   await assert.rejects(prepareApple2SavedState({ ...current, state } as Apple2SavedState, null, media), /snapshot/);
@@ -210,4 +213,22 @@ test("a saved real-ROM session repeats queued-key execution exactly after restor
   const elapsed = prepared.session.machine.clock.ticks;
   prepared.session.reset(); assert.equal(prepared.session.machine.clock.ticks, elapsed);
   prepared.session.powerOn(); assert.equal(prepared.session.machine.clock.ticks, 0);
+});
+
+test("version 4 disk migration retains an open sector write and rejects injected rotation fields", async () => {
+  const session = createApple2Session(null, { bootstrap: [...bootstrap], image: new Dos33Disk(diskBytes, { writable: true }) });
+  const controller = session.machine.disk;
+  controller.read(9); controller.advanceCpuClocks(1210 * 32);
+  controller.write(13, 0); controller.write(15, 0xff); controller.read(12); controller.advanceCpuClocks(32);
+  controller.write(13, 0xd5); controller.read(12); controller.advanceCpuClocks(32);
+  controller.write(13, 0xaa); // Loaded but not yet shifted when the old state was saved.
+  const current = saved(session), { byteClocks, writeStart, ...disk } = current.state.hardware.disk;
+  const old = { ...current, version: 4 as const, state: { ...current.state, hardware: { ...current.state.hardware, disk } } };
+  const restored = await prepareApple2SavedState(old, null, media);
+  assert.deepEqual(restored.session.machine.disk.snapshot(), { ...disk, byteClocks: 0, writeStart: 1210 });
+  restored.session.machine.disk.read(12);
+  assert.deepEqual(restored.session.machine.disk.snapshot().shifted, [0xff, 0xd5, 0xaa]);
+  await assert.rejects(prepareApple2SavedState({ ...old, state: current.state }, null, media), /snapshot/);
+  await assert.rejects(prepareApple2SavedState({ ...old, state: { ...old.state, hardware: { ...old.state.hardware,
+    disk: { ...disk, q7: false, latch: 256 } } } }, null, media), /latch/);
 });

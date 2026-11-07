@@ -44,7 +44,7 @@ export interface CompositionDefinition extends ComponentsDefinition {
   readonly unmappedPorts?: number;
   readonly reset?: readonly string[];
   readonly resetDevices?: readonly string[];
-  readonly clock?: { readonly source: "cpu"; readonly hertz?: number };
+  readonly clock?: { readonly source: "cpu"; readonly hertz?: number; readonly devices?: readonly string[] };
 }
 
 /** Read wiring as data; resolve forward references after all declarations and the CPU are known. */
@@ -64,6 +64,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
   let unmapped: number | undefined;
   let unmappedPorts: number | undefined;
   let hertz: number | undefined;
+  const clockDevices: Token[] = [];
 
   function name(): Token {
     const token = take();
@@ -149,6 +150,11 @@ export function compositionSyntax(syntax: MachineSyntax) {
               fail(amount, "Clock frequency must be positive and at most 9007199254740991 Hz");
             }
           }
+          if (current().text === "{") block("clock devices", () => {
+            const target = name();
+            if (clockDevices.some(previous => previous.text === target.text)) fail(target, `Duplicate clock device ${target.text}`);
+            clockDevices.push(target);
+          });
           break;
         case "memory":
           expect("=");
@@ -242,6 +248,12 @@ export function compositionSyntax(syntax: MachineSyntax) {
       if (declarations.has("clock") && cpuModels[cpu].timedExecution !== "vectors") {
         fail(declarations.get("clock")!, "clock cpu requires timed instructions and vector interrupts (currently CPU 6502)");
       }
+      for (const target of clockDevices) {
+        const value = component(target);
+        if (!isDeviceKind(value.kind) || !("cpuClocks" in deviceModels[value.kind])) {
+          fail(target, "Clock target must accept CPU clocks (currently apple2-disk-ii)");
+        }
+      }
       if (direct && mapSize !== undefined) fail(declarations.get("map")!, "Choose memory = component or map, not both");
       let connection: CompositionDefinition["connection"];
       if (direct) {
@@ -291,7 +303,8 @@ export function compositionSyntax(syntax: MachineSyntax) {
       }
       return {
         ...definition, connection,
-        ...(declarations.has("clock") ? { clock: { source: "cpu" as const, ...(hertz === undefined ? {} : { hertz }) } } : {}),
+        ...(declarations.has("clock") ? { clock: { source: "cpu" as const, ...(hertz === undefined ? {} : { hertz }),
+          ...(clockDevices.length ? { devices: clockDevices.map(token => token.text) } : {}) } } : {}),
         ...(declarations.has("ports") ? { ports: ports.map(({ direction, port, component, address }) => ({ direction, port, component, address })) } : {}),
         ...(unmappedPorts === undefined ? {} : { unmappedPorts }),
         ...(resets.has("reset") ? { reset: resets.get("reset")!.map(token => token.text) } : {}),

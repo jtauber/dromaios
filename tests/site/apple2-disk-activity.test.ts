@@ -15,7 +15,7 @@ function reader(capacity?: number) {
   machine.cpu = new Cpu6502(machine.memory, { ...machine.cpu.snapshot(), pc: 0x200 });
   activity.connect(machine.disk); machine.disk.read(9);
   const step = () => activity.capture(apple2DebugLocation(machine), () => machine.cpu.step());
-  return { machine, medium, activity, step, read(count = 1) { for (let i = 0; i < count; i++) { step(); step(); } } };
+  return { machine, medium, activity, step, read(count = 1) { for (let i = 0; i < count; i++) { machine.disk.advanceCpuClocks(32); step(); step(); } } };
 }
 
 test("byte history captures the real instruction, preserves old bytes, and bounds retention independently of sector totals", () => {
@@ -71,6 +71,7 @@ test("inactive reads and latch loading are absent; actual write shifts survive e
 
 test("an unsupported fetched disk byte and a throwing step retain their actual transfers and caller", () => {
   const { machine, activity } = reader();
+  machine.disk.advanceCpuClocks(32);
   machine.cpu = new Cpu6502(machine.memory, { ...machine.cpu.snapshot(), pc: 0xc0ec });
   const record = activity.capture(apple2DebugLocation(machine), () => machine.cpu.step());
   assert.equal(record.outcome, "unsupported");

@@ -23,15 +23,18 @@ const mapped = readFileSync("src/machines/68000/echo-example.machine", "utf8");
 test("clock cpu requires a composed timed CPU and has one unambiguous declaration", () => {
   const apple2 = machineChapterSource(readFileSync("src/machines/6502/apple2.md", "utf8"), "apple2.md");
   const parsed = parseMachine(apple2, "apple2.md");
-  assert.ok("clock" in parsed); assert.deepEqual(parsed.clock, { source: "cpu", hertz: 1_023_000 });
+  assert.ok("clock" in parsed); assert.deepEqual(parsed.clock, { source: "cpu", hertz: 1_023_000, devices: ["disk"] });
   for (const frequency of ["1.023 MHz", "1023 kHz", "1023000 Hz"]) {
     const machine = parseMachine(apple2.replace("1.023 MHz", frequency));
     assert.ok("clock" in machine); assert.deepEqual(machine.clock, parsed.clock);
   }
-  const unpaced = parseMachine(apple2.replace(" 1.023 MHz", ""));
+  const unpaced = parseMachine(apple2.replace(" 1.023 MHz { disk }", ""));
   assert.ok("clock" in unpaced); assert.deepEqual(unpaced.clock, { source: "cpu" });
   for (const frequency of ["0 Hz", "-1 Hz", "1e6 Hz", "0x10 Hz", "$10 Hz", "10h Hz", "1.0.2 MHz", "1", "1 GHz", "9007199254740992 Hz"]) {
     assert.throws(() => parseMachine(apple2.replace("1.023 MHz", frequency)), /frequency|unit/);
+  }
+  for (const targets of ["ram", "video", "missing", "disk disk"]) {
+    assert.throws(() => parseMachine(apple2.replace("{ disk }", `{ ${targets} }`)), /Clock target|Unknown component|Duplicate clock device/);
   }
   assert.throws(() => parseMachine(apple2 + "\nclock cpu", "apple2.md"), /Duplicate clock/);
   assert.throws(() => parseMachine(apple2.replace("clock cpu", "clock ram"), "apple2.md"), /Expected "cpu"/);

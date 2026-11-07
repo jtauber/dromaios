@@ -58,3 +58,21 @@ test("unsupported or failed instructions do not invent elapsed time or roll back
   assert.throws(() => machine.step(), /Failed write/);
   assert.equal(machine.clock.ticks, 2); assert.equal(machine.cpu.snapshot().pc, 0x204);
 });
+
+test("the declared Disk II clock advances during ordinary instructions and interrupts, with exact checkpoint continuation", async () => {
+  const { Dos33Disk } = await import("../../../src/components/devices/dos33-disk.js");
+  const machine = program();
+  machine.disk.install(new Uint8Array(256)); machine.disk.insert(new Dos33Disk(new Uint8Array(Dos33Disk.size)));
+  machine.disk.read(9);
+  for (let i = 0; i < 16; i++) machine.ram.write(0x200 + i, 0xea);
+  for (let i = 0; i < 15; i++) machine.step();
+  assert.equal(machine.disk.inspect().position, 0); assert.equal(machine.disk.inspect().byteClocks, 30);
+  const saved = machine.snapshot(), restored = create6502Apple2({ firmware: null }, saved);
+  for (const m of [machine, restored]) {
+    m.step(); assert.equal(m.disk.inspect().position, 1); assert.equal(m.disk.read(12), 0xff);
+    m.interrupt("nmi"); assert.equal(m.disk.inspect().byteClocks, 7);
+    const paused = m.snapshot(); m.disk.inspect(); m.reset();
+    assert.deepEqual(m.disk.snapshot(), paused.disk, "Inspection and CPU reset add no disk time");
+  }
+  assert.deepEqual(restored.snapshot(), machine.snapshot());
+});

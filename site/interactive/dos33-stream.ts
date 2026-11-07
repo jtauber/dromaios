@@ -14,25 +14,30 @@ export interface Dos33ObservedField {
   readonly bytes?: readonly number[];
 }
 
-/** Recognize fields from consecutive consumed bytes; never look ahead in the medium. */
+/** Recognize complete consumed fields; elapsed rotation can skip gaps, never field bytes. */
 export function createDos33StreamInspector() {
   let previous: Byte | undefined, address: Dos33ObservedField | undefined;
   let field: { kind: "address" | "data"; first: number; bytes: number[] } | undefined;
-  const prefix: number[] = [];
-  function interrupt(): void { previous = address = field = undefined; prefix.length = 0; }
+  const prefix: Byte[] = [];
+  let sinceAddress = 0;
+  function interrupt(): void { previous = address = field = undefined; prefix.length = 0; sinceAddress = 0; }
   return {
     interrupt,
     consume(byte: Byte): Dos33ObservedField | undefined {
       if (byte.kind === "write") { interrupt(); return; }
+      const distance = byte.distance ?? 1;
       if (previous && (byte.halfTrack !== previous.halfTrack || byte.track !== previous.track
-        || byte.length !== previous.length || byte.position !== (previous.position + 1) % previous.length)) interrupt();
+        || byte.length !== previous.length || distance >= byte.length
+        || byte.position !== (previous.position + distance) % previous.length)) interrupt();
+      if (previous && distance === 0 && byte.value === previous.value) return; // The same ready window was sampled twice.
+      if (previous && distance !== 1) { field = undefined; prefix.length = 0; }
       previous = byte;
       // A later sector cannot borrow an old address if its own address field was missed.
-      if (address && byte.number - address.last > dos33SectorSpan) address = undefined;
+      if (address && (sinceAddress += distance) > dos33SectorSpan) address = undefined;
       if (!field) {
-        prefix.push(byte.value); if (prefix.length > 3) prefix.shift();
-        if (prefix[0] === 0xd5 && prefix[1] === 0xaa && (prefix[2] === 0x96 || prefix[2] === 0xad)) {
-          field = { kind: prefix[2] === 0x96 ? "address" : "data", first: byte.number - 2, bytes: [...prefix] };
+        prefix.push(byte); if (prefix.length > 3) prefix.shift();
+        if (prefix[0]?.value === 0xd5 && prefix[1]?.value === 0xaa && (prefix[2]?.value === 0x96 || prefix[2]?.value === 0xad)) {
+          field = { kind: prefix[2].value === 0x96 ? "address" : "data", first: prefix[0].number, bytes: prefix.map(byte => byte.value) };
           if (field.kind === "address") address = undefined;
           prefix.length = 0;
         }
@@ -46,6 +51,7 @@ export function createDos33StreamInspector() {
         const result: Dos33ObservedField = { kind: "address", track: byte.track, physicalSector: decoded.physicalSector, sector,
           first: completed.first, last: byte.number, valid: decoded.valid && decoded.track === byte.track && sector !== undefined };
         address = result.valid ? result : undefined;
+        sinceAddress = 0;
         return result;
       }
       const selected = address; address = undefined;

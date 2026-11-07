@@ -165,7 +165,7 @@ cpu 6502 {
 }
 
 reset { cpu }
-clock cpu 1.023 MHz
+clock cpu 1.023 MHz { disk }
 ```
 
 CPU reset preserves RAM, firmware, the keyboard and speaker latches, display switches, all
@@ -203,9 +203,9 @@ runners must use the machine entry points. Unsupported instructions and failed
 steps add no time and preserve any completed CPU or device effects.
 
 The clock belongs to the hardware snapshot and restores exactly. It counts
-completed execution boundaries; it does not timestamp individual bus accesses,
-advance the disk stream or video by elapsed time. Those require further device
-timing work. Browser Run pacing uses the declared nominal frequency; speaker
+completed execution boundaries; it does not timestamp individual bus accesses or advance video by elapsed time.
+The explicit `{ disk }` connection advances Disk II after each completed boundary,
+including interrupts, by the same CPU-clock count. Browser Run pacing uses the declared nominal frequency; speaker
 audio samples the output latch at completed instruction boundaries.
 
 `snapshot()` captures CPU, all four RAM components, keyboard, speaker, display and Language Card latches,
@@ -564,7 +564,11 @@ to the workspace and are not part of the saved machine.
 
 **Restore** checks the saved machine version, complete component state, firmware
 identity, and any stored bootstrap/disk identities before replacing the current
-experiment. Version 4 also saves the speaker latch; restoring versions 1–3
+experiment. Version 5 saves Disk II byte phase and the anchor of any pending
+sector write. Versions 1–4 resume with zero byte phase; their unclocked read latch
+is cleared, and a pending write retains its loaded latch and recovers its anchor
+from the old position and shifted-byte count. Old states cannot reproduce elapsed
+rotation they never recorded. Version 4 introduced the speaker latch; restoring versions 1–3
 initializes that previously unmodeled latch to low. Version 3 introduced elapsed CPU clocks
 and the SHA-256 of the disk at capture time, so a
 file written by DOS survives restoration. Version 1 states still verify their
@@ -940,7 +944,8 @@ Eject, fresh power-on, and checkpoint restore discard the old snapshots.
 
 The Disk panel's **Disk II activity** view connects the stored track to
 actual controller transfers. Its head window follows the selected track
-and places an outline around the **next** stream position. The 32 bytes
+and places an outline around the **next** stream position. Byte phase shows
+0–31 elapsed clocks within that position; rotation continues between CPU reads. The 32 bytes
 before that position and the 32 starting there wrap around the track end.
 Address fields, data, and checksums have distinct colours. This window
 inspects stored bytes; a byte being visible does not mean the CPU read it.
@@ -956,6 +961,12 @@ transfers; they do not peek at unread bytes. DOS checks only the first two
 address-epilogue bytes, and the data count is established at the checksum,
 before any data epilogue is read. The stored-track inspector separately
 checks the complete canonical field, including `DE AA EB`.
+
+Repeated samples of the same ready byte remain in the history but enter the
+field decoder only once. Rotation distance lets the decoder cross unread gap
+bytes while retaining a verified address. Missing a field byte abandons that
+partial field; moving beyond the sector span or a full revolution discards the
+old address. The history never fills gaps by reading the stored track.
 
 Repeat the **Sector-read caller** above, with **Record transfers** checked:
 
@@ -1396,7 +1407,7 @@ Q7 selects read or write operation; Q6 selects shifting or loading/sensing:
 
 | Q7 | Q6 | Modeled result |
 | ---: | ---: | --- |
-| 0 | 0 | Reading C0EC consumes one disk byte. Other even-address reads sample the current latch. |
+| 0 | 0 | Even-address reads sample the clocked latch. Bit 7 marks a complete byte during its ready window; C0EC reads also enter the byte-access history. |
 | 0 | 1 | An even-address read returns 00 for writable media in drive 1, otherwise 80. |
 | 1 | 0 | Lowering Q6 shifts one latch byte on writable drive 1 with its motor on. |
 | 1 | 1 | A CPU write loads the latch for the next shift. |
@@ -1410,23 +1421,31 @@ reference emulator's writable indication.
 
 The controller stores the selected drive (initially 1), motor/Q6/Q7 booleans
 (all initially false), phase (0), half-track position (0), byte-stream position
-(0), and data latch (00). Bootstrap and media start absent. CPU reset preserves
+(0), byte phase in CPU clocks (0–31, initially 0), and data latch (00). Bootstrap and media start absent. CPU reset preserves
 all of these. Snapshot restoration validates the fields, owns the bootstrap
 and disk data, and resumes at the same byte without executing a guest access.
-It preserves write permission and bytes already shifted during an open write.
+It preserves write permission, bytes already shifted during an open write, and
+the track position at its first shift. Restoring at a fractional byte boundary
+therefore resumes both the rotation and the pending field.
 `inspect()` reveals control state without copying the medium or advancing it.
 `inspectMedium().inspectTrack(track)` returns an immutable copy of the stored
 encoded bytes. Subsequent writes leave that copy unchanged; inspecting it
 does not touch the motor, head, latch, stream position, or pending write.
-`observeTransfers()` reports an immutable event after each actual stream
-advance: read or write direction, half-track and track, preceding position,
-track length, and latch value. It emits nothing for inactive reads, absent
+`observeTransfers()` reports an immutable event for a C0EC read of a ready byte
+or a write shift: direction, half-track and track, encoded position, track length,
+and value. Read events also report the rotation distance since the previous
+ready-byte read, capped at a full track. This observation metadata is not hardware
+state; a new or restored controller starts a new history. A read identifies the byte that most recently passed the head; a
+write identifies the position at that shift. Rotation itself emits no transfer,
+so a CPU instruction that merely takes time is never credited with reading a
+sector. Repeated reads within one ready window can report the same position;
+missed bytes leave gaps. It emits nothing for not-ready or inactive reads, absent
 drive/media, latch loads, or switches that do not shift a byte. Write shifts
 are reported independently of whether their field will commit. Host observers
 are not serialized or restored with the machine and must not access the guest
 bus or throw. The laboratory attaches CPU instruction attribution outside the
 device, keeping hardware and debugger responsibilities separate.
-Insertion and eject reset the byte position and latch, preserving head and controls.
+Insertion and eject reset the byte position, phase, and latch, preserving head and controls.
 
 The selected image has 35 tracks of sixteen 256-byte sectors in DOS file order.
 The encoder builds address fields containing volume 254, track, physical sector,
@@ -1446,8 +1465,9 @@ the address epilogue, senses write protection, then raises Q7. It loads a
 byte with Q6 high and lowers Q6 to shift it. Sync bytes precede the data
 prologue D5 AA AD. Lowering Q7 ends the write.
 
-The controller uses the starting position on the track to identify which
-existing sector follows that address field. The media model decodes the
+The controller captures the first write-shift position on the track to identify
+which existing sector follows that address field. That anchor is independent of
+the continuing rotation and the number of bytes subsequently loaded. The media model decodes the
 342 values, checks the chained checksum and the DE AA EB epilogue, and
 replaces the sector in the DOS-order image. The next read sees its newly
 encoded track. An incomplete or malformed field leaves the previous sector
@@ -1465,18 +1485,47 @@ reading the sector into 2200 recovers the same payload.
 
 ### Timing and format limits
 
-This is deliberately an **access-driven byte model**. With motor on, drive 1
-selected, and media present, C0EC reads advance that stream. Pausing or
-inspecting never advances it. Reading without those conditions returns 00
-without consuming data; absent drive 2 cannot borrow drive 1's stream or move
-its head. Selecting a drive clears the data latch. Motor-off is immediate,
-without the real drive's delay or the reference's browser-frame countdown.
+This is a **clock-driven canonical-byte model**. While the motor is on, drive 1
+is selected, and media is present, one encoded byte passes the head every **32
+CPU clocks**, even when the CPU is executing unrelated instructions. Position
+wraps at the end of the track. Polling cannot speed up rotation. Read mode makes
+the latest byte available with bit 7 set for the first **8 clocks** after its
+arrival, then returns 00 while the next byte is incomplete. Reads do not clear
+or prolong that window. Unread bytes are overwritten; there is no queued backlog.
+Write-protect sensing and writing continue rotation but do not fill the read latch.
+
+Sather's [controller description, chapter 9][disk-hardware] explains the four-CPU-
+clock write bit, 32-clock byte, and sequencer holding a completed byte while the
+next byte begins. This profile uses a fixed eight-clock ready window in place of
+the actual data-dependent sequencer. It omits partial shift-register values,
+self-sync extra zero bits, oscillator jitter, and media speed variations. At this
+machine's declared 1.023 MHz, the canonical 6,162-byte track wraps after 197,184
+CPU clocks (about 193 ms); this is not a claim of an exact 300 rpm physical track.
+
+The machine advances the device **after** executing each instruction or interrupt.
+All bus transfers within that instruction see the preceding boundary, and its
+final switch settings apply to the elapsed interval. This approximation can
+place a switch transition several clocks early. Pausing, inspecting, and CPU reset
+add no time; snapshots retain the remaining byte phase. Tests compare different
+polling and batch patterns at equal elapsed clocks, then replay a checkpoint.
+
+Reading with the motor off or drive/media absent returns 00. Absent drive 2 cannot
+borrow drive 1's stream or move its head. Selecting a drive clears the latch;
+rotation phase is preserved. Motor-off is immediate and preserves phase, without
+spin-up, coast-down, or the real controller's motor-off delay. Fresh power-on and
+media replacement start at zero position and phase.
+
+Writing remains the documented sector-image transaction above: Q6 transitions
+collect complete bytes, with no bit-shift, underrun, erase, or splice simulation.
+A valid field commits to its captured sector even though rotation continues.
+This change verifies DOS SAVE/export/restore as well as boot and reads; it does
+not establish compatibility with formatting or timing-sensitive write tricks.
 
 Head movement follows the reference's simplified phase sequence: energizing
 an adjacent phase moves one half track; the phase-difference table resolves
 opposite phases. Phase-off accesses do not move the head. The range is clamped
 to tracks 0–34; odd half tracks read the lower whole track. This is not a model
-of simultaneous phase currents, head settling, rotational speed, bit timing,
+of simultaneous phase currents, head settling, physical rotational variation, bit timing,
 the sequencer, or flux transitions. Formatting tracks, custom formats, copy
 protection, other disk sizes, and drive 2 are outside this profile.
 
