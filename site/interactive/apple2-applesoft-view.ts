@@ -10,6 +10,7 @@ import { applesoftStatement } from "./apple2-applesoft-step.js";
 import { hex } from "./apple2-explorer.js";
 import type { createApple2Session } from "./apple2-session.js";
 import { memoryLink } from "./memory-link.js";
+import { applesoftFlowAnnotations } from "./apple2-applesoft-flow-view.js";
 import type { DebugStop } from "./instruction-debugger.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
@@ -22,6 +23,8 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
   const source = panel.querySelector<HTMLElement>("[data-applesoft-source]")!;
   const showCounts = panel.querySelector<HTMLInputElement>("[data-applesoft-show-counts]")!;
   const clearCounts = panel.querySelector<HTMLButtonElement>("[data-applesoft-clear-counts]")!;
+  const showFlow = panel.querySelector<HTMLInputElement>("[data-applesoft-show-flow]")!;
+  const flowHint = panel.querySelector<HTMLElement>("[data-applesoft-flow-hint]")!;
   const data = panel.querySelector<HTMLElement>("[data-applesoft-data]")!;
   const dataCursor = panel.querySelector<HTMLElement>("[data-basic-data-cursor]")!;
   const errors = panel.querySelector<HTMLElement>("[data-applesoft-errors]")!;
@@ -126,10 +129,15 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
     refreshCounts();
   });
   clearCounts.addEventListener("click", () => { history.clearCounts(); refreshCounts(); });
+  showFlow.addEventListener("change", () => {
+    source.classList.toggle("show-flow", showFlow.checked);
+    flowHint.hidden = !showFlow.checked;
+  });
   function render(listing: ApplesoftListing): void {
     tokens.clear(); statements.clear(); marked = undefined;
     counters.clear(); countRevision = -1;
     const fragment = document.createDocumentFragment();
+    const flow = applesoftFlowAnnotations(listing, points.listing, reveal);
     for (const line of listing.lines) {
       const row = document.createElement("div");
       row.append(String(line.number), " ");
@@ -164,6 +172,9 @@ export function createApplesoftView(root: HTMLElement, browse: (address: number)
         }
         row.append(span);
       }
+      const outgoing = flow.outgoing.get(line.number), incoming = flow.incoming.get(line.number);
+      if (outgoing) row.append(outgoing);
+      if (incoming) row.append(incoming);
       fragment.append(row);
     }
     source.replaceChildren(fragment);

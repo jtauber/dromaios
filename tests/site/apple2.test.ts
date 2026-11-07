@@ -12,6 +12,7 @@ import { applesoftContinuation } from "../../site/interactive/apple2-applesoft-c
 import { createApplesoftHistory } from "../../site/interactive/apple2-applesoft-history.js";
 import { createApplesoftProfile } from "../../site/interactive/apple2-applesoft-profile.js";
 import { createApplesoftEvents } from "../../site/interactive/apple2-applesoft-events.js";
+import { applesoftBranches, resolveApplesoftBranch } from "../../site/interactive/apple2-applesoft-flow.js";
 import { createApplesoftBreakpoints } from "../../site/interactive/apple2-applesoft-breakpoints.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import { createInstructionDebugger } from "../../site/interactive/instruction-debugger.js";
@@ -129,7 +130,7 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
 
   // Run the ROM guide's scalar example and use PRINT as the independent value oracle.
   const guide = readFileSync("docs/software/apple2p-rom.md", "utf8");
-  const [scalarExample, memoryExample, arrayExample, stepExample, stackExample, profileExample, dataExample, errorExample, continuationExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
+  const [scalarExample, memoryExample, arrayExample, stepExample, stackExample, profileExample, dataExample, errorExample, continuationExample, flowExample] = literateBlocks(guide, "basic", line => { throw new Error(`Unclosed BASIC fence at ${line}`); });
   assert.ok(scalarExample);
   command("NEW");
   for (const line of scalarExample.lines) command(line.text);
@@ -470,6 +471,27 @@ test("browser Apple II session boots real ROM, pastes BASIC, edits, pauses, brea
     assert.equal(events.total, 205); assert.equal(events.entries.length, 200); assert.equal(events.entries[0]!.number, 6);
     assert.ok(events.entries.every(e => e.kind === "PEEK"));
     events.clear(); assert.equal(events.total, 0); assert.deepEqual(events.entries, []);
+  });
+
+  await t.test("static branch links describe the stored program while ROM execution selects its own path", () => {
+    assert.ok(flowExample);
+    command("NEW"); for (const line of flowExample.lines) command(line.text);
+    const listing = pointsForHistory.listing(), branches = applesoftBranches(listing), saved = session.snapshot();
+    assert.deepEqual(branches.map(b => [b.source.line, b.kind, b.targets.map(t => t.line)]), [
+      [20, "ON GOSUB", [100, 200, 300]], [30, "THEN", [50]], [40, "GOTO", [300]],
+      [50, "GOTO", [70]], [60, "GOTO", [300]], [70, "GOSUB", [100]], [70, "GOTO", [90]], [80, "GOTO", [300]],
+    ]);
+    for (const branch of branches) for (const target of branch.targets) assert.ok(resolveApplesoftBranch(listing, branch, target));
+    assert.deepEqual(session.snapshot(), saved, "Flow inspection cannot execute BASIC or read devices");
+    history.clear(); command("RUN"); assert.match(screen(), /\]RUN\nTWO\nONE\n/);
+    assert.deepEqual(history.visits.map(v => [v.line, v.index]), [
+      [10, 0], [20, 0], [200, 0], [200, 1], [30, 0], [50, 0], [50, 1],
+      [70, 0], [70, 1], [100, 0], [100, 1], [70, 2], [90, 0],
+    ]);
+    assert.equal(branches[0]!.targets.length, 3, "Not visiting a possible destination does not remove its source link");
+    command("10 S=2:ON S GOTO 100,200:END"); history.clear(); command("RUN");
+    assert.match(screen(), /\]RUN\nTWO\n/); assert.match(screen(), /RETURN WITHOUT GOSUB/);
+    assert.deepEqual(history.visits.map(v => v.line), [10, 10, 200, 200]);
   });
 
   await t.test("ONERR captures division by zero and RESUME retries only the failing statement, including after restore", () => {

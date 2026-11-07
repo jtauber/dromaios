@@ -8,6 +8,7 @@ import type { Dos33SectorWrite } from "../../src/components/devices/dos33-disk.j
 import { readApple2Rom, readApple2Disk } from "../../site/interactive/apple2-media.js";
 import type { Apple2MemoryChange } from "../../site/interactive/apple2-inspection.js";
 import { applesoftCursor, applesoftKeywords, createApplesoftListing } from "../../site/interactive/apple2-applesoft.js";
+import { applesoftBranches, resolveApplesoftBranch } from "../../site/interactive/apple2-applesoft-flow.js";
 import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
 import { createIntegerPlotTrace } from "../../site/interactive/apple2-integer-plot.js";
 import { apple2LoresPixel, createApple2ScreenWrites } from "../../site/interactive/apple2-screen-inspection.js";
@@ -475,6 +476,10 @@ test("native Disk II boots DOS, runs BASIC, and distinguishes protected and writ
       { text: "REM", tokenAddress: 0x0805 }, { text: "  -- DOS 3.3 HELLO" },
     ] }] });
     assert.deepEqual(applesoftCursor(ram, token), { address: 0x0805, line: 10, source: "Text pointer" });
+    const branches = applesoftBranches(listing);
+    assert.deepEqual(branches.map(b => [b.source.line, b.source.index, b.kind, b.targets.map(t => t.line)]), [[160, 0, "THEN", [250]]]);
+    assert.equal(resolveApplesoftBranch(listing, branches[0]!, branches[0]!.targets[0]!)?.destination.address,
+      listing.lines.find(line => line.number === 250)!.statements[0]!.address);
   });
   await t.test("bootstrap continues identically after restoring a Disk II read", () => {
     for (let i = 0; i < 1_000_000; i++) {

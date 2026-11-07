@@ -176,9 +176,11 @@
         <button type="button" data-applesoft-step disabled>Step BASIC statement</button>
         <label><input type="checkbox" data-applesoft-show-counts> Show counts</label>
         <button type="button" data-applesoft-clear-counts hidden>Clear counts</button>
+        <label><input type="checkbox" data-applesoft-show-flow checked> Show flow</label>
       </div>
       <p class="lab-hint" data-applesoft-status>Preparing Applesoft listing…</p>
-      <div class="lab-applesoft-source" data-applesoft-source></div>
+      <p class="lab-hint" data-applesoft-flow-hint>Possible destinations and callers, not an execution trace. <a href="{{ calc_url(apple2_url ~ '#following-applesoft-control-flow') }}" target="_blank" rel="noopener">Follow the branches ↗</a></p>
+      <div class="lab-applesoft-source show-flow" data-applesoft-source></div>
       <details class="lab-applesoft-state" data-applesoft-data open hidden>
         <summary>DATA reading</summary>
         <p data-basic-data-cursor></p>

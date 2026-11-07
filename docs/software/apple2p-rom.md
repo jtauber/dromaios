@@ -1115,6 +1115,64 @@ this published program, follows both retained stack frames, replays the
 checkpoint, checks direct commands and edits, and covers same-line, next-line,
 and end-of-program continuations.
 
+### Following Applesoft control flow
+
+**Show flow** in **Applesoft listing** adds **To** links below statements with
+explicit destinations, and **From** links below their target lines. These are
+possible transfers in the stored source. Use statement history and visit counts
+to see which statements actually executed. Following a link moves the listing's
+focus without stepping the machine or changing its execution highlight.
+
+The links cover `GOTO`, `GOSUB`, numeric `THEN`, `ON … GOTO/GOSUB`, and the deferred
+handler in `ONERR GOTO`. An `IF` also guards later statements on the same line.
+ON choices retain their order, including repeated targets; the inspector does
+not evaluate the selector. `20.1` means line 20, statement 1, and `#2` identifies
+its second ON choice. Quoted text, DATA and comments do not create links.
+
+Enter `NEW`, followed by:
+
+```basic
+10 S=2
+20 ON S GOSUB 100,200,300
+30 IF S=2 THEN 50
+40 GOTO 300
+50 IF S=2 GOTO 70
+60 GOTO 300
+70 IF S=2 THEN GOSUB 100:GOTO 90
+80 GOTO 300
+90 END
+100 PRINT "ONE":RETURN
+200 PRINT "TWO":RETURN
+300 PRINT "UNEXPECTED":END
+```
+
+Line 20 offers three destinations. Follow its second choice to line 200, then
+follow that line's incoming link back to the ON statement. Line 100 has callers
+at both line 20 and the GOSUB on line 70. On line 70, GOSUB and GOTO are separate
+source statements and both depend on the IF. `RUN` prints `TWO`, then `ONE`.
+The links to line 300 remain visible even though that line was not executed.
+
+After `LOAD HELLO` on the selected DOS System Master, follow line 160's `THEN`
+link to line 250 and its incoming link back. The Language Card probe decides
+whether execution takes this path. The PRINT strings containing DOS commands
+and the machine-code `CALL 769` are not BASIC line transfers.
+
+Literal line numbers from 0 through 63999 and ON lists receive links. An absent
+line is marked **missing**. Other operand forms are marked **unresolved operand**;
+this is a limit of the source inspector, not a claim that the ROM rejects every
+unusual spelling. It does not infer RETURN, NEXT, CONT, sequential execution or
+machine-code destinations. The ROM's `ONGOTO` evaluates a selector and `LINGET`
+reads the selected line number; the inspector does neither.
+[Applesoft ROM disassembly](https://6502disassembly.com/a2-rom/Applesoft.html)
+
+With Live off during Run, annotations stay with the displayed source. Clicking
+a held link rechecks its source line and destination statement: unchanged text
+can move in RAM, but edited or deleted source cannot redirect an old link.
+Enable Live or pause to refresh the listing after an edit. **Show flow** only
+changes visibility and is independent of Live, breakpoints and visit counts.
+The automated checks execute the program above, compare possible destinations
+with actual statement visits, and inspect HELLO loaded through the real DOS boot.
+
 ## ROM identity and stops
 
 This record supplies the browser's searchable reference, routine selector, trace,

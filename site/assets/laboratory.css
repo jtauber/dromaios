@@ -200,6 +200,8 @@
 .lab-applesoft-source span[aria-current="true"] { background: #594420; outline: 1px solid #dba94c; color: #ffe8ac; }
 .lab-applesoft-source span[aria-current="true"] .lab-memory-link { color: inherit; }
 .lab-applesoft-source span:focus { outline: 2px solid var(--accent); }
+.lab-basic-flow { display: none; margin: 1px 0 3px 2ch; color: var(--muted); font: 11px/1.6 var(--mono); }
+.show-flow .lab-basic-flow { display: block; }
 .lab-applesoft-history { display: flex; flex-direction: column; align-items: flex-start; }
 .lab-applesoft-history .basic-controls label { display: inline-flex; align-items: center; gap: 6px; }
 .lab-applesoft-history ol { align-self: stretch; overflow: auto; margin: 8px 0 0; padding-inline-start: 6ch; font: 12px/1.7 var(--mono); }
