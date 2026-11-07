@@ -3,6 +3,7 @@ import { editApple2Register } from "./apple2-register-edit.js";
 import { editApple2Memory } from "./apple2-memory-edit.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createExecutionController } from "./execution-controller.js";
+import { createExecutionIntervalView } from "./execution-interval-view.js";
 import { createApple2Session, apple2ControlKey, apple2ScreenKey, apple2Input } from "./apple2-session.js";
 import { createApple2ScreenInspector } from "./apple2-screen-inspector-view.js";
 import { createApple2Screen } from "./apple2-screen-view.js";
@@ -59,6 +60,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   };
   const romStorage = apple2RomStorage(() => window.localStorage, romImages.firmware, media);
   let session = createApple2Session(), rom: Apple2RomFile | undefined, diskName: string | null = null;
+  const intervals = createExecutionIntervalView(root, () => session.machine.clock);
   let diskMode: Apple2DiskMode = writableDisk ? "read-only" : "system-master";
   let selecting = false, selection = 0, flash = false, nextFlash = 0, restoring = false;
   const renderScreen = createApple2Screen(screen, element<HTMLInputElement>("apple2-scanlines"));
@@ -171,6 +173,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   }
 
   function resetExecutionHistory(): void {
+    intervals.clearStep();
     execution.reset(); changeLog?.reset(); screenInspector?.reset();
     basicHistory?.clear(); basicHistory?.clearCounts();
     basicProfile?.clear();
@@ -223,6 +226,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (inputStatus) inputStatus.textContent = `${session.pendingInput} keyboard characters queued`;
     if (execution.error !== undefined) { explorer.fail(execution.error); screenInspector?.reset(); }
     if (execution.error !== undefined) message.textContent = execution.error;
+    intervals.refresh({ running: execution.running, unavailable: selecting, stop: explorer.stop?.kind });
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
     if (shouldUpdate("variables")) variables?.(session.machine);
     if (shouldUpdate("applesoft")) applesoft?.refresh(session.machine, latest, explorer.stop);
@@ -327,14 +331,15 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   run.addEventListener("click", () => { explorer.run(); message.textContent = ""; nextFlash = performance.now() + 500; execution.run(); inputTarget.focus(); });
   pause.addEventListener("click", () => { explorer.pause(); execution.stop(); });
   step.addEventListener("click", () => {
-    explorer.step(); message.textContent = ""; execution.step();
+    explorer.step(); intervals.begin("step"); message.textContent = ""; execution.step();
   });
   basicStep?.addEventListener("click", () => {
     explorer.stepUntil(at => applesoftStepBoundary(session.machine, at, session.pendingInput));
     message.textContent = ""; execution.run();
   });
   const stepControls = createDebuggerStepControls(root, {
-    over: explorer.over, out: explorer.out,
+    over: () => { explorer.over(); intervals.begin("over"); },
+    out: () => { explorer.out(); intervals.begin("out"); },
     run: () => { message.textContent = ""; execution.run(); },
     error: text => { message.textContent = text; },
   });

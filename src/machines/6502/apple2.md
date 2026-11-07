@@ -224,6 +224,34 @@ The **Execution** panel contains Run, Pause, Step, Reset CPU, Fresh power-on,
 the instruction count, elapsed CPU clocks, and status messages. Below Screen, it shares a narrow
 column with MOS 6502 and Instruction; Disassembly spans the height beside them.
 It can be moved, collapsed, or reopened through **Panels**, like the other tools.
+
+**Mark clock** records the current total while paused. **Since marker** then
+shows clocks consumed by subsequent execution, including ordinary Run; pausing
+adds nothing. Mark again to start a new interval, or use **Clear marker**.
+The marker survives CPU reset and host register/RAM edits, which leave the
+machine clock intact. Fresh power-on, replacing ROM or disk in a fresh machine,
+and restoring a checkpoint clear the marker, even if the restored clock is later.
+Markers are inspector state and are not saved in checkpoints.
+
+**Step**, **Step over**, and **Step out** also report the clocks consumed by
+that request. Step over includes the call instruction, nested work, and the
+matching return; on an ordinary instruction it measures one step. Step out
+measures from the current boundary through the observed caller's return, without
+charging the work already executed before the request. While a request runs,
+its total updates with each batch. Breakpoints, watchpoints, Pause, instruction
+limits, or lost caller tracking report **stopped** rather than **complete**;
+execution errors report **failed** and count only completed CPU boundaries.
+The debugger's status gives the stop reason. The last measurement stays fixed
+during later Run; a new step replaces it. Clearing execution history, including
+CPU reset or host edits, clears this last-step measurement.
+
+For a short ROM check, use Fresh power-on with no disk and Mark clock. Step at
+FA62 executes CLD in **2 clocks**. Step over the JSR at FA63 executes SETNORM
+and returns to FA66 in **17 clocks**, bringing Since marker to **19**. Its
+instructions are JSR (6), LDY #$FF (2), STY $32 (3), and RTS (6). Alternatively,
+Step into that JSR for **6 clocks**, then Step out for the remaining **11**.
+The classroom's execution controls share the marker and single-step readout.
+
 The screen accepts typing and pasting
 directly, including Enter and Ctrl-C; the classroom also has an explicit keyboard
 field. Disassembly owns run-to-address and run-to-routine controls; ROM owns firmware

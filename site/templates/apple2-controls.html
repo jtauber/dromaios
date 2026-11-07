@@ -16,6 +16,15 @@ data-disk-bytes="{{ media.disk.bytes }}" data-disk-sha256="{{ media.disk.sha256 
 </div>
 {% endmacro %}
 
+{% macro clock_measurements() %}
+<div class="basic-controls" role="group" aria-label="Clock marker">
+  <button type="button" data-clock-mark disabled>Mark clock</button>
+  <button type="button" data-clock-clear disabled>Clear marker</button>
+</div>
+<p data-clock-elapsed class="basic-readout" role="status">No clock marker.</p>
+<p data-clock-interval class="basic-readout" role="status" hidden></p>
+{% endmacro %}
+
 {% macro display_controls() %}
 <div class="apple2-display-options" role="group" aria-label="Display effects">
   <label><input type="checkbox" data-apple2-scanlines checked disabled> Scanlines</label>
