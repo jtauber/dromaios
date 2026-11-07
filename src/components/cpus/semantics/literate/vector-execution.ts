@@ -1,4 +1,4 @@
-import type { Choice, Flag, InstructionDefinition, Latch } from "../model.ts";
+import type { Choice, Flag, InstructionDefinition, Latch, Statement } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 import type { VectorExecution } from "./execution.ts";
 import { checkStateEffects, usesMemory } from "./statements.ts";
@@ -12,6 +12,39 @@ export interface VectorEntry extends EntryAction {
   readonly source: string;
   readonly gate?: { readonly kind: "mask" | "latch"; readonly field: string; readonly reason: string };
   readonly resume?: { readonly field: string; readonly value: string; readonly action: string };
+}
+
+/** Flat vector models declare complete instruction timing and a cost for every accepted offer. */
+export function chapterVectorTiming(tokens: ChapterTokens, entries: readonly VectorEntry[]): Readonly<Record<string, number>> {
+  tokens.expect("offers");
+  const offers: Record<string, number> = {};
+  do {
+    const source = tokens.quoted();
+    if (!entries.some(entry => entry.source === source) || Object.hasOwn(offers, source)) tokens.fail("Expected a distinct declared interrupt source.");
+    const clocks = tokens.number();
+    if (!Number.isInteger(clocks) || clocks < 1 || clocks > 65535) tokens.fail("Clock costs must be positive 16-bit integers.");
+    offers[source] = clocks;
+  } while (tokens.take(","));
+  tokens.end();
+  if (entries.some(entry => !Object.hasOwn(offers, entry.source))) tokens.fail("Timing needs every interrupt offer.");
+  return offers;
+}
+
+/** A complete base precedes every effect; sources can add addressing costs, never replace it. */
+export function checkVectorTiming(steps: readonly Statement[]): void {
+  const first = steps[0];
+  if (first?.kind !== "report-clocks" || first.available) throw new Error("Timed vector families must start with unconditional clocks.");
+  const check = (steps: readonly Statement[]): void => {
+    for (const step of steps) switch (step.kind) {
+      case "report-clocks": throw new Error("A family reports base clocks exactly once, before all other statements.");
+      case "read-source": check(step.source.steps); break;
+      case "perform": check(step.action.steps); break;
+      case "choose": check(step.yes.steps); check(step.no.steps); break;
+      case "when": case "iterate": case "iterate-together": check(step.steps); break;
+      case "dispatch": case "match": for (const branch of step.cases) check(branch.steps); break;
+    }
+  };
+  check(steps.slice(1));
 }
 
 /** Each source declares its entry action, acceptance gate, and optional masked wake-up. */
@@ -103,7 +136,7 @@ export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries
   return vectorExecution(${q(cpu)}, ram, snapshot, {
     counter: programCounter(views[${q(policy.counter)}], value => actions[${q(policy.writeCounter)}](state, value)),
     word: ${q(policy.word)}, opcodeAdvance: ${q(policy.opcodeAdvance)},
-${waiting === undefined ? "" : `    waiting: () => state[${q(waiting.field)}]${waiting.unless === undefined ? "" : ` !== ${q(waiting.unless)}`},\n`}    reset: memory => ${invoke(policy.reset, [], policy.resetMemory)},
+${policy.timing ? `    timing: ${JSON.stringify(policy.timing)},\n` : ""}${waiting === undefined ? "" : `    waiting: () => state[${q(waiting.field)}]${waiting.unless === undefined ? "" : ` !== ${q(waiting.unless)}`},\n`}    reset: memory => ${invoke(policy.reset, [], policy.resetMemory)},
     handlers: opcodeTable(opcodeEntries(state)),
     entries: {
 ${policy.entries.map(entry => `      ${q(entry.source)}: memory => ${invoke(entry.action, entry.arguments, entry.memory)},`).join("\n")}

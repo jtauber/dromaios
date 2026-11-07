@@ -137,7 +137,7 @@ test("match IR validates masks, branch scopes and results, and byte execution ch
   assert.doesNotThrow(() => validateInstruction(definition(perform({ name: "action", steps: [readSource("decoded", source)] }, {}))));
   assert.throws(() => checkStateEffects([perform({ name: "action", steps: [readSource("decoded", source)] }, {})], "state", false), /Execution actions cannot reject/);
   const portCase = { ...match.cases[0]!, steps: [readPort("byte", literal(16, 0))] };
-  assert.throws(() => checkByteExecution([{ ...match, cases: [portCase] }], false, true), /memory-only/);
+  assert.throws(() => checkByteExecution([{ ...match, cases: [portCase] }], { memoryOnly: true }), /memory-only/);
   const description = describeInstruction(definition(match));
   assert.match(description, /match byte/); assert.match(description, /otherwise return outcome "unsupported"/);
 });

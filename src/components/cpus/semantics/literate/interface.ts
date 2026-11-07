@@ -69,7 +69,7 @@ export function generateChapterInterface(module: string, state: StateFields, api
   if (execution.interrupt === "external") throw new Error("A public interface requires chapter-owned interrupt entry.");
   if (execution.mode === "word") return generateWordInterface(module, state, api, execution, reset);
   const vectors = execution.interrupt === "vectors", segmented = execution.mode === "segmented";
-  const timed = segmented && execution.timing !== undefined;
+  const timed = (segmented || vectors) && execution.timing !== undefined;
   const stoppedStep = vectors ? execution.waiting === undefined ? undefined : "WaitingStep" : "HaltedStep";
   const name = api.name, schema = `${name[0]!.toLowerCase() + name.slice(1)}StateDescription`, quoted = JSON.stringify;
   const aliases = [...stateAliases(state), ...(api.banks ?? [])].map(alias => `${name}${alias.name}`);
@@ -138,7 +138,7 @@ export class ${name} {
   reset(): ${name}ResetRecord { return this.#execution.reset(); }
   step(): ${name}StepRecord { return this.#execution.step(); }
 ${timed ? `  stepTimed(): ${name}TimedStepRecord { return this.#execution.stepTimed(); }
-${overloads("interruptTimed")}  interruptTimed(${interruptParameter}): ${name}TimedInterruptRecord { return this.#execution.interruptTimed(source, acknowledge); }` : ""}
+${overloads("interruptTimed")}  interruptTimed(${interruptParameter}): ${name}TimedInterruptRecord { return this.#execution.interruptTimed(${vectors ? "source" : "source, acknowledge"}); }` : ""}
 ${overloads("interrupt")}  interrupt(${interruptParameter}): ${name}InterruptRecord { return this.#execution.interrupt(${vectors ? "source" : named || segmented ? "source, acknowledge" : "acknowledge"}); }
 }
 `;

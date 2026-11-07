@@ -127,7 +127,7 @@ test("chapter-derived explanations retain unchanged assignments and respond to s
   const clear = preview6502(state(), () => 0xd8, instructions);
   assert.ok(clear.effects.includes("D 0 → 0")); assert.ok(clear.calculations.includes("D ← 0"));
   const definition = structuredClone(Object.values(families).flat().find(([opcode]) => opcode === 0xd8)![1]);
-  const step = definition.steps[0]!;
+  const step = definition.steps.find(step => step.kind === "update-flags")!;
   assert.equal(step.kind, "update-flags");
   if (step.kind === "update-flags") {
     const edited = { ...definition, explanation: "A changed chapter explanation.", steps: [{ ...step, arguments: { value: { kind: "flag-literal" as const, value: true } } }] };

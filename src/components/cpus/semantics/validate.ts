@@ -425,10 +425,8 @@ function validation(cpu: CpuDeclaration, prefix: string) {
           if (cpu.retiNotification !== true) fail(where, "RETI notification requires a declared notification policy");
           return;
         case "report-clocks":
-          if (cpu.segmentedBoundary !== true) fail(where, "instruction clocks require a segmented boundary");
           expect(step.clocks, 16); if (step.available) flagExpression(step.available, scope, where); return;
         case "add-clocks":
-          if (cpu.segmentedBoundary !== true) fail(where, "instruction clocks require a segmented boundary");
           expect(step.clocks, 16); return;
         case "report-interrupt":
           if (cpu.segmentedBoundary !== true) fail(where, "software delivery reporting requires a segmented boundary");

@@ -1,4 +1,4 @@
-import type { Cpu6502, Cpu6502ResetRecord, Cpu6502StepRecord, Cpu6502InterruptRecord } from "../../src/components/cpus/generated/6502-cpu.js";
+import type { Cpu6502, Cpu6502ResetRecord, Cpu6502StepRecord, Cpu6502InterruptRecord, Cpu6502TimedStepRecord, Cpu6502TimedInterruptRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 
 // Compiled by npm test; never called. Each expected error guards the public API.
 export function checkPublicTypes(cpu: Cpu6502, record: Cpu6502StepRecord): void {
@@ -143,4 +143,19 @@ export function checkInterruptTypes(cpu: Cpu6502, record: Cpu6502InterruptRecord
   }
   // @ts-expect-error An ignored record can only name IRQ.
   const ignoredNmi: Cpu6502InterruptRecord = { ...record, source: "nmi", outcome: "ignored", reason: "masked" };
+}
+
+export function checkTimingTypes(cpu: Cpu6502): void {
+  const step: Cpu6502TimedStepRecord = cpu.stepTimed();
+  const interrupt: Cpu6502TimedInterruptRecord = cpu.interruptTimed("nmi");
+  const ordinary: Cpu6502StepRecord = step;
+  const clocks: number = step.clocks + interrupt.clocks;
+  // @ts-expect-error Timed records retain readonly fields.
+  step.clocks = 1;
+  // @ts-expect-error Ordinary records have no clocks.
+  ordinary.clocks;
+  // @ts-expect-error Only chapter-declared offers are accepted.
+  cpu.interruptTimed("intr");
+  // @ts-expect-error Reset remains untimed.
+  cpu.reset().clocks;
 }

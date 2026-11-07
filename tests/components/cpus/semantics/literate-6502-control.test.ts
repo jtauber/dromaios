@@ -25,7 +25,7 @@ const forbidden = () => { assert.fail("Unexpected memory access"); };
 
 test("the chapter controls signed branches and tests live flags after fetching without reading untaken PC", async () => {
   for (const changed of [false, true]) {
-    const execute = await probes(changed ? markdown.replace("PC <- add(pc, signExtend(offset, 16))", "PC <- add(pc, extend(offset, 16))") : markdown, [0xd0]);
+    const execute = await probes(changed ? markdown.replace("target = add(pc, signExtend(offset, 16))", "target = add(pc, extend(offset, 16))") : markdown, [0xd0]);
     for (const taken of [false, true]) {
       const current = state(); let reads = 0, writes = 0;
       const observed = new Proxy(current, {
@@ -97,11 +97,12 @@ test("RTI's chapter restores flags before either PC byte, retaining flags and in
 
 test("sign-extension and complete status restoration reject invalid chapter edits at their source lines", () => {
   for (const [before, after, message] of [
-    ["PC <- add(pc, signExtend(offset, 16))", "PC <- add(pc, signExtend(offset, 8))", /extension|widen/],
-    ["PC <- add(pc, signExtend(offset, 16))", "PC <- add(pc, signExtend(offset, 3))", /extension|widen/],
-    ["PC <- add(pc, signExtend(offset, 16))", "PC <- add(pc, signExtend(missing, 16))", /has not been captured/],
+    ["target = add(pc, signExtend(offset, 16))", "target = add(pc, signExtend(offset, 8))", /extension|widen/],
+    ["target = add(pc, signExtend(offset, 16))", "target = add(pc, signExtend(offset, 3))", /extension|widen/],
+    ["target = add(pc, signExtend(offset, 16))", "target = add(pc, signExtend(missing, 16))", /has not been captured/],
     ["  replace STATUSFLAGS(status)", "  replace NZ(status)", /every|all|complete/],
   ] as const) {
+    assert.ok(markdown.includes(before));
     const text = markdown.replace(before, after);
     const line = markdown.slice(0, markdown.indexOf(before)).split("\n").length;
     assert.throws(() => compileCpuChapter(text, { name: "6502" }, file), (error: unknown) => {

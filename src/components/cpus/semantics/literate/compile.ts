@@ -10,6 +10,7 @@ import type { OpcodePage } from "../opcode-pages.ts";
 import { chapterBlocks, chapterBody, chapterContext, ChapterError, ChapterTokens } from "./document.ts";
 import { definitionReference, flagExpression, width } from "./expressions.ts";
 import { chapterSegmentedExecution, checkSegmentedEffects, checkTimingPreparation } from "./segmented-execution.ts";
+import { checkVectorTiming } from "./vector-execution.ts";
 import { chapterExecution, checkByteExecution } from "./execution.ts";
 import type { ChapterExecution } from "./execution.ts";
 import { chapterReset } from "./reset.ts";
@@ -298,8 +299,14 @@ export function compileCpuChapter(markdown: string, target: { readonly name?: st
           checkTimingPreparation(definition.steps.slice(0, clocks));
         }
       });
-    } else tokens.checked(() => checkByteExecution(definition.steps, execution.retireDeferral !== undefined, execution.interrupt === "vectors",
-      execution.opcodeAdvance === "decode" ? execution : undefined));
+    } else tokens.checked(() => {
+      const timed = execution.interrupt === "vectors" && execution.timing !== undefined;
+      checkByteExecution(definition.steps, {
+        deferral: execution.retireDeferral !== undefined, memoryOnly: execution.interrupt === "vectors",
+        ...(execution.opcodeAdvance === "decode" ? { decoded: execution } : {}), timing: timed,
+      });
+      if (timed) checkVectorTiming(definition.steps);
+    });
   }
   return { cpu: cpu.name, pages: Object.fromEntries(pages), ...(ownsState ? { state: cpu.state } : {}), ...(execution ? { execution } : {}), ...(reset ? { reset } : {}), ...(publicInterface ? { interface: publicInterface } : {}), sources: Object.fromEntries(sources), views: Object.fromEntries(views), actions: Object.fromEntries(actions), policies: Object.fromEntries(policies), operands: Object.fromEntries(catalogues), conditions: Object.fromEntries(conditions), families: Object.fromEntries(families) };
 }

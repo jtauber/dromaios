@@ -57,6 +57,8 @@ export function instructionExplanation6502(definition: InstructionDefinition) {
     const show = (value: Expression) => expression(value, names);
     const emit = (text: string) => calculations.push(prefix + text);
     for (const step of steps) switch (step.kind) {
+      // Clock accounting adds no register, flag, or bus effect to the instruction preview.
+      case "report-clocks": case "add-clocks": break;
       case "read-register": emit(`${step.name} = ${step.register.field.toUpperCase()}`); names.set(step.name, step.name); break;
       case "read-flag": emit(`${step.name} = ${step.flag.field.toUpperCase()}`); names.set(step.name, step.name); break;
       case "fetch-byte": emit(`${step.name} = next byte`); names.set(step.name, step.name); break;

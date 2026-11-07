@@ -177,7 +177,11 @@ a false condition supplies `undefined`, declaring unavailable timing. The
 checks its placement before operand effects and governs rejection, prefix costs,
 and timed records. `add-clocks` adds a nonnegative 16-bit cost after that initial
 declaration, including inside family branches, without changing the availability
-decision or repeating prefix costs. Ordinary execution has no timing consumer.
+decision or repeating prefix costs. The [vector timing contract](literate-specifications.md#vector-instruction-clocks)
+requires a complete base first in every family and also permits additions in
+address sources. Clock expressions are width-checked like other expressions;
+the execution contract checks their placement and supported effects. Ordinary
+execution has no timing consumer.
 
 Reset, fetching, dispatch, stopping, retirement, interrupt recognition, and
 exception delivery also have declarative contracts, described in the

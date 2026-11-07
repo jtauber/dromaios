@@ -70,7 +70,8 @@ test("chapter opcode policy changes unsupported advancement without inventing ha
 test("vector execution follows a renamed CPU, mask field, public class, and source catalogue", async () => {
   const text = markdown.replace('cpu "6502"', 'cpu "probe"').replace("interface Cpu6502", "interface CpuProbe")
     .replace("flag I", "flag MASK = gated").replaceAll("flag I", "flag MASK").replaceAll("  I =", "  MASK =")
-    .replace("source irq unless", "source pulse unless").replace("source nmi always", "source edge always");
+    .replace("source irq unless", "source pulse unless").replace("source nmi always", "source edge always")
+    .replace('timing offers "irq" 7, "nmi" 7', 'timing offers "pulse" 7, "edge" 7');
   const Model = await generated(text, "probe", "CpuProbe"), state = initial();
   const flags = { ...state.flags, gated: true }; Reflect.deleteProperty(flags, "i");
   const cpu = new Model(memory(), { ...state, flags });

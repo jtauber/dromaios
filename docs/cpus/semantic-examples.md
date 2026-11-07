@@ -814045,6 +814045,7 @@ Flags preserved throughout: X, N, Z, V, C, T, S.
 Fetch padding, push PC high, then live PC low, then status with B set. Decrement live SP after each successful write. Set I only after the frame is complete, then read the low/high vector before replacing PC. Preserve A/X/Y and N/V/D/Z/C. Failed accesses prevent later effects and retain completed ones.
 
 ```text
+instruction timing: 0007:u16 CPU clocks
 padding:u8 := fetch byte
 highPC:u16 := read PC
 highAddress:u8 := read SP
@@ -814085,8 +814086,10 @@ Flags preserved throughout: N, V, D, Z, C.
 Read the operand before capturing A. OR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at indexed indirect (zero page,X)" {
   address:u16 := source "indexed indirect (zero page,X)" {
+    additional instruction timing: 0004:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     pointer := addWrap(offset, index)
@@ -814114,8 +814117,10 @@ Flags preserved throughout: V, D, I, C.
 Read the operand before capturing A. OR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -814138,7 +814143,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then shift in zero and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page" {
+  additional instruction timing: 0001:u16 CPU clocks
   offset:u8 := fetch byte
   yield zeroExtend16(offset)
 }
@@ -814162,6 +814169,7 @@ Flags preserved throughout: V, D, I.
 Capture status before any stack access and set its stacked B marker. Write that byte at page one, then decrement live SP after the successful write. Preserve registers other than SP and every flag; do not store B as CPU state.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 status:u8 := source "packed processor status, B clear" {
   n:flag := read N
   v:flag := read V
@@ -814185,6 +814193,7 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Read the operand before capturing A. OR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -814205,6 +814214,7 @@ Flags preserved throughout: V, D, I, C.
 Capture A and shift in zero. Set C from the outgoing bit, write A, then set N/Z. Preserve V/D/I; no data memory is accessed.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 original:u8 := read A
 result := shiftLeft(original, 0:flag)
 flags "6502 shifted-out bit" simultaneously {
@@ -814224,8 +814234,10 @@ Flags preserved throughout: V, D, I.
 Read the operand before capturing A. OR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -814249,7 +814261,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then shift in zero and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -814274,6 +814288,7 @@ Flags preserved throughout: V, D, I.
 Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -814281,7 +814296,9 @@ offset:u8 := source "immediate byte" {
 condition0:flag := read N
 when not(condition0) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  target := addWrap(pc, signExtend16(offset))
+  additional instruction timing: select(equal(highByte(pc), highByte(target)), 0001:u16, 0002:u16) CPU clocks
+  write PC:u16 := target
 }
 ```
 
@@ -814292,15 +814309,25 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Read the operand before capturing A. OR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
-right:u8 := source "byte at indirect indexed (zero page),Y" {
-  address:u16 := source "indirect indexed (zero page),Y" {
-    offset:u8 := fetch byte
-    pointer := offset
-    low:u8 := read memory[zeroExtend16(pointer)]
-    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-    base := concatHighLow(high, low)
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at indirect indexed (zero page),Y for reading" {
+  address:u16 := source "indirect indexed (zero page),Y for reading" {
+    base:u16 := source "low-first pointer in zero page" {
+      additional instruction timing: 0003:u16 CPU clocks
+      pointer:u8 := fetch byte
+      low:u8 := read memory[zeroExtend16(pointer)]
+      high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(base, zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -814321,8 +814348,10 @@ Flags preserved throughout: V, D, I, C.
 Read the operand before capturing A. OR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page indexed by X" {
   address:u16 := source "zero page indexed by X" {
+    additional instruction timing: 0002:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     yield zeroExtend16(addWrap(offset, index))
@@ -814346,7 +814375,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then shift in zero and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page indexed by X" {
+  additional instruction timing: 0002:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read X
   yield zeroExtend16(addWrap(offset, index))
@@ -814371,6 +814402,7 @@ Flags preserved throughout: V, D, I.
 Clear C; preserve every other flag and register. No data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "write carry" simultaneously {
   C := 0:flag
 } // Preserve unlisted flags.
@@ -814383,12 +814415,24 @@ Flags preserved throughout: N, V, D, I, Z.
 Read the operand before capturing A. OR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
-right:u8 := source "byte at absolute indexed by Y" {
-  address:u16 := source "absolute indexed by Y" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by Y for reading" {
+  address:u16 := source "absolute indexed by Y for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -814409,12 +814453,24 @@ Flags preserved throughout: V, D, I, C.
 Read the operand before capturing A. OR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
-right:u8 := source "byte at absolute indexed by X" {
-  address:u16 := source "absolute indexed by X" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by X for reading" {
+  address:u16 := source "absolute indexed by X for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read X
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -814435,11 +814491,17 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then shift in zero and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
-address:u16 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
+instruction timing: 0004:u16 CPU clocks
+address:u16 := source "absolute indexed by X, fixed write cost" {
+  base:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
   index:u8 := read X
-  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  additional instruction timing: 0001:u16 CPU clocks
+  yield addWrap(base, zeroExtend16(index))
 }
 original:u8 := read memory[address]
 write memory[address] := original
@@ -814461,6 +814523,7 @@ Flags preserved throughout: V, D, I.
 Fetch target low, then push current PC high and live PC low, decrementing live SP after each successful write. Fetch target high only after both pushes and then replace PC. Preserve flags and A/X/Y. Failed accesses retain completed pushes and pointer changes; no destination-memory read occurs.
 
 ```text
+instruction timing: 0006:u16 CPU clocks
 targetLow:u8 := fetch byte
 highPC:u16 := read PC
 highAddress:u8 := read SP
@@ -814483,8 +814546,10 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Read the operand before capturing A. AND the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at indexed indirect (zero page,X)" {
   address:u16 := source "indexed indirect (zero page,X)" {
+    additional instruction timing: 0004:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     pointer := addWrap(offset, index)
@@ -814512,8 +814577,10 @@ Flags preserved throughout: V, D, I, C.
 Read memory before capturing A. Copy N/V from memory bits 7/6 and set Z from A AND memory, preserving A and C/D/I. Decimal mode has no effect; a failed read leaves every flag unchanged.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -814535,8 +814602,10 @@ Flags preserved throughout: D, I, C.
 Read the operand before capturing A. AND the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -814559,7 +814628,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then read incoming C, shift, and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page" {
+  additional instruction timing: 0001:u16 CPU clocks
   offset:u8 := fetch byte
   yield zeroExtend16(offset)
 }
@@ -814584,6 +814655,7 @@ Flags preserved throughout: V, D, I.
 Increment SP before the stack read. Only after it succeeds, restore all six flags from that byte, ignoring bits 5/4. Preserve other registers; a failed read retains the pointer increment and the old flag object.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 status:u8 := source "pop byte through SP" {
   pointer:u8 := read SP
   write SP:u8 := addWrap(pointer, 01:u8)
@@ -814608,6 +814680,7 @@ Flags preserved throughout: none.
 Read the operand before capturing A. AND the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -814628,6 +814701,7 @@ Flags preserved throughout: V, D, I, C.
 Capture A, then incoming C. Shift through that captured C, set C from the outgoing bit, write A, then set N/Z. Preserve V/D/I; no data memory is accessed.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 original:u8 := read A
 carry:flag := read C
 result := shiftLeft(original, carry)
@@ -814648,8 +814722,10 @@ Flags preserved throughout: V, D, I.
 Read memory before capturing A. Copy N/V from memory bits 7/6 and set Z from A AND memory, preserving A and C/D/I. Decimal mode has no effect; a failed read leaves every flag unchanged.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -814672,8 +814748,10 @@ Flags preserved throughout: D, I, C.
 Read the operand before capturing A. AND the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -814697,7 +814775,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then read incoming C, shift, and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -814723,6 +814803,7 @@ Flags preserved throughout: V, D, I.
 Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -814730,7 +814811,9 @@ offset:u8 := source "immediate byte" {
 condition0:flag := read N
 when condition0 {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  target := addWrap(pc, signExtend16(offset))
+  additional instruction timing: select(equal(highByte(pc), highByte(target)), 0001:u16, 0002:u16) CPU clocks
+  write PC:u16 := target
 }
 ```
 
@@ -814741,15 +814824,25 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Read the operand before capturing A. AND the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
-right:u8 := source "byte at indirect indexed (zero page),Y" {
-  address:u16 := source "indirect indexed (zero page),Y" {
-    offset:u8 := fetch byte
-    pointer := offset
-    low:u8 := read memory[zeroExtend16(pointer)]
-    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-    base := concatHighLow(high, low)
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at indirect indexed (zero page),Y for reading" {
+  address:u16 := source "indirect indexed (zero page),Y for reading" {
+    base:u16 := source "low-first pointer in zero page" {
+      additional instruction timing: 0003:u16 CPU clocks
+      pointer:u8 := fetch byte
+      low:u8 := read memory[zeroExtend16(pointer)]
+      high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(base, zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -814770,8 +814863,10 @@ Flags preserved throughout: V, D, I, C.
 Read the operand before capturing A. AND the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page indexed by X" {
   address:u16 := source "zero page indexed by X" {
+    additional instruction timing: 0002:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     yield zeroExtend16(addWrap(offset, index))
@@ -814795,7 +814890,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then read incoming C, shift, and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page indexed by X" {
+  additional instruction timing: 0002:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read X
   yield zeroExtend16(addWrap(offset, index))
@@ -814821,6 +814918,7 @@ Flags preserved throughout: V, D, I.
 Set C; preserve every other flag and register. No data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "write carry" simultaneously {
   C := 1:flag
 } // Preserve unlisted flags.
@@ -814833,12 +814931,24 @@ Flags preserved throughout: N, V, D, I, Z.
 Read the operand before capturing A. AND the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
-right:u8 := source "byte at absolute indexed by Y" {
-  address:u16 := source "absolute indexed by Y" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by Y for reading" {
+  address:u16 := source "absolute indexed by Y for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -814859,12 +814969,24 @@ Flags preserved throughout: V, D, I, C.
 Read the operand before capturing A. AND the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
-right:u8 := source "byte at absolute indexed by X" {
-  address:u16 := source "absolute indexed by X" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by X for reading" {
+  address:u16 := source "absolute indexed by X for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read X
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -814885,11 +815007,17 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then read incoming C, shift, and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
-address:u16 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
+instruction timing: 0004:u16 CPU clocks
+address:u16 := source "absolute indexed by X, fixed write cost" {
+  base:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
   index:u8 := read X
-  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  additional instruction timing: 0001:u16 CPU clocks
+  yield addWrap(base, zeroExtend16(index))
 }
 original:u8 := read memory[address]
 write memory[address] := original
@@ -814912,6 +815040,7 @@ Flags preserved throughout: V, D, I.
 Pull and replace the complete flags first. Then pull PC low/high and replace PC only after both reads succeed, without adding one. Increment SP before each read. Preserve A/X/Y; failed reads retain completed pulls and any flag restoration, and do not erase stack memory or read destination memory.
 
 ```text
+instruction timing: 0006:u16 CPU clocks
 status:u8 := source "pop byte through SP" {
   pointer:u8 := read SP
   write SP:u8 := addWrap(pointer, 01:u8)
@@ -814954,8 +815083,10 @@ Flags preserved throughout: none.
 Read the operand before capturing A. XOR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at indexed indirect (zero page,X)" {
   address:u16 := source "indexed indirect (zero page,X)" {
+    additional instruction timing: 0004:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     pointer := addWrap(offset, index)
@@ -814983,8 +815114,10 @@ Flags preserved throughout: V, D, I, C.
 Read the operand before capturing A. XOR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -815007,7 +815140,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then shift in zero and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page" {
+  additional instruction timing: 0001:u16 CPU clocks
   offset:u8 := fetch byte
   yield zeroExtend16(offset)
 }
@@ -815031,6 +815166,7 @@ Flags preserved throughout: V, D, I.
 Capture A, read SP, and write the captured byte to page one. Only after a successful write, read live SP again and decrement it with byte wrapping. Preserve every flag and A/X/Y/PC; a failed write prevents the decrement.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 original:u8 := read A
 address:u8 := read SP
 write memory[bitOr(0100:u16, zeroExtend16(address))] := original
@@ -815045,6 +815181,7 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Read the operand before capturing A. XOR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -815065,6 +815202,7 @@ Flags preserved throughout: V, D, I, C.
 Capture A and shift in zero. Set C from the outgoing bit, write A, then set N/Z. Preserve V/D/I; no data memory is accessed.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 original:u8 := read A
 result := shiftRight(original, 0:flag)
 flags "6502 shifted-out bit" simultaneously {
@@ -815084,7 +815222,9 @@ Flags preserved throughout: V, D, I.
 Fetch both target bytes before replacing PC. Preserve every flag and other register; a failed fetch prevents the PC write. Do not read destination memory.
 
 ```text
+instruction timing: 0001:u16 CPU clocks
 target:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -815099,8 +815239,10 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Read the operand before capturing A. XOR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -815124,7 +815266,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then shift in zero and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -815149,6 +815293,7 @@ Flags preserved throughout: V, D, I.
 Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -815156,7 +815301,9 @@ offset:u8 := source "immediate byte" {
 condition0:flag := read V
 when not(condition0) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  target := addWrap(pc, signExtend16(offset))
+  additional instruction timing: select(equal(highByte(pc), highByte(target)), 0001:u16, 0002:u16) CPU clocks
+  write PC:u16 := target
 }
 ```
 
@@ -815167,15 +815314,25 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Read the operand before capturing A. XOR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
-right:u8 := source "byte at indirect indexed (zero page),Y" {
-  address:u16 := source "indirect indexed (zero page),Y" {
-    offset:u8 := fetch byte
-    pointer := offset
-    low:u8 := read memory[zeroExtend16(pointer)]
-    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-    base := concatHighLow(high, low)
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at indirect indexed (zero page),Y for reading" {
+  address:u16 := source "indirect indexed (zero page),Y for reading" {
+    base:u16 := source "low-first pointer in zero page" {
+      additional instruction timing: 0003:u16 CPU clocks
+      pointer:u8 := fetch byte
+      low:u8 := read memory[zeroExtend16(pointer)]
+      high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(base, zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -815196,8 +815353,10 @@ Flags preserved throughout: V, D, I, C.
 Read the operand before capturing A. XOR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page indexed by X" {
   address:u16 := source "zero page indexed by X" {
+    additional instruction timing: 0002:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     yield zeroExtend16(addWrap(offset, index))
@@ -815221,7 +815380,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then shift in zero and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page indexed by X" {
+  additional instruction timing: 0002:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read X
   yield zeroExtend16(addWrap(offset, index))
@@ -815246,6 +815407,7 @@ Flags preserved throughout: V, D, I.
 Clear I; preserve every other flag and register. No data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "write interrupt mask" simultaneously {
   I := 0:flag
 } // Preserve unlisted flags.
@@ -815258,12 +815420,24 @@ Flags preserved throughout: N, V, D, Z, C.
 Read the operand before capturing A. XOR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
-right:u8 := source "byte at absolute indexed by Y" {
-  address:u16 := source "absolute indexed by Y" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by Y for reading" {
+  address:u16 := source "absolute indexed by Y for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -815284,12 +815458,24 @@ Flags preserved throughout: V, D, I, C.
 Read the operand before capturing A. XOR the bytes, write A, then set N/Z from the result. Preserve V/D/I/C; a failed read prevents every later effect.
 
 ```text
-right:u8 := source "byte at absolute indexed by X" {
-  address:u16 := source "absolute indexed by X" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by X for reading" {
+  address:u16 := source "absolute indexed by X for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read X
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -815310,11 +815496,17 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, read the original byte, and write it back unchanged. Then shift in zero and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
-address:u16 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
+instruction timing: 0004:u16 CPU clocks
+address:u16 := source "absolute indexed by X, fixed write cost" {
+  base:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
   index:u8 := read X
-  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  additional instruction timing: 0001:u16 CPU clocks
+  yield addWrap(base, zeroExtend16(index))
 }
 original:u8 := read memory[address]
 write memory[address] := original
@@ -815336,6 +815528,7 @@ Flags preserved throughout: V, D, I.
 Pull the complete saved PC low byte then high byte, incrementing SP before each read. After both succeed, add one with word wrapping and replace PC. Preserve every flag and A/X/Y. A failed read retains earlier pointer changes and reads without replacing PC; neither return byte is erased.
 
 ```text
+instruction timing: 0006:u16 CPU clocks
 returnPC:u16 := source "pop low byte then high byte" {
   low:u8 := source "pop byte through SP" {
     pointer:u8 := read SP
@@ -815363,8 +815556,10 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Finish operand reads before capturing A and C. Binary ADC writes A before N/Z/C/V. Decimal ADC calculates low-digit correction, sets Z from the binary result and N/V/C from the intermediate, then writes corrected A. Preserve D/I; a failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at indexed indirect (zero page,X)" {
   address:u16 := source "indexed indirect (zero page,X)" {
+    additional instruction timing: 0004:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     pointer := addWrap(offset, index)
@@ -815417,8 +815612,10 @@ Flags preserved throughout: D, I.
 Finish operand reads before capturing A and C. Binary ADC writes A before N/Z/C/V. Decimal ADC calculates low-digit correction, sets Z from the binary result and N/V/C from the intermediate, then writes corrected A. Preserve D/I; a failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -815466,7 +815663,9 @@ Flags preserved throughout: D, I.
 Resolve the address once, read the original byte, and write it back unchanged. Then read incoming C, shift, and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page" {
+  additional instruction timing: 0001:u16 CPU clocks
   offset:u8 := fetch byte
   yield zeroExtend16(offset)
 }
@@ -815491,6 +815690,7 @@ Flags preserved throughout: V, D, I.
 Increment SP before reading the stack byte. After a successful read, replace A and then set N/Z. Preserve V/D/I/C and X/Y/PC. A failed read retains the SP increment but leaves A and flags unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 result:u8 := source "pop byte through SP" {
   pointer:u8 := read SP
   write SP:u8 := addWrap(pointer, 01:u8)
@@ -815512,6 +815712,7 @@ Flags preserved throughout: V, D, I, C.
 Finish operand reads before capturing A and C. Binary ADC writes A before N/Z/C/V. Decimal ADC calculates low-digit correction, sets Z from the binary result and N/V/C from the intermediate, then writes corrected A. Preserve D/I; a failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -815557,6 +815758,7 @@ Flags preserved throughout: D, I.
 Capture A, then incoming C. Shift through that captured C, set C from the outgoing bit, write A, then set N/Z. Preserve V/D/I; no data memory is accessed.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 original:u8 := read A
 carry:flag := read C
 result := shiftRight(original, carry)
@@ -815577,8 +815779,10 @@ Flags preserved throughout: V, D, I.
 Fetch the pointer, then read its low/high target bytes using the NMOS page wrap. Only after both reads succeed, replace PC. Preserve flags and other registers; a failed read retains earlier accesses without installing a partial target.
 
 ```text
+instruction timing: 0003:u16 CPU clocks
 target:u16 := source "NMOS page-wrapped pointer" {
   pointer:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -815598,8 +815802,10 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Finish operand reads before capturing A and C. Binary ADC writes A before N/Z/C/V. Decimal ADC calculates low-digit correction, sets Z from the binary result and N/V/C from the intermediate, then writes corrected A. Preserve D/I; a failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -815648,7 +815854,9 @@ Flags preserved throughout: D, I.
 Resolve the address once, read the original byte, and write it back unchanged. Then read incoming C, shift, and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -815674,6 +815882,7 @@ Flags preserved throughout: V, D, I.
 Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -815681,7 +815890,9 @@ offset:u8 := source "immediate byte" {
 condition0:flag := read V
 when condition0 {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  target := addWrap(pc, signExtend16(offset))
+  additional instruction timing: select(equal(highByte(pc), highByte(target)), 0001:u16, 0002:u16) CPU clocks
+  write PC:u16 := target
 }
 ```
 
@@ -815692,15 +815903,25 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Finish operand reads before capturing A and C. Binary ADC writes A before N/Z/C/V. Decimal ADC calculates low-digit correction, sets Z from the binary result and N/V/C from the intermediate, then writes corrected A. Preserve D/I; a failed operand read prevents all arithmetic effects.
 
 ```text
-right:u8 := source "byte at indirect indexed (zero page),Y" {
-  address:u16 := source "indirect indexed (zero page),Y" {
-    offset:u8 := fetch byte
-    pointer := offset
-    low:u8 := read memory[zeroExtend16(pointer)]
-    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-    base := concatHighLow(high, low)
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at indirect indexed (zero page),Y for reading" {
+  address:u16 := source "indirect indexed (zero page),Y for reading" {
+    base:u16 := source "low-first pointer in zero page" {
+      additional instruction timing: 0003:u16 CPU clocks
+      pointer:u8 := fetch byte
+      low:u8 := read memory[zeroExtend16(pointer)]
+      high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(base, zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -815746,8 +815967,10 @@ Flags preserved throughout: D, I.
 Finish operand reads before capturing A and C. Binary ADC writes A before N/Z/C/V. Decimal ADC calculates low-digit correction, sets Z from the binary result and N/V/C from the intermediate, then writes corrected A. Preserve D/I; a failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page indexed by X" {
   address:u16 := source "zero page indexed by X" {
+    additional instruction timing: 0002:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     yield zeroExtend16(addWrap(offset, index))
@@ -815796,7 +816019,9 @@ Flags preserved throughout: D, I.
 Resolve the address once, read the original byte, and write it back unchanged. Then read incoming C, shift, and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page indexed by X" {
+  additional instruction timing: 0002:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read X
   yield zeroExtend16(addWrap(offset, index))
@@ -815822,6 +816047,7 @@ Flags preserved throughout: V, D, I.
 Set I; preserve every other flag and register. No data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "write interrupt mask" simultaneously {
   I := 1:flag
 } // Preserve unlisted flags.
@@ -815834,12 +816060,24 @@ Flags preserved throughout: N, V, D, Z, C.
 Finish operand reads before capturing A and C. Binary ADC writes A before N/Z/C/V. Decimal ADC calculates low-digit correction, sets Z from the binary result and N/V/C from the intermediate, then writes corrected A. Preserve D/I; a failed operand read prevents all arithmetic effects.
 
 ```text
-right:u8 := source "byte at absolute indexed by Y" {
-  address:u16 := source "absolute indexed by Y" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by Y for reading" {
+  address:u16 := source "absolute indexed by Y for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -815885,12 +816123,24 @@ Flags preserved throughout: D, I.
 Finish operand reads before capturing A and C. Binary ADC writes A before N/Z/C/V. Decimal ADC calculates low-digit correction, sets Z from the binary result and N/V/C from the intermediate, then writes corrected A. Preserve D/I; a failed operand read prevents all arithmetic effects.
 
 ```text
-right:u8 := source "byte at absolute indexed by X" {
-  address:u16 := source "absolute indexed by X" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by X for reading" {
+  address:u16 := source "absolute indexed by X for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read X
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -815936,11 +816186,17 @@ Flags preserved throughout: D, I.
 Resolve the address once, read the original byte, and write it back unchanged. Then read incoming C, shift, and update C from the outgoing bit. Write the result before N/Z; preserve V/D/I. A failed result write retains the carry update and leaves N/Z unchanged.
 
 ```text
-address:u16 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
+instruction timing: 0004:u16 CPU clocks
+address:u16 := source "absolute indexed by X, fixed write cost" {
+  base:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
   index:u8 := read X
-  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  additional instruction timing: 0001:u16 CPU clocks
+  yield addWrap(base, zeroExtend16(index))
 }
 original:u8 := read memory[address]
 write memory[address] := original
@@ -815963,7 +816219,9 @@ Flags preserved throughout: V, D, I.
 Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "indexed indirect (zero page,X)" {
+  additional instruction timing: 0004:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read X
   pointer := addWrap(offset, index)
@@ -815983,7 +816241,9 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the complete destination address before capturing Y, then write once without reading destination memory. The zero-page indexed form uses X with byte wrapping. Preserve all flags; a failed address fetch prevents later effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "zero page" {
+  additional instruction timing: 0001:u16 CPU clocks
   offset:u8 := fetch byte
   yield zeroExtend16(offset)
 }
@@ -815998,7 +816258,9 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "zero page" {
+  additional instruction timing: 0001:u16 CPU clocks
   offset:u8 := fetch byte
   yield zeroExtend16(offset)
 }
@@ -816013,7 +816275,9 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the complete destination address before capturing X, then write once without reading destination memory. The zero-page indexed form uses Y with byte wrapping. Preserve all flags; a failed address fetch prevents later effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "zero page" {
+  additional instruction timing: 0001:u16 CPU clocks
   offset:u8 := fetch byte
   yield zeroExtend16(offset)
 }
@@ -816028,6 +816292,7 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Capture Y, decrement with byte wrapping, then write Y before N/Z. Preserve V/D/I/C; no data memory is accessed.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 original:u8 := read Y
 result := subtract(original, 01:u8)
 write Y:u8 := result
@@ -816044,6 +816309,7 @@ Flags preserved throughout: V, D, I, C.
 Capture X, replace A, then apply N/Z from the captured byte. Preserve X and V/D/I/C; no data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := read X
 write A:u8 := result
 flags "6502 result N/Z" simultaneously {
@@ -816059,7 +816325,9 @@ Flags preserved throughout: V, D, I, C.
 Resolve the complete destination address before capturing Y, then write once without reading destination memory. The zero-page indexed form uses X with byte wrapping. Preserve all flags; a failed address fetch prevents later effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -816075,7 +816343,9 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -816091,7 +816361,9 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the complete destination address before capturing X, then write once without reading destination memory. The zero-page indexed form uses Y with byte wrapping. Preserve all flags; a failed address fetch prevents later effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -816107,6 +816379,7 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -816114,7 +816387,9 @@ offset:u8 := source "immediate byte" {
 condition0:flag := read C
 when not(condition0) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  target := addWrap(pc, signExtend16(offset))
+  additional instruction timing: select(equal(highByte(pc), highByte(target)), 0001:u16, 0002:u16) CPU clocks
+  write PC:u16 := target
 }
 ```
 
@@ -816125,13 +816400,17 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
 
 ```text
-address:u16 := source "indirect indexed (zero page),Y" {
-  offset:u8 := fetch byte
-  pointer := offset
-  low:u8 := read memory[zeroExtend16(pointer)]
-  high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-  base := concatHighLow(high, low)
+instruction timing: 0002:u16 CPU clocks
+address:u16 := source "indirect indexed (zero page),Y, fixed write cost" {
+  base:u16 := source "low-first pointer in zero page" {
+    additional instruction timing: 0003:u16 CPU clocks
+    pointer:u8 := fetch byte
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    yield concatHighLow(high, low)
+  }
   index:u8 := read Y
+  additional instruction timing: 0001:u16 CPU clocks
   yield addWrap(base, zeroExtend16(index))
 }
 byte:u8 := read A
@@ -816145,7 +816424,9 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the complete destination address before capturing Y, then write once without reading destination memory. The zero-page indexed form uses X with byte wrapping. Preserve all flags; a failed address fetch prevents later effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "zero page indexed by X" {
+  additional instruction timing: 0002:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read X
   yield zeroExtend16(addWrap(offset, index))
@@ -816161,7 +816442,9 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "zero page indexed by X" {
+  additional instruction timing: 0002:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read X
   yield zeroExtend16(addWrap(offset, index))
@@ -816177,7 +816460,9 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the complete destination address before capturing X, then write once without reading destination memory. The zero-page indexed form uses Y with byte wrapping. Preserve all flags; a failed address fetch prevents later effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 address:u16 := source "zero page indexed by Y" {
+  additional instruction timing: 0002:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read Y
   yield zeroExtend16(addWrap(offset, index))
@@ -816193,6 +816478,7 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Capture Y, replace A, then apply N/Z from the captured byte. Preserve Y and V/D/I/C; no data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := read Y
 write A:u8 := result
 flags "6502 result N/Z" simultaneously {
@@ -816208,11 +816494,17 @@ Flags preserved throughout: V, D, I, C.
 Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
 
 ```text
-address:u16 := source "absolute indexed by Y" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+address:u16 := source "absolute indexed by Y, fixed write cost" {
+  base:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
   index:u8 := read Y
-  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  additional instruction timing: 0001:u16 CPU clocks
+  yield addWrap(base, zeroExtend16(index))
 }
 byte:u8 := read A
 write memory[address] := byte
@@ -816225,6 +816517,7 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Capture X and replace SP, preserving every flag and other register. Changing the stack offset does not read or write any stack memory.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := read X
 write SP:u8 := result
 ```
@@ -816236,11 +816529,17 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
 
 ```text
-address:u16 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+address:u16 := source "absolute indexed by X, fixed write cost" {
+  base:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
   index:u8 := read X
-  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  additional instruction timing: 0001:u16 CPU clocks
+  yield addWrap(base, zeroExtend16(index))
 }
 byte:u8 := read A
 write memory[address] := byte
@@ -816253,6 +816552,7 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Fetch or read the complete operand, then replace Y and set N/Z from the captured byte. Indexed forms use X without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -816271,8 +816571,10 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at indexed indirect (zero page,X)" {
   address:u16 := source "indexed indirect (zero page,X)" {
+    additional instruction timing: 0004:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     pointer := addWrap(offset, index)
@@ -816298,6 +816600,7 @@ Flags preserved throughout: V, D, I, C.
 Fetch or read the complete operand, then replace X and set N/Z from the captured byte. Indexed forms use Y without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -816316,8 +816619,10 @@ Flags preserved throughout: V, D, I, C.
 Fetch or read the complete operand, then replace Y and set N/Z from the captured byte. Indexed forms use X without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -816338,8 +816643,10 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -816360,8 +816667,10 @@ Flags preserved throughout: V, D, I, C.
 Fetch or read the complete operand, then replace X and set N/Z from the captured byte. Indexed forms use Y without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -816382,6 +816691,7 @@ Flags preserved throughout: V, D, I, C.
 Capture A, write the selected index register, then apply N/Z from that byte. Preserve V/D/I/C and A; no data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := read A
 write Y:u8 := result
 flags "6502 result N/Z" simultaneously {
@@ -816397,6 +816707,7 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -816415,6 +816726,7 @@ Flags preserved throughout: V, D, I, C.
 Capture A, write the selected index register, then apply N/Z from that byte. Preserve V/D/I/C and A; no data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := read A
 write X:u8 := result
 flags "6502 result N/Z" simultaneously {
@@ -816430,8 +816742,10 @@ Flags preserved throughout: V, D, I, C.
 Fetch or read the complete operand, then replace Y and set N/Z from the captured byte. Indexed forms use X without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -816453,8 +816767,10 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -816476,8 +816792,10 @@ Flags preserved throughout: V, D, I, C.
 Fetch or read the complete operand, then replace X and set N/Z from the captured byte. Indexed forms use Y without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -816499,6 +816817,7 @@ Flags preserved throughout: V, D, I, C.
 Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -816506,7 +816825,9 @@ offset:u8 := source "immediate byte" {
 condition0:flag := read C
 when condition0 {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  target := addWrap(pc, signExtend16(offset))
+  additional instruction timing: select(equal(highByte(pc), highByte(target)), 0001:u16, 0002:u16) CPU clocks
+  write PC:u16 := target
 }
 ```
 
@@ -816517,15 +816838,25 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "byte at indirect indexed (zero page),Y" {
-  address:u16 := source "indirect indexed (zero page),Y" {
-    offset:u8 := fetch byte
-    pointer := offset
-    low:u8 := read memory[zeroExtend16(pointer)]
-    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-    base := concatHighLow(high, low)
+instruction timing: 0002:u16 CPU clocks
+result:u8 := source "byte at indirect indexed (zero page),Y for reading" {
+  address:u16 := source "indirect indexed (zero page),Y for reading" {
+    base:u16 := source "low-first pointer in zero page" {
+      additional instruction timing: 0003:u16 CPU clocks
+      pointer:u8 := fetch byte
+      low:u8 := read memory[zeroExtend16(pointer)]
+      high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(base, zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -816544,8 +816875,10 @@ Flags preserved throughout: V, D, I, C.
 Fetch or read the complete operand, then replace Y and set N/Z from the captured byte. Indexed forms use X without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at zero page indexed by X" {
   address:u16 := source "zero page indexed by X" {
+    additional instruction timing: 0002:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     yield zeroExtend16(addWrap(offset, index))
@@ -816567,8 +816900,10 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at zero page indexed by X" {
   address:u16 := source "zero page indexed by X" {
+    additional instruction timing: 0002:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     yield zeroExtend16(addWrap(offset, index))
@@ -816590,8 +816925,10 @@ Flags preserved throughout: V, D, I, C.
 Fetch or read the complete operand, then replace X and set N/Z from the captured byte. Indexed forms use Y without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := source "byte at zero page indexed by Y" {
   address:u16 := source "zero page indexed by Y" {
+    additional instruction timing: 0002:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read Y
     yield zeroExtend16(addWrap(offset, index))
@@ -816613,6 +816950,7 @@ Flags preserved throughout: V, D, I, C.
 Clear V; preserve every other flag and register. No data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "clear overflow" simultaneously {
   V := 0:flag
 } // Preserve unlisted flags.
@@ -816625,12 +816963,24 @@ Flags preserved throughout: N, D, I, Z, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "byte at absolute indexed by Y" {
-  address:u16 := source "absolute indexed by Y" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+result:u8 := source "byte at absolute indexed by Y for reading" {
+  address:u16 := source "absolute indexed by Y for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -816649,6 +816999,7 @@ Flags preserved throughout: V, D, I, C.
 Capture SP, replace X, then apply N/Z from the captured byte. Preserve SP and V/D/I/C; no stack memory is accessed.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 result:u8 := read SP
 write X:u8 := result
 flags "6502 result N/Z" simultaneously {
@@ -816664,12 +817015,24 @@ Flags preserved throughout: V, D, I, C.
 Fetch or read the complete operand, then replace Y and set N/Z from the captured byte. Indexed forms use X without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
-result:u8 := source "byte at absolute indexed by X" {
-  address:u16 := source "absolute indexed by X" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+result:u8 := source "byte at absolute indexed by X for reading" {
+  address:u16 := source "absolute indexed by X for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read X
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -816688,12 +817051,24 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "byte at absolute indexed by X" {
-  address:u16 := source "absolute indexed by X" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+result:u8 := source "byte at absolute indexed by X for reading" {
+  address:u16 := source "absolute indexed by X for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read X
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -816712,12 +817087,24 @@ Flags preserved throughout: V, D, I, C.
 Fetch or read the complete operand, then replace X and set N/Z from the captured byte. Indexed forms use Y without changing it. Preserve V/D/I/C; a failed operand read prevents register and flag writes.
 
 ```text
-result:u8 := source "byte at absolute indexed by Y" {
-  address:u16 := source "absolute indexed by Y" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+result:u8 := source "byte at absolute indexed by Y for reading" {
+  address:u16 := source "absolute indexed by Y for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -816736,6 +817123,7 @@ Flags preserved throughout: V, D, I, C.
 CPY/CPX use `11r bbb 00`, with `r=0/1` selecting Y/X. Only `bbb=000`, `001`, and `011` exist: immediate, zero page, and absolute. Read the operand before the selected register, then apply N/Z/no-borrow C to their difference. Preserve every register and V/D/I; incoming C and D do not affect comparison.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -816756,8 +817144,10 @@ Flags preserved throughout: V, D, I.
 CMP uses `110 bbb 01` and all eight accumulator addressing modes. Read the operand before A, calculate a wrapped difference, then apply N/Z/no-borrow C. Preserve every register and V/D/I; a failed read prevents flag changes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at indexed indirect (zero page,X)" {
   address:u16 := source "indexed indirect (zero page,X)" {
+    additional instruction timing: 0004:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     pointer := addWrap(offset, index)
@@ -816785,8 +817175,10 @@ Flags preserved throughout: V, D, I.
 CPY/CPX use `11r bbb 00`, with `r=0/1` selecting Y/X. Only `bbb=000`, `001`, and `011` exist: immediate, zero page, and absolute. Read the operand before the selected register, then apply N/Z/no-borrow C to their difference. Preserve every register and V/D/I; incoming C and D do not affect comparison.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -816809,8 +817201,10 @@ Flags preserved throughout: V, D, I.
 CMP uses `110 bbb 01` and all eight accumulator addressing modes. Read the operand before A, calculate a wrapped difference, then apply N/Z/no-borrow C. Preserve every register and V/D/I; a failed read prevents flag changes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -816833,7 +817227,9 @@ Flags preserved throughout: V, D, I.
 Resolve the address once, read its byte, and write that original back unchanged. DEC wraps by one, then writes the result before N/Z. Preserve V/D/I/C; a failed write prevents later effects and no flag changes precede either write.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page" {
+  additional instruction timing: 0001:u16 CPU clocks
   offset:u8 := fetch byte
   yield zeroExtend16(offset)
 }
@@ -816854,6 +817250,7 @@ Flags preserved throughout: V, D, I, C.
 Capture the selected index register, increment with byte wrapping, then write it before N/Z. Preserve V/D/I/C; no data memory is accessed.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 original:u8 := read Y
 result := addWrap(original, 01:u8)
 write Y:u8 := result
@@ -816870,6 +817267,7 @@ Flags preserved throughout: V, D, I, C.
 CMP uses `110 bbb 01` and all eight accumulator addressing modes. Read the operand before A, calculate a wrapped difference, then apply N/Z/no-borrow C. Preserve every register and V/D/I; a failed read prevents flag changes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -816890,6 +817288,7 @@ Flags preserved throughout: V, D, I.
 Capture X, decrement with byte wrapping, then write X before N/Z. Preserve V/D/I/C; no data memory is accessed.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 original:u8 := read X
 result := subtract(original, 01:u8)
 write X:u8 := result
@@ -816906,8 +817305,10 @@ Flags preserved throughout: V, D, I, C.
 CPY/CPX use `11r bbb 00`, with `r=0/1` selecting Y/X. Only `bbb=000`, `001`, and `011` exist: immediate, zero page, and absolute. Read the operand before the selected register, then apply N/Z/no-borrow C to their difference. Preserve every register and V/D/I; incoming C and D do not affect comparison.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -816931,8 +817332,10 @@ Flags preserved throughout: V, D, I.
 CMP uses `110 bbb 01` and all eight accumulator addressing modes. Read the operand before A, calculate a wrapped difference, then apply N/Z/no-borrow C. Preserve every register and V/D/I; a failed read prevents flag changes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -816956,7 +817359,9 @@ Flags preserved throughout: V, D, I.
 Resolve the address once, read its byte, and write that original back unchanged. DEC wraps by one, then writes the result before N/Z. Preserve V/D/I/C; a failed write prevents later effects and no flag changes precede either write.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -816978,6 +817383,7 @@ Flags preserved throughout: V, D, I, C.
 Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -816985,7 +817391,9 @@ offset:u8 := source "immediate byte" {
 condition0:flag := read Z
 when not(condition0) {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  target := addWrap(pc, signExtend16(offset))
+  additional instruction timing: select(equal(highByte(pc), highByte(target)), 0001:u16, 0002:u16) CPU clocks
+  write PC:u16 := target
 }
 ```
 
@@ -816996,15 +817404,25 @@ Flags preserved throughout: N, V, D, I, Z, C.
 CMP uses `110 bbb 01` and all eight accumulator addressing modes. Read the operand before A, calculate a wrapped difference, then apply N/Z/no-borrow C. Preserve every register and V/D/I; a failed read prevents flag changes.
 
 ```text
-right:u8 := source "byte at indirect indexed (zero page),Y" {
-  address:u16 := source "indirect indexed (zero page),Y" {
-    offset:u8 := fetch byte
-    pointer := offset
-    low:u8 := read memory[zeroExtend16(pointer)]
-    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-    base := concatHighLow(high, low)
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at indirect indexed (zero page),Y for reading" {
+  address:u16 := source "indirect indexed (zero page),Y for reading" {
+    base:u16 := source "low-first pointer in zero page" {
+      additional instruction timing: 0003:u16 CPU clocks
+      pointer:u8 := fetch byte
+      low:u8 := read memory[zeroExtend16(pointer)]
+      high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(base, zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -817025,8 +817443,10 @@ Flags preserved throughout: V, D, I.
 CMP uses `110 bbb 01` and all eight accumulator addressing modes. Read the operand before A, calculate a wrapped difference, then apply N/Z/no-borrow C. Preserve every register and V/D/I; a failed read prevents flag changes.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page indexed by X" {
   address:u16 := source "zero page indexed by X" {
+    additional instruction timing: 0002:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     yield zeroExtend16(addWrap(offset, index))
@@ -817050,7 +817470,9 @@ Flags preserved throughout: V, D, I.
 Resolve the address once, read its byte, and write that original back unchanged. DEC wraps by one, then writes the result before N/Z. Preserve V/D/I/C; a failed write prevents later effects and no flag changes precede either write.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page indexed by X" {
+  additional instruction timing: 0002:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read X
   yield zeroExtend16(addWrap(offset, index))
@@ -817072,6 +817494,7 @@ Flags preserved throughout: V, D, I, C.
 Clear D; preserve every other flag and register. No data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "write decimal mode" simultaneously {
   D := 0:flag
 } // Preserve unlisted flags.
@@ -817084,12 +817507,24 @@ Flags preserved throughout: N, V, I, Z, C.
 CMP uses `110 bbb 01` and all eight accumulator addressing modes. Read the operand before A, calculate a wrapped difference, then apply N/Z/no-borrow C. Preserve every register and V/D/I; a failed read prevents flag changes.
 
 ```text
-right:u8 := source "byte at absolute indexed by Y" {
-  address:u16 := source "absolute indexed by Y" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by Y for reading" {
+  address:u16 := source "absolute indexed by Y for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -817110,12 +817545,24 @@ Flags preserved throughout: V, D, I.
 CMP uses `110 bbb 01` and all eight accumulator addressing modes. Read the operand before A, calculate a wrapped difference, then apply N/Z/no-borrow C. Preserve every register and V/D/I; a failed read prevents flag changes.
 
 ```text
-right:u8 := source "byte at absolute indexed by X" {
-  address:u16 := source "absolute indexed by X" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by X for reading" {
+  address:u16 := source "absolute indexed by X for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read X
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -817136,11 +817583,17 @@ Flags preserved throughout: V, D, I.
 Resolve the address once, read its byte, and write that original back unchanged. DEC wraps by one, then writes the result before N/Z. Preserve V/D/I/C; a failed write prevents later effects and no flag changes precede either write.
 
 ```text
-address:u16 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
+instruction timing: 0004:u16 CPU clocks
+address:u16 := source "absolute indexed by X, fixed write cost" {
+  base:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
   index:u8 := read X
-  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  additional instruction timing: 0001:u16 CPU clocks
+  yield addWrap(base, zeroExtend16(index))
 }
 original:u8 := read memory[address]
 write memory[address] := original
@@ -817159,6 +817612,7 @@ Flags preserved throughout: V, D, I, C.
 CPY/CPX use `11r bbb 00`, with `r=0/1` selecting Y/X. Only `bbb=000`, `001`, and `011` exist: immediate, zero page, and absolute. Read the operand before the selected register, then apply N/Z/no-borrow C to their difference. Preserve every register and V/D/I; incoming C and D do not affect comparison.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -817179,8 +817633,10 @@ Flags preserved throughout: V, D, I.
 Finish operand reads before capturing A and C. Subtract with inverted incoming C, write the binary result, and set N/Z/C/V. If D is set, correct the decimal digits and replace A alone. Preserve D/I; invalid digits pass at most one borrow between digits. A failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at indexed indirect (zero page,X)" {
   address:u16 := source "indexed indirect (zero page,X)" {
+    additional instruction timing: 0004:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     pointer := addWrap(offset, index)
@@ -817223,8 +817679,10 @@ Flags preserved throughout: D, I.
 CPY/CPX use `11r bbb 00`, with `r=0/1` selecting Y/X. Only `bbb=000`, `001`, and `011` exist: immediate, zero page, and absolute. Read the operand before the selected register, then apply N/Z/no-borrow C to their difference. Preserve every register and V/D/I; incoming C and D do not affect comparison.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -817247,8 +817705,10 @@ Flags preserved throughout: V, D, I.
 Finish operand reads before capturing A and C. Subtract with inverted incoming C, write the binary result, and set N/Z/C/V. If D is set, correct the decimal digits and replace A alone. Preserve D/I; invalid digits pass at most one borrow between digits. A failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page" {
   address:u16 := source "zero page" {
+    additional instruction timing: 0001:u16 CPU clocks
     offset:u8 := fetch byte
     yield zeroExtend16(offset)
   }
@@ -817286,7 +817746,9 @@ Flags preserved throughout: D, I.
 Resolve the address once, read its byte, and write that original back unchanged. INC wraps by one, then writes the result before N/Z. Preserve V/D/I/C; a failed write prevents later effects and no flag changes precede either write.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page" {
+  additional instruction timing: 0001:u16 CPU clocks
   offset:u8 := fetch byte
   yield zeroExtend16(offset)
 }
@@ -817307,6 +817769,7 @@ Flags preserved throughout: V, D, I, C.
 Capture the selected index register, increment with byte wrapping, then write it before N/Z. Preserve V/D/I/C; no data memory is accessed.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 original:u8 := read X
 result := addWrap(original, 01:u8)
 write X:u8 := result
@@ -817323,6 +817786,7 @@ Flags preserved throughout: V, D, I, C.
 Finish operand reads before capturing A and C. Subtract with inverted incoming C, write the binary result, and set N/Z/C/V. If D is set, correct the decimal digits and replace A alone. Preserve D/I; invalid digits pass at most one borrow between digits. A failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -817358,7 +817822,7 @@ Flags preserved throughout: D, I.
 Preserve all state after opcode fetching; perform no operand or data accesses.
 
 ```text
-
+instruction timing: 0002:u16 CPU clocks
 ```
 
 Flags preserved throughout: N, V, D, I, Z, C.
@@ -817368,8 +817832,10 @@ Flags preserved throughout: N, V, D, I, Z, C.
 CPY/CPX use `11r bbb 00`, with `r=0/1` selecting Y/X. Only `bbb=000`, `001`, and `011` exist: immediate, zero page, and absolute. Read the operand before the selected register, then apply N/Z/no-borrow C to their difference. Preserve every register and V/D/I; incoming C and D do not affect comparison.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -817393,8 +817859,10 @@ Flags preserved throughout: V, D, I.
 Finish operand reads before capturing A and C. Subtract with inverted incoming C, write the binary result, and set N/Z/C/V. If D is set, correct the decimal digits and replace A alone. Preserve D/I; invalid digits pass at most one borrow between digits. A failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at absolute address, low byte first" {
   address:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
     low:u8 := fetch byte
     high:u8 := fetch byte
     yield concatHighLow(high, low)
@@ -817433,7 +817901,9 @@ Flags preserved throughout: D, I.
 Resolve the address once, read its byte, and write that original back unchanged. INC wraps by one, then writes the result before N/Z. Preserve V/D/I/C; a failed write prevents later effects and no flag changes precede either write.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "absolute address, low byte first" {
+  additional instruction timing: 0002:u16 CPU clocks
   low:u8 := fetch byte
   high:u8 := fetch byte
   yield concatHighLow(high, low)
@@ -817455,6 +817925,7 @@ Flags preserved throughout: V, D, I, C.
 Fetch the displacement before testing the selected live flag. Only a taken branch reads post-fetch PC, adds the signed displacement with word wrapping, and writes PC. Preserve flags and other registers. An untaken path neither reads nor writes PC after the operand fetch; a failed fetch prevents the test.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 offset:u8 := source "immediate byte" {
   byte:u8 := fetch byte
   yield byte
@@ -817462,7 +817933,9 @@ offset:u8 := source "immediate byte" {
 condition0:flag := read Z
 when condition0 {
   pc:u16 := read PC
-  write PC:u16 := addWrap(pc, signExtend16(offset))
+  target := addWrap(pc, signExtend16(offset))
+  additional instruction timing: select(equal(highByte(pc), highByte(target)), 0001:u16, 0002:u16) CPU clocks
+  write PC:u16 := target
 }
 ```
 
@@ -817473,15 +817946,25 @@ Flags preserved throughout: N, V, D, I, Z, C.
 Finish operand reads before capturing A and C. Subtract with inverted incoming C, write the binary result, and set N/Z/C/V. If D is set, correct the decimal digits and replace A alone. Preserve D/I; invalid digits pass at most one borrow between digits. A failed operand read prevents all arithmetic effects.
 
 ```text
-right:u8 := source "byte at indirect indexed (zero page),Y" {
-  address:u16 := source "indirect indexed (zero page),Y" {
-    offset:u8 := fetch byte
-    pointer := offset
-    low:u8 := read memory[zeroExtend16(pointer)]
-    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-    base := concatHighLow(high, low)
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at indirect indexed (zero page),Y for reading" {
+  address:u16 := source "indirect indexed (zero page),Y for reading" {
+    base:u16 := source "low-first pointer in zero page" {
+      additional instruction timing: 0003:u16 CPU clocks
+      pointer:u8 := fetch byte
+      low:u8 := read memory[zeroExtend16(pointer)]
+      high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(base, zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -817517,8 +818000,10 @@ Flags preserved throughout: D, I.
 Finish operand reads before capturing A and C. Subtract with inverted incoming C, write the binary result, and set N/Z/C/V. If D is set, correct the decimal digits and replace A alone. Preserve D/I; invalid digits pass at most one borrow between digits. A failed operand read prevents all arithmetic effects.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 right:u8 := source "byte at zero page indexed by X" {
   address:u16 := source "zero page indexed by X" {
+    additional instruction timing: 0002:u16 CPU clocks
     offset:u8 := fetch byte
     index:u8 := read X
     yield zeroExtend16(addWrap(offset, index))
@@ -817557,7 +818042,9 @@ Flags preserved throughout: D, I.
 Resolve the address once, read its byte, and write that original back unchanged. INC wraps by one, then writes the result before N/Z. Preserve V/D/I/C; a failed write prevents later effects and no flag changes precede either write.
 
 ```text
+instruction timing: 0004:u16 CPU clocks
 address:u16 := source "zero page indexed by X" {
+  additional instruction timing: 0002:u16 CPU clocks
   offset:u8 := fetch byte
   index:u8 := read X
   yield zeroExtend16(addWrap(offset, index))
@@ -817579,6 +818066,7 @@ Flags preserved throughout: V, D, I, C.
 Set D; preserve every other flag and register. No data-memory access occurs.
 
 ```text
+instruction timing: 0002:u16 CPU clocks
 flags "write decimal mode" simultaneously {
   D := 1:flag
 } // Preserve unlisted flags.
@@ -817591,12 +818079,24 @@ Flags preserved throughout: N, V, I, Z, C.
 Finish operand reads before capturing A and C. Subtract with inverted incoming C, write the binary result, and set N/Z/C/V. If D is set, correct the decimal digits and replace A alone. Preserve D/I; invalid digits pass at most one borrow between digits. A failed operand read prevents all arithmetic effects.
 
 ```text
-right:u8 := source "byte at absolute indexed by Y" {
-  address:u16 := source "absolute indexed by Y" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by Y for reading" {
+  address:u16 := source "absolute indexed by Y for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read Y
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -817632,12 +818132,24 @@ Flags preserved throughout: D, I.
 Finish operand reads before capturing A and C. Subtract with inverted incoming C, write the binary result, and set N/Z/C/V. If D is set, correct the decimal digits and replace A alone. Preserve D/I; invalid digits pass at most one borrow between digits. A failed operand read prevents all arithmetic effects.
 
 ```text
-right:u8 := source "byte at absolute indexed by X" {
-  address:u16 := source "absolute indexed by X" {
-    low:u8 := fetch byte
-    high:u8 := fetch byte
+instruction timing: 0002:u16 CPU clocks
+right:u8 := source "byte at absolute indexed by X for reading" {
+  address:u16 := source "absolute indexed by X for reading" {
+    base:u16 := source "absolute address, low byte first" {
+      additional instruction timing: 0002:u16 CPU clocks
+      low:u8 := fetch byte
+      high:u8 := fetch byte
+      yield concatHighLow(high, low)
+    }
     index:u8 := read X
-    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+    address:u16 := source "indexed read with page-crossing cost" {
+      base:u16 := base
+      index:u8 := index
+      address := addWrap(base, zeroExtend16(index))
+      additional instruction timing: select(not(equal(highByte(base), highByte(address))), 0001:u16, 0000:u16) CPU clocks
+      yield address
+    }
+    yield address
   }
   byte:u8 := read memory[address]
   yield byte
@@ -817673,11 +818185,17 @@ Flags preserved throughout: D, I.
 Resolve the address once, read its byte, and write that original back unchanged. INC wraps by one, then writes the result before N/Z. Preserve V/D/I/C; a failed write prevents later effects and no flag changes precede either write.
 
 ```text
-address:u16 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
+instruction timing: 0004:u16 CPU clocks
+address:u16 := source "absolute indexed by X, fixed write cost" {
+  base:u16 := source "absolute address, low byte first" {
+    additional instruction timing: 0002:u16 CPU clocks
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
   index:u8 := read X
-  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  additional instruction timing: 0001:u16 CPU clocks
+  yield addWrap(base, zeroExtend16(index))
 }
 original:u8 := read memory[address]
 write memory[address] := original

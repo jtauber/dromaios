@@ -4,7 +4,7 @@ import { generateSegmentedExecution } from "./segmented-execution.ts";
 import type { SegmentedExecution } from "./segmented-execution.ts";
 import type { Choice, Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
 import { checkStateEffects, usesMemory } from "./statements.ts";
-import { chapterVectorEntries, generateVectorExecution } from "./vector-execution.ts";
+import { chapterVectorEntries, chapterVectorTiming, generateVectorExecution } from "./vector-execution.ts";
 import { chapterInterruptEntries } from "./interrupt-entries.ts";
 import type { InterruptEntry } from "./interrupt-entries.ts";
 import { generateDecodedExecution } from "./decoded-execution.ts";
@@ -41,6 +41,7 @@ export interface VectorExecution extends ExecutionBase {
   readonly opcodeAdvance: "dispatch" | "read";
   readonly waiting?: { readonly field: string; readonly unless?: string };
   readonly entries: readonly VectorEntry[];
+  readonly timing?: Readonly<Record<string, number>>;
 }
 interface DecodedBase extends ExecutionBase {
   readonly opcodeAdvance: "decode";
@@ -53,29 +54,41 @@ export type DecodedExecution = DecodedBase & ({ readonly interrupt: "external" }
 export type ChapterExecution = SuppliedExecution | VectorExecution | DecodedExecution | SegmentedExecution | WordExecution;
 
 /** Reject native decoder/fault effects that cannot run in the byte dispatch context. */
-export function checkByteExecution(steps: readonly Statement[], deferral = false, memoryOnly = false, decoded: { readonly notifyReti?: true } | undefined = undefined): void {
-  for (const step of steps) switch (step.kind) {
-    case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice":
-    case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags":
-    case "fetch-byte": case "fetch-word": case "read-memory": case "write-memory": case "exchange-flags": break;
-    case "read-port": case "write-port":
-      if (memoryOnly) throw new Error("Vector execution currently supports memory-only instructions.");
-      break;
-    case "defer-interrupt":
-      if (!deferral || step.scope !== "irq") throw new Error("IRQ deferral needs a declared retirement destination.");
-      break;
-    case "notify-reti":
-      if (!decoded?.notifyReti) throw new Error("Byte execution does not support notify-reti without a notification policy.");
-      break;
-    case "choose": checkByteExecution(step.yes.steps, deferral, memoryOnly, decoded); checkByteExecution(step.no.steps, deferral, memoryOnly, decoded); break;
-    case "when": case "iterate": case "iterate-together": checkByteExecution(step.steps, deferral, memoryOnly, decoded); break;
-    case "dispatch": case "match":
-      if (decoded) throw new Error("Decode-before-execution does not support operand rejection after committing the opcode.");
-      for (const branch of step.cases) checkByteExecution(branch.steps, deferral, memoryOnly); break;
-    case "read-source": checkByteExecution(step.source.steps, deferral, memoryOnly, decoded); break;
-    case "perform": checkByteExecution(step.action.steps, deferral, memoryOnly, decoded); break;
-    default: throw new Error(`Byte execution does not support ${step.kind}.`);
-  }
+export function checkByteExecution(steps: readonly Statement[], options: {
+  readonly deferral?: boolean;
+  readonly memoryOnly?: boolean;
+  readonly decoded?: { readonly notifyReti?: true };
+  readonly timing?: boolean;
+} = {}): void {
+  const { deferral, memoryOnly, decoded, timing } = options;
+  const check = (steps: readonly Statement[]): void => {
+    for (const step of steps) switch (step.kind) {
+      case "capture": case "read-register": case "read-element": case "read-flag": case "read-latch": case "test-choice":
+      case "write-register": case "write-element": case "fill-array": case "write-latch": case "write-choice": case "update-flags": case "replace-flags":
+      case "fetch-byte": case "fetch-word": case "read-memory": case "write-memory": case "exchange-flags": break;
+      case "report-clocks": case "add-clocks":
+        if (!timing) throw new Error("Instruction clocks require a timing contract.");
+        break;
+      case "read-port": case "write-port":
+        if (memoryOnly) throw new Error("Vector execution currently supports memory-only instructions.");
+        break;
+      case "defer-interrupt":
+        if (!deferral || step.scope !== "irq") throw new Error("IRQ deferral needs a declared retirement destination.");
+        break;
+      case "notify-reti":
+        if (!decoded?.notifyReti) throw new Error("Byte execution does not support notify-reti without a notification policy.");
+        break;
+      case "choose": check(step.yes.steps); check(step.no.steps); break;
+      case "when": case "iterate": case "iterate-together": check(step.steps); break;
+      case "dispatch": case "match":
+        if (decoded) throw new Error("Decode-before-execution does not support operand rejection after committing the opcode.");
+        for (const branch of step.cases) check(branch.steps); break;
+      case "read-source": check(step.source.steps); break;
+      case "perform": check(step.action.steps); break;
+      default: throw new Error(`Byte execution does not support ${step.kind}.`);
+    }
+  };
+  check(steps);
 }
 
 /** Resolve chapter references and reject policies that the shared runtime cannot faithfully execute. */
@@ -181,10 +194,11 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
     if (stopped !== undefined && !waiting) stop.fail("Vector execution requires stopped none or a latch or choice declared as waiting.");
     if (retire !== undefined || retireDeferral !== undefined) retireAt.fail("Vector execution currently requires retire none.");
     const entries = chapterVectorEntries(header, vectorLines, symbols);
+    const timing = fields.has("timing") ? chapterVectorTiming(required("timing"), entries) : undefined;
     for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
     const waitingPolicy = waiting && stopped !== undefined
       ? { field: stopped, ...(stoppedUnless === undefined ? {} : { unless: stoppedUnless }) } : undefined;
-    return { ...common, opcodeAdvance, interrupt: "vectors", entries, ...(waitingPolicy === undefined ? {} : { waiting: waitingPolicy }) };
+    return { ...common, opcodeAdvance, interrupt: "vectors", entries, ...(timing ? { timing } : {}), ...(waitingPolicy === undefined ? {} : { waiting: waitingPolicy }) };
   }
   if (waiting || stoppedUnless !== undefined) stop.fail("A waiting outcome requires vector interrupts.");
   const stoppedLatch = stopped ?? stop.fail("Supplied-instruction execution requires a stopped latch or choice.");

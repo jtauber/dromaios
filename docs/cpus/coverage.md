@@ -20,7 +20,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [0](../../src/components/cpus/specifications/8008.md) | [1,439](../../src/components/cpus/specifications/8008.md) | 341 | 250 / 250 | 100% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [0](../../src/components/cpus/specifications/8080.md) | [1,616](../../src/components/cpus/specifications/8080.md) | 510 | 244 / 244 | 100% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [0](../../src/components/cpus/specifications/6800.md) | [1,784](../../src/components/cpus/specifications/6800.md) | 745 | 197 / 197 | 100% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,788](../../src/components/cpus/specifications/6502.md) | 600 | 151 / 151 | 100% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,951](../../src/components/cpus/specifications/6502.md) | 696 | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,576](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,581](../../src/components/cpus/specifications/8088.md) | 2,944 | 291 / 291 | 100% |
@@ -84,13 +84,13 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 6,972 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **6,972** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 7,059 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **7,059** |
 | Shared CPU/machine Markdown reader (`src/literate.ts`, outside the CPU directory) | 30 |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,452 |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,677 |
 | CPU compilation and generation scripts (`compile-cpu-chapters.ts`, `generate-cpu-chapters.ts`, and `generate-cpu-semantics.ts`) | 166 |
-| Generated executable CPU output, counted separately | 605,998 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,001,238 |
+| Generated executable CPU output, counted separately | 606,790 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,003,115 |
 | Generated state schemas/types, counted separately | 213 |
 
 Chapter-data generation reuses an existing reference when it encounters the same
@@ -193,8 +193,8 @@ documented operand choice, with behavior and failure boundaries verified.
 
 This measures authoring coverage, not effort, source reduction, test coverage,
 or processor accuracy. State, reset, external events, and execution are separate
-[model areas](#model-ownership-and-validation); timing remains outside the
-current models' declared fidelity.
+[model areas](#model-ownership-and-validation). Optional clock counts are a
+separate capability and do not increase opcode coverage.
 
 An opcode form is a specific encoding, including its addressing form. For
 example, immediate LDA and absolute LDA count separately. Operand values do
@@ -307,7 +307,11 @@ forms accept 4,096 words. Embedded literal values do not add coverage forms.
 | Unsupported attempts | Each chapter defines rejection or exception delivery, including fetch and partial-effect boundaries; rejection is not a universal rollback guarantee |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
-All eight omit cycle counts and complete electrical/bus-cycle modeling.
+The 6502 has optional [instruction and interrupt clock counts](../../src/components/cpus/specifications/6502.md#instruction-clocks)
+for all 151 documented forms; the 8088 has optional
+[nominal instruction clocks](../../src/components/cpus/specifications/8088.md#instruction-clocks)
+with its declared coverage and limitations. The other six omit clock counts.
+All eight omit complete electrical/bus-cycle modeling.
 External interrupt delivery follows each chapter's policies. Memory-mapped
 devices can be connected through [machine memory maps](../machines/memory-map.md);
 those surrounding components are separate from CPU opcode coverage. Detailed

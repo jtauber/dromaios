@@ -20,7 +20,7 @@ come from compiled state declarations, so widths and groups have one source.
 | Values and reuse | [Typed inputs](#typed-values-and-inputs), [conditional values](#conditional-values), [width parameters](#width-parameters) |
 | Calculations and instruction families | [Expressions, operands, encodings, and policies](#expressions-and-policies), [bounded iteration](#bounded-iteration-and-arithmetic-outcomes) |
 | Conditions and decoding | [Conditions and control state](#conditions-and-stored-control-state), [opcode pages](#opcode-pages), [byte-pattern matches](#byte-pattern-matches) |
-| Lifecycle and public API | [Execution contracts](#execution-contracts), [reset with modeled faults](#reset-sequences-with-modeled-faults), [public interfaces](#public-interfaces) |
+| Lifecycle and public API | [Execution contracts](#execution-contracts), [reset with modeled faults](#reset-sequences-with-modeled-faults), [public interfaces](#public-interfaces), [vector instruction clocks](#vector-instruction-clocks) |
 | Segmented models | [Segmented execution](#segmented-execution), [instruction clocks](#optional-instruction-clock-accounting), [vector offers](#fixed-and-acknowledged-vector-offers) |
 | Word models | [Address boundaries and pending writes](#address-decoder-and-execution-boundaries), [word execution](#word-execution), [events](#word-exception-and-interrupt-entry), [public interfaces](#word-public-interfaces-and-catalogue-binding) |
 
@@ -760,6 +760,31 @@ signatures, and unpaged opcodes wider than a byte fail at Markdown locations. Pr
 arbitration, repeated prefixes, segmented fetches, and bus wait cycles remain outside these
 execution contracts. Further CPUs should supply evidence before extending them.
 
+### Vector instruction clocks
+
+A flat byte contract with `interrupt vectors` can add
+`timing offers "irq" 7, "nmi" 7`. Names must cover every declared source exactly
+once; each accepted-entry cost is a positive 16-bit integer. This generates
+`stepTimed()` and `interruptTimed()` and readonly timed record aliases.
+Ordinary methods and reset retain their original shapes. Declined entries and
+already waiting steps report zero clocks; machine time is not CPU stored state.
+
+Unlike the [partial segmented contract](#optional-instruction-clock-accounting),
+vector timing requires every family to start with one unconditional
+`clocks expression` of width 16, before any effects. The base must be positive
+at runtime. No nested statement may replace it. Later `clocks + expression`
+adds a nonnegative 16-bit cost along the executed path, including in reusable
+address sources. Actions and state views cannot report clocks; reset and entry
+actions keep their existing effect contracts. Execution validation checks these
+restrictions transitively, so a source cannot introduce another base cost.
+
+An unsupported timed opcode throws `InstructionTimingUnavailable` after its
+fetch and restores the starting PC. Successful fetch callbacks remain observable;
+other thrown failures preserve completed effects and return no timing record.
+The [6502 chapter](../../src/components/cpus/specifications/6502.md#instruction-clocks)
+defines its costs and limits. [Language tests](../../tests/components/cpus/semantics/literate-vector-timing.test.ts)
+verify costs, generated methods, source composition, and diagnostics.
+
 ### Public interfaces
 
 A complete chapter can expose its model directly:
@@ -1412,8 +1437,8 @@ A segmented contract can declare `timing prefix 2 pending 70 offers "intr" 81,
 names must cover every declared interrupt offer exactly once. This enables
 `stepTimed()` and `interruptTimed()` on the generated public class; ordinary
 methods retain their existing behavior and record shapes. Clock totals belong
-to the caller, not stored CPU state. The current timing facility applies only
-to segmented boundaries.
+to the caller, not stored CPU state. Flat byte models use the separate
+[vector instruction-clock contract](#vector-instruction-clocks).
 
 A timed family has exactly one top-level `clocks expression` statement with a
 16-bit expression. `clocks expression when condition` declares timing only when
