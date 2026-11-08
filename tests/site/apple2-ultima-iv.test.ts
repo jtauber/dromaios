@@ -16,7 +16,7 @@ import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502
 
 interface Identity { readonly bytes: number; readonly sha256: string }
 interface Stop { readonly address: number; readonly bytes: readonly number[] }
-interface Scene { readonly name: string; readonly x: number; readonly y: number; readonly terrainSha256: string }
+interface Scene { readonly name: string; readonly x: number; readonly y: number; readonly terrainSha256?: string }
 function record(path: string): unknown {
   const fences = [...readFileSync(path, "utf8").matchAll(/^```json\n([\s\S]*?)^```$/gm)];
   assert.equal(fences.length, 1, `${path} must own one acceptance record`);
@@ -29,6 +29,10 @@ const guide = record("docs/software/ultima-iv.md") as {
   save: { start: Stop; returned: Stop; partyLoaded: Stop; rosterLoaded: Stop;
     files: readonly { name: string; address: number; bytes: number; track: number; sectors: readonly number[] }[] };
   resumed: Scene; continuation: Scene;
+  town: { image: Identity; stops: Record<"cast" | "input" | "mapLoaded" | "mapCopied" | "mix" | "mixLoaded" | "talk" | "talkLoaded" | "listLoaded" | "print", Stop>;
+    gate: Scene; outside: Scene; entrance: Scene; conversation: Scene;
+    location: number; greeting: string; answer: string; farewell: string;
+    resumed: Scene; continuation: Scene };
 };
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 function file(path: string) {
@@ -87,7 +91,9 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
       const address = 0x2000 + y % 8 * 0x400 + Math.floor(y / 8) % 8 * 0x80 + Math.floor(y / 64) * 40 + Math.floor(x / 7);
       return (session.machine.ram.read(address) >> (x % 7)) & 1;
     });
-    assert.equal(hash(dots), scene.terrainSha256, "Terrain matches the independently executed game");
+    if (scene.terrainSha256 !== undefined) {
+      assert.equal(hash(dots), scene.terrainSha256, "Terrain matches the independently executed game");
+    }
     const displayed = apple2HiresFrame(session.machine.ram, session.machine.video, true);
     assert.deepEqual(displayed.slice(top, top + height).flatMap(row => row!.slice(left, left + width)), [...dots]);
     assert.equal(session.pendingInput, 0);
@@ -132,7 +138,8 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
   });
   await checkpoint("ultima-iv-east");
 
-  await t.test("Q saves the three declared files; an exported disk restores them after a cold boot and allows another move", async () => {
+  async function saveAndResume(prefix: string, resumed: Scene, continuation: Scene): Promise<void> {
+    const exportName = prefix === "ultima-iv" ? "ultima_iv_br-saved.dsk" : "ultima_iv_br-town-saved.dsk";
     const original = session.machine.disk.exportImage();
     session.swapDisk(new Dos33Disk(original, { writable: true }));
     session.send([81]); runTo(guide.save.start, 10_000_000);
@@ -172,20 +179,19 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
       }
     }
     assert.deepEqual(exported, expected, "Only the three file payloads and their trailing bytes change; headers, catalogue and other sectors survive");
-    assert.equal(hash(original), guide.britannia.sha256);
     runTo(guide.stops.command, 2_000_000);
     assert.equal(session.machine.disk.inspect().motor, false);
-    assert.deepEqual([session.machine.ram.read(0), session.machine.ram.read(1)], [guide.resumed.x, guide.resumed.y]);
-    await checkpoint("ultima-iv-saved");
+    assert.deepEqual([session.machine.ram.read(0), session.machine.ram.read(1)], [resumed.x, resumed.y]);
+    await checkpoint(`${prefix}-saved`);
     const directory = process.env.APPLE2_ULTIMA_IV_CHECKPOINTS;
-    if (directory) writeFileSync(join(directory, "ultima_iv_br-saved.dsk"), exported);
+    if (directory) writeFileSync(join(directory, exportName), exported);
 
     // Power on with the unchanged Boot disk, then insert the exported file at
     // the game's request. No checkpoint or game RAM enters the new machine.
     session = createApple2Session(rom.image, { bootstrap: rom.bootstrap!, image: boot });
     diskName = "ultima_iv_boot.dsk"; bootToExchange();
-    await checkpoint("ultima-iv-reload-exchange");
-    const mounted = await readApple2Disk({ name: "ultima_iv_br-saved.dsk", size: exported.length,
+    await checkpoint(`${prefix}-reload-exchange`);
+    const mounted = await readApple2Disk({ name: exportName, size: exported.length,
       async arrayBuffer() { return new Uint8Array(exported).buffer; } }, media.disk, "read-only");
     session.swapDisk(mounted.disk); diskName = mounted.name;
     session.send([27]); runTo(guide.save.partyLoaded, 30_000_000);
@@ -196,12 +202,108 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
       assert.deepEqual(Uint8Array.from({ length: file.bytes }, (_, i) => session.machine.upper.read(file.address - 0xe000 + i)),
         file.payload.slice(0, file.bytes));
     }
-    runTo(guide.stops.command, 10_000_000); checkScene(guide.resumed);
-    await checkpoint("ultima-iv-resumed");
-    moveEast(guide.continuation);
+    runTo(guide.stops.command, 10_000_000); checkScene(resumed);
+    await checkpoint(`${prefix}-resumed`);
+    moveEast(continuation);
     assert.deepEqual(session.machine.disk.exportImage(), exported, "Read-only resumption and movement preserve the export");
     assert.equal(session.machine.disk.inspect().writable, false);
     assert.equal(hash(boot.exportImage()), guide.boot.sha256);
-    await checkpoint("ultima-iv-continued");
+    await checkpoint(`${prefix}-continued`);
+  }
+  await t.test("Q saves the three declared files; an exported disk restores them after a cold boot and allows another move",
+    () => saveAndResume("ultima-iv", guide.resumed, guide.continuation));
+
+  await t.test("Skara Brae loads, answers a conversation, returns to Britannia, and survives another save and cold boot", {
+    skip: !process.env.APPLE2_ULTIMA_IV_TOWN ? "Set APPLE2_ULTIMA_IV_TOWN for the town round trip" : false,
+  }, async () => {
+    const town = await disk(process.env.APPLE2_ULTIMA_IV_TOWN!, guide.town.image);
+    const stops = guide.town.stops;
+    const upper = (address: number, length: number) => Uint8Array.from({ length }, (_, i) => session.machine.upper.read(address - 0xe000 + i));
+    const party = () => Array.from({ length: 8 }, (_, i) => [...upper(0xec00 + i * 32, 18)]);
+    const members = party(); // Names, sex and class; food, health and spell points can change as turns pass.
+    const keyTo = (key: number, stop = guide.stops.command, limit = 30_000_000) => {
+      session.send([key]); runTo(stop, limit);
+    };
+    function walk(address: number, target: number, key: number): void {
+      // Forest movement can consume a turn without changing coordinates.
+      for (let attempts = 0; session.machine.ram.read(address) !== target && attempts < 30; attempts++) keyTo(key);
+      assert.equal(session.machine.ram.read(address), target);
+    }
+    function binary(name: string): Uint8Array {
+      const image = [...town.exportImage()];
+      const entry = dos33Catalogue(image).files.find(file => file.name === name);
+      assert.ok(entry);
+      const sectors = dos33FileSectors(image, entry).filter(sector => sector.fileSector !== undefined);
+      const contents = Uint8Array.from(sectors.flatMap(sector => image.slice(sector.index * 256, (sector.index + 1) * 256)));
+      return contents.slice(4, 4 + contents[2]! + 256 * contents[3]!);
+    }
+    const ram = (address: number, length: number) => Uint8Array.from({ length }, (_, i) => session.machine.ram.read(address + i));
+    session.swapDisk(new Dos33Disk(session.machine.disk.exportImage(), { writable: true }));
+    keyTo(67, stops.cast); runTo(stops.input, 1_000_000); // Cast
+    keyTo(49, stops.input); keyTo(71, stops.input); keyTo(55); // Mariah, Gate, phase 7
+    checkScene(guide.town.gate);
+    walk(0, guide.town.outside.x, 8); walk(1, guide.town.outside.y, 10);
+    checkScene(guide.town.outside);
+    const list = upper(0xee00, 256), writes: number[][] = [];
+    const detach = session.machine.disk.inspectMedium()!.observeWrites(w => writes.push([w.track, w.sector]));
+    try { keyTo(69, guide.stops.exchange); } finally { detach(); }
+    assert.deepEqual(writes, [[20, 10], [20, 9], [17, 13]], "Entry saves TLST before asking for Town");
+    const returning = session.machine.disk.exportImage();
+    assert.deepEqual(returning.slice(0x14a04, 0x14b00), list.slice(0, 252));
+    assert.deepEqual(returning.slice(0x14900, 0x14904), list.slice(252));
+    await checkpoint("ultima-iv-town-request");
+    const directory = process.env.APPLE2_ULTIMA_IV_CHECKPOINTS;
+    if (directory) writeFileSync(join(directory, "ultima_iv_br-town-entry.dsk"), returning);
+    session.swapDisk(town); diskName = "ultima_iv_town.dsk";
+    keyTo(27, stops.mapLoaded);
+    const map = binary("MAPK"); assert.equal(map.length, 1280);
+    assert.deepEqual(ram(0x8b00, map.length), map, "DOS honors the explicit MAPK load address");
+    runTo(stops.mapCopied, 1_000_000);
+    assert.deepEqual(upper(0xe800, 1024), map.slice(0, 1024));
+    assert.deepEqual(upper(0xee00, 256), map.slice(1024));
+    runTo(guide.stops.command, 2_000_000); checkScene(guide.town.entrance);
+    assert.equal(session.machine.ram.read(10), guide.town.location);
+    await checkpoint("ultima-iv-town");
+
+    // MIX has valid payload sectors but garbage in unused T/S-list slots.
+    // Keep the inspector strict; prove that this game's bounded BLOAD succeeds.
+    assert.throws(() => binary("MIX"), /T134 S219/);
+    keyTo(77, stops.mix); runTo(stops.mixLoaded, 30_000_000);
+    const raw = town.exportImage();
+    const mix = Uint8Array.from([14, 13, 12].flatMap(sector => [...raw.slice((34 * 16 + sector) * 256, (34 * 16 + sector + 1) * 256)]));
+    assert.deepEqual([...mix.slice(0, 4)], [0, 96, 48, 2]);
+    assert.deepEqual(ram(0x8800, 560), mix.slice(4, 564));
+    runTo(stops.input, 1_000_000); keyTo(27); // Cancel without mixing reagents.
+    walk(0, guide.town.conversation.x, 21); checkScene(guide.town.conversation);
+    keyTo(84, stops.talk); runTo(stops.input, 1_000_000);
+    keyTo(21, stops.talkLoaded);
+    const talk = binary("TALK"); assert.deepEqual(ram(0x8800, talk.length), talk);
+    let printed = "";
+    const observe = (step: Cpu6502StepRecord) => {
+      if (step.before.pc === stops.print.address) printed += String.fromCharCode(step.before.a & 0x7f);
+    };
+    runTo(stops.input, 5_000_000, observe);
+    assert.ok(printed.includes(guide.town.greeting), printed);
+    await checkpoint("ultima-iv-town-conversation");
+    printed = "";
+    for (const key of "NAME\r") { session.send([key.charCodeAt(0)]); runTo(stops.input, 2_000_000, observe); }
+    assert.ok(printed.includes(guide.town.answer), printed);
+    await checkpoint("ultima-iv-town-name");
+    printed = "";
+    for (const key of "BYE") { session.send([key.charCodeAt(0)]); runTo(stops.input, 2_000_000, observe); }
+    session.send([13]); runTo(guide.stops.command, 2_000_000, observe);
+    assert.ok(printed.includes(guide.town.farewell), printed);
+    walk(0, 0, 8); keyTo(8, guide.stops.exchange);
+    await checkpoint("ultima-iv-town-return-request");
+    assert.equal(hash(session.machine.disk.exportImage()), guide.town.image.sha256);
+    session.swapDisk(new Dos33Disk(returning, { writable: true })); diskName = "ultima_iv_br-town-entry.dsk";
+    keyTo(27, stops.listLoaded);
+    assert.deepEqual(upper(0xee00, 256), list, "The same edited Britannia disk restores TLST");
+    runTo(guide.stops.command, 5_000_000);
+    checkScene(guide.town.outside); assert.equal(session.machine.ram.read(10), 0);
+    assert.equal(session.machine.ram.read(15), 8); assert.deepEqual(party(), members);
+    await checkpoint("ultima-iv-town-returned");
+    await saveAndResume("ultima-iv-town", guide.town.resumed, guide.town.continuation);
+    assert.deepEqual(party(), members);
   });
 });

@@ -2,7 +2,7 @@
 
 The [Apple II Plus](../../src/machines/6502/apple2.md) can cold-boot the selected
 *Ultima IV* Boot disk, exchange it for Britannia, move the saved party on the
-world map, and save and resume through an exported disk. This acceptance follows
+world map, visit Skara Brae, and save and resume through an exported disk. This acceptance follows
 **Journey onward** with the existing party; it does not create a character or
 establish a complete playthrough.
 
@@ -23,7 +23,7 @@ establish a complete playthrough.
 5. The world map appears with Mariah's existing eight-member party. Right Arrow
    moves east: the party's coordinates change from `(233,233)` to `(234,233)`.
    Left, Up, and Down Arrow also deliver the game's movement keys; this acceptance
-   checks one eastward step.
+   checks an eastward step; the town round trip below also exercises the other directions.
 
 The disk mode matters: **Fresh boot** restarts the machine; **Swap disk** preserves
 the running program, RAM, clocks, and queued input. Swapping pauses execution until
@@ -86,6 +86,78 @@ The world is redrawn around the restored party. The scrolling viewport from the
 previous session is not itself saved, so the terrain framing can differ from the
 screen immediately after the original eastward move.
 
+## Visit Skara Brae and return
+
+Start at the command boundary after resuming and taking the extra eastward step
+above: `(235,233)`. Insert a **writable copy of your exported Britannia disk** with
+**Swap disk**. The supplied party has a prepared Gate spell and Mariah can cast it.
+No character editing or injected game code is needed.
+
+1. Press `C`, `1`, `G`, `7` at the successive prompts: Cast, player 1, Gate,
+   phase 7. Do not press Return. The party arrives at `(23,126)`.
+2. Move Left to `(22,126)`, then Down to `(22,128)`. Forest movement can print
+   `Slow progress!` without moving; repeat the direction until the coordinate
+   changes. Pause at `$40C0` between commands to avoid idle turns.
+3. Press `E`. The game announces `SKARA BRAE` and asks for the **Towne disk**.
+   Before swapping, **export Britannia**. Entry has already saved `TLST` onto it;
+   that edited disk is the one to bring back on departure. Keep it distinct from
+   the earlier save, for example `ultima_iv_br-town-entry.dsk`.
+4. Swap to `ultima_iv_town.dsk` **read-only**, Run, and press Escape. The town
+   appears at local coordinates `(1,15)`, with location ID `$0B` at `$000A`.
+5. Move Right along the central path to `(11,15)`. Press `T`, then Right Arrow.
+   The game loads its conversation program and says `YOU MEET A SILVER ANKH.`
+   At `Your interest:`, type `NAME` and Return. It identifies itself as the
+   `ANKH OF SPIRITUALTY` (the spelling in this disk). Type `BYE` and Return.
+6. Walk Left to `(0,15)`, then Left once more to leave. At the Britannia request,
+   swap to a **writable copy of the entry export**, Run, and press Escape.
+   The party reappears at world coordinates `(22,128)`, location ID zero.
+7. Press `Q`, wait for the next command boundary with the motor off, and export
+   again, for example as `ultima_iv_br-town-saved.dsk`. Fresh-boot the original
+   Boot disk, select Journey onward, and supply this latest Britannia export.
+   It resumes outside Skara Brae at `(22,128)`; Right moves to `(23,128)`.
+
+The town visit retains all eight party members. Turns consume food, casting uses
+spell resources, and character statistics can change through normal game rules;
+“party retained” does not mean every roster byte stays frozen. The save/reload
+check compares the complete saved party, roster, and object blocks before the
+new game session starts modifying them.
+
+### What the town exchange loads
+
+`E` remembers the world position in `$0008,$0009`. Before requesting Town it
+issues `BSAVE TLST,A$EE00,L$100` on Britannia. The 256-byte outdoor object list
+occupies T20 S10 and S9, followed by a write to catalogue sector T17 S13.
+On departure, `BLOAD TLST` restores that list and the remembered coordinates
+replace the town coordinates. Reusing the original Britannia image would discard
+this temporary save, even though the disk's identity check would still accept it.
+
+Town supplies `MAPK`: six data sectors, T22 S6 through S1, containing a four-byte
+binary header and a 1,280-byte payload. `BLOAD MAPK,A$8B00` overrides the header's
+`$1000` load address. The game copies 1,024 map bytes into `$E800`–`$EBFF` and
+256 object bytes into `$EE00`–`$EEFF`. These are Language Card RAM. Talking loads
+`TALK,A$8800`: a 1,584-byte program from T33 S14 through S8. The acceptance checks
+both complete payloads before executing them, then checks the conversation text
+at the game's character-output routine.
+
+| Stop | What to inspect |
+| --- | --- |
+| `$52AC` | `MAPK` has loaded at `$8B00`; the copy into Language Card RAM is next. |
+| `$52CF` | Both the map and town objects have been copied. |
+| `$5BC3` | `TALK` has loaded at `$8800`; the conversation program is next. |
+| `$0AB5` | A game input routine, useful **after** entering a known command or conversation. It also serves other prompts. |
+| `$467C` | On leaving town, `TLST` has been restored before the world position is reinstated. |
+
+The Town catalogue itself is readable: it contains 46 files. The inspector's
+`T134 S219` warning belongs specifically to `MIX`'s track/sector list at T34 S15,
+where unused slots from offset `$60` contain nonzero data. Its first three pairs
+correctly point to T34 S14, S13, and S12. The binary header declares `$0230` bytes
+(560), so the game's loader finishes before reaching those invalid entries.
+The acceptance additionally presses `M` in town, checks all 560 loaded bytes at
+`$8800`, then cancels with Escape without mixing reagents. The generic inspector
+continues reporting the malformed list rather than silently treating arbitrary
+bad pointers as valid. This establishes this file's bounded load, not a claim
+that every sector on Town is well formed.
+
 ## Follow the saved bytes
 
 The command handler at `$58E7` prints the save message. After checking that the
@@ -144,7 +216,12 @@ exchanges disks without resetting hardware, checks the world coordinates and
 graphics, and repeats the move from a serialized checkpoint with identical final
 hardware and input state. It then checks the complete disk changes from saving,
 cold-boots the export, verifies all three reloaded blocks before game initialization,
-and takes another eastward step. No game bytes are patched or injected into RAM.
+and takes another eastward step. With Town supplied, it continues through Gate,
+entry, movement, conversation, departure, and a second save and cold boot. It
+checks the town's loaded bytes, temporary outdoor list, printed responses,
+coordinates, and retained party. Town scenes include animated objects, so their
+acceptance uses these contracts rather than a whole-landscape digest.
+No game bytes are patched or injected into RAM.
 Numbers in the record are decimal; addresses in the prose are hexadecimal.
 
 The selected images came from the maintainer's local dromaios-apple2 media
@@ -182,7 +259,32 @@ The repository contains neither the images nor extracted game files.
   "resumed": { "name": "Resumed Britannia", "x": 234, "y": 233,
     "terrainSha256": "499eca180bbe8dfaf17b1e792c91595cd65e2d1b703974b91b7ca47eed59c423" },
   "continuation": { "name": "East after resuming", "x": 235, "y": 233,
-    "terrainSha256": "b4c5f13b9e31ab1896e96a1d6802caf96cbb74439a424cf8dd419af1b3402925" }
+    "terrainSha256": "b4c5f13b9e31ab1896e96a1d6802caf96cbb74439a424cf8dd419af1b3402925" },
+  "town": {
+    "image": { "bytes": 143360, "sha256": "4533e08c1d3d8ad4fbd4f4f746838f3b2555bf629568695fdce93c14a1884801" },
+    "stops": {
+      "cast": { "address": 18562, "bytes": [32, 33, 8] },
+      "input": { "address": 2741, "bytes": [169, 128, 141, 219, 10] },
+      "mapLoaded": { "address": 21164, "bytes": [162, 0] },
+      "mapCopied": { "address": 21199, "bytes": [169, 2] },
+      "mix": { "address": 22341, "bytes": [32, 11, 99] },
+      "mixLoaded": { "address": 22388, "bytes": [32, 0, 136] },
+      "talk": { "address": 23275, "bytes": [32, 33, 8] },
+      "talkLoaded": { "address": 23491, "bytes": [32, 0, 136] },
+      "listLoaded": { "address": 18044, "bytes": [165, 8] },
+      "print": { "address": 4009, "bytes": [201, 141, 240] }
+    },
+    "gate": { "name": "Phase 7 gate", "x": 23, "y": 126 },
+    "outside": { "name": "Outside Skara Brae", "x": 22, "y": 128 },
+    "entrance": { "name": "Skara Brae entrance", "x": 1, "y": 15 },
+    "conversation": { "name": "Beside the silver ankh", "x": 11, "y": 15 },
+    "location": 11,
+    "greeting": "YOU MEET\rA SILVER ANKH.",
+    "answer": "IT SAYS: I AM\rTHE ANKH OF\rSPIRITUALTY",
+    "farewell": "IT SAYS: BYE.",
+    "resumed": { "name": "Resumed outside Skara Brae", "x": 22, "y": 128 },
+    "continuation": { "name": "East after the town round trip", "x": 23, "y": 128 }
+  }
 }
 ```
 
@@ -221,26 +323,40 @@ disk's readability and resumed execution; it is not the oracle for saving.
 The save check instead follows the original DOS instructions, source reads,
 binary headers, sector writes, and the exact exported bytes.
 
+The pinned reference also executes the Gate route, Skara Brae entry, the silver
+ankh conversation, and the return to the same world coordinates. Its disk model
+cannot persist the temporary `TLST` write, so the native acceptance owns that
+round-trip check. The final native Britannia export is independently loaded by
+the reference: it resumes at `(22,128)` and moves east to `(23,128)`.
+
+The browser check starts from the verified `(235,233)` checkpoint and uses the
+laboratory's keyboard, disk-swap, writable-copy, and export controls. Its complete
+hardware and input state matches the native run at both disk requests, town
+entry, conversation, NAME response, and return to Britannia. The final browser
+download matches every byte of the native export. The native test then supplies
+that disk to a new machine, booted from reset, and verifies the saved blocks and
+another move.
+
 To run the optional local-media check after a current build:
 
 ```sh
 APPLE2_ROM=media/apple2/apple2p.rom \
 APPLE2_ULTIMA_IV_BOOT=media/apple2/reference/ultima_iv_boot.dsk \
 APPLE2_ULTIMA_IV_BRITANNIA=media/apple2/reference/ultima_iv_br.dsk \
+APPLE2_ULTIMA_IV_TOWN=media/apple2/reference/ultima_iv_town.dsk \
 node --test dist/tests/site/apple2-ultima-iv.test.js
 ```
 
 Set `APPLE2_ULTIMA_IV_CHECKPOINTS` to an ignored local directory to retain the
-verified checkpoints and `ultima_iv_br-saved.dsk` for browser experiments. These
+verified checkpoints and the initial, town-entry, and final Britannia exports for
+browser experiments. Omit `APPLE2_ULTIMA_IV_TOWN` to run only the earlier
+Boot/Britannia save path. These artifacts
 contain private media bytes and must not be published.
 
 ## Still to establish
 
-This pass covers the Boot/Britannia exchange, movement with the supplied party,
-and saving and resuming it after a cold boot. Character creation, town and
-dungeon entry, further exchanges, sound expansion hardware, and a complete
-playthrough remain unverified. The local Town and Underworld images are inventoried
-but not accepted here. In particular, the generic DOS catalogue reader encounters
-an out-of-range sector pointer on the Town image; this alone does not establish
-whether the game's own loader can use it. The machine chapter's disk, timing,
-display, and audio limitations continue to apply.
+This pass covers Boot/Britannia/Town exchange, Skara Brae's entrance and one
+conversation, the return to Britannia, and saving and resuming the supplied party.
+Character creation, other towns and conversations, dungeon entry and Underworld,
+sound expansion hardware, and a complete playthrough remain unverified. The
+machine chapter's disk, timing, display, and audio limitations continue to apply.
