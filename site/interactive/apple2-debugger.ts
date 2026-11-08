@@ -7,9 +7,8 @@ type Machine = ReturnType<typeof createApple2Session>["machine"];
 
 /** Mapping is observed directly; checking a breakpoint never reads the guest bus. */
 export function apple2DebugLocation(machine: Machine, address = machine.cpu.snapshot().pc): DebugLocation {
-  const language = machine.language.snapshot();
   const space = address < 0xc000 ? "ram" : address < 0xd000 ? "device"
-    : !language.ram_read ? "rom" : address >= 0xe000 ? "lc-upper" : language.bank2 ? "lc-bank2" : "lc-bank1";
+    : !machine.language.ramRead() ? "rom" : address >= 0xe000 ? "lc-upper" : machine.language.bank2() ? "lc-bank2" : "lc-bank1";
   return { address, space };
 }
 

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { readApple2Rom, readApple2Disk } from "../../site/interactive/apple2-media.js";
@@ -45,6 +46,14 @@ test("Mystery House opens, replays a checkpoint, and restores a game from an exp
   assert.ok(rom.bootstrap, "Boot needs the 20 KiB container's slot-6 firmware");
   const disk = await readApple2Disk(selected, media.disk, "writable-copy");
   let session = createApple2Session(rom.image, { bootstrap: rom.bootstrap, image: disk.disk });
+  async function checkpoint(name: string): Promise<void> {
+    const directory = process.env.APPLE2_MYSTERY_HOUSE_CHECKPOINTS;
+    if (!directory) return;
+    mkdirSync(directory, { recursive: true });
+    const saved = await encodeApple2SavedState({ machine: "apple2-plus", name,
+      savedAt: new Date().toISOString(), diskName: "mystery-house.dsk", flash: false, state: session.snapshot() });
+    writeFileSync(join(directory, `${name}.json`), JSON.stringify(saved));
+  }
   const bytes = (address: number, length: number) => Uint8Array.from({ length }, (_, i) => session.machine.ram.read(address + i));
 
   // Independent address equations, not the video device's address/character helpers.
@@ -113,7 +122,9 @@ test("Mystery House opens, replays a checkpoint, and restores a game from an exp
     checkScene(guide.scenes[0]!);
   }
   await t.test("cold boot reaches the notice, then executes the loaded title program", bootToTitle);
+  await checkpoint("title");
   await t.test("DOS BRUN loads the exact game binary and draws the front yard", enterGame);
+  await checkpoint("yard");
   await t.test("a serialized yard checkpoint replays GO STAIRS with identical hardware and input state", async () => {
     const saved = await encodeApple2SavedState({ machine: "apple2-plus", name: "Mystery House — yard",
       savedAt: "2026-11-07T00:00:00Z", diskName: "mystery-house.dsk", flash: false, state: session.snapshot() });

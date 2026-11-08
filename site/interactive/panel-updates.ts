@@ -2,6 +2,7 @@
 export function createPanelUpdates(root: HTMLElement, refresh: (id: string) => void,
   storageKey = "dromaios:inspectors:apple2:live") {
   const panels = [...root.querySelectorAll<HTMLElement>("[data-panel-live]")];
+  const byId = new Map(panels.map(panel => [panel.dataset.workspacePanel!, panel]));
   const live = new Map(panels.map(panel => [panel.dataset.workspacePanel!, panel.dataset.panelLive === "true"]));
   const controls = new Map<string, HTMLButtonElement>();
   try {
@@ -27,6 +28,7 @@ export function createPanelUpdates(root: HTMLElement, refresh: (id: string) => v
   }
   return {
     controls: (id: string): HTMLElement | undefined => controls.get(id),
-    shouldUpdate: (id: string, running: boolean): boolean => !running || live.get(id) !== false,
+    // Docking hides inactive, collapsed and closed tools; revealing one requests a fresh view.
+    shouldUpdate: (id: string, running: boolean): boolean => !byId.get(id)?.hidden && (!running || live.get(id) !== false),
   };
 }

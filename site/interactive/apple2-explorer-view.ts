@@ -132,9 +132,10 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       if (reads) reads.observe(machine()!, record, writes);
       devices?.observe(record, before, machine()!.clock.ticks);
       watchHistory.observe(record, before, watches, writes);
-      debuggerState.observe(apple2DebugStep(record, before, location(), catalogue.instructions));
+      const after = apple2DebugLocation(machine()!, record.after.pc);
+      debuggerState.observe(apple2DebugStep(record, before, after, catalogue.instructions));
       const hit = apple2Watchpoint(watches, record, catalogue.instructions, changes);
-      if (hit) debuggerState.watchpoint(location(), describeApple2Watchpoint(hit, record.instruction.address));
+      if (hit) debuggerState.watchpoint(after, describeApple2Watchpoint(hit, record.instruction.address));
     },
     pauseBeforeStep(softwareBreakpoint?: (at: DebugLocation) => string | undefined): boolean {
       return debuggerState.beforeStep(location, softwareBreakpoint);

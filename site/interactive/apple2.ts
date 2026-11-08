@@ -124,14 +124,15 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     step: () => {
       const before = apple2DebugLocation(session.machine), romMapped = !session.machine.language.ramRead();
       const perform = () => explorer.captureDiskStep(before, () => session.step());
-      const record = changeLog ? changeLog.current().capture(perform) : perform();
+      const log = changeLog?.current();
+      const record = log ? log.capture(perform) : perform();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
       sound.observe();
       basicHistory?.observe(session.machine, before);
       basicProfile?.observe(session.machine, before, record.after);
       basicEvents?.observe(session.machine, before, record);
-      const changes = changeLog?.current().memoryChanges(record) ?? [];
-      const writes = changeLog?.current().memoryWrites(record) ?? [];
+      const changes = log?.memoryChanges(record) ?? [];
+      const writes = log?.memoryWrites(record) ?? [];
       explorer.observe(record, before, inspection.watches, changes, writes);
       inspection.observe(session.machine, changes);
       screenInspector?.observe(record, before, writes);

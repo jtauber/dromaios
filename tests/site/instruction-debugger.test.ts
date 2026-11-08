@@ -232,4 +232,12 @@ test("Apple II mapping checks do not touch keyboard, disk, or language-card soft
   assert.deepEqual({ keyboard: machine.keyboard.snapshot(), disk: machine.disk.snapshot(), language: machine.language.snapshot() }, original);
   machine.language.read(0);
   assert.deepEqual(apple2DebugLocation(machine), at(0xfd21, "lc-upper"));
+  assert.deepEqual(apple2DebugLocation(machine, 0xd000), at(0xd000, "lc-bank2"));
+  machine.language.read(8);
+  const language = machine.language.snapshot();
+  for (const [address, space] of [[0xbfff, "ram"], [0xc000, "device"], [0xcfff, "device"],
+    [0xd000, "lc-bank1"], [0xdfff, "lc-bank1"], [0xe000, "lc-upper"]] as const) {
+    assert.deepEqual(apple2DebugLocation(machine, address), at(address, space));
+  }
+  assert.deepEqual(machine.language.snapshot(), language);
 });

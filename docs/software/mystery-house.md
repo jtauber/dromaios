@@ -260,3 +260,80 @@ restored bytes back into RAM. The restored hall, subsequent library picture,
 and unchanged read-only export complete the check. Instruction bounds catch
 a stalled boot; they are not promises about host performance or original drive
 speed.
+
+## Laboratory performance workload
+
+[The browser benchmark](../../scripts/benchmark-apple2-laboratory.ts) exercises
+the real laboratory controls, scheduling, observers and rendering. It restores
+two checkpoints from the acceptance run:
+
+| Start | Input and stop | Guest work |
+| --- | --- | --- |
+| Title menu | `G` + Return; Run to `$0800` | The first 2,000,000 instructions of loading, ending at the debugger's instruction limit. This is a loading sample, not the entire load. |
+| Front yard | `GO STAIRS` + Return; Run to `$63DF` | 224,100 instructions through the porch redraw to the next command prompt. |
+
+Each sample starts in a fresh page with the default docking layout, Unlimited
+speed, sound off and a 1800 × 1013 viewport. Three configurations distinguish
+rendering from recording: all Live switches on; all Live switches off; then
+Live off with Changes, Disk transfer and Applesoft event recording off.
+Debugger checks, watchpoints and the other observers remain active in every
+configuration. Hidden tools continue collecting history but only render when
+revealed; Pause and Step refresh visible tools even with Live off.
+
+To prepare exact checkpoints, add an output directory to the optional acceptance
+command above (after building):
+
+```sh
+APPLE2_ROM=media/apple2/apple2p.rom \
+APPLE2_MYSTERY_HOUSE_DISK=media/apple2/disks/mystery-house.dsk \
+APPLE2_MYSTERY_HOUSE_CHECKPOINTS=media/benchmarks/mystery-house \
+node --test dist/tests/site/apple2-mystery-house.test.js
+```
+
+This writes `title.json` and `yard.json` under the ignored `media/` directory.
+They contain RAM and mounted media, so keep them local. Build the site, serve
+`site/output` locally, and start a separate Chrome process with remote debugging.
+For example, in separate terminals on macOS:
+
+```sh
+python3 -m http.server 8771 --bind 127.0.0.1 --directory site/output
+```
+
+```sh
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  --headless=new --remote-debugging-port=9227 --user-data-dir="$(mktemp -d)"
+```
+
+Then run three samples per configuration:
+
+```sh
+APPLE2_ROM=media/apple2/apple2p.rom \
+node scripts/benchmark-apple2-laboratory.ts \
+  http://127.0.0.1:8771 http://127.0.0.1:9227 media/benchmarks/mystery-house 3 \
+  > media/benchmarks/mystery-house/results.json
+```
+
+The benchmark creates and disposes its own browser context. It checks instruction
+counts and hashes the complete hardware and input state after every sample;
+observer configurations must produce identical hashes. Compare those hashes
+across revisions too. The JSON report contains timings and hashes, not media.
+Use unprofiled runs on an otherwise idle host for timing; collect CPU profiles
+separately to find costs. Guest clocks must agree even when host timings vary.
+
+The November 2026 pass compared `682f779` with the first laboratory optimizations
+on an Apple M5 Max, headless Chrome 156.0.8078.80. Medians of three runs:
+
+| Workload | Inspector configuration | Before | After | Less elapsed time |
+| --- | --- | --- | --- | --- |
+| Loading sample | Live and recording on | 14.84 s | 9.71 s | 35% |
+| Loading sample | Live off | 11.30 s | 8.00 s | 29% |
+| Loading sample | Live and recording controls off | 8.62 s | 6.37 s | 26% |
+| `GO STAIRS` | Live and recording on | 1.78 s | 1.25 s | 30% |
+| `GO STAIRS` | Live off | 1.39 s | 1.00 s | 28% |
+| `GO STAIRS` | Live and recording controls off | 1.06 s | 0.82 s | 23% |
+
+All 36 final-state hashes matched their corresponding native workload. The changes
+avoid hidden inspector rendering, reuse the completed instruction's PC, query
+Language Card mapping directly, and prepare change-log field descriptions once.
+They do not skip guest instructions, disk waits or recorded changes. These
+figures describe these two samples, not cold-boot time or other machines.

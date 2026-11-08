@@ -25,21 +25,30 @@ export interface ChangeEntry {
   readonly changes: readonly RecordedChange[];
 }
 
-/** Register widths and flags belong to the generated state description. Derived aliases are not logged twice. */
-export function processorChanges(fields: StateFields, before: object, after: object, counters: readonly string[] = ["pc"]): RecordedChange[] {
-  const changes: RecordedChange[] = [];
-  function visit(fields: StateFields, before: object, after: object, prefix = ""): void {
-    for (const [name, field] of Object.entries(fields)) {
-      const old = (before as Record<string, unknown>)[name], value = (after as Record<string, unknown>)[name];
-      if (field.kind === "group") {
-        if (old && value && typeof old === "object" && typeof value === "object") visit(field.fields, old, value, name === "flags" ? "" : `${prefix}${name}.`);
-      } else if ((field.kind === "unsigned" || field.kind === "flag") && old !== value) {
-        changes.push({ kind: field.kind === "flag" ? "flag" : counters.includes(name) ? "pc" : "register", target: `${prefix}${name}`.toUpperCase(),
-          before: Number(old), after: Number(value), width: field.kind === "flag" ? 1 : Math.ceil(field.bits / 4) });
+/** Prepare names, widths and groups once; per-instruction comparisons only inspect stored values. */
+export function createProcessorChanges(fields: StateFields, counters: readonly string[] = ["pc"]) {
+  type Field = { name: string; fields: readonly Field[] } | { name: string; change: Pick<RecordedChange, "kind" | "target" | "width"> };
+  function describe(fields: StateFields, prefix = ""): Field[] {
+    return Object.entries(fields).flatMap(([name, field]): Field[] => {
+      if (field.kind === "group") return [{ name, fields: describe(field.fields, name === "flags" ? "" : `${prefix}${name}.`) }];
+      if (field.kind !== "unsigned" && field.kind !== "flag") return [];
+      return [{ name, change: { kind: field.kind === "flag" ? "flag" : counters.includes(name) ? "pc" : "register",
+        target: `${prefix}${name}`.toUpperCase(), width: field.kind === "flag" ? 1 : Math.ceil(field.bits / 4) } }];
+    });
+  }
+  const described = describe(fields);
+  return (before: object, after: object): RecordedChange[] => {
+    const changes: RecordedChange[] = [];
+    function visit(fields: readonly Field[], before: object, after: object): void {
+      for (const field of fields) {
+        const old = (before as Record<string, unknown>)[field.name], value = (after as Record<string, unknown>)[field.name];
+        if ("fields" in field) {
+          if (old && value && typeof old === "object" && typeof value === "object") visit(field.fields, old, value);
+        } else if (old !== value) changes.push({ ...field.change, before: Number(old), after: Number(value) });
       }
     }
-  }
-  visit(fields, before, after); return changes;
+    visit(described, before, after); return changes;
+  };
 }
 
 /** Bounded boundary history. Physical writes are observed once, independently of recording and display refresh. */
@@ -54,6 +63,7 @@ export function createChangeLog<State extends object, Record extends ChangeBound
 }, capacity = 500) {
   if (!Number.isSafeInteger(capacity) || capacity < 1) throw new RangeError("Change log capacity must be a positive integer.");
   const entries: ChangeEntry[] = [];
+  const processorChanges = createProcessorChanges(adapter.state, adapter.counters);
   let cursor = 0, sequence = 0, captured = 0, recording = true;
   let writes: Write[] | undefined;
   let latest: { record: Record | undefined; writes: readonly Write[]; changes: readonly Write[] } | undefined;
@@ -95,7 +105,7 @@ export function createChangeLog<State extends object, Record extends ChangeBound
           const instruction = record ? record.instruction : { address: caller!.address, bytes: [] };
           append({ source: "cpu", sequence, caller, instruction: instruction ? { address: instruction.address, bytes: [...instruction.bytes] } : undefined,
             event: record && adapter.event(record), outcome: record?.outcome ?? "interrupted",
-            changes: [...processorChanges(adapter.state, before, record?.after ?? adapter.snapshot(), adapter.counters), ...changes.map(memoryChange)] });
+            changes: [...processorChanges(before, record?.after ?? adapter.snapshot()), ...changes.map(memoryChange)] });
         }
       }
     },
