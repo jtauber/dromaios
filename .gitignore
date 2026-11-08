@@ -4,6 +4,7 @@ src/machines/generated/
 src/components/cpus/generated/
 src/components/cpus/semantics/generated/
 .DS_Store
+/media/
 site/.venv/
 site/output/
 __pycache__/
