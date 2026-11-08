@@ -289,13 +289,17 @@
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="disk" data-panel-live="true" data-panel-title="Disk">
       <h2>Drive 1</h2>
       <input type="file" data-disk-file aria-label="disk file" accept=".dsk,.do" hidden disabled>
+      <div class="basic-controls"><span class="lab-inspector-choices" role="group" aria-label="Disk insertion">
+        <button type="button" data-disk-action="boot" aria-pressed="true" title="Start a fresh machine with the selected disk" disabled>Fresh boot</button>
+        <button type="button" data-disk-action="swap" aria-pressed="false" title="Exchange the disk while preserving CPU, RAM and clocks" disabled>Swap disk</button>
+      </span></div>
       <div class="basic-controls"><button type="button" data-disk-load disabled>Insert read-only…</button>
         <button type="button" data-disk-writable disabled>Insert writable copy…</button></div>
       <p data-disk-status class="basic-readout">No disk loaded.</p>
       <div class="basic-controls"><button type="button" data-disk-eject disabled>Eject disk</button>
         <button type="button" data-disk-export disabled title="Download the mounted disk when the motor is off">Export disk image</button></div>
       <p class="basic-readout" data-disk-notice role="status"></p>
-      <p class="lab-hint">Load the 20 KiB ROM container, then a 143,360-byte DOS-order disk. Inserting a disk prepares a fresh, paused machine. Choose Run to boot it.</p>
+      <p class="lab-hint">Load the 20 KiB ROM container, then a 143,360-byte DOS-order disk. Fresh boot starts a new machine; Swap disk preserves the running program. Both pause until Run. Export writable edits before replacing a disk.</p>
       <h2>Disk II controller</h2><pre data-disk-inspect>No disk controller installed.</pre>
       <p class="lab-hint">Guest writes change the in-memory copy. When the motor is off, export a .dsk to keep the changes. Saved states also retain the mounted disk and its write permission.</p>
       <p><a href="{{ calc_url(apple2_url ~ '#saving-answer-across-a-fresh-boot') }}" target="_blank" rel="noopener">Save and boot ANSWER ↗</a></p>

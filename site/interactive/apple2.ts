@@ -46,6 +46,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const writableDisk = root.querySelector<HTMLButtonElement>("[data-disk-writable]");
   const exportDisk = root.querySelector<HTMLButtonElement>("[data-disk-export]");
   const diskNotice = root.querySelector<HTMLElement>("[data-disk-notice]");
+  const diskActions = root.querySelectorAll<HTMLButtonElement>("[data-disk-action]");
   const screen = element<HTMLElement>("apple2-screen"), message = element<HTMLElement>("machine-message");
   const run = element<HTMLButtonElement>("machine-run"), pause = element<HTMLButtonElement>("machine-pause");
   const step = element<HTMLButtonElement>("machine-step"), reset = element<HTMLButtonElement>("machine-reset");
@@ -70,6 +71,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   const speedButtons = root.querySelectorAll<HTMLButtonElement>("[data-machine-speed]");
   let normalSpeed = true;
   let diskMode: Apple2DiskMode = writableDisk ? "read-only" : "system-master";
+  let diskAction: "boot" | "swap" = "boot";
   let selecting = false, selection = 0, flash = false, nextFlash = 0, restoring = false;
   const renderScreen = createApple2Screen(screen, element<HTMLInputElement>("apple2-scanlines"));
   const monochrome = element<HTMLInputElement>("apple2-monochrome");
@@ -239,6 +241,11 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (!writableDisk) loadDisk.textContent = diskName ? "Replace disk…" : "Load disk…";
     if (writableDisk) writableDisk.disabled = loadDisk.disabled;
     const drive = session.machine.disk.inspect();
+    if (!drive.installed) diskAction = "boot";
+    for (const button of diskActions) {
+      button.disabled = loadDisk.disabled || button.dataset.diskAction === "swap" && !drive.installed;
+      button.setAttribute("aria-pressed", String(button.dataset.diskAction === diskAction));
+    }
     diskInspector?.refresh(session.machine.disk, shouldUpdate("disk"));
     if (exportDisk) exportDisk.disabled = selecting || !drive.loaded || drive.motor;
     eject.disabled = !available || !drive.loaded;
@@ -288,18 +295,22 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     refresh();
   }
   const sendText = (text: string) => action(() => send(apple2Input(text)));
-  async function choose<T>(input: HTMLInputElement, verify: (file: File) => Promise<T>, apply: (verified: T) => void, notice?: HTMLElement | null): Promise<void> {
+  async function choose<T>(input: HTMLInputElement, verify: (file: File) => Promise<T>, apply: (verified: T) => void,
+    notice?: HTMLElement | null, restart = true): Promise<void> {
     const chosen = input.files?.[0];
     if (chosen === undefined) return;
     const token = ++selection;
-    explorer.reset(); execution.stop(); selecting = true; message.textContent = `Checking ${chosen.name}…`; refresh();
+    if (restart) explorer.reset(); else explorer.pause("Paused for disk exchange.");
+    execution.stop(); selecting = true; message.textContent = `Checking ${chosen.name}…`; refresh();
     if (notice) notice.textContent = message.textContent;
     try {
       const verified = await verify(chosen);
       if (token !== selection) return;
       apply(verified);
-      resetExecutionHistory(); flash = false; nextFlash = 0;
-      if (keyboard) keyboard.value = "";
+      if (restart) {
+        resetExecutionHistory(); flash = false; nextFlash = 0;
+        if (keyboard) keyboard.value = "";
+      }
     } catch (cause) {
       if (token === selection) {
         message.textContent = cause instanceof Error ? cause.message : String(cause);
@@ -318,6 +329,9 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     message.textContent = "ROM loaded. Run boots Applesoft, or select a disk to boot DOS.";
   }
   loadRom.addEventListener("click", () => file.click());
+  for (const button of diskActions) button.addEventListener("click", () => {
+    diskAction = button.dataset.diskAction === "swap" ? "swap" : "boot"; refresh();
+  });
   loadDisk.addEventListener("click", () => { diskMode = writableDisk ? "read-only" : "system-master"; diskFile.click(); });
   writableDisk?.addEventListener("click", () => { diskMode = "writable-copy"; diskFile.click(); });
   file.addEventListener("change", () => void choose(file, chosen => romStorage.prepare(chosen), ({ rom, stored }) => {
@@ -337,12 +351,17 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       storageStatus.textContent = "The browser could not remove the saved ROM. You can clear it through this site's browser storage settings.";
     }
   });
-  diskFile.addEventListener("change", () => void choose(diskFile, chosen => readApple2Disk(chosen, media.disk, diskMode), loaded => {
-    session = createApple2Session(rom!.image, { bootstrap: rom!.bootstrap!, image: loaded.disk });
-    diskName = loaded.name;
-    if (diskNotice) diskNotice.textContent = loaded.systemMaster ? "Verified DOS 3.3 System Master." : "Local DOS-order image.";
-    message.textContent = "Disk loaded in a fresh, paused machine. Choose Run to boot drive 1.";
-  }, diskNotice));
+  diskFile.addEventListener("change", () => {
+    const restart = diskAction === "boot";
+    void choose(diskFile, chosen => readApple2Disk(chosen, media.disk, diskMode), loaded => {
+      if (restart) session = createApple2Session(rom!.image, { bootstrap: rom!.bootstrap!, image: loaded.disk });
+      else session.swapDisk(loaded.disk);
+      diskName = loaded.name;
+      if (diskNotice) diskNotice.textContent = loaded.systemMaster ? "Verified DOS 3.3 System Master." : "Local DOS-order image.";
+      message.textContent = restart ? "Disk loaded in a fresh, paused machine. Choose Run to boot drive 1."
+        : "Disk exchanged. CPU, RAM, clocks and queued input preserved. Run resumes the program.";
+    }, diskNotice, restart);
+  });
   exportDisk?.addEventListener("click", () => action(() => {
     if (!diskName || selecting || session.machine.disk.inspect().motor) return;
     const name = downloadDiskImage(diskName, ".dsk", session.machine.disk.exportImage());

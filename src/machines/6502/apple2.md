@@ -148,6 +148,18 @@ media. Passing `{ writable: true }` to the disk constructor creates a writable
 copy. `disk.exportImage()` returns an independent DOS-order byte image of the
 mounted disk.
 
+In the laboratory, **Fresh boot** makes either insertion button start a new,
+paused machine with the selected disk. **Swap disk** instead exchanges drive-one
+media in the existing machine. CPU state, RAM banks, device latches, CPU clocks,
+queued keyboard input and execution history survive; Run resumes the program.
+The controller retains head position, phase, motor, drive selection and Q6/Q7.
+Insertion resets the new medium's byte position, fractional byte clocks and latch,
+and discards an incomplete write stream. This deterministic insertion phase is a
+model convention, not physical disk alignment. A swap requires an installed
+Disk II card, including an empty drive after ejecting. Export an edited writable
+copy before replacing it. Saved states retain the newly mounted disk and its
+write permission; Fresh power-on boots that disk.
+
 ## Construction, reset, and restoration
 
 Construction provides zero-filled RAM and deterministic CPU, keyboard, display,
@@ -451,9 +463,9 @@ from reset to the Applesoft prompt, then trace a keypress to its screen write.
 The software guide owns the versioned labels and walkthrough; these do not
 change the machine's wiring or firmware execution.
 
-For a complete game startup, follow [Mystery House](../../../docs/software/mystery-house.md).
-Its software guide identifies the selected disk and follows the first commands
-from the front yard into the hall, using this same machine and laboratory.
+For game startup and play, follow [Mystery House](../../../docs/software/mystery-house.md)
+or [Ultima IV](../../../docs/software/ultima-iv.md). Their guides identify the
+selected images and accepted paths through the same machine and laboratory.
 
 Use **Load ROM…** to choose the matching local file, then **Run**. The file
 picker stays hidden behind the button; the separate loaded-file status identifies
@@ -487,6 +499,8 @@ RUN
 LIST puts line 10 before line 20; RUN prints 5. Lowercase letters become uppercase
 before delivery to the original seven-bit keyboard. Backspace or Left Arrow
 backs up over a character; Right Arrow reuses the character under the cursor.
+Up and Down Arrow deliver control codes `0B` and `0A`, as in the reference's
+keyboard adapter; games such as Ultima IV use them for movement.
 Enter and Control-C have buttons as well as keyboard shortcuts. Escape is passed
 to the firmware. Paste accepts one ASCII line with an optional final newline;
 multiple lines and non-ASCII text are rejected as a whole. There is no local echo:
@@ -1031,7 +1045,7 @@ changed (track and sector numbers here are decimal).
 Enter `NEW`, then `LOAD ANSWER` and `RUN`. Applesoft prints `42`.
 When drive 1 shows **motor off**, choose **Export disk image**. The browser
 downloads `dos33-master-saved.dsk`, the 143,360-byte result of
-`disk.exportImage()`. Choose **Insert read-only…** and select that download.
+`disk.exportImage()`. Select **Fresh boot**, choose **Insert read-only…**, and select that download.
 Press **Run** to cold-boot the newly constructed Apple II. After the DOS 3.3
 banner and Applesoft prompt appear, repeat `NEW` and `LOAD ANSWER`. `LIST`
 shows `10 PRINT 6 * 7`, and `RUN` prints `42` again.
@@ -1181,8 +1195,8 @@ instructions at `$6000`. Line 40 puts `$AA`, the Apple II text code for
 | $6003 | 8D 94 07 | STA $0794 | Put the star on text page one, row 8, column 21 (counting from one). |
 | $6006 | 60 | RTS | Return to DOS. |
 
-When the motor stops, **Export disk image**, then **Insert read-only** and
-select the export. This starts a fresh machine. Run until DOS reaches the
+When the motor stops, **Export disk image**, select **Fresh boot**, then
+**Insert read-only…** and select the export. Run until DOS reaches the
 Applesoft prompt, then pause. Select **BLOAD and BRUN BEACON** in **Walkthrough**.
 Clear the **DOS sector read trace** in **Disk** to separate the load from the
 boot reads. Queue `BLOAD BEACON` with Return on the screen while paused.

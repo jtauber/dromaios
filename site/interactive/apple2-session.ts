@@ -50,6 +50,11 @@ export function createApple2Session(firmware: RomImage | null = null, disk?: { r
       return machine.step();
     },
     reset(): void { requireFirmware(); machine.reset(); input = []; },
+    /** Exchange drive-one media without restarting software or discarding queued input. */
+    swapDisk(image: Dos33Disk): void {
+      if (!machine.disk.inspect().installed) throw new Error("Boot from a disk before exchanging drive-one media.");
+      machine.disk.insert(image);
+    },
     powerOn(): void {
       const { bootstrap, media, writable } = machine.disk.snapshot();
       machine = powerOn(media && bootstrap ? { bootstrap, image: new Dos33Disk(media, { writable }) } : undefined);
@@ -72,6 +77,8 @@ export function apple2ControlKey(event: {
   if (event.ctrlKey) return event.key.toLowerCase() === "c" ? 3 : undefined;
   if (event.key === "Backspace" || event.key === "ArrowLeft") return 8;
   if (event.key === "ArrowRight") return 21;
+  if (event.key === "ArrowUp") return 11;
+  if (event.key === "ArrowDown") return 10;
   if (event.key === "Escape") return 27;
   return event.key === "Enter" ? 13 : undefined;
 }

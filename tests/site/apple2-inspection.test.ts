@@ -98,7 +98,9 @@ test("screen typing accepts Apple II keys while preserving browser shortcuts and
     assert.equal(apple2ScreenKey({ ...modifiers, key }), expected);
   }
   assert.equal(apple2ScreenKey({ ...modifiers, key: "c", ctrlKey: true }), 3);
-  for (const key of ["é", "ß", "Tab", "ArrowUp", "Shift"]) assert.equal(apple2ScreenKey({ ...modifiers, key }), undefined);
+  assert.equal(apple2ScreenKey({ ...modifiers, key: "ArrowUp" }), 11);
+  assert.equal(apple2ScreenKey({ ...modifiers, key: "ArrowDown" }), 10);
+  for (const key of ["é", "ß", "Tab", "Shift"]) assert.equal(apple2ScreenKey({ ...modifiers, key }), undefined);
   for (const modifier of ["ctrlKey", "metaKey", "altKey", "isComposing"]) {
     assert.equal(apple2ScreenKey({ ...modifiers, key: "a", [modifier]: true }), undefined);
   }

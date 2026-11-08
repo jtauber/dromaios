@@ -29,7 +29,7 @@ test("Apple II host input is uppercase ASCII with original editing and break key
   assert.deepEqual(apple2Input("print 2+3\r\n"), [..."PRINT 2+3\r"].map(c => c.charCodeAt(0)));
   for (const text of ["one\ntwo", "ß", "é", "🎹"]) assert.throws(() => apple2Input(text));
   const event = { ctrlKey: false, metaKey: false, altKey: false, isComposing: false };
-  for (const [key, byte] of [["Backspace", 8], ["ArrowLeft", 8], ["ArrowRight", 21], ["Escape", 27], ["Enter", 13]] as const) {
+  for (const [key, byte] of [["Backspace", 8], ["ArrowLeft", 8], ["ArrowRight", 21], ["ArrowUp", 11], ["ArrowDown", 10], ["Escape", 27], ["Enter", 13]] as const) {
     assert.equal(apple2ControlKey({ ...event, key }), byte);
     assert.equal(apple2ControlKey({ ...event, key, isComposing: true }), undefined);
   }

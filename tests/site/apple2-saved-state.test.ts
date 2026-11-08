@@ -29,6 +29,34 @@ function storage() {
     removeItem: (key: string) => { values.delete(key); } };
 }
 
+test("disk exchange preserves the running machine and input; checkpoints and power-on retain the replacement medium", () => {
+  const original = new Dos33Disk(diskBytes);
+  const session = createApple2Session(null, { bootstrap: [...bootstrap], image: original });
+  const machine = session.machine;
+  machine.ram.write(0x200, 0xe8); editApple2Register(machine, "pc", "0200");
+  machine.step(); machine.keyboard.offer(65); session.send([27, 21]);
+  machine.bank1.write(0, 11); machine.bank2.write(0, 22); machine.upper.write(0, 33);
+  machine.video.read(0); machine.language.read(3); machine.language.read(3);
+  machine.disk.read(9); machine.disk.read(3); machine.disk.advanceCpuClocks(101);
+  const { disk: beforeDisk, ...beforeHardware } = session.snapshot().hardware;
+  const replacement = new Dos33Disk(new Uint8Array(Dos33Disk.size).fill(42), { writable: true });
+  session.swapDisk(replacement);
+  assert.equal(session.machine, machine);
+  const exchanged = session.snapshot(), { disk, ...hardware } = exchanged.hardware;
+  assert.deepEqual(hardware, beforeHardware);
+  assert.deepEqual(exchanged.input, [27, 21]);
+  assert.deepEqual(disk, { ...beforeDisk, media: replacement.snapshot(), writable: true, position: 0, byteClocks: 0, latch: 0 });
+  assert.deepEqual(original.exportImage(), diskBytes);
+  session.restore(exchanged); assert.deepEqual(session.snapshot(), exchanged);
+  session.powerOn();
+  assert.deepEqual(session.machine.disk.exportImage(), replacement.exportImage());
+  assert.equal(session.machine.disk.inspect().writable, true);
+  assert.equal(session.machine.clock.ticks, 0);
+  const empty = createApple2Session(), before = empty.snapshot();
+  assert.throws(() => empty.swapDisk(replacement), /Boot from a disk/);
+  assert.deepEqual(empty.snapshot(), before);
+});
+
 test("session snapshots restore independent CPU, physical banks, devices, media position, and queued input without guest reads", () => {
   const session = createApple2Session(null, { bootstrap: [...bootstrap], image: new Dos33Disk(diskBytes) });
   const machine = session.machine;

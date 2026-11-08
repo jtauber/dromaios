@@ -33,7 +33,7 @@ limitations still apply.
 1. Load the 20 KiB `apple2p.rom` container in **ROM**. It supplies both the
    motherboard firmware and the slot-6 bootstrap; the machine chapter owns
    their [verified identities](../../src/machines/6502/apple2.md#firmware-supplied-by-the-caller).
-2. In **Disk**, choose **Insert writable copy…** and select `mystery-house.dsk`.
+2. In **Disk**, select **Fresh boot**, choose **Insert writable copy…**, and select `mystery-house.dsk`.
    Insertion prepares a fresh, paused machine. Choose **Unlimited**, then **Run**.
    The writable copy is held in the laboratory; the source file is untouched.
    **Insert read-only…** also works if you only want to explore the opening.
@@ -93,7 +93,7 @@ outside this acceptance pass.
 
 At the hall prompt, enter `SAVE GAME` and wait for the next `ENTER COMMAND?`.
 Pause, then use **Export disk image** in Disk to download the edited image. Insert
-that exported image with **Insert read-only…**: insertion starts a new machine,
+that exported image with **Fresh boot** and **Insert read-only…**: insertion starts a new machine,
 so wait through the notice and title again and enter `G`.
 
 The game starts in the front yard as usual. Enter `RESTORE GAME`. The hall and
