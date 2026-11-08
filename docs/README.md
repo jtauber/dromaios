@@ -135,7 +135,7 @@ examples add polling and consuming input reads with the same devices.
 - [Mystery House](software/mystery-house.md): selected disk, native cold boot,
   independently checked opening scenes, and saved-session replay.
 - [Ultima IV](software/ultima-iv.md): first boot, Boot/Britannia disk exchange,
-  independently checked world map, and a replayable first move.
+  independently checked world map, and saving and resuming through an exported disk.
 
 - [Apple II Plus chapter](../src/machines/6502/apple2.md): executable ROM/keyboard/video
   composition, external firmware identity, and browser BASIC controls.
