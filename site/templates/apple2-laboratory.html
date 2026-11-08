@@ -299,9 +299,20 @@
       <div class="basic-controls"><button type="button" data-disk-eject disabled>Eject disk</button>
         <button type="button" data-disk-export disabled title="Download the mounted disk when the motor is off">Export disk image</button></div>
       <p class="basic-readout" data-disk-notice role="status"></p>
-      <p class="lab-hint">Load the 20 KiB ROM container, then a 143,360-byte DOS-order disk. Fresh boot starts a new machine; Swap disk preserves the running program. Both pause until Run. Export writable edits before replacing a disk.</p>
+      <p class="lab-hint">Fresh boot starts a new machine; Swap disk preserves the running program. Both pause until Run. Inserted disks stay in the set when swapped or ejected.</p>
+      <section data-disk-set>
+        <h2>Disk set <span data-disk-set-count>0/16</span></h2>
+        <input type="file" data-disk-set-file aria-label="Add disks to set" accept=".dsk,.do" multiple hidden>
+        <div class="basic-controls"><button type="button" data-disk-set-add>Add disks…</button></div>
+        <select data-disk-set-choice aria-label="Disks in this session" size="4" class="lab-disk-set"></select>
+        <div class="basic-controls"><button type="button" data-disk-set-insert disabled>Insert selected</button>
+          <button type="button" data-disk-set-copy disabled>Make writable copy</button>
+          <button type="button" data-disk-set-export disabled>Export selected</button>
+          <button type="button" data-disk-set-remove disabled>Remove from set</button></div>
+        <p class="lab-hint">Add local 143,360-byte DOS-order images read-only, then make a writable copy where needed. Changes stay with each disk. Save a state to keep the whole set across reloads; export edited disks before removing them.</p>
+      </section>
       <h2>Disk II controller</h2><pre data-disk-inspect>No disk controller installed.</pre>
-      <p class="lab-hint">Guest writes change the in-memory copy. When the motor is off, export a .dsk to keep the changes. Saved states also retain the mounted disk and its write permission.</p>
+      <p class="lab-hint">Guest writes change the in-memory copy. When the motor is off, export a .dsk to keep the changes. Saved states retain every disk in the set and its write permission.</p>
       <p><a href="{{ calc_url(apple2_url ~ '#saving-answer-across-a-fresh-boot') }}" target="_blank" rel="noopener">Save and boot ANSWER ↗</a></p>
       <details data-disk-activity open>
         <summary>Disk II activity</summary>

@@ -28,8 +28,10 @@ establish a complete playthrough.
 The disk mode matters: **Fresh boot** restarts the machine; **Swap disk** preserves
 the running program, RAM, clocks, and queued input. Swapping pauses execution until
 Run. A laboratory saved state includes the replacement disk, so restoring a world
-map checkpoint also restores Britannia. Export an edited writable disk before
-replacing it. The opening can use read-only media; saving needs a writable copy.
+map checkpoint also restores its disk set, including the mounted Britannia disk.
+Swapped-out disks retain their edits in the set. Export to keep individual disk
+files outside the laboratory; a saved state keeps the whole set across reloads.
+The opening can use read-only media; saving needs a writable copy.
 
 ## Follow the disk exchange
 
@@ -89,9 +91,11 @@ screen immediately after the original eastward move.
 ## Visit Skara Brae and return
 
 Start at the command boundary after resuming and taking the extra eastward step
-above: `(235,233)`. Insert a **writable copy of your exported Britannia disk** with
-**Swap disk**. The supplied party has a prepared Gate spell and Mariah can cast it.
-No character editing or injected game code is needed.
+above: `(235,233)`. In **Disk set**, select Britannia, choose **Make writable
+copy**, then **Insert selected** with **Swap disk** active. Use **Add disks…**
+to add `ultima_iv_town.dsk` without changing drive 1. Boot and any other inserted
+disks already remain in the set. The supplied party has a prepared Gate spell
+and Mariah can cast it. No character editing or injected game code is needed.
 
 1. Press `C`, `1`, `G`, `7` at the successive prompts: Cast, player 1, Gate,
    phase 7. Do not press Return. The party arrives at `(23,126)`.
@@ -99,18 +103,20 @@ No character editing or injected game code is needed.
    `Slow progress!` without moving; repeat the direction until the coordinate
    changes. Pause at `$40C0` between commands to avoid idle turns.
 3. Press `E`. The game announces `SKARA BRAE` and asks for the **Towne disk**.
-   Before swapping, **export Britannia**. Entry has already saved `TLST` onto it;
-   that edited disk is the one to bring back on departure. Keep it distinct from
-   the earlier save, for example `ultima_iv_br-town-entry.dsk`.
-4. Swap to `ultima_iv_town.dsk` **read-only**, Run, and press Escape. The town
-   appears at local coordinates `(1,15)`, with location ID `$0B` at `$000A`.
+   Entry has already saved `TLST` onto the writable Britannia copy. Leave that
+   copy in the set; it is the one to bring back on departure.
+4. Select `ultima_iv_town.dsk` in **Disk set**, then **Insert selected**, Run,
+   and press Escape. The town appears at local coordinates `(1,15)`, with
+   location ID `$0B` at `$000A`. A saved state here retains both the Town disk
+   and the unmounted Britannia copy with its temporary save.
 5. Move Right along the central path to `(11,15)`. Press `T`, then Right Arrow.
    The game loads its conversation program and says `YOU MEET A SILVER ANKH.`
    At `Your interest:`, type `NAME` and Return. It identifies itself as the
    `ANKH OF SPIRITUALTY` (the spelling in this disk). Type `BYE` and Return.
 6. Walk Left to `(0,15)`, then Left once more to leave. At the Britannia request,
-   swap to a **writable copy of the entry export**, Run, and press Escape.
-   The party reappears at world coordinates `(22,128)`, location ID zero.
+   select the **same writable Britannia copy** in the set, **Insert selected**,
+   Run, and press Escape. The party reappears at world coordinates `(22,128)`,
+   location ID zero. No export or file re-import is needed for either swap.
 7. Press `Q`, wait for the next command boundary with the motor off, and export
    again, for example as `ultima_iv_br-town-saved.dsk`. Fresh-boot the original
    Boot disk, select Journey onward, and supply this latest Britannia export.
@@ -219,7 +225,9 @@ cold-boots the export, verifies all three reloaded blocks before game initializa
 and takes another eastward step. With Town supplied, it continues through Gate,
 entry, movement, conversation, departure, and a second save and cold boot. It
 checks the town's loaded bytes, temporary outdoor list, printed responses,
-coordinates, and retained party. Town scenes include animated objects, so their
+coordinates, and retained party. While in town it serializes and restores the
+complete disk set, checks Britannia's unmounted edits, and reinserts that retained
+medium for departure. Town scenes include animated objects, so their
 acceptance uses these contracts rather than a whole-landscape digest.
 No game bytes are patched or injected into RAM.
 Numbers in the record are decimal; addresses in the prose are hexadecimal.
@@ -330,10 +338,10 @@ round-trip check. The final native Britannia export is independently loaded by
 the reference: it resumes at `(22,128)` and moves east to `(23,128)`.
 
 The browser check starts from the verified `(235,233)` checkpoint and uses the
-laboratory's keyboard, disk-swap, writable-copy, and export controls. Its complete
-hardware and input state matches the native run at both disk requests, town
-entry, conversation, NAME response, and return to Britannia. The final browser
-download matches every byte of the native export. The native test then supplies
+laboratory's keyboard, disk-set selection, writable-copy, checkpoint, and export
+controls. It restores the set while Town is mounted and reinserts the retained
+Britannia copy on departure. The final browser download matches every byte of
+the native export. The native test then supplies
 that disk to a new machine, booted from reset, and verifies the saved blocks and
 another move.
 

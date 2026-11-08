@@ -11,6 +11,7 @@ import { apple2HiresFrame } from "../../site/interactive/apple2-screen.js";
 import { encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
 import { apple2StorageReader } from "../../site/interactive/apple2-inspection.js";
 import { dos33Catalogue, dos33FileSectors } from "../../site/interactive/dos33-catalogue.js";
+import { Apple2DiskSet } from "../../site/interactive/apple2-disk-set.js";
 import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 
@@ -57,7 +58,8 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
   assert.ok(rom.bootstrap, "Boot needs the 20 KiB container's slot-6 firmware");
   const boot = await disk(bootPath, guide.boot), britannia = await disk(britanniaPath, guide.britannia);
   let session = createApple2Session(rom.image, { bootstrap: rom.bootstrap, image: boot });
-  let diskName = "ultima_iv_boot.dsk";
+  let diskName = "ultima_iv_boot.dsk", diskSet = new Apple2DiskSet();
+  diskSet.add([{ name: diskName, disk: boot }, { name: "ultima_iv_br.dsk", disk: britannia }]);
   function runTo(stop: Stop, limit: number, observe?: (step: Cpu6502StepRecord) => void): void {
     // Execute at least once: a move starts and finishes at the same command boundary.
     for (let i = 0; i < limit; i++) {
@@ -73,7 +75,7 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
   }
   async function savedState(name: string) {
     return encodeApple2SavedState({ machine: "apple2-plus", name, savedAt: "2026-11-08T00:00:00Z",
-      diskName, flash: false, state: session.snapshot() });
+      diskName, flash: false, state: session.snapshot(), diskSet: diskSet.snapshot(session.machine.disk.medium) });
   }
   async function checkpoint(name: string): Promise<void> {
     const directory = process.env.APPLE2_ULTIMA_IV_CHECKPOINTS;
@@ -128,7 +130,7 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
     const saved = await savedState("Ultima IV — Britannia");
     moveEast(); const east = session.snapshot();
     const restored = await prepareApple2SavedState(JSON.parse(JSON.stringify(saved)), rom.image, media);
-    session = restored.session;
+    session = restored.session; diskSet = restored.diskSet;
     assert.equal(restored.diskName, "ultima_iv_br.dsk");
     assert.equal(session.machine.disk.inspect().writable, false);
     checkScene(guide.scenes[0]!); moveEast();
@@ -141,7 +143,10 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
   async function saveAndResume(prefix: string, resumed: Scene, continuation: Scene): Promise<void> {
     const exportName = prefix === "ultima-iv" ? "ultima_iv_br-saved.dsk" : "ultima_iv_br-town-saved.dsk";
     const original = session.machine.disk.exportImage();
-    session.swapDisk(new Dos33Disk(original, { writable: true }));
+    if (!session.machine.disk.inspect().writable) {
+      const working = new Dos33Disk(original, { writable: true });
+      diskSet.add([{ name: diskName, disk: working }]); session.swapDisk(working);
+    }
     session.send([81]); runTo(guide.save.start, 10_000_000);
     const read = apple2StorageReader(session.machine);
     const bytes = (address: number, length: number) => Uint8Array.from({ length }, (_, i) => {
@@ -188,11 +193,12 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
 
     // Power on with the unchanged Boot disk, then insert the exported file at
     // the game's request. No checkpoint or game RAM enters the new machine.
-    session = createApple2Session(rom.image, { bootstrap: rom.bootstrap!, image: boot });
+    session = createApple2Session(rom.image, { bootstrap: rom.bootstrap!, image: diskSet.entries[0]!.disk });
     diskName = "ultima_iv_boot.dsk"; bootToExchange();
     await checkpoint(`${prefix}-reload-exchange`);
     const mounted = await readApple2Disk({ name: exportName, size: exported.length,
       async arrayBuffer() { return new Uint8Array(exported).buffer; } }, media.disk, "read-only");
+    diskSet.add([{ name: mounted.name, disk: mounted.disk }]);
     session.swapDisk(mounted.disk); diskName = mounted.name;
     session.send([27]); runTo(guide.save.partyLoaded, 30_000_000);
     const party = saved.find(file => file.name === "PRTY")!;
@@ -238,7 +244,11 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
       return contents.slice(4, 4 + contents[2]! + 256 * contents[3]!);
     }
     const ram = (address: number, length: number) => Uint8Array.from({ length }, (_, i) => session.machine.ram.read(address + i));
-    session.swapDisk(new Dos33Disk(session.machine.disk.exportImage(), { writable: true }));
+    const working = new Dos33Disk(session.machine.disk.exportImage(), { writable: true });
+    diskName = "ultima_iv_br-town-working.dsk";
+    diskSet.add([{ name: diskName, disk: working }, { name: "ultima_iv_town.dsk", disk: town }]);
+    const returnIndex = diskSet.entries.findIndex(entry => entry.disk === working);
+    session.swapDisk(working);
     keyTo(67, stops.cast); runTo(stops.input, 1_000_000); // Cast
     keyTo(49, stops.input); keyTo(71, stops.input); keyTo(55); // Mariah, Gate, phase 7
     checkScene(guide.town.gate);
@@ -264,6 +274,12 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
     runTo(guide.stops.command, 2_000_000); checkScene(guide.town.entrance);
     assert.equal(session.machine.ram.read(10), guide.town.location);
     await checkpoint("ultima-iv-town");
+    const inTown = session.snapshot();
+    const restored = await prepareApple2SavedState(JSON.parse(JSON.stringify(await savedState("In Skara Brae"))), rom.image, media);
+    session = restored.session; diskSet = restored.diskSet;
+    assert.deepEqual(session.snapshot(), inTown, "Restoring the set preserves every hardware and input byte");
+    assert.deepEqual(diskSet.entries[returnIndex]!.disk.exportImage(), returning, "The unmounted Britannia edits survive the town checkpoint");
+    assert.equal(diskSet.entries[returnIndex]!.disk.writable, true);
 
     // MIX has valid payload sectors but garbage in unused T/S-list slots.
     // Keep the inspector strict; prove that this game's bounded BLOAD succeeds.
@@ -296,7 +312,7 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
     walk(0, 0, 8); keyTo(8, guide.stops.exchange);
     await checkpoint("ultima-iv-town-return-request");
     assert.equal(hash(session.machine.disk.exportImage()), guide.town.image.sha256);
-    session.swapDisk(new Dos33Disk(returning, { writable: true })); diskName = "ultima_iv_br-town-entry.dsk";
+    session.swapDisk(diskSet.entries[returnIndex]!.disk); diskName = diskSet.entries[returnIndex]!.name;
     keyTo(27, stops.listLoaded);
     assert.deepEqual(upper(0xee00, 256), list, "The same edited Britannia disk restores TLST");
     runTo(guide.stops.command, 5_000_000);

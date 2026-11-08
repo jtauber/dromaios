@@ -84,6 +84,9 @@ export class Apple2DiskII implements MemoryConnection {
   }
   /** Host inspectors see committed sectors without selecting a switch or rotating the stream. */
   inspectMedium(): Pick<Dos33Disk, "snapshot" | "inspectTrack" | "observeWrites"> | null { return this.#media; }
+
+  /** The host owns this medium and may retain it after exchanging or ejecting it. */
+  get medium(): Dos33Disk | null { return this.#media; }
   inspect(): DiskIIState & { readonly installed: boolean; readonly loaded: boolean; readonly writable: boolean } {
     return { ...this.#state, installed: this.#bootstrap !== null, loaded: this.#media !== null, writable: this.#media?.writable ?? false };
   }

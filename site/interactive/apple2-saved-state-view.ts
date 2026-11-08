@@ -5,10 +5,11 @@ import { compareApple2States } from "./apple2-state-comparison.js";
 import { apple2RamRegions } from "./apple2-inspection.js";
 import type { Apple2MemoryChange } from "./apple2-inspection.js";
 import { hex } from "./apple2-explorer.js";
+import type { Apple2DiskSetSnapshot } from "./apple2-disk-set.js";
 
 /** Named browser states and explicit, paused comparisons; no execution or device access belongs here. */
 export function createApple2SavedStateView(root: HTMLElement, actions: {
-  capture(): { readonly state: Apple2SessionState; readonly diskName: string | null; readonly flash: boolean };
+  capture(): { readonly state: Apple2SessionState; readonly diskName: string | null; readonly flash: boolean; readonly diskSet?: Apple2DiskSetSnapshot };
   restore(saved: Apple2SavedState): Promise<void>;
   compare(saved: Apple2SavedState): Promise<{ saved: Apple2SessionState; current: Apple2SessionState }>;
   memory(change: Apple2MemoryChange): string | undefined;
@@ -38,6 +39,7 @@ export function createApple2SavedStateView(root: HTMLElement, actions: {
       try {
         const saved = store.read(choice.value);
         details.textContent = `Saved ${new Date(saved.savedAt).toLocaleString()} · ${saved.diskName ?? "no disk"}`;
+        if (saved.version === 6) details.textContent += ` · ${saved.diskSet.disks.length} disks in set`;
       } catch (cause) { details.textContent = cause instanceof Error ? cause.message : String(cause); }
     }
   }

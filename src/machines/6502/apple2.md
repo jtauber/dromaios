@@ -156,9 +156,31 @@ The controller retains head position, phase, motor, drive selection and Q6/Q7.
 Insertion resets the new medium's byte position, fractional byte clocks and latch,
 and discards an incomplete write stream. This deterministic insertion phase is a
 model convention, not physical disk alignment. A swap requires an installed
-Disk II card, including an empty drive after ejecting. Export an edited writable
-copy before replacing it. Saved states retain the newly mounted disk and its
-write permission; Fresh power-on boots that disk.
+Disk II card, including an empty drive after ejecting. The laboratory retains
+inserted and ejected media in a host-owned disk set; the controller borrows its
+mounted `Dos33Disk` through `medium`. Fresh power-on creates new hardware while
+retaining that same medium. The disk set does not add an emulated drive.
+
+### Keeping a disk set in the laboratory
+
+The **Disk set** list retains up to 16 local images. **Add disks…** accepts multiple
+files read-only without changing drive 1. Both existing insertion buttons also
+add their file to the set. A batch is added only after every file validates;
+a failed or cancelled selection preserves the current machine and existing set.
+Files with the same name are separate entries, distinguished by their list numbers.
+
+Choose a disk and **Insert selected**, using **Fresh boot** or **Swap disk** above.
+**Eject disk** leaves it in the set. **Make writable copy** adds a separate writable
+copy of the selected disk's current bytes, preserving the original; insert that
+copy when ready to edit it. Swapping back to it retains all accepted sector writes.
+**Export selected** also works on an unmounted disk. Copying or exporting the
+mounted disk requires the motor to be off. **Remove from set** is available only
+for an ejected disk and removes its in-memory copy; export edits first.
+
+The set belongs to the current laboratory session. Reset, fresh power-on, disk
+boot, and ROM replacement retain it. To retain it across page reloads, save a
+named state; restoring that state replaces the whole set, including which disk
+is mounted. Export individual .dsk files for use outside the laboratory.
 
 ## Construction, reset, and restoration
 
@@ -575,24 +597,31 @@ demonstrates this with the Monitor's `CH` workspace byte.
 The laboratory's **Saved states** panel stores named experiments in this
 browser and site origin. Pause, give the state a name, and choose **Save new
 state**. Each state includes the complete hardware snapshot, the host keyboard
-queue, mounted disk bytes, filename, write permission, and paused flashing phase. Main RAM, both Language
-Card banks and common upper RAM are included even when hidden by the current
-mapping. Panel arrangement, watches, breakpoints, and display preferences belong
+queue, the complete disk set with filenames and write permissions, the mounted
+selection, and paused flashing phase. Main RAM, both Language Card banks and
+common upper RAM are included even when hidden by the current mapping. Panel
+arrangement, watches, breakpoints, and display preferences belong
 to the workspace and are not part of the saved machine.
 
 **Restore** checks the saved machine version, complete component state, firmware
 identity, and any stored bootstrap/disk identities before replacing the current
-experiment. Version 5 saves Disk II byte phase and the anchor of any pending
-sector write. Versions 1–4 resume with zero byte phase; their unclocked read latch
-is cleared, and a pending write retains its loaded latch and recovers its anchor
+experiment. Version 6 includes the disk set. Unmounted images are stored as base64
+with individual SHA-256 digests; the mounted image appears only in the hardware
+snapshot, with its existing digest. Restoration validates every disk before
+replacing the experiment and connects the mounted entry to the restored medium
+without inserting it again. This preserves rotation and an in-progress sector
+write. Versions 1–5 become a one-disk set, or an empty set when no disk was mounted.
+Version 5 saves Disk II byte phase and the anchor of any pending sector write.
+Versions 1–4 resume with zero byte phase; their unclocked read latch is cleared,
+and a pending write retains its loaded latch and recovers its anchor
 from the old position and shifted-byte count. Old states cannot reproduce elapsed
 rotation they never recorded. Version 4 introduced the speaker latch; restoring versions 1–3
-initializes that previously unmodeled latch to low. Version 3 introduced elapsed CPU clocks
-and the SHA-256 of the disk at capture time, so a
+initializes that previously unmodeled latch to low. Version 3 introduced elapsed
+CPU clocks. Version 2 introduced the SHA-256 of the disk at capture time, so a
 file written by DOS survives restoration. Version 1 states still verify their
-disk against the original System Master digest; version 2 retains its saved disk
-digest. Versions 1 and 2 did not record clocks, so restoring them starts the
-clock at zero. Load the matching verified ROM first; its bytes are not duplicated
+disk against the original System Master digest. Versions 1 and 2 did not record
+clocks, so restoring them starts the clock at zero. Load the matching verified
+ROM first; its bytes are not duplicated
 inside a saved state. Restoration executes no instruction or reset and always
 leaves the machine paused. It clears executed-instruction history, the Changes
 log, observed calls, device activity, last-writer attribution, and temporary
@@ -606,7 +635,9 @@ current machine and its queued input untouched.
 flags, physical RAM bytes, elapsed CPU clocks, device fields, and the host input queue. It does not
 change either machine. This is a net comparison, so a byte changed and then
 restored to its saved value is absent. For mounted disks, Compare shows a
-change in write permission and the first file byte that differs. Memory links browse the current mapped
+change in write permission and the first file byte that differs. Compare covers
+the active machine; unmounted disks are restored but are not part of this diff.
+Memory links browse the current mapped
 bank; a link to hidden Language Card RAM explains the mismatch without changing
 mapping. Large differences show 128 RAM bytes at a time, with **Show more** for
 the rest. The result stays a captured comparison until Compare is pressed

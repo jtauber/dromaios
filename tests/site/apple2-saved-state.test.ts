@@ -122,14 +122,14 @@ test("named storage survives fresh readers, avoids silent replacement, and prese
 test("damaged entries remain deletable and incompatible machine versions are rejected", async () => {
   const memory = storage(), store = apple2SavedStates(() => memory), first = saved(); store.save(first);
   const key = [...memory.values.keys()][0]!;
-  for (const value of ["{", "null", "{}", JSON.stringify({ ...first, version: 6 }),
+  for (const value of ["{", "null", "{}", JSON.stringify({ ...first, version: 7 }),
     JSON.stringify({ ...first, machine: "other" }), JSON.stringify({ ...first, name: "wrong name" }),
     JSON.stringify({ ...first, savedAt: "bad" }), " ".repeat(1_000_001)]) {
     memory.values.set(key, value); assert.throws(() => store.read(first.name));
     assert.deepEqual(store.names(), [first.name]);
   }
   store.remove(first.name); assert.deepEqual(store.names(), []);
-  await assert.rejects(prepareApple2SavedState({ ...first, version: 6 } as unknown as Apple2SavedState, null, media), /version/);
+  await assert.rejects(prepareApple2SavedState({ ...first, version: 7 } as unknown as Apple2SavedState, null, media), /version/);
 });
 
 test("preparation rechecks saved bootstrap and disk identities and never changes the original session", async () => {
@@ -173,7 +173,7 @@ test("new checkpoints preserve speaker and clocks; older formats supply only the
   session.machine.ram.write(0, 0xea); session.machine.step();
   session.machine.speaker.read(0);
   const current = await encodeApple2SavedState(saved(session));
-  assert.equal(current.version, 5);
+  assert.equal(current.version, 6);
   assert.equal((await prepareApple2SavedState(current, null, media)).session.machine.clock.ticks, 2);
   assert.equal((await prepareApple2SavedState(current, null, media)).session.machine.speaker.level(), true);
   const { clock: omitted, speaker: omittedSpeaker, disk: currentDisk, ...rest } = session.snapshot().hardware;

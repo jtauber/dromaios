@@ -34,6 +34,10 @@ import { prepareApple2SavedState } from "./apple2-saved-state.js";
 import type { Apple2SavedState } from "./apple2-saved-state.js";
 import { apple2MemoryHighlights } from "./apple2-inspection.js";
 import { createInspectorNavigation } from "./inspector-navigation.js";
+import { Apple2DiskSet } from "./apple2-disk-set.js";
+import type { Apple2DiskEntry } from "./apple2-disk-set.js";
+import { createApple2DiskSetView } from "./apple2-disk-set-view.js";
+import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
 
 /** File controls, host scheduling, and screen presentation around the generated machine. */
 export function mountApple2(root: HTMLElement, showPanel: (id: string) => void = () => {}) {
@@ -63,6 +67,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   };
   const romStorage = apple2RomStorage(() => window.localStorage, romImages.firmware, media);
   let session = createApple2Session(), rom: Apple2RomFile | undefined, diskName: string | null = null;
+  let diskSet = new Apple2DiskSet();
   const intervals = createExecutionIntervalView(root, () => session.machine.clock);
   const sound = createApple2Sound(root, () => session.machine);
   const hertz = session.machine.clock.hertz;
@@ -156,13 +161,41 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     memory: address => navigation.browse("memory", address),
     watch: address => inspection.watchMemory(address, "write"), code: explorer.browseCode,
   });
+  const diskSetView = createApple2DiskSetView(root, {
+    insert: entry => action(() => {
+      if (selecting || !rom?.bootstrap) return;
+      const restart = diskAction === "boot";
+      if (restart) explorer.reset(); else explorer.pause("Paused for disk exchange.");
+      execution.stop(); insertDisk(entry, restart);
+      if (restart) { resetExecutionHistory(); flash = false; nextFlash = 0; if (keyboard) keyboard.value = ""; }
+      refresh();
+    }),
+    copy: entry => action(() => {
+      diskSet.checkCapacity(1);
+      const disk = new Dos33Disk(entry.disk.exportImage(), { writable: true });
+      const name = entry.name.replace(/\.(?:dsk|do)$/i, "") + "-copy.dsk";
+      diskSet.add([{ name, disk }]); diskSetView!.select(disk);
+      if (diskNotice) diskNotice.textContent = `Added ${name}. Insert selected to use the writable copy.`;
+      refresh();
+    }),
+    export: entry => action(() => {
+      const name = downloadDiskImage(entry.name, ".dsk", entry.disk.exportImage());
+      if (diskNotice) diskNotice.textContent = `Exported ${name}.`;
+    }),
+    remove: entry => action(() => {
+      diskSet.remove(entry, session.machine.disk.medium);
+      if (diskNotice) diskNotice.textContent = `Removed ${entry.name} from this session's set.`;
+      refresh();
+    }),
+  });
   const savedStates = createApple2SavedStateView(root, {
     capture() {
       requirePaused();
-      return { state: session.snapshot(), diskName, flash };
+      return { state: session.snapshot(), diskName, flash, diskSet: diskSet.snapshot(session.machine.disk.medium) };
     },
     restore: saved => withSavedState(saved, prepared => {
       session = prepared.session; diskName = prepared.diskName; flash = prepared.flash; nextFlash = 0;
+      diskSet = prepared.diskSet;
       if (diskNotice) diskNotice.textContent = "";
       explorer.reset(); resetExecutionHistory();
       if (keyboard) keyboard.value = "";
@@ -241,6 +274,8 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (!writableDisk) loadDisk.textContent = diskName ? "Replace disk…" : "Load disk…";
     if (writableDisk) writableDisk.disabled = loadDisk.disabled;
     const drive = session.machine.disk.inspect();
+    diskSetView?.refresh({ set: diskSet, mounted: session.machine.disk.medium, selecting,
+      canInsert: rom?.bootstrap !== undefined, motor: drive.motor });
     if (!drive.installed) diskAction = "boot";
     for (const button of diskActions) {
       button.disabled = loadDisk.disabled || button.dataset.diskAction === "swap" && !drive.installed;
@@ -328,6 +363,14 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (diskNotice) diskNotice.textContent = "";
     message.textContent = "ROM loaded. Run boots Applesoft, or select a disk to boot DOS.";
   }
+  function insertDisk(entry: Apple2DiskEntry, restart: boolean): void {
+    if (restart) session = createApple2Session(rom!.image, { bootstrap: rom!.bootstrap!, image: entry.disk });
+    else if (session.machine.disk.medium !== entry.disk) session.swapDisk(entry.disk);
+    diskName = entry.name; diskSetView?.select(entry.disk);
+    if (diskNotice) diskNotice.textContent = `Inserted ${entry.name}. Other disks remain in the set.`;
+    message.textContent = restart ? "Disk loaded in a fresh, paused machine. Choose Run to boot drive 1."
+      : "Disk exchanged. CPU, RAM, clocks and queued input preserved. Run resumes the program.";
+  }
   loadRom.addEventListener("click", () => file.click());
   for (const button of diskActions) button.addEventListener("click", () => {
     diskAction = button.dataset.diskAction === "swap" ? "swap" : "boot"; refresh();
@@ -353,14 +396,25 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   });
   diskFile.addEventListener("change", () => {
     const restart = diskAction === "boot";
-    void choose(diskFile, chosen => readApple2Disk(chosen, media.disk, diskMode), loaded => {
-      if (restart) session = createApple2Session(rom!.image, { bootstrap: rom!.bootstrap!, image: loaded.disk });
-      else session.swapDisk(loaded.disk);
-      diskName = loaded.name;
+    void choose(diskFile, chosen => {
+      if (diskSetView) diskSet.checkCapacity(1);
+      return readApple2Disk(chosen, media.disk, diskMode);
+    }, loaded => {
+      if (!diskSetView) diskSet = new Apple2DiskSet();
+      diskSet.add([loaded]); insertDisk(loaded, restart);
       if (diskNotice) diskNotice.textContent = loaded.systemMaster ? "Verified DOS 3.3 System Master." : "Local DOS-order image.";
-      message.textContent = restart ? "Disk loaded in a fresh, paused machine. Choose Run to boot drive 1."
-        : "Disk exchanged. CPU, RAM, clocks and queued input preserved. Run resumes the program.";
     }, diskNotice, restart);
+  });
+  diskSetView?.file.addEventListener("change", () => {
+    const files = [...(diskSetView.file.files ?? [])];
+    void choose(diskSetView.file, () => {
+      diskSet.checkCapacity(files.length);
+      return Promise.all(files.map(file => readApple2Disk(file, media.disk, "read-only")));
+    }, loaded => {
+      diskSet.add(loaded); diskSetView.select(loaded[0]!.disk);
+      message.textContent = `Added ${loaded.length} disks to the set. Drive 1 is unchanged; choose Insert selected when ready.`;
+      if (diskNotice) diskNotice.textContent = message.textContent;
+    }, diskNotice, false);
   });
   exportDisk?.addEventListener("click", () => action(() => {
     if (!diskName || selecting || session.machine.disk.inspect().motor) return;
@@ -370,7 +424,8 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   eject.addEventListener("click", () => action(() => {
     explorer.pause("Disk ejected."); execution.stop(); session.eject(); diskName = null;
     if (diskNotice) diskNotice.textContent = "";
-    message.textContent = "Disk ejected. RAM is preserved; Fresh power-on returns to ROM-only Applesoft.";
+    message.textContent = diskSetView ? "Disk ejected and retained in the set. RAM is preserved."
+      : "Disk ejected. RAM is preserved; Fresh power-on returns to ROM-only Applesoft.";
     refresh();
   }));
   run.addEventListener("click", () => { explorer.run(); message.textContent = ""; nextFlash = performance.now() + 500; execution.run(); inputTarget.focus(); });
@@ -424,6 +479,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   function suspend(): void {
     // A saved ROM may finish restoring in a hidden tab, but never starts execution.
     if (!restoring) { selection++; selecting = false; file.value = diskFile.value = ""; }
+    if (diskSetView) diskSetView.file.value = "";
     if (execution.running) explorer.pause("Execution paused because the page is hidden.");
     execution.stop();
   }

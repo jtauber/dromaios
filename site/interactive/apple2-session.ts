@@ -56,8 +56,9 @@ export function createApple2Session(firmware: RomImage | null = null, disk?: { r
       machine.disk.insert(image);
     },
     powerOn(): void {
-      const { bootstrap, media, writable } = machine.disk.snapshot();
-      machine = powerOn(media && bootstrap ? { bootstrap, image: new Dos33Disk(media, { writable }) } : undefined);
+      const { bootstrap } = machine.disk.snapshot(), image = machine.disk.medium;
+      // The laboratory owns the medium; a fresh machine keeps borrowing that same disk.
+      machine = powerOn(image && bootstrap ? { bootstrap, image } : undefined);
       input = [];
     },
     eject(): void { machine.disk.eject(); },
