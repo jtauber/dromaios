@@ -8,6 +8,9 @@ import type { Apple2Media } from "../../site/interactive/apple2-media.js";
 import { createApple2Session, apple2Input } from "../../site/interactive/apple2-session.js";
 import { apple2HiresFrame } from "../../site/interactive/apple2-screen.js";
 import { encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
+import { dos33Catalogue, dos33FileSectors } from "../../site/interactive/dos33-catalogue.js";
+import { createDos33ReadTrace } from "../../site/interactive/dos33-reads.js";
+import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
 
 interface Identity { readonly bytes: number; readonly sha256: string }
 interface Scene {
@@ -22,6 +25,7 @@ function record(path: string): unknown {
 const media = record("src/machines/6502/apple2.md") as Apple2Media;
 const guide = record("docs/software/mystery-house.md") as {
   disk: Identity; title: Identity & { dotsSha256: string }; adventure: Identity; scenes: readonly Scene[];
+  savedGame: Identity & { address: number; track: number; sectors: readonly number[] }; continuation: Scene;
 };
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 function file(path: string) {
@@ -30,7 +34,7 @@ function file(path: string) {
 }
 
 const romPath = process.env.APPLE2_ROM, diskPath = process.env.APPLE2_MYSTERY_HOUSE_DISK;
-test("Mystery House cold-boots, draws the opening rooms, and replays a saved command", {
+test("Mystery House opens, replays a checkpoint, and restores a game from an exported disk", {
   skip: !romPath || !diskPath ? "Set APPLE2_ROM and APPLE2_MYSTERY_HOUSE_DISK to the guide's local media" : false,
 }, async t => {
   assert.ok(romPath); assert.ok(diskPath);
@@ -39,7 +43,7 @@ test("Mystery House cold-boots, draws the opening rooms, and replays a saved com
   assert.equal(hash(new Uint8Array(await selected.arrayBuffer())), guide.disk.sha256);
   const rom = await readApple2Rom(file(romPath), romImages.firmware, media);
   assert.ok(rom.bootstrap, "Boot needs the 20 KiB container's slot-6 firmware");
-  const disk = await readApple2Disk(selected, media.disk, "read-only");
+  const disk = await readApple2Disk(selected, media.disk, "writable-copy");
   let session = createApple2Session(rom.image, { bootstrap: rom.bootstrap, image: disk.disk });
   const bytes = (address: number, length: number) => Uint8Array.from({ length }, (_, i) => session.machine.ram.read(address + i));
 
@@ -61,10 +65,11 @@ test("Mystery House cold-boots, draws the opening rooms, and replays a saved com
     assert.deepEqual(displayed.slice(0, 160).flat(), [...dots]);
     assert.ok(displayed.slice(160).every(row => row === undefined), "Mixed mode leaves four rows for text");
   }
-  function runUntil(done: (pc: number) => boolean, limit: number): void {
+  function runUntil(done: (pc: number) => boolean, limit: number, observe?: (step: Cpu6502StepRecord) => void): void {
     for (let i = 0; i < limit; i++) {
       const step = session.step();
       assert.equal(step.outcome, "executed");
+      observe?.(step);
       if (done(step.after.pc)) return;
     }
     assert.fail(`No stop after ${limit} instructions at $${session.machine.cpu.snapshot().pc.toString(16)}:\n${text()}`);
@@ -85,12 +90,10 @@ test("Mystery House cold-boots, draws the opening rooms, and replays a saved com
     assert.ok(text().includes(scene.text), scene.text);
     assert.match(text(), /ENTER COMMAND\?\s*$/);
     checkPicture(scene.dotsSha256);
-    assert.equal(session.machine.disk.inspect().writable, false);
-    assert.equal(hash(session.machine.disk.exportImage()), guide.disk.sha256);
   }
   const command = (scene: Scene) => { session.send(apple2Input(scene.command)); waitForInput(); checkScene(scene); };
 
-  await t.test("cold boot reaches the notice, then executes the loaded title program", () => {
+  function bootToTitle(): void {
     waitForInput(80_000_000);
     assert.ok(session.machine.video.snapshot().text);
     assert.match(text(), /DOMAIN IN 1987/);
@@ -101,23 +104,102 @@ test("Mystery House cold-boots, draws the opening rooms, and replays a saved com
     waitForInput();
     assert.match(text(), /ENTER G FOR GAME OR I FOR INSTRUCTIONS/);
     checkPicture(guide.title.dotsSha256);
-  });
-  await t.test("DOS BRUN loads the exact game binary and draws the front yard", () => {
+  }
+  function enterGame(): void {
     session.send(apple2Input(guide.scenes[0]!.command));
     runUntil(pc => pc === 0x0800, 80_000_000);
     assert.equal(hash(bytes(0x0800, guide.adventure.bytes)), guide.adventure.sha256);
     waitForInput(20_000_000);
     checkScene(guide.scenes[0]!);
-  });
+  }
+  await t.test("cold boot reaches the notice, then executes the loaded title program", bootToTitle);
+  await t.test("DOS BRUN loads the exact game binary and draws the front yard", enterGame);
   await t.test("a serialized yard checkpoint replays GO STAIRS with identical hardware and input state", async () => {
     const saved = await encodeApple2SavedState({ machine: "apple2-plus", name: "Mystery House — yard",
       savedAt: "2026-11-07T00:00:00Z", diskName: "mystery-house.dsk", flash: false, state: session.snapshot() });
     command(guide.scenes[1]!);
     const porch = session.snapshot();
     session = (await prepareApple2SavedState(JSON.parse(JSON.stringify(saved)), rom.image, media)).session;
+    assert.equal(session.machine.disk.inspect().writable, true);
     checkScene(guide.scenes[0]!);
     command(guide.scenes[1]!);
     assert.deepEqual(session.snapshot(), porch);
   });
   for (const scene of guide.scenes.slice(2)) await t.test(scene.name, () => command(scene));
+
+  await t.test("SAVE GAME writes every byte to disk; a cold RESTORE GAME returns to the hall and allows EAST", async () => {
+    assert.equal(hash(session.machine.disk.exportImage()), guide.disk.sha256, "Opening play must not change the disk");
+    const { address, bytes: length, track, sectors } = guide.savedGame;
+    session.send(apple2Input("SAVE GAME\n"));
+    runUntil(pc => pc === 0x66b2, 1_000_000); // Game action, before it issues BSAVE.
+    const saved = bytes(address, length);
+    assert.equal(hash(saved), guide.savedGame.sha256, "All saved bytes match the independent game runner");
+    const sourceReads: number[][] = [], writes: number[][] = [];
+    const detach = session.machine.disk.inspectMedium()!.observeWrites(w => writes.push([w.track, w.sector]));
+    try {
+      runUntil(pc => pc === 0x66d4, 40_000_000, step => {
+        if (step.before.pc !== 0xaccf) return; // DOS reads the next BSAVE payload byte.
+        for (const a of step.accesses) if (a.kind === "read") sourceReads.push([a.address, a.value]);
+      });
+    } finally { detach(); }
+    assert.deepEqual(sourceReads.filter(([at]) => at! >= address && at! < address + length),
+      Array.from(saved, (value, i) => [address + i, value]));
+    assert.deepEqual(writes, [...sectors.map(sector => [track, sector]), [17, 12]]);
+    waitForInput();
+    const hall = { ...guide.scenes[3]!, turn: 5 };
+    checkScene(hall);
+
+    const exported = session.machine.disk.exportImage(), image = [...exported];
+    const entry = dos33Catalogue(image).files.find(f => f.name === "SAVED GAME");
+    assert.ok(entry);
+    assert.deepEqual(entry, { name: "SAVED GAME", type: "B", locked: false, count: 10, entry: 0x11c51 });
+    const listed = dos33FileSectors(image, entry);
+    assert.deepEqual(listed.map(s => s.index), [17 * 16 + 12, track * 16 + 14, ...sectors.map(s => track * 16 + s)]);
+    const contents = Uint8Array.from(listed.filter(s => s.fileSector !== undefined)
+      .flatMap(s => image.slice(s.index * 256, (s.index + 1) * 256)));
+    assert.deepEqual([...contents.slice(0, 4)], [0x30, 0x08, 0xcf, 0x08]);
+    assert.deepEqual(contents.slice(4, 4 + length), saved);
+    // No bytes outside this binary file change, including its last sector's unused tail.
+    const original = new Uint8Array(await selected.arrayBuffer());
+    const expectedDisk = original.slice();
+    for (const [i, sector] of sectors.entries()) {
+      const start = (track * 16 + sector) * 256;
+      const first = i === 0 ? 4 : 0, end = Math.min(256, 4 + length - i * 256);
+      expectedDisk.set(contents.slice(i * 256 + first, i * 256 + end), start + first);
+    }
+    assert.deepEqual(exported, expectedDisk);
+    assert.equal(hash(original), guide.disk.sha256, "The caller's original disk stays intact");
+
+    const download = { name: "mystery-house-saved.dsk", size: exported.length,
+      async arrayBuffer() { return new Uint8Array(exported).buffer; } };
+    const mounted = await readApple2Disk(download, media.disk, "read-only");
+    session = createApple2Session(rom.image, { bootstrap: rom.bootstrap!, image: mounted.disk });
+    bootToTitle(); enterGame(); // Actual cold boot, with no restored hardware or injected RAM.
+    const trace = createDos33ReadTrace(), restoredBytes: number[][] = [];
+    session.send(apple2Input("RESTORE GAME\n"));
+    runUntil(pc => pc === 0x66ff, 25_000_000, step => {
+      trace.observe(session.machine, step);
+      // This disk's load path copies the two partial sectors, but decodes the
+      // seven full sectors directly into their destination RAM through RWTS.
+      const pc = step.before.pc;
+      if (pc !== 0xbeea && pc !== 0xb8d4 && pc !== 0xbf4e) return;
+      for (const a of step.accesses) if (a.kind === "write" && a.address >= address && a.address < address + length) {
+        restoredBytes.push([a.address, a.value, pc]);
+      }
+    });
+    assert.deepEqual(bytes(address, length), saved, "BLOAD returns every saved byte before the game updates its workspace");
+    assert.deepEqual(restoredBytes, Array.from(saved, (value, i) =>
+      [address + i, value, i < 252 ? 0xbeea : i < 252 + 7 * 256 ? 0xb8d4 : 0xbf4e]));
+    const search = [[17, 0, 0xb3bb], ...[15, 14, 13, 12].map(s => [17, s, 0xb4bb]), [track, 14, 0x9953]];
+    assert.deepEqual(trace.reads.map(r => [r.track, r.sector, r.buffer]), [...search, ...search,
+      ...sectors.map((sector, i) => [track, sector, i === 0 || i === 8 ? 0x9853 : address + i * 256 - 4])]);
+    for (const read of trace.reads) {
+      const at = (read.track * 16 + read.sector) * 256;
+      assert.deepEqual(read.bytes, image.slice(at, at + 256));
+    }
+    waitForInput(); checkScene(hall);
+    command(guide.continuation);
+    assert.equal(session.machine.disk.inspect().writable, false);
+    assert.deepEqual(session.machine.disk.exportImage(), exported, "Restoring and moving do not write to the exported disk");
+  });
 });

@@ -290,9 +290,11 @@ any future read activity from observed transfers rather than those flags.
 
 The first [Mystery House session](../software/mystery-house.md) now cold-boots
 the selected disk and reaches the entry hall through three player commands.
-Its opening pictures match an independent game runner, and a saved checkpoint
-replays the first move exactly. Game-level save/restore and later play remain
-concrete compatibility targets; the software guide owns this acceptance record.
+Its pictures and saved game bytes match an independent game runner. A laboratory
+checkpoint replays the first move exactly; the game's own `SAVE GAME` survives
+disk export and a cold boot, and `RESTORE GAME` returns to the hall before a move
+to the library. The software guide owns this acceptance record; later play
+remains a concrete compatibility target.
 
 Use the remaining parity gaps above to choose concrete investigations:
 

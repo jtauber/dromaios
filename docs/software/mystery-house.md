@@ -1,10 +1,11 @@
 # Mystery House on the Apple II Plus
 
 The [Apple II Plus](../../src/machines/6502/apple2.md) can cold-boot the selected
-*Mystery House* disk, display its title and first scene, and execute the first
-three commands through the original game, ROM, and DOS code. This guide follows
-the journey from the front yard to the entry hall. It establishes that opening
-session, not a complete playthrough or compatibility with every release.
+*Mystery House* disk, display its opening rooms, and save and restore a game
+through the original game, ROM, and DOS code. This guide follows the journey
+from the front yard to the entry hall, saves there, and resumes from an exported
+disk after a fresh boot. It establishes this opening session and save path,
+not a complete playthrough or compatibility with every release.
 
 ## Select the disk
 
@@ -22,7 +23,7 @@ The repository does not include the disk, firmware, or extracted game files.
 
 This session uses the existing machine: a 6502, RAM, Applesoft/Autostart ROM,
 keyboard, page-one high-resolution graphics with four text rows, and slot-6
-Disk II with one read-only drive. DOS reads the game, messages, and pictures
+Disk II with one drive. DOS reads the game, messages, and pictures
 from ordinary sectors. The first session needs neither another peripheral nor
 a software-specific execution shortcut. The machine's declared disk and video
 limitations still apply.
@@ -32,8 +33,10 @@ limitations still apply.
 1. Load the 20 KiB `apple2p.rom` container in **ROM**. It supplies both the
    motherboard firmware and the slot-6 bootstrap; the machine chapter owns
    their [verified identities](../../src/machines/6502/apple2.md#firmware-supplied-by-the-caller).
-2. In **Disk**, choose **Insert read-only…** and select `mystery-house.dsk`.
+2. In **Disk**, choose **Insert writable copy…** and select `mystery-house.dsk`.
    Insertion prepares a fresh, paused machine. Choose **Unlimited**, then **Run**.
+   The writable copy is held in the laboratory; the source file is untouched.
+   **Insert read-only…** also works if you only want to explore the opening.
 3. Wait for the full notice ending in `PLAYED IT.`. The initial splash and
    BASIC delay loops are part of this disk's startup. Click the screen with
    **Inspect** off, then press Space. The graphical title asks
@@ -81,10 +84,86 @@ to `0002`, and picture from `03` to `01`. Restore the saved state and repeat
 the command. It should reproduce the porch and its text.
 
 The checkpoint includes the CPU, physical RAM banks, keyboard queue, video,
-speaker, CPU clock, and the mounted disk with its rotational phase and read-only
+speaker, CPU clock, and the mounted disk with its rotational phase and write
 permission. It is a laboratory checkpoint, distinct from the game's `SAVE GAME`
-command. Guest saving and restoring, later puzzles, winning, and alternate disk
-versions remain outside this acceptance pass.
+command below. Later puzzles, winning, and alternate disk versions remain
+outside this acceptance pass.
+
+## Save a game and resume after a fresh boot
+
+At the hall prompt, enter `SAVE GAME` and wait for the next `ENTER COMMAND?`.
+Pause, then use **Export disk image** in Disk to download the edited image. Insert
+that exported image with **Insert read-only…**: insertion starts a new machine,
+so wait through the notice and title again and enter `G`.
+
+The game starts in the front yard as usual. Enter `RESTORE GAME`. The hall and
+its seven people return, with room `03`, picture `35`, and turn `0005` in the
+hexadecimal memory display. Enter `EAST`: the library appears, room becomes
+`0E`, picture `06`, and turn `0006`. Restoring and this next move require no
+writes, so the exported disk can remain read-only. To save again, insert it as
+a writable copy before booting.
+
+Saving captures turn `0004`. Both finishing `SAVE GAME` and finishing
+`RESTORE GAME` advance the game to the next prompt, at turn `0005`. Restoration
+does not resume an entire machine: DOS loads the saved game workspace into an
+already running game, which then clears its picture cache and redraws the room.
+
+## Follow the saved bytes
+
+The save action at `$66B2` prints a DOS command with a leading Ctrl-D:
+`BSAVE SAVED GAME,A$830,L$8CF`. DOS saves 2,255 bytes from `$0830`–`$10FE`,
+including the current room, turn, switches, objects, and room data. Its binary
+file has a four-byte header, `30 08 CF 08`: load address and length, each with
+its low byte first. Saving replaces the existing unlocked `SAVED GAME` file.
+
+In Disk's catalogue, select `SAVED GAME`. Its entry is at track 17, sector 12,
+offset `$51`; it points to the track/sector list at track 7, sector 14. Nine
+data sectors follow. Track and sector numbers here are decimal DOS-order
+indices; `.dsk` offsets and RAM addresses are hexadecimal.
+
+| File sector | Disk sector | Payload in exported `.dsk` | Game RAM |
+| --- | --- | --- | --- |
+| 0 | T7 S13 | `$7D04`–`$7DFF` (after the header) | `$0830`–`$092B` |
+| 1 | T7 S12 | `$7C00`–`$7CFF` | `$092C`–`$0A2B` |
+| 2 | T7 S11 | `$7B00`–`$7BFF` | `$0A2C`–`$0B2B` |
+| 3 | T7 S10 | `$7A00`–`$7AFF` | `$0B2C`–`$0C2B` |
+| 4 | T7 S9 | `$7900`–`$79FF` | `$0C2C`–`$0D2B` |
+| 5 | T7 S8 | `$7800`–`$78FF` | `$0D2C`–`$0E2B` |
+| 6 | T7 S7 | `$7700`–`$77FF` | `$0E2C`–`$0F2B` |
+| 7 | T7 S6 | `$7600`–`$76FF` | `$0F2C`–`$102B` |
+| 8 | T7 S5 | `$7500`–`$75D2` | `$102C`–`$10FE` |
+
+During this save, DOS reads every payload byte at `$ACCF`, writes these nine
+sectors in order, and rewrites the catalogue sector. The catalogue bytes are
+unchanged because the existing file keeps its location, type, and length.
+All bytes outside the saved payload, including the last sector's unused tail,
+remain unchanged in the export.
+
+The restore action at `$66D9` issues `BLOAD SAVED GAME,A$830`. This disk's DOS
+load path searches the catalogue and track/sector list twice before reading
+the payload. The first sector goes to a DOS buffer at `$9853`; the store at
+`$BEEA` copies its 252 payload bytes into `$0830`–`$092B`. The seven complete
+middle sectors go directly to their game RAM destinations through RWTS, whose
+store at `$B8D4` writes the decoded bytes. The final sector goes to `$9853`
+again, and `$BF4E` copies its first 211 bytes into `$102C`–`$10FE`.
+
+Use these manual stops in Disassembly, with Memory following the destination:
+
+| Stop | What it shows |
+| --- | --- |
+| `$66B2` | The full save block before `BSAVE`. Its digest is recorded below. |
+| `$ACCF` | The next byte DOS reads from the save block. Step to inspect the access. |
+| `$66D4` | `BSAVE` has returned; the sector writes are complete. |
+| `$BEEA` / `$B8D4` / `$BF4E` | The partial-sector copies and direct sector writes during `BLOAD`. These routines also serve other disk loads. |
+| `$66FF` | `BLOAD` has returned. All 2,255 bytes equal the saved block, before the game updates its workspace. |
+
+At `$66FF`, the game still has work to do. It clears the cache table, adjusts
+its action workspace, and advances the turn before displaying the prompt.
+The original restore routine also contains a duplicate `STA $0890` at `$6713`
+where its action-pointer high byte would belong. The checked path does not
+use that damaged pointer: its restored action count is one and immediately
+decrements to zero. Dromaios executes those original bytes unchanged; the
+byte-for-byte comparison is made before that routine resumes.
 
 ## Acceptance record
 
@@ -130,17 +209,32 @@ The initial Space acknowledges the notice without queuing an extra Return.
       "text": "YOU ARE IN AN ENTRY HALL.  DOORWAYS GO",
       "dotsSha256": "05dc5417e534c59dca85aa71bfdbd0a42695202c3680d0cfc8fa325964855f62"
     }
-  ]
+  ],
+  "savedGame": {
+    "address": 2096, "bytes": 2255,
+    "sha256": "b2ae064c0f89fb259ce0fa620d7509512b8a4cca359d9139dd4ae637955d95bd",
+    "track": 7, "sectors": [13, 12, 11, 10, 9, 8, 7, 6, 5]
+  },
+  "continuation": {
+    "name": "Library after restore", "command": "EAST\n", "room": 14, "turn": 6, "picture": 6,
+    "text": "YOU ARE IN THE OLD, DUSTY LIBRARY",
+    "dotsSha256": "34bcab80c8fcc72895ce9ae800ee508806a92391e676f48c5d315dcac337d62f"
+  }
 }
 ```
 
-The scene digests were obtained independently with `tools/play.py` in the local
-`mystery-house-book` checkout at `4e8cea174a321437476a45def3b5615ba10a7003`.
+The scene and saved-payload digests were obtained independently with
+`tools/play.py` in the local `mystery-house-book` checkout at
+`4e8cea174a321437476a45def3b5615ba10a7003`.
 That Python 6502 runner executes the game's drawing and rules while supplying
 ROM input/output and DOS file services. Dromaios instead boots and executes the
 real ROM and DOS. The reference is therefore evidence for the pictures and
 game state, not an independent check of Disk II timing. The title digest was
 also checked directly against the corresponding bytes of `AUTO LOAD OBJ`.
+For the save check, the reference runs `GO STAIRS`, `OPEN DOOR`, `GO DOOR`,
+and `SAVE GAME`. A new reference game receives that saved block, executes
+`RESTORE GAME`, then `EAST`. Its library picture supplies the continuation
+digest. The reference disassembly also identifies the original restore bug.
 
 For each visible graphics row `y = 0…159`, read 40 bytes from
 `$2000 + (y % 8) × $400 + floor(y / 8) % 8 × $80 + floor(y / 64) × $28`.
@@ -158,7 +252,11 @@ node --test dist/tests/site/apple2-mystery-house.test.js
 ```
 
 Without those local files the session test is explicitly skipped. With them it
-checks media identity, cold boot, both binary loads, all four scenes, unchanged
-read-only media, and exact session replay after encoding and restoring the yard
-checkpoint. Instruction bounds catch a stalled boot; they are not promises about
-host performance or original drive speed.
+checks media identity, cold boot, both binary loads, the opening scenes, and
+exact session replay after encoding and restoring the yard checkpoint. It then
+traces every saved byte and the sector writes, checks the exported file and
+unchanged surrounding disk bytes, cold-boots that export, and follows all
+restored bytes back into RAM. The restored hall, subsequent library picture,
+and unchanged read-only export complete the check. Instruction bounds catch
+a stalled boot; they are not promises about host performance or original drive
+speed.
