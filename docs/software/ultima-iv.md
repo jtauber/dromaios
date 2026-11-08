@@ -2,7 +2,8 @@
 
 The [Apple II Plus](../../src/machines/6502/apple2.md) can cold-boot the selected
 *Ultima IV* Boot disk, exchange it for Britannia, move the saved party on the
-world map, visit Skara Brae, and save and resume through an exported disk. This acceptance follows
+world map, visit Skara Brae and the first level of Covetous, and save and resume
+through an exported disk. This acceptance follows
 **Journey onward** with the existing party; it does not create a character or
 establish a complete playthrough.
 
@@ -164,6 +165,72 @@ continues reporting the malformed list rather than silently treating arbitrary
 bad pointers as valid. This establishes this file's bounded load, not a claim
 that every sector on Town is well formed.
 
+## Enter Covetous and return
+
+Continue from the town round trip's fresh boot and eastward step at `(23,128)`.
+Make a writable copy of the resumed Britannia disk in **Disk set** and insert it
+with **Swap disk**. Add `ultima_iv_under.dsk` read-only. Keep the writable
+Britannia copy in the set throughout this trip.
+
+This is a route for the **supplied party and its prepared spells**. Mariah and
+Iolo can cast; several other members are disabled in this saved game. The route
+uses Gate and two Blinks to cross the mountains and water around Covetous.
+Use the `$40C0` command breakpoint between commands to avoid extra idle turns.
+At each spell prompt, enter the following keys separately, without Return:
+
+1. `C`, `1`, `G`, `5`: Mariah casts Gate to phase 5, arriving at `(166,19)`.
+2. `C`, `1`, `B`, Left Arrow: Mariah blinks west to `(154,19)`.
+3. Right Arrow twice moves to `(156,19)`.
+4. `C`, `5`, `B`, Down Arrow: Iolo blinks south to Covetous at `(156,27)`.
+   Mariah has spent most of her magic points; use Iolo for this second Blink.
+5. `E` announces `COVETOUS` and requests the **Underworld disk**. This has
+   already saved the outdoor object list onto Britannia. Select Underworld,
+   **Insert selected**, Run, and press Escape. The dungeon appears at `(1,1)`
+   on level 1, facing east.
+6. Up Arrow moves **forward**, to `(2,1)`. Save a laboratory state here if desired.
+   Right Arrow turns south in place; another Right turns west. Up Arrow then
+   moves back to the entrance ladder at `(1,1)`. These controls are relative to
+   the facing direction, unlike world-map movement.
+7. Press `K` to climb the ladder. At the Britannia request, reinsert the same
+   writable Britannia copy, Run, and press Escape. The party returns to `(156,27)`.
+8. `Q` saves the party. At the next `$40C0` stop with the motor off, export the
+   disk as `ultima_iv_br-dungeon-saved.dsk`. Fresh-boot Boot, choose Journey
+   onward, and supply that export. The party resumes outside Covetous.
+9. `C`, `5`, `B`, Up Arrow makes Iolo blink north to `(156,16)`, demonstrating
+   continued play from the exported save.
+
+### What the dungeon exchange loads
+
+As with town entry, the game first saves `TLST,A$EE00,L$100` on Britannia.
+The Underworld disk then supplies two binary files:
+
+| File | Header address | Actual destination | Payload | Data sectors, in order |
+| --- | --- | --- | --- | --- |
+| `DNGD` | `$5000` | `$8C00` | 3,360 bytes | T21 S9 through S0, then T22 S15 through S12 |
+| `DNG4` | `$8000` | `$E800` | 512 bytes | T19 S12 through S10 |
+
+The explicit `A$` addresses in the game's BLOAD commands override each file's
+header. `DNGD` is the shared dungeon display program. `DNG4` holds Covetous's
+eight 8-by-8 levels in Language Card RAM: 64 bytes per level. After loading,
+the game clears its dungeon object list at `$EE00` before drawing the view.
+
+| Stop | What to inspect |
+| --- | --- |
+| `$50E6` | `DNGD` has loaded at `$8C00`; the map loader is next. |
+| `$5124` | All 512 `DNG4` bytes are at `$E800`; the object-list clear is next. |
+| `$40C0` | Dungeon view complete and ready for a command. `$0000,$0001` are local X,Y; `$000A=$15` identifies Covetous, `$000B=3` selects dungeon mode, and `$000C=0` means level 1. |
+| `$18C6` | On climbing out, the game is waiting for Britannia. |
+| `$467C` | The retained Britannia disk has restored `TLST`, before returning to the world coordinates in `$0008,$0009`. |
+
+Facing is `$0010`: north `0`, east `1`, south `2`, west `3`. The acceptance
+checks the rendered view as well as these values. Turning changes facing without
+moving or consuming a movement turn in this route. Returning to the ladder and
+climbing out also proves that the saved outdoor list survives time spent on a
+different disk and a laboratory checkpoint restore.
+
+This is an entrance-and-exit acceptance, not a cleared dungeon. Deeper levels,
+room combat, traps, treasure, and the Abyss sequence remain separate work.
+
 ## Follow the saved bytes
 
 The command handler at `$58E7` prints the save message. After checking that the
@@ -229,6 +296,12 @@ coordinates, and retained party. While in town it serializes and restores the
 complete disk set, checks Britannia's unmounted edits, and reinserts that retained
 medium for departure. Town scenes include animated objects, so their
 acceptance uses these contracts rather than a whole-landscape digest.
+With Underworld also supplied, it continues from the town resumption through
+Covetous entry, forward movement, turning, checkpoint replay, departure, and a
+third save and cold boot. It checks all `DNGD` and `DNG4` bytes after loading,
+five independently rendered dungeon views, the temporary outdoor list, and the
+full saved party, roster, and object blocks. The replay repeats one move from a
+serialized checkpoint and compares every hardware and input byte.
 No game bytes are patched or injected into RAM.
 Numbers in the record are decimal; addresses in the prose are hexadecimal.
 
@@ -292,6 +365,32 @@ The repository contains neither the images nor extracted game files.
     "farewell": "IT SAYS: BYE.",
     "resumed": { "name": "Resumed outside Skara Brae", "x": 22, "y": 128 },
     "continuation": { "name": "East after the town round trip", "x": 23, "y": 128 }
+  },
+  "dungeon": {
+    "image": { "bytes": 143360, "sha256": "bf8eab41b7b742bb48b962a506404beeb0cd86c1a207d19c0a856d77a05946a9" },
+    "stops": {
+      "codeLoaded": { "address": 20710, "bytes": [32, 5, 81] },
+      "mapLoaded": { "address": 20772, "bytes": [162, 0, 138, 157, 0, 238] }
+    },
+    "gate": { "name": "Phase 5 gate", "x": 166, "y": 19 },
+    "blink": { "name": "West after Blink", "x": 154, "y": 19 },
+    "outside": { "name": "Outside Covetous", "x": 156, "y": 27 },
+    "location": 21,
+    "viewport": { "x": 7, "y": 8, "width": 154, "height": 160 },
+    "scenes": [
+      { "name": "Covetous entrance, east", "x": 1, "y": 1, "direction": 1,
+        "viewSha256": "bbc10a41a704ae9a1d4d0623276c64d120b9f9e976910a472afff9ed6286cafe" },
+      { "name": "Forward, east", "x": 2, "y": 1, "direction": 1,
+        "viewSha256": "7bee8d702680ded45195b69825a6e2c7b8886be5603872b9889ec102dd884e4a" },
+      { "name": "Facing south", "x": 2, "y": 1, "direction": 2,
+        "viewSha256": "23ac9cd63d626d295e3fbf526ef8ac9365be6be2b2d7267a52870dec9ced792e" },
+      { "name": "Facing west", "x": 2, "y": 1, "direction": 3,
+        "viewSha256": "f7497ba39d1730ac58212d468df792b4039f8d7b70b29719321e169b533680b9" },
+      { "name": "Entrance ladder, west", "x": 1, "y": 1, "direction": 3,
+        "viewSha256": "ddef6bdf0f091f2b8064a1c591334743dfcca4483be4b61ab052f56f539d4841" }
+    ],
+    "resumed": { "name": "Resumed outside Covetous", "x": 156, "y": 27 },
+    "continuation": { "name": "North after dungeon resumption", "x": 156, "y": 16 }
   }
 }
 ```
@@ -337,6 +436,13 @@ cannot persist the temporary `TLST` write, so the native acceptance owns that
 round-trip check. The final native Britannia export is independently loaded by
 the reference: it resumes at `(22,128)` and moves east to `(23,128)`.
 
+The Covetous route also runs independently in the pinned reference. The five
+`viewSha256` values cover the 154-by-160 monochrome dungeon viewport, using the
+same independent pixel-address equations. Each matches the native renderer.
+The reference cold-boots the native dungeon export at `(156,27)` and Iolo's
+northward Blink continues to `(156,16)`. As with town entry, the native check
+owns the temporary write and restore; the reference cannot persist that write.
+
 The browser check starts from the verified `(235,233)` checkpoint and uses the
 laboratory's keyboard, disk-set selection, writable-copy, checkpoint, and export
 controls. It restores the set while Town is mounted and reinserts the retained
@@ -345,6 +451,12 @@ the native export. The native test then supplies
 that disk to a new machine, booted from reset, and verifies the saved blocks and
 another move.
 
+A second browser check starts at `(23,128)` and follows the Covetous route,
+including restoring a checkpoint after the first forward move. Its complete
+hardware and input state matches the native run at the Underworld request,
+dungeon entry, forward move, entrance ladder, and return to Britannia. The
+browser's exported disk again matches every byte of the native export.
+
 To run the optional local-media check after a current build:
 
 ```sh
@@ -352,19 +464,22 @@ APPLE2_ROM=media/apple2/apple2p.rom \
 APPLE2_ULTIMA_IV_BOOT=media/apple2/reference/ultima_iv_boot.dsk \
 APPLE2_ULTIMA_IV_BRITANNIA=media/apple2/reference/ultima_iv_br.dsk \
 APPLE2_ULTIMA_IV_TOWN=media/apple2/reference/ultima_iv_town.dsk \
+APPLE2_ULTIMA_IV_UNDERWORLD=media/apple2/reference/ultima_iv_under.dsk \
 node --test dist/tests/site/apple2-ultima-iv.test.js
 ```
 
 Set `APPLE2_ULTIMA_IV_CHECKPOINTS` to an ignored local directory to retain the
-verified checkpoints and the initial, town-entry, and final Britannia exports for
+verified checkpoints and Britannia exports for
 browser experiments. Omit `APPLE2_ULTIMA_IV_TOWN` to run only the earlier
-Boot/Britannia save path. These artifacts
+Boot/Britannia save path. The dungeon check needs both Town and Underworld; omit
+`APPLE2_ULTIMA_IV_UNDERWORLD` to stop after the town round trip. These artifacts
 contain private media bytes and must not be published.
 
 ## Still to establish
 
-This pass covers Boot/Britannia/Town exchange, Skara Brae's entrance and one
-conversation, the return to Britannia, and saving and resuming the supplied party.
-Character creation, other towns and conversations, dungeon entry and Underworld,
-sound expansion hardware, and a complete playthrough remain unverified. The
+This pass covers all four disks, Skara Brae's entrance and one conversation,
+Covetous's first corridor and entrance ladder, both returns to Britannia, and
+saving and resuming the supplied party. Character creation, other towns and
+conversations, deeper dungeon exploration and combat, sound expansion hardware,
+and a complete playthrough remain unverified. The
 machine chapter's disk, timing, display, and audio limitations continue to apply.
