@@ -62,3 +62,21 @@ test("a stored Heal mixture stop requires MIX and its Heal selection at the shar
   machine.ram.write(0x8800, 0x20); // A shop can replace MIX at the same address.
   assert.equal(softwareCheckpointMatches(machine, checkpoint), false);
 });
+
+test("the companion combat stops distinguish whose turn it is at the same instruction", () => {
+  const { machine } = createApple2Session();
+  const authored = record.walkthroughs.find((tour: { id: string }) => tour.id === "ultima4-companions");
+  const stop = record.companions.stops.firstTurn;
+  const checkpoints: SoftwareCheckpoint[] = authored.steps.slice(5, 7).map((step: SoftwareCheckpoint) => ({
+    ...step, address: stop.address.toString(16), bytes: stop.bytes,
+  }));
+  for (const [i, byte] of (stop.bytes as number[]).entries()) machine.ram.write(stop.address + i, byte);
+  machine.ram.write(11, 128); machine.ram.write(15, 2); machine.ram.write(0xd4, 1);
+  assert.deepEqual(checkpoints.map(step => softwareCheckpointMatches(machine, step)), [true, false]);
+  machine.ram.write(0xd4, 2);
+  const before = machine.snapshot();
+  assert.deepEqual(checkpoints.map(step => softwareCheckpointMatches(machine, step)), [false, true]);
+  assert.deepEqual(machine.snapshot(), before);
+  machine.ram.write(11, 1);
+  assert.ok(checkpoints.every(step => !softwareCheckpointMatches(machine, step)));
+});

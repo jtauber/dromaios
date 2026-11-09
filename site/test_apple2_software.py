@@ -12,8 +12,9 @@ class SoftwareWalkthroughTests(unittest.TestCase):
         self.record = json.loads(re.search(r"^```json\n(.*?)^```$", self.source, re.M | re.S)[1])
 
     def test_tours_resolve_the_acceptance_stops_and_publish_both_memory_spaces(self):
-        party, combat, magic = ultima4_walkthroughs(self.source)
-        self.assertEqual([t["id"] for t in (party, combat, magic)], ["ultima4-party", "ultima4-combat", "ultima4-magic"])
+        party, combat, magic, companions = ultima4_walkthroughs(self.source)
+        self.assertEqual([t["id"] for t in (party, combat, magic, companions)],
+                         ["ultima4-party", "ultima4-combat", "ultima4-magic", "ultima4-companions"])
         self.assertEqual([s["address"] for s in party["steps"]], ["40C0", "590E", "5959", "4047", "408D", "40C0"])
         self.assertEqual([s["address"] for s in combat["steps"]], ["6FB0", "708B", "71D7", "7A7E", "71D7", "40C0"])
         self.assertEqual(party["steps"][0]["bytes"], self.record["stops"]["command"]["bytes"])
@@ -27,6 +28,10 @@ class SoftwareWalkthroughTests(unittest.TestCase):
         self.assertEqual(magic["steps"][2]["when"],
                          [{"address": 0x8800, "bytes": [0x4c, 0x17, 0x88]}, {"address": 0x8a09, "bytes": [7]}])
         self.assertEqual([link["address"] for link in magic["steps"][0]["inspect"]], [0xed38, 0xed47, 0xec16])
+        self.assertEqual([s["address"] for s in companions["steps"]],
+                         ["1813", "8882", "8AFF", "8C02", "40C0", "71D7", "71D7", "40C0", "48BE", "4C1F", "4C27", "4C45", "40C0"])
+        self.assertEqual(companions["steps"][6]["when"][-1], {"address": 0xd4, "bytes": [2]})
+        self.assertEqual([link["address"] for link in companions["steps"][9]["inspect"]], [0xec36, 0xec18, 0xed47, 0xd4])
         # Changing a shared acceptance stop changes the published tour, without another address to maintain.
         self.record["stops"]["command"]["address"] = 0x4000
         self.record["magic"]["stops"]["healed"]["address"] = 0x4c44

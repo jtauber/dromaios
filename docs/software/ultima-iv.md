@@ -8,7 +8,8 @@ enters Britannia, and verifies the new character's first save and resumption.
 That mage then wins a bridge-troll encounter and retains the resulting health,
 experience, and party state through another save, export, and fresh boot.
 The next route buys reagents, mixes Heal, and persists both the healed character
-and the remaining inventory.
+and the remaining inventory. A further route recruits Iolo, completes an orc
+encounter with both characters, and verifies targeted healing and both saved records.
 These routes do not establish a complete playthrough.
 
 ## Start in the laboratory
@@ -43,6 +44,8 @@ The opening can use read-only media; saving needs a writable copy.
 In the laboratory's **Walkthrough** panel, choose **Ultima IV · party and saving**
 or **Ultima IV · bridge combat**. **Ultima IV · mixing and healing** follows the
 mage's reagent purchase and return to Britannia described below.
+**Ultima IV · companions and targeting** follows recruitment, separate combat
+turns, and a Heal cast by Iolo on the mage.
 Each named stop has preparation instructions,
 **Run to checkpoint**, **Browse code**, and memory links for its relevant state.
 The tours become runnable once the selected build's main game code is present;
@@ -494,6 +497,123 @@ one MP, to 40, while retaining the inventory and health.
 
 [spellbook]: https://c64sets.com/ultima4/Ultima%20IV%20Quest%20of%20the%20Avatar%20-%20The%20Book%20of%20Mystik%20Wisdom.pdf
 
+## Recruit Iolo and distinguish caster from recipient
+
+Continue from `ultima_iv_br-magic-saved.dsk`, the exported mixing/healing result,
+using a **fresh Boot / Journey onward load**. This starts the mage at `(232,135)`
+with 200 HP, 132 XP, 39 MP, and one prepared Heal. Make a writable Britannia copy
+and keep that same copy across the Town disk exchange. These coordinates and
+statistics are decimal; addresses below are hexadecimal.
+
+### Reach Britain and recruit its bard
+
+Use **Ultima IV · companions and targeting** alongside the party/save tour.
+The route is deliberately prompt-by-prompt. Idle time advances the moons and
+extra turns move monsters, so simply pasting the directions is not equivalent.
+
+1. From Moonglow, Up twice, Left twice, Up, Left, Up, Left three times, Down
+   twice, Left. This reaches `(225,133)`, just east of Moonglow's moongate.
+2. Choose **Moongate leads to Britain** and run **without a key**. The game's
+   input loop advances Trammel to phase 0 / Felucca to phase 1. Queue Left,
+   then use **World command ready** in the party tour. Stepping onto `(224,133)`
+   takes the mage to Britain's gate at `(96,102)`. Passing a turn with Space
+   instead lets a nearby orc attack before the gate is ready.
+3. Walk Left to `(84,102)`, repeating after slow progress; Down twice; Left to
+   `(83,104)`, again repeating after slow progress; Down, Left, Down. The mage
+   reaches Britain at `(82,106)`. The acceptance record below includes every
+   slow-progress attempt for this exact starting save and input timing.
+4. Press `E`, wait for the Town disk request, insert `ultima_iv_town.dsk`
+   read-only, and press Escape. Use **Britain command ready** for each town move.
+   From `(1,15)`, Right 18 times, Down eight,
+   Right seven, Down six, Right once: `(27,29)`, next to Iolo at `(28,29)`.
+5. Queue `T`, Right and run to **Iolo conversation**. Type `JOIN`, Return and
+   use **Recruitment checks**, then **Iolo added to the party**. Continue to
+   **Britain command ready**. The screen says `I AM HONORED TO JOIN THEE!` and lists Iolo.
+6. Return Left once, Up six, Left seven, Up eight, Left 19 times to `(0,15)`.
+   One more Left requests Britannia. Reinsert the retained writable copy,
+   press Escape, and reach the world prompt at `(82,106)`.
+
+The executable `TALK` overlay checks conversation 1, Britain's class, Compassion,
+and party capacity. Our Avatar is a mage, has Compassion 60 (at least 40), and
+has maximum HP 200: level 2, enough to grow a one-member party. The game increments
+`$000F` to two and swaps the companion into the new last 32-byte record. Iolo is
+already second, at `$EC20`, so all 32 swaps exchange a byte with itself. His town
+object, slot 31, is cleared. These are existing roster records becoming active;
+recruitment does not construct a new character from scratch.
+
+| Stop | Meaning |
+| --- | --- |
+| `$1813` with `$12=0,$13=1` | Moon phases select Moonglow's entrance and Britain's destination. |
+| `$8882` with `TALK` loaded | Conversation prompt. |
+| `$8AFF` | `JOIN` begins its eligibility checks. |
+| `$8C02` | Party count is two; the record swap and removal of Iolo's town object are complete. |
+| `$71D7` with `$D4=1` or `2` | The same combat command reader serves different characters. |
+
+### Win one encounter with both characters
+
+From Britain, Right 13 times, Up, Right, Up, Right, Up, Right twice, Up, Right
+twice reaches the bridge at `(101,102)`. Pass 15 turns with Space, stopping at
+each world prompt; the last reaches combat against three orcs. The bridge arena
+comes from `CONR`. The initial enemies occupy slots 0, 5 and 15, with **binary**
+health 107, 109 and 45. DROMAIOS starts at combat `(3,5)` and Iolo at `(2,4)`.
+
+Both characters have an independent command turn. Use the two named combat
+stops to distinguish them; `$D4` is the one-based character number. `A, Right`
+means Attack followed by Right. Queue each action while paused, then run to the
+next character's command. After the last attack use **Two-character victory**.
+
+| Round | DROMAIOS (staff) | Iolo (sling) | Mage HP after round | Iolo XP after round |
+| --- | --- | --- | --- | --- |
+| 1 | Right | Right | 200 | 240 |
+| 2 | Right | A, Right | 200 | 240 |
+| 3 | A, Up | A, Right | 200 | 240 |
+| 4 | A, Up | A, Right | 200 | 246 |
+| 5 | A, Right | Right | 188 | 246 |
+| 6 | A, Right | Right | 188 | 246 |
+| 7 | A, Right | Right | 188 | 246 |
+| 8 | A, Right | A, Down | 188 | 246 |
+| 9 | A, Right | A, Down | 171 | 246 |
+| 10 | A, Down | A, Down | 171 | 246 |
+| 11 | A, Down | A, Down | 171 | 246 |
+| 12 | Down | Right | 171 | 246 |
+| 13 | Right | A, Down | 171 | 252 |
+| 14 | Right | A, Down | 171 | 258 |
+
+The mage attacks and takes 29 damage, finishing at 171 HP and 132 XP. Iolo takes
+no damage and kills all three orcs, gaining six XP each: 240 → 258. His HP remains
+300. Combat preserves the remaining six inactive records, equipment, attributes,
+and the prepared Heal mixture. The test checks the turn owner, both positions,
+every enemy's position and HP, and both character records after each action;
+it also checks decimal damage and experience arithmetic against ordinary integer
+subtraction and addition as those routines execute.
+
+### Have Iolo heal the mage, then save both
+
+At the world prompt, queue `C`, `2` and run to **Iolo chooses Heal**. Choose `H`
+and stop at **Iolo pays for Heal**: the shared mixture count changes from 1 to 0,
+and **Iolo's** MP changes from 13 to 3. The mage's HP and MP are still unchanged.
+Continue to **Select Heal recipient**, choose `1`, and run to **Mage healed by
+Iolo**. `$D4` now selects the mage's record. The observed roll is 82, converted
+from binary to packed decimal; 171 + 82 = 253 is capped to maximum HP 200.
+Iolo remains at 300 HP. Continuing to the world prompt regenerates his MP to 4;
+the mage stays at his 48-MP cap. Caster and recipient are separate selections.
+
+Use `Q` and the party/save tour, then export after the command prompt returns
+and the disk motor stops. Retain `ultima_iv_br-companion-saved.dsk`. A new machine
+boots the original Boot disk, chooses Journey onward, and loads this export:
+
+| Character | Record | HP / maximum | XP | MP |
+| --- | --- | --- | --- | --- |
+| DROMAIOS | `$EC00` | 200 / 200 | 132 | 48 |
+| Iolo | `$EC20` | 300 / 300 | 258 | 4 |
+
+The party count is two and the world position is `(101,102)`. The Heal mixture
+remains consumed. A Left moves both as one party to `(100,102)` and regenerates
+Iolo's MP to 5. The acceptance compares **every saved byte** in `PRTY`, `ROST`
+and `LIST` before game initialization, then checks both characters at the first
+prompt and after that move. It starts both boots from a new machine, without
+restoring a checkpoint or copying RAM into the fresh session.
+
 ## Follow the saved bytes
 
 The command handler at `$58E7` prints the save message. After checking that the
@@ -759,6 +879,56 @@ The repository contains neither the images nor extracted game files.
     "resumed": {"x": 232, "y": 135},
     "continuation": {"x": 231, "y": 135}
   },
+  "companions": {
+    "image": {"bytes": 143360, "sha256": "327c821b4613085070faa3e5bc3a5a8c99b54e30496192d951327f10d8fbf7e6"},
+    "gateApproach": [[11, 232, 134], [11, 232, 133], [8, 231, 133], [8, 230, 133], [11, 230, 132], [8, 229, 132], [11, 229, 131], [8, 228, 131], [8, 227, 131], [8, 226, 131], [10, 226, 132], [10, 226, 133], [8, 225, 133]],
+    "britainApproach": [[8, 95, 102], [8, 94, 102], [8, 93, 102], [8, 92, 102], [8, 92, 102], [8, 91, 102], [8, 90, 102], [8, 89, 102], [8, 88, 102], [8, 87, 102], [8, 86, 102], [8, 85, 102], [8, 85, 102], [8, 84, 102], [10, 84, 103], [10, 84, 104], [8, 84, 104], [8, 84, 104], [8, 83, 104], [10, 83, 105], [8, 82, 105], [10, 82, 106]],
+    "townApproach": [[21, 18], [10, 8], [21, 7], [10, 6], [21, 1]],
+    "townReturn": [[8, 1], [11, 6], [8, 7], [11, 8], [8, 19]],
+    "encounterApproach": [[21, 83, 106], [21, 84, 106], [21, 85, 106], [21, 86, 106], [21, 87, 106], [21, 88, 106], [21, 89, 106], [21, 90, 106], [21, 91, 106], [21, 92, 106], [21, 93, 106], [21, 94, 106], [21, 95, 106], [11, 95, 105], [21, 96, 105], [11, 96, 104], [21, 97, 104], [11, 97, 103], [21, 98, 103], [21, 99, 103], [11, 99, 102], [21, 100, 102], [21, 101, 102]],
+    "waits": 15,
+    "stops": {
+      "moonDestination": {"address": 6163, "bytes": [173, 86, 24, 41]},
+      "talkLoaded": {"address": 34816, "bytes": [162, 3, 189, 240]},
+      "conversation": {"address": 34946, "bytes": [32, 33, 8, 141]},
+      "joinCheck": {"address": 35583, "bytes": [165, 225, 208, 47]},
+      "memberAdded": {"address": 35842, "bytes": [32, 105, 8, 32]},
+      "firstTurn": {"address": 29143, "bytes": [32, 0, 8, 208, 3]}
+    },
+    "turns": [
+      {"actor": 1, "keys": [21], "members": [{"health": 200, "experience": 132, "magic": 48, "position": [4, 5]}, {"health": 300, "experience": 240, "magic": 13, "position": [2, 4]}], "enemies": [[0, 6, 4, 107], [5, 7, 6, 109], [15, 9, 8, 45]], "next": 2},
+      {"actor": 2, "keys": [21], "members": [{"health": 200, "experience": 132, "magic": 48, "position": [4, 5]}, {"health": 300, "experience": 240, "magic": 13, "position": [3, 4]}], "enemies": [[0, 5, 4, 107], [5, 7, 5, 109], [15, 8, 8, 45]], "next": 1},
+      {"actor": 1, "keys": [21], "members": [{"health": 200, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 240, "magic": 13, "position": [3, 4]}], "enemies": [[0, 5, 4, 107], [5, 7, 5, 109], [15, 8, 8, 45]], "next": 2},
+      {"actor": 2, "keys": [65, 21], "members": [{"health": 200, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 240, "magic": 13, "position": [3, 4]}], "enemies": [[0, 5, 4, 67], [5, 6, 5, 109], [15, 8, 7, 45]], "next": 1},
+      {"actor": 1, "keys": [65, 11], "members": [{"health": 200, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 240, "magic": 13, "position": [3, 4]}], "enemies": [[0, 5, 4, 47], [5, 6, 5, 109], [15, 8, 7, 45]], "next": 2},
+      {"actor": 2, "keys": [65, 21], "members": [{"health": 200, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 240, "magic": 13, "position": [3, 4]}], "enemies": [[0, 5, 4, 27], [5, 6, 5, 109], [15, 7, 7, 45]], "next": 1},
+      {"actor": 1, "keys": [65, 11], "members": [{"health": 200, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 240, "magic": 13, "position": [3, 4]}], "enemies": [[0, 5, 4, 27], [5, 6, 5, 109], [15, 7, 7, 45]], "next": 2},
+      {"actor": 2, "keys": [65, 21], "members": [{"health": 200, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [3, 4]}], "enemies": [[5, 6, 5, 109], [15, 7, 6, 45]], "next": 1},
+      {"actor": 1, "keys": [65, 21], "members": [{"health": 200, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [3, 4]}], "enemies": [[5, 6, 5, 85], [15, 7, 6, 45]], "next": 2},
+      {"actor": 2, "keys": [21], "members": [{"health": 188, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [4, 4]}], "enemies": [[5, 6, 5, 85], [15, 7, 5, 45]], "next": 1},
+      {"actor": 1, "keys": [65, 21], "members": [{"health": 188, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [4, 4]}], "enemies": [[5, 6, 5, 85], [15, 7, 5, 45]], "next": 2},
+      {"actor": 2, "keys": [21], "members": [{"health": 188, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [5, 4]}], "enemies": [[5, 6, 5, 85], [15, 7, 6, 45]], "next": 1},
+      {"actor": 1, "keys": [65, 21], "members": [{"health": 188, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [5, 4]}], "enemies": [[5, 6, 5, 57], [15, 7, 6, 45]], "next": 2},
+      {"actor": 2, "keys": [21], "members": [{"health": 188, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 6, 5, 57], [15, 6, 6, 45]], "next": 1},
+      {"actor": 1, "keys": [65, 21], "members": [{"health": 188, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 6, 5, 57], [15, 6, 6, 45]], "next": 2},
+      {"actor": 2, "keys": [65, 10], "members": [{"health": 188, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 6, 5, 57], [15, 5, 6, 45]], "next": 1},
+      {"actor": 1, "keys": [65, 21], "members": [{"health": 188, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 6, 5, 57], [15, 5, 6, 45]], "next": 2},
+      {"actor": 2, "keys": [65, 10], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 6, 6, 23], [15, 5, 6, 45]], "next": 1},
+      {"actor": 1, "keys": [65, 10], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 6, 6, 23], [15, 5, 6, 38]], "next": 2},
+      {"actor": 2, "keys": [65, 10], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 6, 7, 7], [15, 5, 6, 38]], "next": 1},
+      {"actor": 1, "keys": [65, 10], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 6, 7, 7], [15, 5, 6, 4]], "next": 2},
+      {"actor": 2, "keys": [65, 10], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [5, 5]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 7, 7, 2], [15, 5, 7, 4]], "next": 1},
+      {"actor": 1, "keys": [10], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [5, 6]}, {"health": 300, "experience": 246, "magic": 13, "position": [6, 4]}], "enemies": [[5, 7, 7, 2], [15, 5, 7, 4]], "next": 2},
+      {"actor": 2, "keys": [21], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [5, 6]}, {"health": 300, "experience": 246, "magic": 13, "position": [7, 4]}], "enemies": [[5, 7, 6, 2], [15, 6, 7, 4]], "next": 1},
+      {"actor": 1, "keys": [21], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [6, 6]}, {"health": 300, "experience": 246, "magic": 13, "position": [7, 4]}], "enemies": [[5, 7, 6, 2], [15, 6, 7, 4]], "next": 2},
+      {"actor": 2, "keys": [65, 10], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [6, 6]}, {"health": 300, "experience": 252, "magic": 13, "position": [7, 4]}], "enemies": [[15, 7, 7, 4]], "next": 1},
+      {"actor": 1, "keys": [21], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [7, 6]}, {"health": 300, "experience": 252, "magic": 13, "position": [7, 4]}], "enemies": [[15, 7, 7, 4]], "next": 2},
+      {"actor": 2, "keys": [65, 10], "members": [{"health": 171, "experience": 132, "magic": 48, "position": [7, 6]}, {"health": 300, "experience": 258, "magic": 13, "position": [7, 4]}], "enemies": [], "next": 0}
+    ],
+    "healed": [{"health": 200, "experience": 132, "magic": 48}, {"health": 300, "experience": 258, "magic": 4}],
+    "resumed": [101, 102],
+    "continuation": [100, 102]
+  },
   "walkthroughs": [
     {
       "id": "ultima4-party", "title": "Ultima IV · party and saving",
@@ -1012,6 +1182,131 @@ The repository contains neither the images nor extracted game files.
           ]
         }
       ]
+    },
+    {
+      "id": "ultima4-companions",
+      "title": "Ultima IV · companions and targeting",
+      "setup": "Start from ultima_iv_br-magic-saved.dsk after a fresh Boot / Journey onward load. Follow the guide’s Moonglow–Britain route, retain a writable Britannia copy across the Town exchange, and recruit Iolo. Queue keys only while paused, with screen Inspect off. Each walkthrough stop checks code and context; arbitrary additional turns may change encounters.",
+      "requires": ["stops.command", "magic.stops.healed"],
+      "steps": [
+        {
+          "title": "Moongate leads to Britain",
+          "stop": "companions.stops.moonDestination",
+          "prepare": "Follow the guide from the magic export to (225,133). Run here without a key; let the moons advance in the input loop. At the stop, queue Left and use World command ready in the party tour.",
+          "observe": "Trammel is phase 0, opening the Moonglow gate at (224,133). Felucca is phase 1, choosing Britain at (96,102). Stepping left traverses it. Space would pass a turn and move nearby monsters.",
+          "when": [{"address": 11, "bytes": [1]}, {"address": 18, "bytes": [0, 1]}],
+          "inspect": [{"label": "Moon phases", "address": 18, "space": "ram"}, {"label": "Moon clock", "address": 6229, "space": "ram"}, {"label": "World position", "address": 0, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Iolo conversation",
+          "stop": "companions.stops.conversation",
+          "prepare": "In Britain, reach (27,29), queue T then Right, and run. Wait here before typing JOIN and Return.",
+          "observe": "TALK has loaded from Town. Iolo is object 31 at (28,29); his conversation is number 1. The keyword reader is about to ask Your interest.",
+          "when": [{"address": 11, "bytes": [2]}, {"address": 10, "bytes": [6]}, {"address": 34816, "bytes": [162, 3]}],
+          "inspect": [{"label": "Party size", "address": 15, "space": "ram"}, {"label": "DROMAIOS record", "address": 60416, "space": "lc-upper"}, {"label": "Iolo record", "address": 60448, "space": "lc-upper"}, {"label": "Selected character", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Recruitment checks",
+          "stop": "companions.stops.joinCheck",
+          "prepare": "At Iolo conversation, queue JOIN and Return, then run.",
+          "observe": "JOIN checks conversation 1, the town and class, Compassion (60, at least 40), and level (2, greater than the one-member party). The mage has a different class from Iolo.",
+          "when": [{"address": 11, "bytes": [2]}, {"address": 10, "bytes": [6]}, {"address": 34816, "bytes": [162, 3]}],
+          "inspect": [{"label": "Party size", "address": 15, "space": "ram"}, {"label": "DROMAIOS record", "address": 60416, "space": "lc-upper"}, {"label": "Iolo record", "address": 60448, "space": "lc-upper"}, {"label": "Compassion", "address": 60673, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Iolo added to the party",
+          "stop": "companions.stops.memberAdded",
+          "prepare": "Continue from Recruitment checks.",
+          "observe": "The party count has increased to two. The game has swapped 32 bytes into the new last record; Iolo was already second, so this is a swap with itself. His town object has been cleared. Continue to a town command before moving.",
+          "when": [{"address": 11, "bytes": [2]}, {"address": 15, "bytes": [2]}, {"address": 34816, "bytes": [162, 3]}],
+          "inspect": [{"label": "Party size", "address": 15, "space": "ram"}, {"label": "DROMAIOS record", "address": 60416, "space": "lc-upper"}, {"label": "Iolo record", "address": 60448, "space": "lc-upper"}, {"label": "Selected character", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Britain command ready",
+          "stop": "stops.command",
+          "prepare": "Run here after inserting Town, after Iolo joins, or after queuing each town movement. For the final step out of town, use the disk-request stop or wait for its prompt.",
+          "observe": "The shared command loop is waiting in Britain (location 6, mode 2). The party count changes from one to two after recruitment. Iolo starts at (28,29) and disappears from the town when he joins.",
+          "when": [{"address": 10, "bytes": [6, 2]}],
+          "inspect": [{"label": "Town position and mode", "address": 0, "space": "ram"}, {"label": "Party size", "address": 15, "space": "ram"}, {"label": "Iolo record", "address": 60448, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "DROMAIOS combat turn",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "Follow the guide back to Britannia and into the orc encounter. Queue the next action from its table, or continue to this character’s next turn.",
+          "observe": "$D4 is 1: the command belongs to DROMAIOS. Each character moves and attacks from a separate position. Enemy turns follow Iolo’s turn; experience from a kill belongs to its attacker.",
+          "when": [{"address": 11, "bytes": [128]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [1]}],
+          "inspect": [{"label": "DROMAIOS HP / XP", "address": 60440, "space": "lc-upper"}, {"label": "Iolo HP / XP", "address": 60472, "space": "lc-upper"}, {"label": "Combat positions", "address": 61312, "space": "lc-upper"}, {"label": "Enemy HP", "address": 61248, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Iolo combat turn",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "Follow the guide back to Britannia and into the orc encounter. Queue the next action from its table, or continue to this character’s next turn.",
+          "observe": "$D4 is 2: the command belongs to Iolo. Each character moves and attacks from a separate position. Enemy turns follow Iolo’s turn; experience from a kill belongs to its attacker.",
+          "when": [{"address": 11, "bytes": [128]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}],
+          "inspect": [{"label": "DROMAIOS HP / XP", "address": 60440, "space": "lc-upper"}, {"label": "Iolo HP / XP", "address": 60472, "space": "lc-upper"}, {"label": "Combat positions", "address": 61312, "space": "lc-upper"}, {"label": "Enemy HP", "address": 61248, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Two-character victory",
+          "stop": "stops.command",
+          "prepare": "Finish the recorded encounter. Run here after the final Iolo attack.",
+          "observe": "The verified result is DROMAIOS at 171 HP / 132 XP and Iolo at 300 HP / 258 XP. Three orcs were killed, all by Iolo. Both characters remain active, and the prepared Heal mixture remains available.",
+          "when": [{"address": 11, "bytes": [1]}, {"address": 15, "bytes": [2]}],
+          "inspect": [{"label": "Party size", "address": 15, "space": "ram"}, {"label": "DROMAIOS record", "address": 60416, "space": "lc-upper"}, {"label": "Iolo record", "address": 60448, "space": "lc-upper"}, {"label": "Selected character", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Iolo chooses Heal",
+          "stop": "magic.stops.spellChoice",
+          "prepare": "At the world prompt, queue C then 2. Run here before choosing H.",
+          "observe": "The caster selection is 2, Iolo. He has 13 MP in this route. The mage’s 48 MP belongs to a separate record.",
+          "when": [{"address": 11, "bytes": [1]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}],
+          "inspect": [{"label": "Caster: Iolo MP", "address": 60470, "space": "lc-upper"}, {"label": "Recipient: mage HP", "address": 60440, "space": "lc-upper"}, {"label": "Heal mixtures", "address": 60743, "space": "lc-upper"}, {"label": "Selected character", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Iolo pays for Heal",
+          "stop": "magic.stops.charged",
+          "prepare": "Queue H and run.",
+          "observe": "The shared Heal count has fallen from 1 to 0. Iolo paid 10 MP (13 to 3). Neither character’s HP has changed, and the mage still has 48 MP.",
+          "when": [{"address": 11, "bytes": [1]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}],
+          "inspect": [{"label": "Caster: Iolo MP", "address": 60470, "space": "lc-upper"}, {"label": "Recipient: mage HP", "address": 60440, "space": "lc-upper"}, {"label": "Heal mixtures", "address": 60743, "space": "lc-upper"}, {"label": "Selected character", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Select Heal recipient",
+          "stop": "magic.stops.healTarget",
+          "prepare": "Continue from Iolo pays for Heal. Queue 1 only after reaching this prompt.",
+          "observe": "The game asks which character to heal independently of the caster. Choose 1 for the wounded mage, while 2 identifies Iolo.",
+          "when": [{"address": 11, "bytes": [1]}, {"address": 15, "bytes": [2]}],
+          "inspect": [{"label": "Caster: Iolo MP", "address": 60470, "space": "lc-upper"}, {"label": "Recipient: mage HP", "address": 60440, "space": "lc-upper"}, {"label": "Heal mixtures", "address": 60743, "space": "lc-upper"}, {"label": "Selected character", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Mage healed by Iolo",
+          "stop": "magic.stops.healed",
+          "prepare": "Queue 1 and run.",
+          "observe": "The selected record is now the mage. Heal adds a binary roll of 75–99 converted to packed decimal, then caps HP at 200. Iolo remains at 300 HP and 3 MP; the next ordinary world turn regenerates his MP to 4.",
+          "when": [{"address": 11, "bytes": [1]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [1]}],
+          "inspect": [{"label": "Caster: Iolo MP", "address": 60470, "space": "lc-upper"}, {"label": "Recipient: mage HP", "address": 60440, "space": "lc-upper"}, {"label": "Heal mixtures", "address": 60743, "space": "lc-upper"}, {"label": "Selected character", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Both characters ready to save",
+          "stop": "stops.command",
+          "prepare": "Continue after Mage healed by Iolo. Use the party/save tour for Q, export, and the subsequent Boot disk / Journey onward exchange.",
+          "observe": "DROMAIOS has 200 HP, 132 XP and 48 MP; Iolo has 300 HP, 258 XP and 4 MP. Both 32-byte records are part of ROST, and PRTY holds the party count of two. The fresh export resumes at (101,102).",
+          "when": [{"address": 11, "bytes": [1]}, {"address": 15, "bytes": [2]}],
+          "inspect": [{"label": "Party size", "address": 15, "space": "ram"}, {"label": "DROMAIOS record", "address": 60416, "space": "lc-upper"}, {"label": "Iolo record", "address": 60448, "space": "lc-upper"}, {"label": "Selected character", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        }
+      ]
     }
   ]
 }
@@ -1111,6 +1406,16 @@ native acceptance below performs both full boots. All three magic memory links
 were checked without changing guest state; existing ROM and DOS tours remain
 available.
 
+The companion browser check uses verified checkpoints near Iolo, beside the
+moongate, and at the encounter's first turn. It exercises all thirteen named
+stops, then compares full hardware/input state with native execution after
+recruitment, gate travel, all combat actions, healing, and saving. The four
+caster/recipient memory links leave guest state unchanged. Its downloaded disk
+matches the native export byte for byte; loading that download from the verified
+cold-boot disk-request checkpoint restores the full party, roster and object
+blocks and reproduces the native next move. The companion acceptance performs
+the two full cold boots separately.
+
 To run the optional local-media check after a current build:
 
 ```sh
@@ -1164,6 +1469,23 @@ the original Boot disk, loads the export, compares every saved byte before
 initialization, and takes another step. Original Boot, combat, and Town images
 remain unchanged. The Town visit's earlier `TLST` write is retained in the export;
 the final `Q` check starts from that edited Britannia image.
+
+Run the [companion acceptance](../../tests/site/apple2-ultima-iv-companions.test.ts)
+with the magic export and original Town disk:
+
+```sh
+APPLE2_ROM=media/apple2/apple2p.rom \
+APPLE2_ULTIMA_IV_BOOT=media/apple2/reference/ultima_iv_boot.dsk \
+APPLE2_ULTIMA_IV_MAGIC=media/apple2/exports/ultima_iv_br-magic-saved.dsk \
+APPLE2_ULTIMA_IV_TOWN=media/apple2/reference/ultima_iv_town.dsk \
+node --test dist/tests/site/apple2-ultima-iv-companions.test.js
+```
+
+It verifies natural moongate travel, recruitment checks and the 32-byte swap,
+both characters' combat turns, targeted healing, full-state checkpoint replay,
+all 803 DOS save-source reads and nine sector writes, the complete exported image,
+and a second cold boot. Original media stay read-only. The test writes the
+companion export and checkpoints when the output directory below is set.
 
 Set `APPLE2_ULTIMA_IV_CHECKPOINTS` to an ignored local directory to retain the
 verified checkpoints and Britannia exports for
@@ -1235,10 +1557,11 @@ saving and resuming the supplied party. It also covers one character-creation
 path, that character's first save, and a complete bridge-troll encounter followed
 by saving and resuming the resulting party. The subsequent shopping and magic route
 covers one reagent purchase, two Heal mixtures, one capped healing result, and
-persistence of the remaining inventory. Other spells, failed recipes, insufficient
-resources, other classes and answer
-sequences, other towns and conversations, other enemies and combat options,
-deeper dungeon exploration and room combat,
-sound expansion hardware,
-and a complete playthrough remain unverified. The
+persistence of the remaining inventory. The companion route adds Iolo through
+normal conversation, completes combat with two characters, and separates Heal’s
+caster from its recipient before saving and reloading the entire roster.
+Other companions, larger parties, other spells, failed recipes, insufficient
+resources, other classes and answer sequences, other towns and conversations,
+other enemies and combat options, deeper dungeon exploration and room combat,
+sound expansion hardware, and a complete playthrough remain unverified. The
 machine chapter's disk, timing, display, and audio limitations continue to apply.
