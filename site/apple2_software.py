@@ -27,7 +27,7 @@ def ultima4_walkthroughs(source):
         return check
 
     def stop(name):
-        if not isinstance(name, str) or not re.fullmatch(r"(?:stops|save|(?:combat|magic|companions)\.stops)\.[A-Za-z]+", name):
+        if not isinstance(name, str) or not re.fullmatch(r"(?:stops|save|(?:combat|magic|companions|rooms)\.stops)\.[A-Za-z]+", name):
             raise ValueError(f"Invalid software stop reference: {name!r}.")
         value = record
         for part in name.split("."):

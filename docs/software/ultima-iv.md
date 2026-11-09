@@ -10,6 +10,8 @@ experience, and party state through another save, export, and fresh boot.
 The next route buys reagents, mixes Heal, and persists both the healed character
 and the remaining inventory. A further route recruits Iolo, completes an orc
 encounter with both characters, and verifies targeted healing and both saved records.
+A prepared expedition save also completes Covetous’s first room encounter and
+returns both characters to Britannia for another save and fresh boot.
 These routes do not establish a complete playthrough.
 
 ## Start in the laboratory
@@ -46,6 +48,8 @@ or **Ultima IV · bridge combat**. **Ultima IV · mixing and healing** follows t
 mage's reagent purchase and return to Britannia described below.
 **Ultima IV · companions and targeting** follows recruitment, separate combat
 turns, and a Heal cast by Iolo on the mage.
+**Ultima IV · dungeon room** follows the raw room read, battle, and separate
+character exits before returning to Britannia.
 Each named stop has preparation instructions,
 **Run to checkpoint**, **Browse code**, and memory links for its relevant state.
 The tours become runnable once the selected build's main game code is present;
@@ -614,6 +618,145 @@ and `LIST` before game initialization, then checks both characters at the first
 prompt and after that move. It starts both boots from a new machine, without
 restoring a checkpoint or copying RAM into the fresh session.
 
+## Fight a dungeon room and bring both characters back
+
+**Ultima IV · dungeon room** starts from `ultima_iv_br-room-ready.dsk`, a
+prepared expedition save outside Covetous at `(156,27)`. It continues the
+DROMAIOS/Iolo party through ordinary game commands: buy and ready a second sling
+in Britain, buy reagents in Paws, mix spells, return to Britain's moongate, and
+travel to Minoc when the moons are phase 1 / phase 4. Blink west reaches `(154,19)`;
+walk east to `(156,19)`, repeating after slow progress, then Blink south to Covetous.
+No party, map or executable bytes were patched. The inventory and statistics
+reflect that supply trip, including two road encounters. The room acceptance
+starts with the separately identified prepared export; it does not replay the
+preparation or verify the preceding purchase and mixing sequence.
+
+Load the original Boot disk, choose Journey onward, and swap in the room-ready
+export at the Britannia request. Make a writable copy and retain it throughout
+the Underworld exchange. The selected starting state is:
+
+| Character | HP / maximum | XP | MP | Weapon |
+| --- | --- | --- | --- | --- |
+| DROMAIOS | 200 / 200 | 138 | 23 | Sling |
+| Iolo | 299 / 300 | 282 | 13 | Sling |
+
+There are two prepared Heal and two Light mixtures, no Blink remaining, and no
+gold. These details identify this particular expedition; arbitrary parties can
+visit the room, but their combat outcomes and timing will differ.
+
+### From the dungeon map to a raw room sector
+
+1. Use **Outside Covetous**, press `E`, and wait for the Underworld request.
+   Swap in `ultima_iv_under.dsk` read-only, queue Escape, and run to
+   **Covetous entrance**. The party starts at `(1,1)` on level 1, facing east.
+2. Cast `C`, `1`, `L` and return to the dungeon command prompt. Light consumes
+   one mixture. Underground, Up advances, Down retreats, and Left/Right turn;
+   they no longer represent absolute directions.
+3. Up, Up, Left, Up, Right, Up, Up, Right reaches `(5,0)`, facing south. Use
+   **Dungeon command ready** after each action. This repeatable stop also
+   handles the Light cast; **Covetous entrance** matches only the entrance.
+4. Queue Up and run to **Read room zero**. The square entered, `(5,1)`, is `$D0`
+   in `DNG4` at `$E80D`. Continue through **Room sector in RAM** and
+   **Room actors placed**, then **DROMAIOS room turn**.
+
+The selected build calls its raw disk reader at `$6EB2`, with `$E0`–`$E3` equal
+to `04 00 01 02`: track 4, sector 0, one sector, destination page `$02`.
+The track is Covetous's location number minus `$11`; the room square's low
+nibble selects the sector. Unlike `DNG4`, this room is not a DOS file. In the
+DOS-order `.dsk`, it is the 256 bytes at `$4000`–`$40FF`.
+
+| RAM after the read | Contents |
+| --- | --- |
+| `$0200`–`$020F` | Four four-byte map triggers. |
+| `$0210`–`$023F` | Sixteen enemy types, then their X and Y coordinates. |
+| `$0240`–`$027F` | Four entrance formations, each eight X and eight Y coordinates. |
+| `$0280`–`$02F8` | The 11×11 battlefield, row by row. |
+| `$02F9`–`$02FF` | Seven remaining sector bytes. |
+
+At `$6EB5` the entire sector is present. Placement copies the triggers to
+`$0310`–`$031F` before screen output reuses the sector's first half. Facing south
+means entering from the north: `(facing XOR 2) × 16` selects formation zero.
+DROMAIOS starts at `(3,2)` and Iolo at `(2,2)`. Enemy slots 3, 4 and 5 are
+skeletons; slots 6, 10, 11 and 13 are ghosts. Their starting binary HP are
+57, 31, 61, 47, 111, 44 and 56. Character HP and XP remain packed decimal.
+
+The game sets mode `$81` for this dungeon room, compared with `$80` for the
+outdoor encounters already checked. The named combat stops distinguish the
+mode and the current character at `$D4`, although they use the same `$71D7`
+command reader. Memory links expose the room, retained triggers, enemy arrays,
+party positions, active tiles, and both character records. This route loads and
+preserves the trigger data but does not activate a room trigger.
+
+### Clear the room's seven enemies
+
+Queue one action at a time, then use the **other character's room turn** stop.
+After the final attack use **Iolo room turn**. `A, Right` means Attack followed
+by Right; an arrow by itself moves that character within the battlefield.
+
+| Round | DROMAIOS | Iolo |
+| --- | --- | --- |
+| 1 | A, Right | Down |
+| 2 | A, Right | Right |
+| 3 | A, Right | A, Right |
+| 4 | A, Down | A, Right |
+| 5 | A, Down | A, Down |
+| 6 | A, Down | A, Down |
+| 7 | A, Right | A, Down |
+| 8 | A, Right | A, Down |
+| 9 | A, Right | A, Down |
+| 10 | A, Right | A, Down |
+| 11 | A, Down | A, Down |
+| 12 | A, Down | A, Down |
+| 13 | A, Right | A, Right |
+| 14 | A, Right | A, Right |
+| 15 | A, Right | A, Right |
+| 16 | A, Right | Right |
+| 17 | A, Right | A, Up |
+| 18 | Right | A, Up |
+| 19 | A, Up | — (room cleared) |
+
+After 37 actions, three skeletons and three ghosts have been killed; the fourth
+ghost has fled. All seven enemy slots are inactive. DROMAIOS
+loses 17 HP and earns 16 XP, ending at 183 HP / 154 XP. Iolo loses 20 HP and earns
+14 XP, ending at 279 HP / 296 XP. The test checks each turn's actor, positions,
+remaining enemies and statistics, as well as independently adding experience
+and subtracting damage as the guest's decimal routines execute. The unused
+characters, equipment and inventory remain unchanged.
+
+There is **no outdoor victory transition** when the last enemy dies. The room
+continues to take turns, and both surviving characters must leave it.
+
+### Leave together, then save outside
+
+Iolo is at `(4,3)`, DROMAIOS at `(4,2)`. Starting with Iolo:
+
+1. Iolo Left; DROMAIOS Up; Iolo Up; DROMAIOS Up; Iolo Up.
+2. Queue DROMAIOS Up and use **Mage has left north**. His X and Y become `$80`
+   and his active tile becomes zero. Iolo remains at `(3,1)`. The first departure
+   records north as `$00,$FF` at `$7A7C`–`$7A7D`; subsequent departures must use
+   the same side.
+3. Iolo Up reaches `(3,0)`. Queue another Up and use **Both characters leave**.
+   Both active slots are now zero. Continue to **Back in the corridor**:
+   mode 3, `(5,0)`, facing north.
+4. Left, Up, Up, Left, Up, Right, Up, Up returns to the entrance ladder at
+   `(1,1)`, facing west. Use **Dungeon command ready** for the intermediate commands.
+   Press `K`, wait for Britannia, swap back to the **same writable copy**, and
+   queue Escape for **Back in Britannia**.
+5. Use the party/save tour's `Q` stops, then export `ultima_iv_br-room-saved.dsk`
+   after the prompt returns and the motor stops. Start a new machine with the
+   original Boot disk and choose Journey onward using this export.
+
+The fresh load restores all 800 declared bytes of `PRTY`, `ROST` and `LIST`
+before game initialization. Both character records retain their final HP and
+XP, both slings, two unused Heal mixtures and one remaining Light mixture.
+At `(156,27)`, DROMAIOS has regenerated to 48 MP and Iolo remains at 13 MP.
+Space takes another ordinary turn, increasing the saved move count without
+changing their statistics. No checkpoint or copied RAM supplies the new machine.
+
+This proves one room encounter and its return path. It does not establish
+persistent cleared rooms: `$E80D` remains `$D0`. Trigger activation, deeper
+levels, altar rooms and completing the dungeon remain separate acceptance work.
+
 ## Follow the saved bytes
 
 The command handler at `$58E7` prints the save message. After checking that the
@@ -698,6 +841,11 @@ The [combat check](../../tests/site/apple2-ultima-iv-combat.test.ts) cold-boots
 the verified new-character export, loads the bridge battlefield, checks all 14
 combat turns and the victory transcript, then applies the same source-read,
 sector-write, whole-export, and fresh-boot checks to the resulting party.
+The [dungeon-room check](../../tests/site/apple2-ultima-iv-room.test.ts) cold-boots
+the prepared expedition export, compares the complete raw room sector and both
+loaded dungeon files, replays entry from a checkpoint with identical hardware
+and input, checks all 37 combat actions and eight exit actions, then verifies
+the return, full disk export and another cold boot.
 No game bytes are patched or injected into RAM.
 Numbers in the record are decimal; addresses in the prose are hexadecimal.
 
@@ -928,6 +1076,64 @@ The repository contains neither the images nor extracted game files.
     "healed": [{"health": 200, "experience": 132, "magic": 48}, {"health": 300, "experience": 258, "magic": 4}],
     "resumed": [101, 102],
     "continuation": [100, 102]
+  },
+  "rooms": {
+    "image": {"bytes": 143360, "sha256": "90c63285ac0631ba1ebce2b0e98ba5d5e81f50ffc52529ececec0e2a51b38b6b"},
+    "initial": [[200, 138, 23], [299, 282, 13]],
+    "stops": {"read": {"address": 28338, "bytes": [32, 81, 8]}, "loaded": {"address": 28341, "bytes": [165, 11, 133]}, "placed": {"address": 28589, "bytes": [76, 125, 113]}, "leaving": {"address": 30320, "bytes": [32, 33, 8]}},
+    "approach": [11, 11, 8, 11, 21, 11, 11, 21],
+    "enemies": [[3, 6, 7, 57, 196], [4, 6, 5, 31, 196], [5, 6, 2, 61, 196], [6, 5, 6, 47, 156], [10, 8, 6, 111, 156], [11, 8, 4, 44, 156], [13, 7, 3, 56, 156]],
+    "turns": [
+      {"actor": 1, "keys": [65, 21], "enemies": [[3, 6, 7, 57, 196], [4, 6, 5, 31, 196], [5, 6, 2, 28, 196], [6, 5, 6, 47, 156], [10, 8, 6, 111, 156], [11, 8, 4, 44, 156], [13, 7, 3, 56, 156]], "next": 2, "members": [[200, 138, 26, 3, 2], [299, 282, 13, 2, 2]]},
+      {"actor": 2, "keys": [10], "enemies": [[3, 5, 7, 57, 196], [4, 6, 4, 31, 196], [5, 5, 2, 28, 196], [6, 5, 5, 47, 156], [10, 8, 5, 111, 156], [11, 7, 4, 44, 156], [13, 6, 3, 56, 156]], "next": 1, "members": [[200, 138, 27, 3, 2], [299, 282, 13, 2, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[3, 5, 7, 57, 196], [4, 6, 4, 31, 196], [5, 5, 2, 28, 196], [6, 5, 5, 47, 156], [10, 8, 5, 111, 156], [11, 7, 4, 44, 156], [13, 6, 3, 56, 156]], "next": 2, "members": [[200, 138, 27, 3, 2], [299, 282, 13, 2, 3]]},
+      {"actor": 2, "keys": [21], "enemies": [[3, 4, 7, 57, 196], [4, 5, 4, 31, 196], [5, 4, 2, 28, 196], [6, 4, 5, 47, 156], [10, 7, 5, 111, 156], [11, 7, 3, 44, 156], [13, 5, 3, 56, 156]], "next": 1, "members": [[200, 138, 28, 3, 2], [299, 282, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[3, 4, 7, 57, 196], [4, 5, 4, 31, 196], [6, 4, 5, 47, 156], [10, 7, 5, 111, 156], [11, 7, 3, 44, 156], [13, 5, 3, 56, 156]], "next": 2, "members": [[200, 142, 28, 3, 2], [299, 282, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 21], "enemies": [[3, 3, 7, 57, 196], [4, 4, 4, 31, 196], [6, 3, 5, 47, 156], [10, 7, 4, 111, 156], [11, 6, 3, 44, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[200, 142, 29, 3, 2], [299, 282, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 10], "enemies": [[3, 3, 7, 57, 196], [4, 4, 4, 31, 196], [6, 3, 5, 6, 156], [10, 7, 4, 111, 156], [11, 6, 3, 44, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[200, 142, 29, 3, 2], [299, 282, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 21], "enemies": [[3, 2, 7, 57, 196], [4, 3, 4, 31, 196], [6, 3, 6, 6, 156], [10, 7, 3, 111, 156], [11, 5, 3, 44, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[200, 142, 30, 3, 2], [286, 282, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 10], "enemies": [[3, 2, 7, 57, 196], [4, 3, 4, 31, 196], [6, 3, 6, 6, 156], [10, 7, 3, 111, 156], [11, 5, 3, 44, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[200, 142, 30, 3, 2], [286, 282, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 10], "enemies": [[3, 2, 6, 57, 196], [4, 3, 4, 30, 196], [6, 3, 7, 6, 156], [10, 6, 3, 111, 156], [11, 5, 2, 44, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[200, 142, 31, 3, 2], [286, 282, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 10], "enemies": [[3, 2, 6, 57, 196], [4, 3, 4, 30, 196], [6, 3, 7, 6, 156], [10, 6, 3, 111, 156], [11, 5, 2, 44, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[200, 142, 31, 3, 2], [286, 282, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 10], "enemies": [[3, 3, 6, 57, 196], [4, 3, 4, 30, 196], [6, 3, 8, 6, 156], [10, 5, 3, 111, 156], [11, 4, 2, 44, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[200, 142, 32, 3, 2], [286, 282, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[3, 3, 6, 57, 196], [4, 3, 4, 30, 196], [6, 3, 8, 6, 156], [10, 5, 3, 111, 156], [11, 4, 2, 44, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[200, 142, 32, 3, 2], [286, 282, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 10], "enemies": [[3, 3, 5, 57, 196], [4, 3, 4, 30, 196], [6, 3, 9, 6, 156], [10, 5, 2, 111, 156], [11, 4, 2, 44, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[183, 142, 33, 3, 2], [286, 282, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[3, 3, 5, 57, 196], [4, 3, 4, 30, 196], [6, 3, 9, 6, 156], [10, 5, 2, 111, 156], [11, 4, 2, 44, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[183, 142, 33, 3, 2], [286, 282, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 10], "enemies": [[3, 4, 5, 57, 196], [4, 3, 4, 30, 196], [6, 3, 10, 6, 156], [10, 6, 2, 111, 156], [11, 4, 2, 44, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[183, 142, 34, 3, 2], [285, 282, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[3, 4, 5, 57, 196], [4, 3, 4, 30, 196], [6, 3, 10, 6, 156], [10, 6, 2, 111, 156], [11, 4, 2, 8, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[183, 142, 34, 3, 2], [285, 282, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 10], "enemies": [[3, 4, 4, 57, 196], [4, 3, 4, 27, 196], [10, 6, 3, 111, 156], [11, 4, 2, 8, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[183, 142, 35, 3, 2], [285, 282, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[3, 4, 4, 57, 196], [4, 3, 4, 27, 196], [10, 6, 3, 111, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[183, 148, 35, 3, 2], [285, 282, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 10], "enemies": [[3, 4, 4, 57, 196], [4, 3, 4, 27, 196], [10, 5, 3, 111, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[183, 148, 36, 3, 2], [285, 282, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 10], "enemies": [[3, 4, 4, 57, 196], [4, 3, 4, 3, 196], [10, 5, 3, 111, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[183, 148, 36, 3, 2], [285, 282, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 10], "enemies": [[3, 3, 4, 57, 196], [10, 5, 2, 111, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[183, 148, 37, 3, 2], [285, 286, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 10], "enemies": [[3, 3, 4, 8, 196], [10, 5, 2, 111, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[183, 148, 37, 3, 2], [285, 286, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 10], "enemies": [[10, 4, 2, 111, 156], [13, 4, 3, 56, 156]], "next": 1, "members": [[183, 148, 38, 3, 2], [285, 290, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[10, 4, 2, 111, 156], [13, 4, 3, 56, 156]], "next": 2, "members": [[183, 148, 38, 3, 2], [285, 290, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 21], "enemies": [[10, 4, 2, 111, 156], [13, 4, 3, 34, 156]], "next": 1, "members": [[183, 148, 39, 3, 2], [285, 290, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[10, 4, 2, 111, 156], [13, 4, 3, 34, 156]], "next": 2, "members": [[183, 148, 39, 3, 2], [285, 290, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 21], "enemies": [[10, 4, 2, 111, 156], [13, 4, 3, 34, 156]], "next": 1, "members": [[183, 148, 40, 3, 2], [285, 290, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[10, 4, 2, 111, 156], [13, 4, 3, 34, 156]], "next": 2, "members": [[183, 148, 40, 3, 2], [285, 290, 13, 3, 3]]},
+      {"actor": 2, "keys": [65, 21], "enemies": [[10, 4, 2, 111, 156]], "next": 1, "members": [[183, 148, 41, 3, 2], [285, 296, 13, 3, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[10, 4, 2, 73, 156]], "next": 2, "members": [[183, 148, 41, 3, 2], [285, 296, 13, 3, 3]]},
+      {"actor": 2, "keys": [21], "enemies": [[10, 4, 2, 73, 156]], "next": 1, "members": [[183, 148, 42, 3, 2], [279, 296, 13, 4, 3]]},
+      {"actor": 1, "keys": [65, 21], "enemies": [[10, 4, 2, 35, 156]], "next": 2, "members": [[183, 148, 42, 3, 2], [279, 296, 13, 4, 3]]},
+      {"actor": 2, "keys": [65, 11], "enemies": [[10, 4, 1, 13, 156]], "next": 1, "members": [[183, 148, 43, 3, 2], [279, 296, 13, 4, 3]]},
+      {"actor": 1, "keys": [21], "enemies": [[10, 4, 1, 13, 156]], "next": 2, "members": [[183, 148, 43, 4, 2], [279, 296, 13, 4, 3]]},
+      {"actor": 2, "keys": [65, 11], "enemies": [[10, 4, 0, 13, 156]], "next": 1, "members": [[183, 148, 44, 4, 2], [279, 296, 13, 4, 3]]},
+      {"actor": 1, "keys": [65, 11], "enemies": [], "next": 2, "members": [[183, 154, 44, 4, 2], [279, 296, 13, 4, 3]]}
+    ],
+    "exits": [
+      {"actor": 2, "key": 8, "next": 1, "positions": [4, 3, 2, 3], "active": [32, 34], "exit": [0, 0], "pc": 29143},
+      {"actor": 1, "key": 11, "next": 2, "positions": [4, 3, 1, 3], "active": [32, 34], "exit": [0, 0], "pc": 29143},
+      {"actor": 2, "key": 11, "next": 1, "positions": [4, 3, 1, 2], "active": [32, 34], "exit": [0, 0], "pc": 29143},
+      {"actor": 1, "key": 11, "next": 2, "positions": [4, 3, 0, 2], "active": [32, 34], "exit": [0, 0], "pc": 29143},
+      {"actor": 2, "key": 11, "next": 1, "positions": [4, 3, 0, 1], "active": [32, 34], "exit": [0, 0], "pc": 29143},
+      {"actor": 1, "key": 11, "next": 2, "positions": [128, 3, 128, 1], "active": [0, 34], "exit": [0, 255], "pc": 29143},
+      {"actor": 2, "key": 11, "next": 2, "positions": [128, 3, 128, 0], "active": [0, 34], "exit": [0, 255], "pc": 29143},
+      {"actor": 2, "key": 11, "next": 2, "positions": [128, 128, 128, 128], "active": [0, 0], "exit": [0, 255], "pc": 30320}
+    ],
+    "return": [8, 11, 11, 8, 11, 21, 11, 11],
+    "final": [[183, 154, 48], [279, 296, 13]]
   },
   "walkthroughs": [
     {
@@ -1307,6 +1513,122 @@ The repository contains neither the images nor extracted game files.
           "limit": 30000000
         }
       ]
+    },
+    {
+      "id": "ultima4-rooms",
+      "title": "Ultima IV · dungeon room",
+      "setup": "Start from ultima_iv_br-room-ready.dsk, the prepared DROMAIOS/Iolo expedition save, with the original Boot and Underworld disks. The guide gives the room’s command sequence; queue one action at a time. Return to the same writable Britannia copy and export after Q.",
+      "requires": ["stops.command", "save.start"],
+      "steps": [
+        {
+          "title": "Outside Covetous",
+          "stop": "stops.command",
+          "prepare": "Boot the verified room-ready Britannia export using Journey onward. Use a writable copy and retain it for the return.",
+          "observe": "DROMAIOS and Iolo stand at (156,27), with slings, two Heal mixtures and two Light mixtures.",
+          "when": [{"address": 0, "bytes": [156, 27]}, {"address": 11, "bytes": [1]}, {"address": 15, "bytes": [2]}],
+          "inspect": [{"label": "Both characters", "address": 60416, "space": "lc-upper"}, {"label": "Party and dungeon position", "address": 0, "space": "ram"}, {"label": "Light and Heal mixtures", "address": 60743, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Covetous entrance",
+          "stop": "stops.command",
+          "prepare": "Press E, wait for the Underworld request, swap in ultima_iv_under.dsk read-only, then queue Escape.",
+          "observe": "Mode 3: level 1 at (1,1), facing east. Cast C,1,L to light the dungeon before approaching the room.",
+          "when": [{"address": 0, "bytes": [1, 1]}, {"address": 10, "bytes": [21, 3, 0]}],
+          "inspect": [{"label": "Both characters", "address": 60416, "space": "lc-upper"}, {"label": "Party and dungeon position", "address": 0, "space": "ram"}, {"label": "Light and Heal mixtures", "address": 60743, "space": "lc-upper"}, {"label": "Eight dungeon levels", "address": 59392, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Dungeon command ready",
+          "stop": "stops.command",
+          "prepare": "Queue one dungeon move or spell, then run here. Use this repeatable stop for Light and the approach or return route.",
+          "observe": "The party is exploring Covetous in mode 3. Up advances and Left/Right turn. This stop does not match the room combat loop.",
+          "when": [{"address": 10, "bytes": [21, 3]}, {"address": 15, "bytes": [2]}],
+          "inspect": [{"label": "Position, level and facing", "address": 0, "space": "ram"}, {"label": "Dungeon map", "address": 59392, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Read room zero",
+          "stop": "rooms.stops.read",
+          "prepare": "After Light returns to the prompt: Up, Up, Left, Up, Right, Up, Up, Right, stopping at each command. Queue one final Up for this stop.",
+          "observe": "The D0 square at (5,1) requests raw Underworld track 4, sector 0, one sector into page $02.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 3]}, {"address": 224, "bytes": [4, 0, 1, 2]}],
+          "inspect": [{"label": "Raw disk parameters", "address": 224, "space": "ram"}, {"label": "Room square", "address": 59405, "space": "lc-upper"}, {"label": "Destination buffer", "address": 512, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Room sector in RAM",
+          "stop": "rooms.stops.loaded",
+          "prepare": "Continue without a key after the sector-read request.",
+          "observe": "All 256 bytes occupy $0200–$02FF: triggers, enemies, four entrance formations, and the 11 × 11 map at $0280.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 3]}, {"address": 224, "bytes": [4, 0, 1, 2]}],
+          "inspect": [{"label": "Raw room sector", "address": 512, "space": "ram"}, {"label": "Enemy templates", "address": 528, "space": "ram"}, {"label": "Entrance formations", "address": 576, "space": "ram"}, {"label": "Battlefield", "address": 640, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Room actors placed",
+          "stop": "rooms.stops.placed",
+          "prepare": "Continue without a key.",
+          "observe": "Mode $81 is a dungeon room. The north formation places the mage at (3,2) and Iolo at (2,2); seven enemies have binary HP. Triggers are copied before text overwrites the sector header.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}],
+          "inspect": [{"label": "Retained triggers", "address": 784, "space": "ram"}, {"label": "11 × 11 battlefield", "address": 640, "space": "ram"}, {"label": "Enemy positions", "address": 61184, "space": "lc-upper"}, {"label": "Enemy HP and active slots", "address": 61248, "space": "lc-upper"}, {"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "DROMAIOS room turn",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "Continue to the first turn, or queue the current character’s next action from the guide before running.",
+          "observe": "Actor $D4 selects this character. Killing the last enemy keeps room mode active; both characters must walk out.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [1]}],
+          "inspect": [{"label": "11 × 11 battlefield", "address": 640, "space": "ram"}, {"label": "Enemy positions", "address": 61184, "space": "lc-upper"}, {"label": "Enemy HP and active slots", "address": 61248, "space": "lc-upper"}, {"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}, {"label": "Current actor", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Iolo room turn",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "Continue to the first turn, or queue the current character’s next action from the guide before running.",
+          "observe": "Actor $D4 selects this character. Killing the last enemy keeps room mode active; both characters must walk out.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}],
+          "inspect": [{"label": "11 × 11 battlefield", "address": 640, "space": "ram"}, {"label": "Enemy positions", "address": 61184, "space": "lc-upper"}, {"label": "Enemy HP and active slots", "address": 61248, "space": "lc-upper"}, {"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}, {"label": "Current actor", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Mage has left north",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "After the last enemy: Iolo Left; mage Up; Iolo Up; mage Up; Iolo Up; then queue mage Up for this stop.",
+          "observe": "Only Iolo remains active. The mage’s position is $80,$80 and the recorded exit is north ($00,$FF). Iolo must use the same exit.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}],
+          "inspect": [{"label": "Exit direction", "address": 31356, "space": "ram"}, {"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Both characters leave",
+          "stop": "rooms.stops.leaving",
+          "prepare": "Iolo Up reaches row 0. Queue another Up for this stop.",
+          "observe": "Both active tiles are zero and both positions are $80,$80. The room now returns to dungeon exploration.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}],
+          "inspect": [{"label": "Exit direction", "address": 31356, "space": "ram"}, {"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Back in the corridor",
+          "stop": "stops.command",
+          "prepare": "Continue without a key.",
+          "observe": "Mode 3, (5,0), facing north. The dungeon room square remains D0; clearing the room is not a persistent cleared-room flag.",
+          "when": [{"address": 0, "bytes": [5, 0]}, {"address": 10, "bytes": [21, 3, 0]}, {"address": 16, "bytes": [0]}],
+          "inspect": [{"label": "Position and mode", "address": 0, "space": "ram"}, {"label": "Dungeon map and room square", "address": 59392, "space": "lc-upper"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Back in Britannia",
+          "stop": "stops.command",
+          "prepare": "Left, Up, Up, Left, Up, Right, Up, Up returns to the ladder. Press K; at the request swap back to the retained writable Britannia disk, then queue Escape.",
+          "observe": "DROMAIOS has 183 HP and 154 XP; Iolo has 279 HP and 296 XP. Use the party/save tour for Q, export and the fresh Journey onward load.",
+          "when": [{"address": 0, "bytes": [156, 27]}, {"address": 11, "bytes": [1]}, {"address": 15, "bytes": [2]}],
+          "inspect": [{"label": "Both characters", "address": 60416, "space": "lc-upper"}, {"label": "Party and dungeon position", "address": 0, "space": "ram"}, {"label": "Light and Heal mixtures", "address": 60743, "space": "lc-upper"}],
+          "limit": 30000000
+        }
+      ]
     }
   ]
 }
@@ -1487,10 +1809,31 @@ all 803 DOS save-source reads and nine sector writes, the complete exported imag
 and a second cold boot. Original media stay read-only. The test writes the
 companion export and checkpoints when the output directory below is set.
 
+Run the dungeon-room acceptance with the prepared expedition export:
+
+```sh
+APPLE2_ROM=media/apple2/apple2p.rom \
+APPLE2_ULTIMA_IV_BOOT=media/apple2/reference/ultima_iv_boot.dsk \
+APPLE2_ULTIMA_IV_ROOM=media/apple2/exports/ultima_iv_br-room-ready.dsk \
+APPLE2_ULTIMA_IV_UNDERWORLD=media/apple2/reference/ultima_iv_under.dsk \
+node --test dist/tests/site/apple2-ultima-iv-room.test.js
+```
+
+Its media identity is recorded separately from the earlier companion save.
+The supply trip is provenance for this fixture; the automated acceptance starts
+from its cold boot. With checkpoint output enabled, the test also retains
+`ultima_iv_br-room-saved.dsk` for manual resumption. The browser check follows
+all twelve named room stops, compares complete machine/input state with the
+native route, and checks the memory links without advancing the game. Its
+download matches all 143,360 bytes of the native export. Reloading that download
+from a verified Boot disk-request checkpoint restores all saved bytes and
+reproduces the next turn; the native acceptance performs both complete cold boots.
+
 Set `APPLE2_ULTIMA_IV_CHECKPOINTS` to an ignored local directory to retain the
 verified checkpoints and Britannia exports for
 browser experiments. Omit `APPLE2_ULTIMA_IV_TOWN` to run only the earlier
-Boot/Britannia save path. The dungeon check needs both Town and Underworld; omit
+Boot/Britannia save path. That combined town/dungeon round trip needs Town and
+Underworld; omit
 `APPLE2_ULTIMA_IV_UNDERWORLD` to stop after the town round trip. These artifacts
 contain private media bytes and must not be published.
 
