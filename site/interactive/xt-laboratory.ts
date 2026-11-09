@@ -115,7 +115,7 @@ function mount(root: HTMLElement): void {
     runTo: (text, step) => act(() => runTo(text, step)),
     browse: (address, step) => { showCode.browse({ address, space: "CS:IP " + step.execution }); workspace.show("code"); },
     inspect: ({ expect }: XtCheckpoint) => expect && "party" in expect
-      ? { label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) } : undefined,
+      ? [{ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) }] : [],
     position: (step, location, available, running) => xtCheckpointPosition(step, location, available, running, guestCondition(step)),
     reference: address => {
       const entry = annotations.reference.at(address)!;

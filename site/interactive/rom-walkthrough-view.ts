@@ -7,7 +7,9 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   readonly runTo: (address: string, checkpoint: RomCheckpoint) => void;
   readonly browse: (address: number, checkpoint: RomCheckpoint) => void;
   readonly reference: (address: number) => void;
-  readonly inspect?: (step: RomCheckpoint) => { readonly label: string; readonly show: () => void } | undefined;
+  readonly inspect?: (step: RomCheckpoint) => readonly {
+    readonly label: string; readonly show: () => void; readonly available?: () => boolean;
+  }[];
   readonly available?: (tour: RomWalkthrough) => boolean;
   readonly position?: typeof romCheckpointPosition;
 }) {
@@ -19,6 +21,10 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   const position = element("position");
   const reference = element<HTMLButtonElement>("reference"), referenceLabel = reference.textContent;
   const referenceText = panel.querySelector<HTMLElement>("[data-walkthrough-reference-text]");
+  const inspections = document.createElement("div");
+  inspections.className = "basic-controls"; inspections.dataset.walkthroughInspections = "";
+  reference.parentElement!.after(inspections);
+  let inspectionControls: { button: HTMLButtonElement; available?: () => boolean }[] = [];
   let available = false, running = false, location: DebugLocation | undefined;
   const selected = () => guide.walkthroughs[choice.selectedIndex]!;
   const checkpoint = () => selected().steps[checkpoints.selectedIndex]!;
@@ -26,19 +32,26 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   function showPosition(): void {
     const enabled = available && (actions.available?.(selected()) ?? true);
     run.disabled = !enabled || running;
+    for (const { button, available } of inspectionControls) button.disabled = !(available?.() ?? true);
     position.setAttribute("aria-live", running ? "off" : "polite");
     const text = (actions.position ?? romCheckpointPosition)(checkpoint(), location, enabled, running);
     if (position.textContent !== text) position.textContent = text;
   }
   function showCheckpoint(): void {
     const step = checkpoint();
-    const inspection = actions.inspect?.(step);
-    reference.hidden = !step.routine && !inspection;
-    reference.textContent = inspection?.label ?? referenceLabel;
-    reference.onclick = inspection?.show ?? (() => {
+    reference.hidden = !step.routine;
+    reference.textContent = referenceLabel;
+    reference.onclick = () => {
       const routine = guide.routines.find(routine => routine.name === step.routine);
       if (routine) actions.reference(parseInt(routine.address, 16));
-    });
+    };
+    inspections.replaceChildren(); inspectionControls = [];
+    for (const inspection of actions.inspect?.(step) ?? []) {
+      const button = document.createElement("button"); button.type = "button"; button.textContent = inspection.label;
+      button.addEventListener("click", () => { if (inspection.available?.() ?? true) inspection.show(); });
+      inspections.append(button); inspectionControls.push({ button, available: inspection.available });
+    }
+    inspections.hidden = !inspectionControls.length;
     if (referenceText) referenceText.textContent = "";
     element("heading").textContent = `${checkpoints.selectedIndex + 1}. ${step.title} · ${step.execution ?? "$" + step.address}`;
     element("prepare").textContent = step.prepare; element("observe").textContent = step.observe;

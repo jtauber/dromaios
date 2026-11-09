@@ -22,6 +22,7 @@ from lessons import BASIC_LESSONS, LESSON_GROUPS
 from lesson_rendering import basic_lesson_catalogue, lesson_markdown
 from machines import ALTAIR, APPLE2, COCO, XT, MACHINES, media_record, rom_container_record
 from apple2_rom import APPLE2_ROM, explorer_catalogue, dos_walkthroughs
+from apple2_software import ULTIMA_IV, ultima4_walkthroughs
 from coco_rom import coco_annotations
 from xt_rom import ultima_walkthrough, xt_annotations
 from rendering import CHAPTERS, MYSTERY_HOUSE, REPOSITORY, ChapterRendering, github_slug
@@ -134,6 +135,7 @@ def build(base):
         **render_guide(APPLE2), "apple2_container": rom_container_record(APPLE2.read_text()),
         "rom_guide": render_guide(APPLE2_ROM), "rom_explorer": explorer_catalogue(),
         "load_walkthroughs": dos_walkthroughs(APPLE2.read_text()),
+        "software_walkthroughs": ultima4_walkthroughs(ULTIMA_IV.read_text()),
         "apple2_url": MACHINES[APPLE2], "apple2_lab_url": f"{MACHINES[APPLE2]}laboratory/",
     }
     site.render_template("apple2.html", f"{apple2['apple2_url']}index.html", apple2)

@@ -7,6 +7,8 @@ import { dos33BasicLength, dos33BinaryHeader, dos33Catalogue, dos33FileSectors, 
 import { hasDos33Rwts } from "./dos33-reads.js";
 import type { createDos33ReadTrace, LoadObservation } from "./dos33-reads.js";
 import { hex } from "./apple2-explorer.js";
+import { softwareWalkthroughAvailable, softwareCheckpointMatches, softwareInspectionAvailable } from "./apple2-software-walkthrough.js";
+import type { SoftwareCheckpoint, SoftwareWalkthrough } from "./apple2-software-walkthrough.js";
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 type LoadCheckpoint = RomCheckpoint & { inspect: number; expect: LoadObservation; space?: "rom" | "lc-upper" | "device"; limit?: number };
@@ -18,6 +20,8 @@ type LoadTour = Omit<RomWalkthrough, "steps"> & {
     | { name: string; type: "I"; entry: number; length: number };
 });
 const loadStep = (step: RomCheckpoint): step is LoadCheckpoint => "expect" in step;
+const softwareStep = (step: RomCheckpoint): step is SoftwareCheckpoint => "when" in step;
+const softwareTour = (tour: RomWalkthrough): tour is SoftwareWalkthrough => "requires" in tour;
 const space = (step: LoadCheckpoint) => step.space ?? (parseInt(step.address, 16) < 0xc000 ? "ram" : "rom");
 
 /** Check the boot bytes or DOS file layout the selected tour depends on. */
@@ -51,10 +55,17 @@ export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, mach
   }) {
   const source = root.querySelector("[data-load-walkthroughs]");
   const tours: LoadTour[] = source ? JSON.parse(source.textContent!) : [];
+  const softwareSource = root.querySelector("[data-software-walkthroughs]");
+  const software: SoftwareWalkthrough[] = softwareSource ? JSON.parse(softwareSource.textContent!) : [];
+  function matchesSoftware(step: SoftwareCheckpoint): boolean {
+    const tour = software.find(tour => tour.steps.includes(step));
+    return !!tour && softwareWalkthroughAvailable(machine(), tour) && softwareCheckpointMatches(machine(), step);
+  }
   let lastImage: readonly number[] | undefined;
   const enabled = new Map<LoadTour, boolean>();
-  return createRomWalkthrough(root, { routines: guide.routines, walkthroughs: [...guide.walkthroughs, ...tours] }, {
+  return createRomWalkthrough(root, { routines: guide.routines, walkthroughs: [...guide.walkthroughs, ...tours, ...software] }, {
     available(tour) {
+      if (softwareTour(tour)) return softwareWalkthroughAvailable(machine(), tour);
       const load = tours.find(t => t === tour);
       if (!load) return true;
       const selected = machine(), image = selected?.disk.inspectMedium()?.snapshot();
@@ -63,20 +74,41 @@ export function createApple2Walkthrough(root: HTMLElement, guide: RomGuide, mach
       return !!trace && !!selected && enabled.get(load)! && (load.fromPowerOn ? selected.disk.inspect().installed : hasDos33Rwts(selected));
     },
     runTo(address, step) {
-      if (loadStep(step)) actions.runTo(address, space(step), () => trace!.matches(step.expect), step.limit);
+      if (softwareStep(step)) {
+        // A reusable command stop must consume the queued key before stopping there again.
+        let atStart = machine()?.cpu.snapshot().pc === parseInt(address, 16);
+        actions.runTo(address, "ram", () => {
+          if (atStart) { atStart = false; return false; }
+          return matchesSoftware(step);
+        }, step.limit);
+      }
+      else if (loadStep(step)) actions.runTo(address, space(step), () => trace!.matches(step.expect), step.limit);
       else actions.runTo(address, "rom");
     },
     browse: address => actions.browse("code", address),
     reference: address => actions.browse("rom", address),
     inspect(step) {
-      if (!loadStep(step)) return undefined;
+      if (softwareStep(step)) return step.inspect.map(link => ({
+        label: `${link.label} · $${hex(link.address)}`,
+        available: () => softwareInspectionAvailable(machine(), link),
+        show: () => actions.browse("memory", link.address),
+      }));
+      if (!loadStep(step)) return [];
       if ("loresPixel" in step.expect) {
         const [x, y] = step.expect.loresPixel;
-        return { label: `Inspect pixel (${x},${y})`, show: () => actions.inspectPixel(x, y) };
+        return [{ label: `Inspect pixel (${x},${y})`, show: () => actions.inspectPixel(x, y) }];
       }
-      return { label: `Inspect ${step.inspect >= 0xd000 ? "mapped memory" : "RAM"} $${hex(step.inspect)}`, show: () => actions.browse("memory", step.inspect) };
+      return [{ label: `Inspect ${step.inspect >= 0xd000 ? "mapped memory" : "RAM"} $${hex(step.inspect)}`, show: () => actions.browse("memory", step.inspect) }];
     },
     position(step, location: DebugLocation | undefined, available, running) {
+      if (softwareStep(step)) {
+        if (!available || !location) return "Load the Ultima IV main game described in the setup. Its code is not present yet.";
+        if (running) return `Running to ${step.title} at $${step.address}.`;
+        if (location.space === "ram" && location.address === parseInt(step.address, 16) && matchesSoftware(step)) {
+          return `At checkpoint · ${step.title} ($${step.address}). Compare the observations below.`;
+        }
+        return `Paused at $${hex(location.address)} (${location.space}) · waiting for ${step.title}.`;
+      }
       if (!loadStep(step)) return romCheckpointPosition(step, location, available, running);
       if (!available || !location) return "Insert the disk specified in the walkthrough setup.";
       if (running) return `Running to ${step.title} at $${step.address}.`;

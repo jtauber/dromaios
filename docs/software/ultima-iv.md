@@ -36,6 +36,32 @@ Swapped-out disks retain their edits in the set. Export to keep individual disk
 files outside the laboratory; a saved state keeps the whole set across reloads.
 The opening can use read-only media; saving needs a writable copy.
 
+## Laboratory walkthroughs
+
+In the laboratory's **Walkthrough** panel, choose **Ultima IV · party and saving**
+or **Ultima IV · bridge combat**. Each named stop has preparation instructions,
+**Run to checkpoint**, **Browse code**, and memory links for its relevant state.
+The tours become runnable once the selected build's main game code is present;
+they also work after a saved-state restore or with an edited Britannia disk.
+They check the instruction bytes and game mode at each destination, without
+requiring the DOS read trace or recording to be enabled.
+
+Pause to queue each key with screen **Inspect** off, then choose **Run to
+checkpoint**. Selecting a stop or browsing memory does not execute instructions.
+Running to the current stop advances through another turn, so the world and
+combat command stops can be reused for successive moves. Other breakpoints
+and watchpoints still take precedence. A bounded run can stop early; read the
+Execution status before treating it as arrival.
+
+The party links expose zero-page position and mode, the first character's
+record, health and experience, virtues, and saved objects. Combat links expose
+the battlefield, enemy positions, binary health and active slots, and party
+positions. Memory follows the current mapping: upper Language Card links are
+disabled while ROM is mapped, and inspecting never flips a guest soft switch.
+The detailed routes below explain the initial media and the expected results.
+These are guided observations; the acceptance tests separately prove complete
+loads, combat outcomes, and disk persistence.
+
 ## Create a new character
 
 Start again from the original Boot disk. Keep this experiment's Britannia copy
@@ -623,7 +649,156 @@ The repository contains neither the images nor extracted game files.
     ],
     "resumed": {"x": 228, "y": 131, "terrainSha256": "4e79906eb07800da43bac5b10fbb7e52cf45b9c3ff3326354d19c902f7713210"},
     "continuation": {"x": 227, "y": 131, "terrainSha256": "590e79b3139af8624e258f505720fbc51f9c38834b673c1e967b97e6cfdecf17"}
-  }
+  },
+  "walkthroughs": [
+    {
+      "id": "ultima4-party", "title": "Ultima IV · party and saving",
+      "setup": "Boot the selected Ultima IV Boot disk, press Space at the title, then J. At the Britannia request, swap to the chosen Britannia disk and press Escape. This tour becomes available when the main game code has loaded. Use a writable copy for Q. Screen Inspect must be off when typing; no Return follows game commands. Clear unrelated breakpoints. Memory links never change the Language Card mapping; upper-RAM links are disabled while ROM is visible.",
+      "requires": ["stops.command", "save.start", "combat.stops.attack"],
+      "steps": [
+        {
+          "title": "World command ready", "stop": "stops.command",
+          "prepare": "Run here after supplying Britannia. For each later move, pause, queue an arrow key on the screen, then choose Run to checkpoint again. Repeating this checkpoint advances past the current command boundary.",
+          "observe": "The world is drawn and the game is about to wait for a command. $0000/$0001 are X/Y; $000A is the location and $000B is the mode (01 outdoors). The party count is at $000F. A character record is 32 bytes. First-character HP at $EC18 and experience at $EC1C are two-byte packed decimal, most significant byte first.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 40000000,
+          "inspect": [
+            {"label": "Party position and mode", "address": 0, "space": "ram"},
+            {"label": "Character record", "address": 60416, "space": "lc-upper"},
+            {"label": "HP and experience", "address": 60440, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Save source blocks", "stop": "save.start",
+          "prepare": "At the world command, make and insert a writable copy of the current Britannia disk. Queue Q, then run to this stop.",
+          "observe": "Before the three BSAVE commands, PRTY has 32 bytes at $0000, ROST has 512 bytes at $EC00, and LIST has 256 bytes at $EE00. These links show the live sources DOS will copy.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 5000000,
+          "inspect": [
+            {"label": "PRTY source", "address": 0, "space": "ram"},
+            {"label": "ROST source", "address": 60416, "space": "lc-upper"},
+            {"label": "LIST source", "address": 60928, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Save commands returned", "stop": "save.returned",
+          "prepare": "Continue from Save source blocks without another key.",
+          "observe": "All three BSAVE commands have returned. Check that no disk error was printed. Select World command ready and run there, then export the mounted disk with its motor off. This stop alone does not verify the exported bytes.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 50000000,
+          "inspect": [
+            {"label": "Party position and mode", "address": 0, "space": "ram"},
+            {"label": "Character record", "address": 60416, "space": "lc-upper"},
+            {"label": "HP and experience", "address": 60440, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Party block reloaded", "stop": "save.partyLoaded",
+          "prepare": "Export the completed save, fresh-boot the original Boot disk, choose J, and swap to the export at the Britannia request. Queue Escape and run to this stop.",
+          "observe": "BLOAD has restored all 32 PRTY bytes before the game continues loading the other saved blocks. The first two bytes are the saved world coordinates.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 40000000,
+          "inspect": [
+            {"label": "Reloaded PRTY", "address": 0, "space": "ram"}
+          ]
+        },
+        {
+          "title": "Roster and objects reloaded", "stop": "save.rosterLoaded",
+          "prepare": "Continue without another key.",
+          "observe": "ROST and LIST are restored, before initialization modifies the loaded state. Compare the character, health, experience, virtues and world objects with the save sources.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 20000000,
+          "inspect": [
+            {"label": "Reloaded character", "address": 60416, "space": "lc-upper"},
+            {"label": "HP and experience", "address": 60440, "space": "lc-upper"},
+            {"label": "Virtues", "address": 60672, "space": "lc-upper"},
+            {"label": "Reloaded objects", "address": 60928, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Resumed world command", "stop": "stops.command",
+          "prepare": "Continue without another key. Once stopped, queue one arrow and run to this same checkpoint to take another turn.",
+          "observe": "The world is ready for play again. After the verified bridge encounter, the export resumes at (228,131) with 185 HP and 132 experience; Left moves to (227,131). Other saves retain their own party state.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 5000000,
+          "inspect": [
+            {"label": "Party position and mode", "address": 0, "space": "ram"},
+            {"label": "Character record", "address": 60416, "space": "lc-upper"},
+            {"label": "HP and experience", "address": 60440, "space": "lc-upper"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ultima4-combat", "title": "Ultima IV · bridge combat",
+      "setup": "Start from the new-character export at (231,137), before its extra southward step. Use World command ready in the party tour between Up seven times, Left four times, and Space four times. These include two slow-progress attempts. At (228,131), select the first stop below before the fifth Space. Keep the Britannia disk mounted. All coordinates in this route are decimal; memory addresses are hexadecimal.",
+      "requires": ["stops.command", "save.start", "combat.stops.attack"],
+      "steps": [
+        {
+          "title": "Bridge trolls attack", "stop": "combat.stops.entry",
+          "prepare": "After the four waits on the bridge, queue one more Space and run here.",
+          "observe": "$00C0 holds the creature code A4; $00C1/$00C2 hold the world position and $00C3 the bridge tile 17. The game is about to load the combat map.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 5000000,
+          "inspect": [
+            {"label": "Encounter and terrain", "address": 192, "space": "ram"},
+            {"label": "Party position and mode", "address": 0, "space": "ram"}
+          ]
+        },
+        {
+          "title": "Battlefield loaded", "stop": "combat.stops.mapLoaded",
+          "prepare": "Continue without another key.",
+          "observe": "BLOAD CONR,A$240 has loaded 192 bytes at $0240. The first 32 bytes supply enemy X/Y positions, the next 16 party positions; $0280–$02F8 contains the 11×11 terrain. Combat code is already resident.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 5000000,
+          "inspect": [
+            {"label": "Starting positions", "address": 576, "space": "ram"},
+            {"label": "Battlefield terrain", "address": 640, "space": "ram"}
+          ]
+        },
+        {
+          "title": "Combat command ready", "stop": "combat.stops.command",
+          "prepare": "Continue without another key. For a movement turn, queue an arrow and run to this same checkpoint. In the verified route, begin with Right twice.",
+          "observe": "Mode $000B is 80. DROMAIOS begins at (3,5), with trolls in slots 0 and 9. Enemy health at $EF40+slot is binary; character health is packed decimal. Enemy X/Y arrays are $EF00/$EF10; party X/Y arrays are $EF80/$EF90.",
+          "when": [{"address": 11, "bytes": [128]}], "limit": 5000000,
+          "inspect": [
+            {"label": "Enemy positions", "address": 61184, "space": "lc-upper"},
+            {"label": "Enemy HP and active slots", "address": 61248, "space": "lc-upper"},
+            {"label": "Party combat positions", "address": 61312, "space": "lc-upper"},
+            {"label": "HP and experience", "address": 60440, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Attack command accepted", "stop": "combat.stops.attack",
+          "prepare": "At Combat command ready, queue A and run here. Then select Combat turn complete, queue Right Arrow for east, and run. Do not queue the direction before A has been consumed.",
+          "observe": "The game has accepted Attack but has not read its direction. The verified route uses a staff. Inspect the target positions and current health before the hit and enemy response.",
+          "when": [{"address": 11, "bytes": [128]}], "limit": 5000000,
+          "inspect": [
+            {"label": "Enemy positions", "address": 61184, "space": "lc-upper"},
+            {"label": "Enemy HP and active slots", "address": 61248, "space": "lc-upper"},
+            {"label": "Party combat positions", "address": 61312, "space": "lc-upper"},
+            {"label": "HP and experience", "address": 60440, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Combat turn complete", "stop": "combat.stops.command",
+          "prepare": "After Attack command accepted, queue Right Arrow and run here. Use the same stop for a movement turn. Repeat the bridge route in the guide: Right twice; attack east three times; Right twice; attack east five times; Right twice. For the final Right, choose Return to the world map instead.",
+          "observe": "A complete player turn and enemy response have finished. Compare enemy slots and health with the previous turn. One troll is killed for 7 experience; the other eventually flees. Reuse Attack command accepted for each A before sending its direction.",
+          "when": [{"address": 11, "bytes": [128]}], "limit": 5000000,
+          "inspect": [
+            {"label": "Enemy positions", "address": 61184, "space": "lc-upper"},
+            {"label": "Enemy HP and active slots", "address": 61248, "space": "lc-upper"},
+            {"label": "Party combat positions", "address": 61312, "space": "lc-upper"},
+            {"label": "HP and experience", "address": 60440, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Return to the world map", "stop": "stops.command",
+          "prepare": "In the verified route, select this before the final Right that sends the surviving troll off the battlefield. Queue the key and run.",
+          "observe": "Mode is back to 01. Confirm VICTORY! on the screen; this boundary also serves ordinary world commands. The verified mage is at (228,131), with HP 0185, experience 0132 and Valor 56 in packed decimal. Use the party/save tour to persist and reload these changes.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 5000000,
+          "inspect": [
+            {"label": "Party position and mode", "address": 0, "space": "ram"},
+            {"label": "Character record", "address": 60416, "space": "lc-upper"},
+            {"label": "HP and experience", "address": 60440, "space": "lc-upper"},
+            {"label": "Valor", "address": 60674, "space": "lc-upper"}
+          ]
+        }
+      ]
+    }
+  ]
 }
 ```
 
@@ -704,6 +879,12 @@ victory, and after saving. The downloaded disk matches the native cold-boot
 acceptance's export byte for byte. The checkpoint-based browser route and the
 native test's independent cold boot have different elapsed clock counts; both
 produce the same party and exported disk.
+
+The laboratory's named tours also reproduce the bridge route, all combat turns,
+and saving, with matching hardware, input, and exported bytes. Their reload
+stops were exercised from the verified cold-boot disk-request checkpoint through
+restoring the party and another westward move. Each party and combat memory link
+was checked against its destination, with unchanged hardware and input state.
 
 To run the optional local-media check after a current build:
 
