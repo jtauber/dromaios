@@ -7,6 +7,8 @@ through an exported disk. A separate **Initiate new game** route creates a mage,
 enters Britannia, and verifies the new character's first save and resumption.
 That mage then wins a bridge-troll encounter and retains the resulting health,
 experience, and party state through another save, export, and fresh boot.
+The next route buys reagents, mixes Heal, and persists both the healed character
+and the remaining inventory.
 These routes do not establish a complete playthrough.
 
 ## Start in the laboratory
@@ -39,7 +41,9 @@ The opening can use read-only media; saving needs a writable copy.
 ## Laboratory walkthroughs
 
 In the laboratory's **Walkthrough** panel, choose **Ultima IV · party and saving**
-or **Ultima IV · bridge combat**. Each named stop has preparation instructions,
+or **Ultima IV · bridge combat**. **Ultima IV · mixing and healing** follows the
+mage's reagent purchase and return to Britannia described below.
+Each named stop has preparation instructions,
 **Run to checkpoint**, **Browse code**, and memory links for its relevant state.
 The tours become runnable once the selected build's main game code is present;
 they also work after a saved-state restore or with an edited Britannia disk.
@@ -409,6 +413,87 @@ checkpoint must reproduce all hardware and input state. The unmodified reference
 also independently cold-boots the final exported disk: it restores 185 HP and
 132 experience at `(228,131)` and accepts the westward step to `(227,131)`.
 
+## Buy reagents, mix Heal, and save the healed mage
+
+Start with `ultima_iv_br-combat-saved.dsk`, the export from the encounter above.
+Fresh-boot the original Boot disk, choose Journey onward, and insert the combat
+export read-only. Stop at `$40C0`, before the extra Left move: the mage is at
+`(228,131)`, with **185/200 HP, 132 experience, and 48 MP**. Make a writable
+Britannia copy in **Disk set** and insert it with **Swap disk**. Keep the original
+combat export intact.
+
+The mage owns three ginseng and four garlic, but no spider silk or prepared
+spells. Heal needs **ginseng and spider silk**, as described in the original
+[Book of Mystic Wisdom, p. 25][spellbook]. Obtain the missing ingredient through
+the game:
+
+1. With `$40C0` stopping each completed move, press Right three times, Down four
+   times, then Right once. The party reaches Moonglow at `(232,135)`.
+2. Press `E`. At the Towne request, insert the original `ultima_iv_town.dsk`
+   read-only and press Escape. Retain the writable Britannia disk in the set;
+   entering town has saved the outdoor object list onto it.
+3. From `(1,15)`, walk Right twelve times, Down twelve, and Left eight, reaching
+   `(5,27)` below the herb counter. Right twice then lines the mage up at `(7,27)`
+   with Margot at `(7,25)` in this repeatable route. Her position can differ if
+   extra turns pass; look for her across the counter before talking.
+4. Press `T`, then Up. Margot welcomes you to **MAGICAL HERBS**. Answer `Y`, then
+   choose `D` for spider silk. Choose quantity `3`, then enter `9` and Return for
+   payment. Answer `N` to anything else. Three silk cost **9 gold**: the purse
+   changes from **200 to 191**. Answer each prompt in turn.
+5. Walk Right six times, Up twelve, and Left thirteen to `(0,15)`. One more Left
+   leaves town. At the Britannia request, reinsert the **same writable copy** and
+   press Escape. Stop at `$40C0`, back at `(232,135)`.
+
+Now choose the **Ultima IV · mixing and healing** laboratory tour. It has stops
+for the prompts, the mixture count, the resource charge, and the health changes.
+Its first three stops check the `MIX` overlay as well as their instruction bytes,
+so a different program loaded at `$8800` cannot masquerade as the mixing screen.
+
+1. Queue `M` and run to **Choose a mixture**. The game loads `MIX` from Britannia.
+2. Queue `H` and run to **Choose a reagent**. Queue `B` for ginseng and run to
+   that same stop, then `D` for spider silk and run there again.
+3. Queue Return and run to **Heal mixture stored**: `SUCCESS!` appears and the
+   prepared Heal count becomes one. Continue to **Choose a mixture**, then repeat
+   `H`, `B`, `D`, Return for a second mixture. Continue to the choice prompt,
+   queue Escape, and use the world-command stop to leave Mix.
+4. At `$40C0`, queue `C` and `1`, then run to **Choose a spell to cast**. Queue
+   `H` and run to **Heal resources charged**. One mixture and **10 MP** have been
+   spent, before the game asks whom to heal. Continue to **Choose whom to heal**.
+5. Queue `1`, then run to **Healing amount** and **Healing applied**. Continue to
+   **World ready after healing**. `DONE.` has printed and HP is **200**. The mage
+   retains one ginseng, four garlic, one spider silk, and one prepared Heal spell.
+
+Do not paste the whole sequence while a disk load runs: the game's keyboard
+buffer is bounded. Pausing at each named prompt makes the experiment repeatable.
+
+### What the mixing and healing code does
+
+Reagents A–H occupy `$ED38`–`$ED3F`; prepared spells A–Z occupy `$ED40`–`$ED59`.
+Each is a packed-decimal count. Selecting a reagent immediately subtracts one;
+`MIX` accumulates its bit at `$890B`. Ginseng contributes `$40`, spider silk `$10`,
+and Heal's recipe at `$8A12` requires exactly `$50`. Return compares the recipe
+and adds one to `$ED47`. The two successful mixtures leave counts `01,04,01` for
+ginseng, garlic, and silk, and `02` for Heal.
+
+Casting subtracts one mixture, then the packed-decimal cost `$10` in the spell
+table at `$4973`. At `$4C1F`, MP is **38**, HP is still **185**, and one mixture
+remains. The Heal routine selects a binary amount from 75–99, converts it to
+packed decimal, and calls `$85F8`. This route selects **87**: the addition makes
+HP **272**, then the maximum check caps it at **200**. Completing the turn
+regenerates one MP, leaving **39**. The test checks the intermediate addition and
+cap independently, using the selected amount; it does not merely compare the
+final number with a captured screenshot.
+
+Use the party/save tour for `Q`, wait for the next command with the motor off,
+and export as `ultima_iv_br-magic-saved.dsk`. Fresh-boot the original Boot disk,
+choose Journey onward, and insert this export read-only. The reload restores all
+800 declared bytes of `PRTY`, `ROST`, and `LIST`, including **200 HP, 132 experience,
+191 gold, the remaining reagents, and one Heal mixture**. MP remains at the saved
+39 when the first world prompt appears. Left moves to `(231,135)` and regenerates
+one MP, to 40, while retaining the inventory and health.
+
+[spellbook]: https://c64sets.com/ultima4/Ultima%20IV%20Quest%20of%20the%20Avatar%20-%20The%20Book%20of%20Mystik%20Wisdom.pdf
+
 ## Follow the saved bytes
 
 The command handler at `$58E7` prints the save message. After checking that the
@@ -650,6 +735,30 @@ The repository contains neither the images nor extracted game files.
     "resumed": {"x": 228, "y": 131, "terrainSha256": "4e79906eb07800da43bac5b10fbb7e52cf45b9c3ff3326354d19c902f7713210"},
     "continuation": {"x": 227, "y": 131, "terrainSha256": "590e79b3139af8624e258f505720fbc51f9c38834b673c1e967b97e6cfdecf17"}
   },
+  "magic": {
+    "image": {"bytes": 143360, "sha256": "de9f8ced228881c7f9ac91fe45f21572874f83b1cb3f8786033e174ff1f9429e"},
+    "approach": [[21, 3], [10, 4], [21, 1]],
+    "townApproach": [[21, 12], [10, 12], [8, 8], [21, 2]],
+    "townReturn": [[21, 6], [11, 12], [8, 13]],
+    "shop": {"x": 7, "y": 27, "keeperX": 7, "keeperY": 25, "quantity": 3, "price": 3, "goldBefore": 200, "goldAfter": 191},
+    "stops": {
+      "shopPrompt": {"address": 34934, "bytes": [32, 142, 139]},
+      "mixLoaded": {"address": 34816, "bytes": [76, 23, 136]},
+      "mixChoice": {"address": 34853, "bytes": [32, 20, 137]},
+      "reagent": {"address": 34920, "bytes": [32, 20, 137]},
+      "mixtureStored": {"address": 35076, "bytes": [216, 32, 34]},
+      "spellChoice": {"address": 18622, "bytes": [32, 154, 132]},
+      "charged": {"address": 19487, "bytes": [32, 33, 8]},
+      "healTarget": {"address": 19495, "bytes": [32, 93, 8]},
+      "healAmount": {"address": 19522, "bytes": [32, 248, 133]},
+      "healed": {"address": 19525, "bytes": [76, 230, 65]}
+    },
+    "initial": {"health": 185, "maximumHealth": 200, "experience": 132, "magic": 48, "reagents": [0, 3, 4, 0, 0, 0, 0, 0], "healMixtures": 0},
+    "mixed": {"reagents": [0, 1, 4, 1, 0, 0, 0, 0], "healMixtures": 2},
+    "healed": {"health": 200, "experience": 132, "magic": 39, "healMixtures": 1},
+    "resumed": {"x": 232, "y": 135},
+    "continuation": {"x": 231, "y": 135}
+  },
   "walkthroughs": [
     {
       "id": "ultima4-party", "title": "Ultima IV · party and saving",
@@ -797,6 +906,112 @@ The repository contains neither the images nor extracted game files.
           ]
         }
       ]
+    },
+    {
+      "id": "ultima4-magic", "title": "Ultima IV · mixing and healing",
+      "setup": "Follow the guide’s Moonglow shopping trip from the combat save, retaining a writable Britannia copy. Return to the world with three ginseng and three spider silk. Pause to queue each key with screen Inspect off, then run to its next checkpoint. Type one prompt at a time; the game’s keyboard buffer is bounded. No Return follows Cast choices. Use the party/save tour after healing.",
+      "requires": ["stops.command", "magic.stops.spellChoice", "magic.stops.healed"],
+      "steps": [
+        {
+          "title": "Choose a mixture", "stop": "magic.stops.mixChoice",
+          "prepare": "At the world command prompt, queue M and run. After finishing a mixture with Return, reuse this stop to choose another.",
+          "observe": "The MIX overlay has loaded at $8800. The mage’s initial reagents are ginseng 03, garlic 04, and purchased spider silk 03. Choose H for Heal.",
+          "when": [{"address": 34816, "bytes": [76, 23, 136]}], "limit": 30000000,
+          "inspect": [
+            {"label": "Reagents A–H", "address": 60728, "space": "lc-upper"},
+            {"label": "Prepared Heal spells", "address": 60743, "space": "lc-upper"},
+            {"label": "Mage MP and HP", "address": 60438, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Choose a reagent", "stop": "magic.stops.reagent",
+          "prepare": "From Choose a mixture, queue H. Reuse this stop after B for ginseng, then D for spider silk.",
+          "observe": "Each reagent is consumed immediately. $890B accumulates its recipe bit: ginseng 40, spider silk 10, together 50. Heal’s recipe is $8A12=50. Return completes the mixture.",
+          "when": [{"address": 34816, "bytes": [76, 23, 136]}], "limit": 2000000,
+          "inspect": [
+            {"label": "Reagents A–H", "address": 60728, "space": "lc-upper"},
+            {"label": "Prepared Heal spells", "address": 60743, "space": "lc-upper"},
+            {"label": "Mage MP and HP", "address": 60438, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Heal mixture stored", "stop": "magic.stops.mixtureStored",
+          "prepare": "After B and D have returned to Choose a reagent, queue Return and run here.",
+          "observe": "SUCCESS! has printed and $ED47 has increased by one in decimal. The first mixture leaves two ginseng and two silk; the second leaves one of each. Continue to Choose a mixture. After two mixtures, queue Escape and use the world-command stop to leave Mix.",
+          "when": [{"address": 34816, "bytes": [76, 23, 136]}, {"address": 35337, "bytes": [7]}], "limit": 2000000,
+          "inspect": [
+            {"label": "Reagents A–H", "address": 60728, "space": "lc-upper"},
+            {"label": "Prepared Heal spells", "address": 60743, "space": "lc-upper"},
+            {"label": "Mage MP and HP", "address": 60438, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Choose a spell to cast", "stop": "magic.stops.spellChoice",
+          "prepare": "At the world command prompt, queue C and 1, then run here.",
+          "observe": "The mage’s two Heal mixtures appear as H-02. MP is 48 and HP 0185. Queue H and select the next stop.",
+          "when": [], "limit": 2000000,
+          "inspect": [
+            {"label": "Reagents A–H", "address": 60728, "space": "lc-upper"},
+            {"label": "Prepared Heal spells", "address": 60743, "space": "lc-upper"},
+            {"label": "Mage MP and HP", "address": 60438, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Heal resources charged", "stop": "magic.stops.charged",
+          "prepare": "From Choose a spell to cast, queue H and run.",
+          "observe": "One mixture has been consumed and MP has fallen from 48 to 38. HP is still 0185. Continue to Choose whom to heal.",
+          "when": [], "limit": 2000000,
+          "inspect": [
+            {"label": "Reagents A–H", "address": 60728, "space": "lc-upper"},
+            {"label": "Prepared Heal spells", "address": 60743, "space": "lc-upper"},
+            {"label": "Mage MP and HP", "address": 60438, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Choose whom to heal", "stop": "magic.stops.healTarget",
+          "prepare": "Continue after the resource charge, then queue 1 for the mage before running to Healing amount.",
+          "observe": "WHO- asks for the recipient. The mixture and MP have already been spent.",
+          "when": [], "limit": 2000000,
+          "inspect": [
+            {"label": "Reagents A–H", "address": 60728, "space": "lc-upper"},
+            {"label": "Prepared Heal spells", "address": 60743, "space": "lc-upper"},
+            {"label": "Mage MP and HP", "address": 60438, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Healing amount", "stop": "magic.stops.healAmount",
+          "prepare": "From Choose whom to heal, queue 1 and run.",
+          "observe": "A holds the packed-decimal healing roll, 75–99. The repeatable route gives 87. HP is still 0185; the next call adds the roll and caps it at the character’s maximum.",
+          "when": [], "limit": 2000000,
+          "inspect": [
+            {"label": "Reagents A–H", "address": 60728, "space": "lc-upper"},
+            {"label": "Prepared Heal spells", "address": 60743, "space": "lc-upper"},
+            {"label": "Mage MP and HP", "address": 60438, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "Healing applied", "stop": "magic.stops.healed",
+          "prepare": "Continue from Healing amount.",
+          "observe": "The mage is at HP 0200. The addition first produces 0272, then the maximum-HP check caps it at 0200. MP remains 38 until the turn finishes.",
+          "when": [], "limit": 2000000,
+          "inspect": [
+            {"label": "Reagents A–H", "address": 60728, "space": "lc-upper"},
+            {"label": "Prepared Heal spells", "address": 60743, "space": "lc-upper"},
+            {"label": "Mage MP and HP", "address": 60438, "space": "lc-upper"}
+          ]
+        },
+        {
+          "title": "World ready after healing", "stop": "stops.command",
+          "prepare": "Continue after Healing applied. Use the party/save tour to save, export and reload the disk.",
+          "observe": "DONE. has printed. HP is 0200, experience 0132, gold 0191, and one Heal mixture remains. The completed turn restores one MP, from 38 to 39.",
+          "when": [{"address": 11, "bytes": [1]}], "limit": 2000000,
+          "inspect": [
+            {"label": "Reagents A–H", "address": 60728, "space": "lc-upper"},
+            {"label": "Prepared Heal spells", "address": 60743, "space": "lc-upper"},
+            {"label": "Mage MP and HP", "address": 60438, "space": "lc-upper"}
+          ]
+        }
+      ]
     }
   ]
 }
@@ -886,6 +1101,16 @@ stops were exercised from the verified cold-boot disk-request checkpoint through
 restoring the party and another westward move. Each party and combat memory link
 was checked against its destination, with unchanged hardware and input state.
 
+The browser magic check starts from the verified post-shopping world checkpoint
+and follows all nine named mixing and healing stops, then the save tour. Its
+complete hardware and input state matches the native route after mixing, healing,
+and saving, and its downloaded disk matches the native export byte for byte.
+Reloading that download from the verified cold-boot disk-request checkpoint
+restores all three saved blocks and permits the next westward move. The separate
+native acceptance below performs both full boots. All three magic memory links
+were checked without changing guest state; existing ROM and DOS tours remain
+available.
+
 To run the optional local-media check after a current build:
 
 ```sh
@@ -917,6 +1142,28 @@ node --test dist/tests/site/apple2-ultima-iv-combat.test.js
 
 The combat record verifies the starting export's digest, so it cannot silently
 run against a different party or a save made after extra turns.
+
+Run the [mixing and healing acceptance](../../tests/site/apple2-ultima-iv-magic.test.ts)
+with that combat export and the original Town disk:
+
+```sh
+APPLE2_ROM=media/apple2/apple2p.rom \
+APPLE2_ULTIMA_IV_BOOT=media/apple2/reference/ultima_iv_boot.dsk \
+APPLE2_ULTIMA_IV_COMBAT=media/apple2/exports/ultima_iv_br-combat-saved.dsk \
+APPLE2_ULTIMA_IV_TOWN=media/apple2/reference/ultima_iv_town.dsk \
+node --test dist/tests/site/apple2-ultima-iv-magic.test.js
+```
+
+This independently cold-boots the wounded mage, walks to and buys from Margot,
+returns to the retained Britannia disk, and checks the loaded `MIX` bytes, recipe,
+each reagent subtraction, mixture counts, spell cost, healing addition, and HP
+cap. A serialized pre-cast checkpoint replays with identical hardware and input
+state. Saving checks all 803 DOS source reads, nine sector writes, and every
+exported byte against the three saved payloads. A second new machine boots from
+the original Boot disk, loads the export, compares every saved byte before
+initialization, and takes another step. Original Boot, combat, and Town images
+remain unchanged. The Town visit's earlier `TLST` write is retained in the export;
+the final `Q` check starts from that edited Britannia image.
 
 Set `APPLE2_ULTIMA_IV_CHECKPOINTS` to an ignored local directory to retain the
 verified checkpoints and Britannia exports for
@@ -986,7 +1233,10 @@ This pass covers all four disks, Skara Brae's entrance and one conversation,
 Covetous's first corridor and entrance ladder, both returns to Britannia, and
 saving and resuming the supplied party. It also covers one character-creation
 path, that character's first save, and a complete bridge-troll encounter followed
-by saving and resuming the resulting party. Other classes and answer
+by saving and resuming the resulting party. The subsequent shopping and magic route
+covers one reagent purchase, two Heal mixtures, one capped healing result, and
+persistence of the remaining inventory. Other spells, failed recipes, insufficient
+resources, other classes and answer
 sequences, other towns and conversations, other enemies and combat options,
 deeper dungeon exploration and room combat,
 sound expansion hardware,

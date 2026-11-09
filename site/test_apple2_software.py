@@ -12,8 +12,8 @@ class SoftwareWalkthroughTests(unittest.TestCase):
         self.record = json.loads(re.search(r"^```json\n(.*?)^```$", self.source, re.M | re.S)[1])
 
     def test_tours_resolve_the_acceptance_stops_and_publish_both_memory_spaces(self):
-        party, combat = ultima4_walkthroughs(self.source)
-        self.assertEqual([t["id"] for t in (party, combat)], ["ultima4-party", "ultima4-combat"])
+        party, combat, magic = ultima4_walkthroughs(self.source)
+        self.assertEqual([t["id"] for t in (party, combat, magic)], ["ultima4-party", "ultima4-combat", "ultima4-magic"])
         self.assertEqual([s["address"] for s in party["steps"]], ["40C0", "590E", "5959", "4047", "408D", "40C0"])
         self.assertEqual([s["address"] for s in combat["steps"]], ["6FB0", "708B", "71D7", "7A7E", "71D7", "40C0"])
         self.assertEqual(party["steps"][0]["bytes"], self.record["stops"]["command"]["bytes"])
@@ -22,10 +22,17 @@ class SoftwareWalkthroughTests(unittest.TestCase):
         links = combat["steps"][2]["inspect"]
         self.assertEqual([link["address"] for link in links], [0xef00, 0xef40, 0xef80, 0xec18])
         self.assertTrue(all(link["space"] == "lc-upper" for link in links))
+        self.assertEqual([s["address"] for s in magic["steps"]],
+                         ["8825", "8868", "8904", "48BE", "4C1F", "4C27", "4C42", "4C45", "40C0"])
+        self.assertEqual(magic["steps"][2]["when"],
+                         [{"address": 0x8800, "bytes": [0x4c, 0x17, 0x88]}, {"address": 0x8a09, "bytes": [7]}])
+        self.assertEqual([link["address"] for link in magic["steps"][0]["inspect"]], [0xed38, 0xed47, 0xec16])
         # Changing a shared acceptance stop changes the published tour, without another address to maintain.
         self.record["stops"]["command"]["address"] = 0x4000
+        self.record["magic"]["stops"]["healed"]["address"] = 0x4c44
         changed = ultima4_walkthroughs("```json\n" + json.dumps(self.record) + "\n```")
         self.assertEqual(changed[0]["steps"][0]["address"], "4000")
+        self.assertEqual(changed[2]["steps"][7]["address"], "4C44")
 
     def test_bad_references_unbounded_runs_and_device_inspections_are_rejected(self):
         changes = [

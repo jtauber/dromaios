@@ -43,3 +43,22 @@ test("party and enemy links follow upper RAM mapping without toggling it", () =>
   machine.language.read(2);
   assert.equal(softwareInspectionAvailable(machine, health), false);
 });
+
+test("a stored Heal mixture stop requires MIX and its Heal selection at the shared overlay address", () => {
+  const { machine } = createApple2Session();
+  const authored = record.walkthroughs.find((tour: { id: string }) => tour.id === "ultima4-magic").steps[2];
+  const stored = record.magic.stops.mixtureStored;
+  const checkpoint: SoftwareCheckpoint = { ...authored, address: stored.address.toString(16), bytes: stored.bytes };
+  for (const [i, byte] of checkpoint.bytes.entries()) machine.ram.write(stored.address + i, byte);
+  assert.equal(softwareCheckpointMatches(machine, checkpoint), false);
+  const overlay = checkpoint.when[0]!;
+  for (const [i, byte] of overlay.bytes.entries()) machine.ram.write(overlay.address + i, byte);
+  machine.ram.write(0x8a09, 6); // Gate, not Heal.
+  assert.equal(softwareCheckpointMatches(machine, checkpoint), false);
+  machine.ram.write(0x8a09, 7);
+  const before = machine.snapshot();
+  assert.equal(softwareCheckpointMatches(machine, checkpoint), true);
+  assert.deepEqual(machine.snapshot(), before);
+  machine.ram.write(0x8800, 0x20); // A shop can replace MIX at the same address.
+  assert.equal(softwareCheckpointMatches(machine, checkpoint), false);
+});
