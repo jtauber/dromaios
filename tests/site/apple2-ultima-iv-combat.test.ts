@@ -120,6 +120,7 @@ test("Ultima IV wins a bridge-troll encounter and reloads the resulting party fr
     runTo(guide.stops.title, undefined, 200_000_000); runTo(guide.stops.menu, 32); runTo(guide.stops.exchange, 74, 80_000_000);
   }
   await t.test("a cold boot loads the new mage, walks to the bridge, and loads its battlefield", async () => {
+    await checkpoint("ultima-iv-boot");
     bootToExchange(); session.swapDisk(britannia); diskName = set.entries[1]!.name;
     runTo(guide.stops.command, 27); world(combat.arrival);
     assert.equal(String.fromCharCode(...upper(0xec00, 8).map(b => b & 127)), "DROMAIOS");

@@ -92,14 +92,23 @@ export function group<const Fields extends StateFields>(fields: Fields): GroupFi
   return Object.freeze({ kind: "group", fields: defineState(fields) });
 }
 
+interface FieldLayout {
+  readonly template: StateFields;
+  readonly entries: readonly (readonly [string, StateField])[];
+}
 // Only owned, immutable maps are cached; callers may also pass mutable field maps.
-const fieldTemplates = new WeakMap<StateFields, StateFields>();
+const fieldLayouts = new WeakMap<StateFields, FieldLayout>();
+
+function fieldLayout(fields: StateFields): FieldLayout {
+  const entries = Object.entries(fields);
+  return { template: Object.fromEntries(entries), entries };
+}
 
 /** Own a readonly field map; use the field constructors above for its immutable entries. */
 export function defineState<const Fields extends StateFields>(fields: Fields): Readonly<Fields> {
   const description = Object.freeze({ ...fields });
   // Keep the same enumerable string fields as Object.entries, excluding symbol metadata.
-  fieldTemplates.set(description, Object.fromEntries(Object.entries(description)));
+  fieldLayouts.set(description, fieldLayout(description));
   return description;
 }
 
@@ -122,11 +131,17 @@ function copyFields(fields: StateFields, value: unknown, path: string, validate:
   const source = value as Record<string, unknown>;
   // Spreading a field template creates own data properties, even for __proto__.
   // Replace the descriptions with copied values without allocating entry pairs per snapshot.
-  const result: Record<string, unknown> = { ...(fieldTemplates.get(fields) ?? Object.fromEntries(Object.entries(fields))) };
-  for (const name of Object.keys(result)) {
-    const field = result[name] as StateField;
-    const label = path ? `${path}.${name}` : name;
-    result[name] = copyValue(field, source[name], label, validate);
+  const layout = fieldLayouts.get(fields) ?? fieldLayout(fields);
+  const result: Record<string, unknown> = { ...layout.template };
+  for (const [name, field] of layout.entries) {
+    const current = source[name];
+    // Known-valid scalars need neither validation nor a diagnostic path; containers still detach.
+    if (!validate && field.kind !== "group" && field.kind !== "array") {
+      result[name] = current;
+    } else {
+      const label = path ? `${path}.${name}` : name;
+      result[name] = copyValue(field, current, label, validate);
+    }
   }
   return result;
 }

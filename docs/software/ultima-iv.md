@@ -925,6 +925,61 @@ Boot/Britannia save path. The dungeon check needs both Town and Underworld; omit
 `APPLE2_ULTIMA_IV_UNDERWORLD` to stop after the town round trip. These artifacts
 contain private media bytes and must not be published.
 
+## Laboratory performance workload
+
+The [browser benchmark](../../scripts/benchmark-apple2-laboratory.ts) also has an
+`ultima-iv` workload: the first **2,000,000 instructions** after a fresh power-on
+with the original Boot disk inserted, with no keyboard input. Run to `$0800`
+reaches the debugger's instruction limit before that address. This samples
+startup; it does not measure the entire boot to the title screen.
+
+The combat acceptance above writes `ultima-iv-boot.json` when
+`APPLE2_ULTIMA_IV_CHECKPOINTS` is set. For example, retain its checkpoints in
+`media/benchmarks/ultima-iv`, then use the local site and separate Chrome setup
+described in the [Mystery House benchmark](mystery-house.md#laboratory-performance-workload):
+
+```sh
+APPLE2_ROM=media/apple2/apple2p.rom \
+node scripts/benchmark-apple2-laboratory.ts \
+  http://127.0.0.1:8771 http://127.0.0.1:9227 media/benchmarks/ultima-iv 3 ultima-iv \
+  > media/benchmarks/ultima-iv/results.json
+```
+
+Each sample uses a fresh page, the default docking layout, Unlimited speed,
+sound off, and a 1800 × 1013 viewport. The three configurations keep Live and
+recording on, turn all Live switches off, then also turn Changes, Disk transfer
+and Applesoft event recording off. Breakpoint checks and the other observers
+still run. The report includes elapsed time, PC, guest clocks, and the hash of
+the complete hardware and input state. Compare hashes across revisions as well
+as between configurations; faster host execution must not alter the guest.
+
+The November 2026 pass compared `acef786` with the shared state-copying
+improvement on an Apple M5 Max with Node 24 and headless Chrome 156.0.8078.80.
+Medians of three unprofiled runs on an otherwise idle host:
+
+| Execution | Before | After | Less elapsed time |
+| --- | --- | --- | --- |
+| Native session, without laboratory observers | 1.76 s | 1.46 s | 17% |
+| Browser, Live and recording on | 9.28 s | 7.81 s | 16% |
+| Browser, Live off | 7.37 s | 6.25 s | 15% |
+| Browser, Live and recording controls off | 5.88 s | 4.98 s | 15% |
+
+All 18 browser samples and all six native samples ended at `$BA9E`, with
+**5,295,842 guest clocks**, and the same full-state SHA-256:
+`e7ca5f9467a54ecdeb5437c6a2f051fbb9b622a433c2921ea2d9719038d96b91`.
+The native samples restore the same power-on state and call the session's usual
+`step()` method exactly 2,000,000 times, including normal instruction records
+and disk activity.
+
+Separate browser profiles identified state copying as the largest execution
+cost. The shared copier now prepares the immutable field layout once and avoids
+diagnostic-path construction and validation dispatch for known-valid scalar
+values. Groups and arrays remain independent copies; external state still gets
+full validation. Raw, mutable field maps are read afresh. There is no change to
+CPU clocks, instruction execution, disk waits, Run scheduling, or debugger
+recording. Browser scheduling and inspection still account for a substantial
+gap from native execution; these measurements do not establish a full-boot time.
+
 ## Still to establish
 
 This pass covers all four disks, Skara Brae's entrance and one conversation,

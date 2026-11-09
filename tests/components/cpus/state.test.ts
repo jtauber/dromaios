@@ -83,7 +83,9 @@ test("state copying reads only declared fields once, including inherited getters
   const first = readState(description, source);
   assert.deepEqual(first, { a: 42, flags: { c: true }, slots: [12, 345] });
   assert.deepEqual(calls, ["a", "flags", "flags.c", "slots", "slots[0]", "slots[1]"]);
-  const second = copyState(description, first);
+  calls.length = 0;
+  const second = copyState(description, source);
+  assert.deepEqual(calls, ["a", "flags", "flags.c", "slots", "slots[0]", "slots[1]"]);
   first.a = 99;
   first.flags.c = false;
   first.slots[0] = 0;
@@ -132,10 +134,12 @@ test("raw field maps reflect additions, replacements, and deletions between copi
   const fields: Record<string, StateFields[string]> = { a: unsigned(8) };
   const source = { a: 255, c: true };
   assert.deepEqual(readState(fields, source), { a: 255 });
+  assert.deepEqual(copyState(fields, source), { a: 255 });
   fields.a = unsigned(16);
   fields.c = flag;
   source.a = 65535;
   assert.deepEqual(readState(fields, source), { a: 65535, c: true });
+  assert.deepEqual(copyState(fields, source), { a: 65535, c: true });
   delete fields.a;
   assert.deepEqual(copyState(fields, source), { c: true });
   assert.deepEqual(readState(fields, source), { c: true });

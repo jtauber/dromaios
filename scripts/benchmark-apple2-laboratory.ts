@@ -36,15 +36,25 @@ async function connect(url: string) {
   };
 }
 
-const [site, debugging, checkpoints, count = "3", ...extra] = process.argv.slice(2);
+const workloads = {
+  "mystery-house": [["title", "G", "0800", "2,000,000"], ["yard", "GO STAIRS", "63DF", "224,100"]],
+  "ultima-iv": [["ultima-iv-boot", "", "0800", "2,000,000"]],
+} as const;
+const [site, debugging, checkpoints, count = "3", workload = "mystery-house", ...extra] = process.argv.slice(2);
 const repetitions = Number(count), romPath = process.env.APPLE2_ROM;
-if (!site || !debugging || !checkpoints || !romPath || extra.length || !Number.isSafeInteger(repetitions) || repetitions < 1) {
-  throw new Error("Set APPLE2_ROM; usage: node scripts/benchmark-apple2-laboratory.ts SITE-URL CHROME-DEBUG-URL CHECKPOINT-DIRECTORY [REPETITIONS]");
+if (!site || !debugging || !checkpoints || !romPath || extra.length || !Number.isSafeInteger(repetitions) || repetitions < 1
+  || (workload !== "mystery-house" && workload !== "ultima-iv")) {
+  throw new Error("Set APPLE2_ROM; usage: node scripts/benchmark-apple2-laboratory.ts SITE-URL CHROME-DEBUG-URL CHECKPOINT-DIRECTORY [REPETITIONS] [mystery-house|ultima-iv]");
 }
 for (const url of [site, debugging]) {
   assert.ok(["127.0.0.1", "localhost", "[::1]"].includes(new URL(url).hostname), "Use local-only site and debugging servers");
 }
-const fixtures = ["title", "yard"].map(name => JSON.parse(readFileSync(join(checkpoints, `${name}.json`), "utf8")));
+const scenes = workloads[workload];
+const fixtures = scenes.map(([name]) => {
+  const saved = JSON.parse(readFileSync(join(checkpoints, `${name}.json`), "utf8"));
+  assert.equal(saved.name, name, "The checkpoint name must match its workload scene");
+  return saved;
+});
 const checkpointHashes = fixtures.map(saved => ({ name: saved.name,
   sha256: createHash("sha256").update(JSON.stringify(saved.state)).digest("hex") }));
 const rom = { name: "apple2p.rom", base64: readFileSync(romPath).toString("base64") };
@@ -76,10 +86,10 @@ try {
   const laboratory = new URL("/machines/apple-ii-plus/laboratory/", site).href;
   await call("Page.navigate", { url: laboratory });
   await wait(`document.querySelector('[data-machine-run]')?.disabled === false`);
-  const results: { scene: string; mode: string; repeat: number; ms: number; status: string; hash: string }[] = [];
+  const results: { scene: string; mode: string; repeat: number; ms: number; status: string; pc: number; clocks: number; hash: string }[] = [];
   const expected = new Map<string, string>();
   for (let repeat = 0; repeat < repetitions; repeat++) {
-    for (const [scene, command, target, instructions] of [["title", "G", "0800", "2,000,000"], ["yard", "GO STAIRS", "63DF", "224,100"]] as const) {
+    for (const [scene, command, target, instructions] of scenes) {
       for (const [mode, live, recording] of [["all-live", true, true], ["no-live", false, true], ["no-recording", false, false]] as const) {
         await evaluate(`localStorage.setItem('dromaios:inspectors:apple2:live', JSON.stringify(Object.fromEntries(
           [...document.querySelectorAll('[data-panel-live]')].map(panel => [panel.dataset.workspacePanel, ${live}]))));`);
@@ -93,7 +103,7 @@ try {
           const box = document.querySelector(selector); box.checked = ${recording}; box.dispatchEvent(new Event('change'));
         }
         document.querySelector('[data-machine-speed="unlimited"]').click();
-        for (const key of ${JSON.stringify([...command, "Enter"])}) document.querySelector('[data-apple2-screen]').dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+        for (const key of ${JSON.stringify(command ? [...command, "Enter"] : [])}) document.querySelector('[data-apple2-screen]').dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
         document.querySelector('[data-disassembly-address]').value = '${target}';
         window.benchmarkStart = performance.now(); window.benchmarkEnd = null;
         const pause = document.querySelector('[data-machine-pause]');
@@ -111,13 +121,13 @@ try {
         const hash = createHash("sha256").update(JSON.stringify(saved.state)).digest("hex");
         if (expected.has(scene)) assert.equal(hash, expected.get(scene), "Observers must not change hardware or input state");
         else expected.set(scene, hash);
-        const row = { scene, mode, repeat, ...timing, hash }; results.push(row);
+        const row = { scene, mode, repeat, ...timing, pc: saved.state.hardware.cpu.pc, clocks: saved.state.hardware.clock.ticks, hash }; results.push(row);
         console.error(`${scene} / ${mode}: ${timing.ms.toFixed(1)} ms`);
         await evaluate(`localStorage.removeItem('dromaios:apple2-saved-state:result')`);
       }
     }
   }
-  console.log(JSON.stringify({ browser: version.Browser, viewport: "1800 × 1013", checkpointHashes, repetitions, results }, null, 2));
+  console.log(JSON.stringify({ workload, browser: version.Browser, viewport: "1800 × 1013", checkpointHashes, repetitions, results }, null, 2));
 } finally {
   await browser.call("Target.disposeBrowserContext", { browserContextId });
   browser.close();
