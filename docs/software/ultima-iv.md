@@ -5,6 +5,8 @@ The [Apple II Plus](../../src/machines/6502/apple2.md) can cold-boot the selecte
 world map, visit Skara Brae and the first level of Covetous, and save and resume
 through an exported disk. A separate **Initiate new game** route creates a mage,
 enters Britannia, and verifies the new character's first save and resumption.
+That mage then wins a bridge-troll encounter and retains the resulting health,
+experience, and party state through another save, export, and fresh boot.
 These routes do not establish a complete playthrough.
 
 ## Start in the laboratory
@@ -298,6 +300,89 @@ different disk and a laboratory checkpoint restore.
 This is an entrance-and-exit acceptance, not a cleared dungeon. Deeper levels,
 room combat, traps, treasure, and the Abyss sequence remain separate work.
 
+## Win a bridge-troll encounter
+
+Use the **new mage's first export**, `ultima_iv_br-new-game-saved.dsk`, from
+the character-creation route. Fresh-boot the original Boot disk, choose Journey
+onward, and supply that export at the Britannia request. Stop at `$40C0`, at
+`(231,137)`, before taking the extra southward step described earlier. In **Disk
+set**, make a writable copy of this Britannia disk and insert it with **Swap disk**.
+This encounter needs neither Town nor Underworld.
+
+Keep a breakpoint at `$40C0` between world commands; idle turns change the route.
+Press Up seven times and Left four times, running to the breakpoint after each
+keypress. Two attempts report slow progress without moving. The party arrives
+at the bridge at `(228,131)`. Press Space four times, again stopping after each
+wait. Before the fifth Space, replace the breakpoint with `$6FB0`: bridge trolls
+attack. Continue to `$708B` to inspect their loaded battlefield, then `$71D7`
+for the first combat command. DROMAIOS starts at combat coordinates `(3,5)`,
+with two trolls at `(6,4)` and `(9,2)`.
+
+Combat uses local coordinates, while `$0000,$0001` retain the world position.
+An attack takes two keys: `A`, then Right Arrow for east. For repeatable inspection,
+stop at `$7A7E` after `A`, continue to `$0AB5`, then enter the direction and run to
+`$71D7`. `$0AB5` also reads ordinary commands; stopping there immediately after
+queuing `A` can catch the earlier prompt before it has consumed that key.
+
+| Turns | Keys and result |
+| --- | --- |
+| 1–2 | Right twice, moving to `(5,5)`. |
+| 3–5 | Attack east three times. The first troll loses 27, 8, and 31 HP and is killed. The mage takes 12 damage and earns 7 experience. |
+| 6–7 | Right twice, moving to `(7,5)`. The mage takes another 3 damage. |
+| 8–12 | Attack east five times: 12, 20, and 28 damage, a miss, then 32 damage. The remaining troll retreats with 21 HP. |
+| 13–14 | Right twice. The troll flees; the game prints `VICTORY!` and returns to the world at `(228,131)`. Use `$40C0` for the final stop. |
+
+This completes the encounter: one troll is killed and one flees. DROMAIOS has
+**185 HP and 132 experience**, from 200 and 125. Magic points rise from 38 to 48
+during the turns; Valor rises from 55 to 56. The character remains a male mage
+with Good status, and keeps his name, attributes, maximum HP, and equipment.
+No game code or character values are patched to produce the outcome.
+
+Press `Q`, wait for `$40C0` with the drive motor off, and export the disk as
+`ultima_iv_br-combat-saved.dsk`. Fresh-boot the original Boot disk and choose
+Journey onward again. Insert this export read-only at the Britannia request.
+The mage resumes at `(228,131)` with **185 HP and 132 experience**. Left moves
+to `(227,131)` with those statistics retained. The acceptance compares every
+saved party, roster, and object byte before game initialization, including food
+and virtue changes; it does not just check the displayed character statistics.
+
+### Battlefield data and combat arithmetic
+
+The encounter loads `CONR` from Britannia with `BLOAD CONR,A$240`. Its binary
+header specifies `$0840`, but the explicit address loads all 192 bytes at `$0240`.
+Its track/sector list is T19 S13 and its data is in T19 S12. The first 32 bytes
+supply 16 enemy X and Y positions; the next 16 supply eight party X and Y
+positions. The 11-by-11 terrain occupies `$0280`–`$02F8`. This is battlefield
+data; the combat program is already resident in the main game.
+
+| Address | Meaning |
+| --- | --- |
+| `$EF00` / `$EF10` + enemy slot | Enemy X / Y; the two initial troll slots are 0 and 9. |
+| `$EF40` + enemy slot | Enemy health, a binary byte; initially 60 and 113. |
+| `$EF50` + enemy slot | Creature code `$A4` for these trolls, zero when removed. |
+| `$EF80` / `$EF90` + party index | Party member's combat X / Y. |
+| `$EC16` | First character's magic points, packed decimal. |
+| `$EC18`–`$EC19` | Current health, packed decimal, most significant byte first. |
+| `$EC1C`–`$EC1D` | Experience, in the same format. |
+| `$ED02` | Valor, packed decimal. |
+
+The pinned reference emulator agrees on the approach, loaded battlefield,
+initial enemies, and first two movement turns, including the rendered viewport.
+It diverges on the first attack: its `ADC` and `SBC` ignore decimal mode.
+The game's conversion routine at `$8540` uses decimal subtraction to convert
+dexterity 22 and strength 19 to binary for hit and damage calculations. Ignoring
+that mode changes the combat rolls as well as later health and experience.
+Consequently the reference is not an oracle for the complete combat transcript.
+
+The native acceptance instead checks those conversions, the staff's damage range
+of strength 19 plus 16, binary enemy-health subtraction, and the game's decimal
+health and experience updates against ordinary arithmetic. `$85BE` subtracts
+damage from the hero; `$8658` adds experience. Health becomes `200 - 12 - 3 = 185`
+and experience becomes `125 + 7 = 132`. Replaying the first attack from a serialized
+checkpoint must reproduce all hardware and input state. The unmodified reference
+also independently cold-boots the final exported disk: it restores 185 HP and
+132 experience at `(228,131)` and accepts the westward step to `(227,131)`.
+
 ## Follow the saved bytes
 
 The command handler at `$58E7` prints the save message. After checking that the
@@ -376,8 +461,12 @@ checkpoint. It checks the party, decimal attributes and virtues, the initial
 Britannia load's bypass of the old save, and the southward move. Its first save
 gets the same exact source-read, sector-write, and whole-export checks as the
 existing-party route. A fresh boot verifies all three reloaded blocks, the new
-character, and another move. The two checks start independently; creation does
+character, and another move. These checks start independently; creation does
 not replace the supplied party used by the town and dungeon routes.
+The [combat check](../../tests/site/apple2-ultima-iv-combat.test.ts) cold-boots
+the verified new-character export, loads the bridge battlefield, checks all 14
+combat turns and the victory transcript, then applies the same source-read,
+sector-write, whole-export, and fresh-boot checks to the resulting party.
 No game bytes are patched or injected into RAM.
 Numbers in the record are decimal; addresses in the prose are hexadecimal.
 
@@ -500,6 +589,40 @@ The repository contains neither the images nor extracted game files.
       "terrainSha256": "eefecaa4fd72538054cdb3a7f8d0411cd1d0e865a8c619a263ac1782d362e317" },
     "continuation": { "x": 231, "y": 138,
       "terrainSha256": "cd917ed3250b5882d04d4a792ca0a22393291a0fb658c307a50c1d9e72566493" }
+  },
+  "combat": {
+    "image": {"bytes": 143360, "sha256": "4ab490553539328f92a65ce56fd43c30b9740c3a4c99ed5ceaecb330ecce90fe"},
+    "arrival": {"x": 231, "y": 137, "terrainSha256": "eefecaa4fd72538054cdb3a7f8d0411cd1d0e865a8c619a263ac1782d362e317"},
+    "approach": [[11, 231, 136], [11, 231, 135], [11, 231, 134], [11, 231, 133], [11, 231, 132], [11, 231, 132], [11, 231, 131], [8, 231, 131], [8, 230, 131], [8, 229, 131], [8, 228, 131]],
+    "waits": 5,
+    "stops": {
+      "entry": { "address": 28592, "bytes": [32, 33, 8] },
+      "mapLoaded": { "address": 28811, "bytes": [165, 11, 201, 130] },
+      "command": { "address": 29143, "bytes": [32, 0, 8, 208, 3] },
+      "attack": { "address": 31358, "bytes": [169, 0, 141, 112, 125] },
+      "direction": { "address": 2741, "bytes": [169, 128, 141, 219, 10] }
+    },
+    "initial": {"health": 200, "experience": 125, "magic": 38, "position": [3, 5], "enemies": [[0, 6, 4, 60], [9, 9, 2, 113]]},
+    "viewport": {"x": 7, "y": 8, "width": 154, "height": 160},
+    "views": ["d5fb18a50c952bf19997e41d58ec0ed68ff1dd7c5e164b7aec2e804b02985eaa", "f83b57a51cc70d36b4a8ac9ff8ba563845df703303b3136b00b82824709adb00", "ae7cd7ae451bf3c0ee70a17b2b094896e90660687d15fce00ea1fbdf65bda63e"],
+    "turns": [
+      { "action": "east", "position": [4, 5], "health": 200, "experience": 125, "magic": 39, "enemies": [[0, 6, 5, 60], [9, 9, 2, 113]], "damage": 0, "reward": 0 },
+      { "action": "east", "position": [5, 5], "health": 200, "experience": 125, "magic": 40, "enemies": [[0, 6, 5, 60], [9, 9, 3, 113]], "damage": 0, "reward": 0 },
+      { "action": "attack-east", "position": [5, 5], "health": 188, "experience": 125, "magic": 41, "enemies": [[0, 6, 5, 33], [9, 9, 4, 113]], "damage": 12, "reward": 0 },
+      { "action": "attack-east", "position": [5, 5], "health": 188, "experience": 125, "magic": 42, "enemies": [[0, 6, 5, 25], [9, 9, 4, 113]], "damage": 0, "reward": 0 },
+      { "action": "attack-east", "position": [5, 5], "health": 188, "experience": 132, "magic": 43, "enemies": [[9, 9, 5, 113]], "damage": 0, "reward": 7 },
+      { "action": "east", "position": [6, 5], "health": 185, "experience": 132, "magic": 44, "enemies": [[9, 9, 5, 113]], "damage": 3, "reward": 0 },
+      { "action": "east", "position": [7, 5], "health": 185, "experience": 132, "magic": 45, "enemies": [[9, 8, 5, 113]], "damage": 0, "reward": 0 },
+      { "action": "attack-east", "position": [7, 5], "health": 185, "experience": 132, "magic": 46, "enemies": [[9, 8, 5, 101]], "damage": 0, "reward": 0 },
+      { "action": "attack-east", "position": [7, 5], "health": 185, "experience": 132, "magic": 47, "enemies": [[9, 8, 5, 81]], "damage": 0, "reward": 0 },
+      { "action": "attack-east", "position": [7, 5], "health": 185, "experience": 132, "magic": 48, "enemies": [[9, 8, 5, 53]], "damage": 0, "reward": 0 },
+      { "action": "attack-east", "position": [7, 5], "health": 185, "experience": 132, "magic": 48, "enemies": [[9, 8, 5, 53]], "damage": 0, "reward": 0 },
+      { "action": "attack-east", "position": [7, 5], "health": 185, "experience": 132, "magic": 48, "enemies": [[9, 9, 5, 21]], "damage": 0, "reward": 0 },
+      { "action": "east", "position": [8, 5], "health": 185, "experience": 132, "magic": 48, "enemies": [[9, 10, 5, 21]], "damage": 0, "reward": 0 },
+      { "action": "east", "position": [9, 5], "health": 185, "experience": 132, "magic": 48, "enemies": [], "damage": 0, "reward": 0 }
+    ],
+    "resumed": {"x": 228, "y": 131, "terrainSha256": "4e79906eb07800da43bac5b10fbb7e52cf45b9c3ff3326354d19c902f7713210"},
+    "continuation": {"x": 227, "y": 131, "terrainSha256": "590e79b3139af8624e258f505720fbc51f9c38834b673c1e967b97e6cfdecf17"}
   }
 }
 ```
@@ -573,6 +696,15 @@ at the first question, completed creation, Britannia arrival, southward move, an
 finished save. It uses **Insert writable copy…** at the Britannia request, and its
 download matches every byte of the native new-character export.
 
+The combat browser check restores the verified new-character checkpoint at
+`(231,137)`, makes and inserts a writable copy, then follows the bridge route
+and all 14 combat turns. Its full hardware and input state matches a native
+replay from that checkpoint at battle entry, after the first attack, after
+victory, and after saving. The downloaded disk matches the native cold-boot
+acceptance's export byte for byte. The checkpoint-based browser route and the
+native test's independent cold boot have different elapsed clock counts; both
+produce the same party and exported disk.
+
 To run the optional local-media check after a current build:
 
 ```sh
@@ -593,6 +725,18 @@ APPLE2_ULTIMA_IV_BRITANNIA=media/apple2/reference/ultima_iv_br.dsk \
 node --test dist/tests/site/apple2-ultima-iv-new-game.test.js
 ```
 
+Run the combat route with the new-character export produced by that check:
+
+```sh
+APPLE2_ROM=media/apple2/apple2p.rom \
+APPLE2_ULTIMA_IV_BOOT=media/apple2/reference/ultima_iv_boot.dsk \
+APPLE2_ULTIMA_IV_NEW_GAME=media/apple2/exports/ultima_iv_br-new-game-saved.dsk \
+node --test dist/tests/site/apple2-ultima-iv-combat.test.js
+```
+
+The combat record verifies the starting export's digest, so it cannot silently
+run against a different party or a save made after extra turns.
+
 Set `APPLE2_ULTIMA_IV_CHECKPOINTS` to an ignored local directory to retain the
 verified checkpoints and Britannia exports for
 browser experiments. Omit `APPLE2_ULTIMA_IV_TOWN` to run only the earlier
@@ -605,8 +749,10 @@ contain private media bytes and must not be published.
 This pass covers all four disks, Skara Brae's entrance and one conversation,
 Covetous's first corridor and entrance ladder, both returns to Britannia, and
 saving and resuming the supplied party. It also covers one character-creation
-path and that character's first save and resumption. Other classes and answer
-sequences, other towns and conversations, deeper dungeon exploration and combat,
+path, that character's first save, and a complete bridge-troll encounter followed
+by saving and resuming the resulting party. Other classes and answer
+sequences, other towns and conversations, other enemies and combat options,
+deeper dungeon exploration and room combat,
 sound expansion hardware,
 and a complete playthrough remain unverified. The
 machine chapter's disk, timing, display, and audio limitations continue to apply.
