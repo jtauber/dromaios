@@ -3,9 +3,9 @@
 The [Apple II Plus](../../src/machines/6502/apple2.md) can cold-boot the selected
 *Ultima IV* Boot disk, exchange it for Britannia, move the saved party on the
 world map, visit Skara Brae and the first level of Covetous, and save and resume
-through an exported disk. This acceptance follows
-**Journey onward** with the existing party; it does not create a character or
-establish a complete playthrough.
+through an exported disk. A separate **Initiate new game** route creates a mage,
+enters Britannia, and verifies the new character's first save and resumption.
+These routes do not establish a complete playthrough.
 
 ## Start in the laboratory
 
@@ -33,6 +33,73 @@ map checkpoint also restores its disk set, including the mounted Britannia disk.
 Swapped-out disks retain their edits in the set. Export to keep individual disk
 files outside the laboratory; a saved state keeps the whole set across reloads.
 The opening can use read-only media; saving needs a writable copy.
+
+## Create a new character
+
+Start again from the original Boot disk. Keep this experiment's Britannia copy
+separate from the supplied party and the town and dungeon exports below.
+
+1. At the title, press Space, then `I` for **Initiate new game**.
+2. Enter `DROMAIOS`, press Return, and choose `M`. Wait for the illustrated story
+   to load. Use Space to advance its pages and the introductions between questions.
+3. Answer `A` to each of the seven A/B questions. Advance the two final story
+   pages with Space. This route creates a male mage with Good status and 200 HP.
+4. At the Britannia request, pause and use **Swap disk** and **Insert writable
+   copy…** with the original `ultima_iv_br.dsk`. Run and press Escape. The new
+   one-member party starts at `(231,136)`, near Moonglow.
+5. Press Down. In the repeatable route, the first attempt reports
+   `SLOW PROGRESS!`; the second moves south to `(231,137)`. Use the `$40C0`
+   breakpoint described below to stop between attempts and avoid idle turns.
+6. Press `Q`, wait for the save to finish, and export the mounted disk as
+   `ultima_iv_br-new-game-saved.dsk`.
+7. Fresh-boot the original Boot disk, select **Journey onward**, and insert that
+   export at the Britannia request. DROMAIOS resumes at `(231,137)`; Down moves
+   the party to `(231,138)`.
+
+The old party is still on the Britannia disk when the new character first arrives.
+Creation keeps its result in RAM. At `$402C`, a nonzero party count at `$000F`
+bypasses loading the old `PRTY`, `ROST`, and `LIST` files. The first `Q` save
+replaces their contents with the new party. Before that save, both original disk
+images are unchanged.
+
+### How creation builds the party
+
+The Boot disk's `N·EWGAME` binary has a `$0800` file header, but `BRUN` explicitly
+loads its 13,141 payload bytes at `$6400`. The catalogue inspector's middle dot
+represents the nonprinting character in its name. After the questions, it loads
+three templates from the same Boot disk: `N·PRT` supplies 32 bytes at `$0000`,
+`N·LST` supplies 256 bytes at `$EE00`, and `N·RST` supplies 384 bytes at `$EC00`.
+It moves the selected class into the first roster slot, inserts the name, sex,
+and attributes, records the virtues, sets the party count to one, and chooses
+the class's starting coordinates. It then loads the main game.
+
+| Stop | What happens next |
+| --- | --- |
+| `$6F6C` | Read the next character of the name. Return leads to the sex prompt. |
+| `$6400` | Enter the newly loaded character-creation program. |
+| `$0AB5` | Wait for a story-page key. From the first story stop, 24 Space advances reach the first card introduction; one more reaches the first question. |
+| `$66A7` | Read an A/B answer. `$6694` waits between questions; Space presents the next question. |
+| `$671C` | All seven answers are complete. Space reaches the final page at `$672C`; another Space loads the templates. |
+| `$6771` | All three unmodified templates are in RAM, before character-specific changes. |
+| `$67E3` | The new party is complete; transfer to the main game loader. |
+| `$402C` | Preserve the new party rather than reading the old Britannia save. |
+
+The selected virtues are Compassion, Sacrifice, Valor, Honesty, Honesty,
+Compassion, and Honesty. Honesty wins the tournament, selecting class 0, Mage.
+The attribute tables at `$680C`, `$6814`, and `$681C` add 4 strength, 7 dexterity,
+and 9 intelligence to the initial 15, producing **19, 22, and 24**. These are
+stored as packed decimal `$19,$22,$24`; the initial `$0F` values are normalized
+by the first decimal additions. Virtue scores begin at decimal 50 and gain 5
+for each selection, producing 65 Honesty, 60 Compassion, 55 Valor, 55 Sacrifice,
+and 50 for each other virtue. The code brackets these additions with `SED` and
+`CLD` at `$66CA` and `$66EE`.
+
+The reference emulator agrees on the name, class, question pairs, starting
+position, and checked landscape. Its `adc` implementation ignores decimal mode,
+so it produces different attribute and virtue bytes. Those expectations instead
+come from the game's tables and decimal additions above. The reference can still
+independently load Dromaios's exported save: it restores the new mage and correct
+attribute bytes at `(231,137)` and moves south to `(231,138)`.
 
 ## Follow the disk exchange
 
@@ -302,6 +369,15 @@ third save and cold boot. It checks all `DNGD` and `DNG4` bytes after loading,
 five independently rendered dungeon views, the temporary outdoor list, and the
 full saved party, roster, and object blocks. The replay repeats one move from a
 serialized checkpoint and compares every hardware and input byte.
+A separate [character-creation check](../../tests/site/apple2-ultima-iv-new-game.test.ts)
+cold-boots the original images, enters the name and answers, checks every loaded
+creation-program and template byte, and replays the fourth answer from a serialized
+checkpoint. It checks the party, decimal attributes and virtues, the initial
+Britannia load's bypass of the old save, and the southward move. Its first save
+gets the same exact source-read, sector-write, and whole-export checks as the
+existing-party route. A fresh boot verifies all three reloaded blocks, the new
+character, and another move. The two checks start independently; creation does
+not replace the supplied party used by the town and dungeon routes.
 No game bytes are patched or injected into RAM.
 Numbers in the record are decimal; addresses in the prose are hexadecimal.
 
@@ -391,6 +467,39 @@ The repository contains neither the images nor extracted game files.
     ],
     "resumed": { "name": "Resumed outside Covetous", "x": 156, "y": 27 },
     "continuation": { "name": "North after dungeon resumption", "x": 156, "y": 16 }
+  },
+  "newGame": {
+    "name": "DROMAIOS",
+    "sexKey": "M",
+    "sex": 92,
+    "class": 0,
+    "roster": [196, 210, 207, 205, 193, 201, 207, 211, 0, 0, 0, 0, 0, 0, 0, 0, 92, 0, 199, 25, 34, 36, 32, 128, 2, 0, 2, 0, 1, 37, 1, 1],
+    "attributes": [25, 34, 36],
+    "virtues": [101, 96, 85, 80, 85, 80, 80, 80],
+    "storyAdvances": 24,
+    "pairs": [[1, 5], [4, 7], [2, 6], [0, 3], [0, 2], [1, 4], [0, 1]],
+    "stops": {
+      "name": { "address": 28524, "bytes": [173, 0, 192, 16, 242] },
+      "codeLoaded": { "address": 25600, "bytes": [44, 139, 192, 44, 139, 192] },
+      "story": { "address": 2741, "bytes": [169, 128, 141, 219, 10] },
+      "question": { "address": 26279, "bytes": [32, 41, 100, 201, 193] },
+      "cards": { "address": 26260, "bytes": [32, 41, 100, 32, 241, 104] },
+      "chosen": { "address": 26396, "bytes": [32, 41, 100, 32, 241, 104] },
+      "lastStory": { "address": 26412, "bytes": [32, 41, 100, 169, 0] },
+      "templates": { "address": 26481, "bytes": [165, 11, 133, 232, 169, 0, 133, 11] },
+      "created": { "address": 26595, "bytes": [76, 9, 100] },
+      "newParty": { "address": 16428, "bytes": [165, 15, 240, 3] }
+    },
+    "arrival": { "x": 231, "y": 136,
+      "terrainSha256": "4c82ce563a55e2bbaae96ce5b09fa340b948886ccced89bcbaee341caff66e75" },
+    "slow": { "x": 231, "y": 136,
+      "terrainSha256": "50bcd3e96900d3e884419e8ea0b52d0a2a0f8773ae8319a8cf688209671fc8a2" },
+    "moved": { "x": 231, "y": 137,
+      "terrainSha256": "edfa03cd38ec47ef0c31b71edd4577d78f6ac0145a040c0a665ac7476caeee7d" },
+    "resumed": { "x": 231, "y": 137,
+      "terrainSha256": "eefecaa4fd72538054cdb3a7f8d0411cd1d0e865a8c619a263ac1782d362e317" },
+    "continuation": { "x": 231, "y": 138,
+      "terrainSha256": "cd917ed3250b5882d04d4a792ca0a22393291a0fb658c307a50c1d9e72566493" }
   }
 }
 ```
@@ -457,6 +566,13 @@ hardware and input state matches the native run at the Underworld request,
 dungeon entry, forward move, entrance ladder, and return to Britannia. The
 browser's exported disk again matches every byte of the native export.
 
+The new-character browser check starts from the verified opening-menu checkpoint
+and enters the name, sex, story keys, and seven answers through the laboratory's
+keyboard controls. Its complete hardware and input state matches the native run
+at the first question, completed creation, Britannia arrival, southward move, and
+finished save. It uses **Insert writable copy…** at the Britannia request, and its
+download matches every byte of the native new-character export.
+
 To run the optional local-media check after a current build:
 
 ```sh
@@ -466,6 +582,15 @@ APPLE2_ULTIMA_IV_BRITANNIA=media/apple2/reference/ultima_iv_br.dsk \
 APPLE2_ULTIMA_IV_TOWN=media/apple2/reference/ultima_iv_town.dsk \
 APPLE2_ULTIMA_IV_UNDERWORLD=media/apple2/reference/ultima_iv_under.dsk \
 node --test dist/tests/site/apple2-ultima-iv.test.js
+```
+
+Run the independent new-character route with the same original images:
+
+```sh
+APPLE2_ROM=media/apple2/apple2p.rom \
+APPLE2_ULTIMA_IV_BOOT=media/apple2/reference/ultima_iv_boot.dsk \
+APPLE2_ULTIMA_IV_BRITANNIA=media/apple2/reference/ultima_iv_br.dsk \
+node --test dist/tests/site/apple2-ultima-iv-new-game.test.js
 ```
 
 Set `APPLE2_ULTIMA_IV_CHECKPOINTS` to an ignored local directory to retain the
@@ -479,7 +604,9 @@ contain private media bytes and must not be published.
 
 This pass covers all four disks, Skara Brae's entrance and one conversation,
 Covetous's first corridor and entrance ladder, both returns to Britannia, and
-saving and resuming the supplied party. Character creation, other towns and
-conversations, deeper dungeon exploration and combat, sound expansion hardware,
+saving and resuming the supplied party. It also covers one character-creation
+path and that character's first save and resumption. Other classes and answer
+sequences, other towns and conversations, deeper dungeon exploration and combat,
+sound expansion hardware,
 and a complete playthrough remain unverified. The
 machine chapter's disk, timing, display, and audio limitations continue to apply.

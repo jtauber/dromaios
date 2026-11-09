@@ -10,7 +10,7 @@ import { createApple2Session, apple2ControlKey } from "../../site/interactive/ap
 import { apple2HiresFrame } from "../../site/interactive/apple2-screen.js";
 import { encodeApple2SavedState, prepareApple2SavedState } from "../../site/interactive/apple2-saved-state.js";
 import { apple2StorageReader } from "../../site/interactive/apple2-inspection.js";
-import { dos33Catalogue, dos33FileSectors } from "../../site/interactive/dos33-catalogue.js";
+import { checkUltima4Save, ultima4Binary } from "../helpers/ultima-iv.js";
 import { Apple2DiskSet } from "../../site/interactive/apple2-disk-set.js";
 import { Dos33Disk } from "../../src/components/devices/dos33-disk.js";
 import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502-cpu.js";
@@ -106,14 +106,6 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
     assert.equal(session.pendingInput, 0);
     assert.equal(session.machine.disk.inspect().motor, false);
   }
-  function binary(disk: Dos33Disk, name: string): Uint8Array {
-    const image = [...disk.exportImage()];
-    const entry = dos33Catalogue(image).files.find(file => file.name === name);
-    assert.ok(entry);
-    const sectors = dos33FileSectors(image, entry).filter(sector => sector.fileSector !== undefined);
-    const contents = Uint8Array.from(sectors.flatMap(sector => image.slice(sector.index * 256, (sector.index + 1) * 256)));
-    return contents.slice(4, 4 + contents[2]! + 256 * contents[3]!);
-  }
   const ram = (address: number, length: number) => Uint8Array.from({ length }, (_, i) => session.machine.ram.read(address + i));
   const upper = (address: number, length: number) => Uint8Array.from({ length }, (_, i) => session.machine.upper.read(address - 0xe000 + i));
   const party = () => Array.from({ length: 8 }, (_, i) => [...upper(0xec00 + i * 32, 18)]);
@@ -185,21 +177,8 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
     assert.deepEqual(sourceReads, saved.flatMap(file => Array.from(file.payload, (value, i) => [file.address + i, value])));
     assert.deepEqual(writes, saved.flatMap(file => [...file.sectors.map(sector => [file.track, sector]), [17, 13]]));
 
-    const exported = session.machine.disk.exportImage(), image = [...exported], expected = original.slice();
-    for (const file of saved) {
-      const entry = dos33Catalogue(image).files.find(entry => entry.name === file.name);
-      assert.ok(entry); assert.equal(entry.type, "B"); assert.equal(entry.locked, false);
-      const sectors = dos33FileSectors(image, entry).filter(sector => sector.fileSector !== undefined);
-      assert.deepEqual(sectors.map(sector => sector.index), file.sectors.map(sector => file.track * 16 + sector));
-      const contents = Uint8Array.from(sectors.flatMap(sector => image.slice(sector.index * 256, (sector.index + 1) * 256)));
-      assert.deepEqual([...contents.slice(0, 4)], [file.address & 255, file.address >>> 8, file.bytes & 255, file.bytes >>> 8]);
-      assert.deepEqual(contents.slice(4, 5 + file.bytes), file.payload);
-      for (const [i, value] of file.payload.entries()) {
-        const offset = 4 + i;
-        expected[(file.track * 16 + file.sectors[Math.floor(offset / 256)]!) * 256 + offset % 256] = value;
-      }
-    }
-    assert.deepEqual(exported, expected, "Only the three file payloads and their trailing bytes change; headers, catalogue and other sectors survive");
+    const exported = session.machine.disk.exportImage();
+    checkUltima4Save(original, exported, saved);
     runTo(guide.stops.command, 2_000_000);
     assert.equal(session.machine.disk.inspect().motor, false);
     assert.deepEqual([session.machine.ram.read(0), session.machine.ram.read(1)], [resumed.x, resumed.y]);
@@ -271,7 +250,7 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
     if (directory) writeFileSync(join(directory, "ultima_iv_br-town-entry.dsk"), returning);
     session.swapDisk(town); diskName = "ultima_iv_town.dsk";
     keyTo(27, stops.mapLoaded);
-    const map = binary(town, "MAPK"); assert.equal(map.length, 1280);
+    const map = ultima4Binary(town, "MAPK"); assert.equal(map.length, 1280);
     assert.deepEqual(ram(0x8b00, map.length), map, "DOS honors the explicit MAPK load address");
     runTo(stops.mapCopied, 1_000_000);
     assert.deepEqual(upper(0xe800, 1024), map.slice(0, 1024));
@@ -288,7 +267,7 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
 
     // MIX has valid payload sectors but garbage in unused T/S-list slots.
     // Keep the inspector strict; prove that this game's bounded BLOAD succeeds.
-    assert.throws(() => binary(town, "MIX"), /T134 S219/);
+    assert.throws(() => ultima4Binary(town, "MIX"), /T134 S219/);
     keyTo(77, stops.mix); runTo(stops.mixLoaded, 30_000_000);
     const raw = town.exportImage();
     const mix = Uint8Array.from([14, 13, 12].flatMap(sector => [...raw.slice((34 * 16 + sector) * 256, (34 * 16 + sector + 1) * 256)]));
@@ -298,7 +277,7 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
     walk(0, guide.town.conversation.x, 21); checkScene(guide.town.conversation);
     keyTo(84, stops.talk); runTo(stops.input, 1_000_000);
     keyTo(21, stops.talkLoaded);
-    const talk = binary(town, "TALK"); assert.deepEqual(ram(0x8800, talk.length), talk);
+    const talk = ultima4Binary(town, "TALK"); assert.deepEqual(ram(0x8800, talk.length), talk);
     let printed = "";
     const observe = (step: Cpu6502StepRecord) => {
       if (step.before.pc === stops.print.address) printed += String.fromCharCode(step.before.a & 0x7f);
@@ -362,15 +341,15 @@ test("Ultima IV boots, exchanges disks, replays a move, and resumes a game from 
     try { keyTo(69, guide.stops.exchange); } finally { detach(); }
     assert.deepEqual(writes, [[20, 10], [20, 9], [17, 13]], "Dungeon entry saves TLST on Britannia");
     const returning = session.machine.disk.exportImage();
-    assert.deepEqual(binary(working, "TLST"), list);
+    assert.deepEqual(ultima4Binary(working, "TLST"), list);
     assert.deepEqual([...ram(8, 3)], [dungeon.outside.x, dungeon.outside.y, dungeon.location]);
     await checkpoint("ultima-iv-dungeon-request");
     session.swapDisk(underworld); diskName = "ultima_iv_under.dsk";
     keyTo(27, dungeon.stops.codeLoaded);
-    const code = binary(underworld, "DNGD"); assert.equal(code.length, 3360);
+    const code = ultima4Binary(underworld, "DNGD"); assert.equal(code.length, 3360);
     assert.deepEqual(ram(0x8c00, code.length), code, "DNGD honors the explicit $8C00 load address");
     runTo(dungeon.stops.mapLoaded, 20_000_000);
-    const map = binary(underworld, "DNG4"); assert.equal(map.length, 512);
+    const map = ultima4Binary(underworld, "DNG4"); assert.equal(map.length, 512);
     assert.deepEqual(upper(0xe800, map.length), map, "All eight 8-by-8 dungeon levels load into Language Card RAM");
     runTo(guide.stops.command, 2_000_000); checkDungeon(0);
     await checkpoint("ultima-iv-dungeon");
