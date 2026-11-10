@@ -3,9 +3,10 @@ import { checkUnsigned } from "../../src/components/validation.js";
 import { cocoKeyboardPhaseClocks } from "./coco-keyboard-transport.js";
 import type { CocoSessionState } from "./coco-session.js";
 import { CocoJoystick } from "../../src/components/devices/generated/coco-joystick.js";
+import { CocoCassette, cocoTapeSampleLimit } from "../../src/components/devices/coco-cassette.js";
 
 interface StoredCocoState {
-  readonly version: 5;
+  readonly version: 6;
   readonly machine: "coco-32k";
   readonly savedAt: string;
   readonly state: CocoSessionState;
@@ -21,11 +22,11 @@ export function cocoSavedState(storage: () => {
     read(): StoredCocoState | undefined {
       const text = storage().getItem(key);
       if (text === null) return undefined;
-      if (text.length > 1_000_000) throw new Error("Saved CoCo snapshot is too large.");
+      if (text.length > 4_000_000) throw new Error("Saved CoCo snapshot is too large.");
       const value: unknown = JSON.parse(text);
       checkMachineSnapshot(value, ["version", "machine", "savedAt", "state"]);
       const saved = value as Omit<StoredCocoState, "version"> & { readonly version: number };
-      if (![1, 2, 3, 4, 5].includes(saved.version) || saved.machine !== "coco-32k" || typeof saved.savedAt !== "string"
+      if (![1, 2, 3, 4, 5, 6].includes(saved.version) || saved.machine !== "coco-32k" || typeof saved.savedAt !== "string"
         || !Number.isFinite(Date.parse(saved.savedAt))) throw new Error("Invalid CoCo snapshot format.");
       // Versions 1 and 2 had no clock: start their schedule at phase zero while
       // preserving PIA levels and flags until the next scheduled edges.
@@ -52,12 +53,39 @@ export function cocoSavedState(storage: () => {
         state = { ...state, hardware: { ...state.hardware, pias: { ...state.hardware.pias,
           joysticks: { right: empty.snapshot(), left: empty.snapshot() } } } };
       }
+      if (saved.version < 6) {
+        checkMachineSnapshot(state.hardware?.pias, ["pia0", "pia1", "keyboard", "joysticks"]);
+        state = { ...state, hardware: { ...state.hardware, pias: { ...state.hardware.pias, cassette: new CocoCassette().snapshot() } } };
+      } else {
+        const tape = state.hardware?.pias?.cassette;
+        checkMachineSnapshot(tape, ["name", "samples", "writable", "mode", "position", "phase"]);
+        state = { ...state, hardware: { ...state.hardware, pias: { ...state.hardware.pias,
+          cassette: { ...tape, samples: unpack(tape.samples) } } } };
+      }
       // The session validates every component, input phase, and ROM identity before installing it.
-      return { ...saved, version: 5, state };
+      return { ...saved, version: 6, state };
     },
     save(state: CocoSessionState): void {
-      storage().setItem(key, JSON.stringify({ version: 5, machine: "coco-32k", savedAt: new Date().toISOString(), state }));
+      const tape = state.hardware.pias.cassette;
+      const packed = { ...state, hardware: { ...state.hardware, pias: { ...state.hardware.pias,
+        cassette: { ...tape, samples: pack(tape.samples) } } } };
+      storage().setItem(key, JSON.stringify({ version: 6, machine: "coco-32k", savedAt: new Date().toISOString(), state: packed }));
     },
     forget(): void { storage().removeItem(key); },
   };
+}
+
+// PCM has one compact copy in storage; native snapshots retain ordinary byte arrays.
+function pack(samples: readonly number[] | null): string | null {
+  if (samples === null) return null;
+  let binary = "";
+  for (let i = 0; i < samples.length; i += 8192) binary += String.fromCharCode(...samples.slice(i, i + 8192));
+  return btoa(binary);
+}
+function unpack(value: unknown): number[] | null {
+  if (value === null) return null;
+  if (typeof value !== "string" || value.length > Math.ceil(cocoTapeSampleLimit / 3) * 4) throw new Error("Invalid saved cassette samples.");
+  const binary = atob(value);
+  if (binary.length > cocoTapeSampleLimit || btoa(binary) !== value) throw new Error("Invalid saved cassette encoding.");
+  return Array.from(binary, character => character.charCodeAt(0));
 }

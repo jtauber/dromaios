@@ -6,13 +6,13 @@ const group = (...panels: string[]): LayoutNode => ({ kind: "tabs", id: `coco-${
 const area = (weight: number, node: LayoutNode): SplitItem => ({ weight, node });
 const column = (id: string, ...items: SplitItem[]): LayoutNode => ({ kind: "split", id, axis: "vertical", items });
 
-export const cocoWorkspaceKey = "dromaios:workspace:coco:8";
+export const cocoWorkspaceKey = "dromaios:workspace:coco:9";
 export const cocoDefaultLayout: WorkspaceLayout = {
   root: { kind: "split", id: "coco-columns", axis: "horizontal", items: [
     area(.30, column("coco-screen-controls", area(.5, group("screen")), area(.2, group("execution", "debugger")), area(.3, group("instruction")))),
     area(.28, column("coco-cpu-code", area(.22, group("registers")), area(.78, group("code", "log")))),
     area(.24, column("coco-memory-tools", area(.3, group("memory")), area(.3, group("direct-page")), area(.2, group("stack-s", "calls")), area(.2, group("stack-u")))),
-    area(.18, column("coco-devices", area(.27, group("sam")), area(.45, group("joysticks", "pias")), area(.28, group("rom", "walkthrough", "states")))),
+    area(.18, column("coco-devices", area(.27, group("sam")), area(.45, group("cassette", "joysticks", "pias")), area(.28, group("rom", "walkthrough", "states")))),
   ] },
 };
 
@@ -20,7 +20,11 @@ export const cocoDefaultLayout: WorkspaceLayout = {
 export function migrateCocoWorkspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }, ids: readonly string[]): void {
   if (storage.getItem(cocoWorkspaceKey) !== null) return;
   const save = (layout: WorkspaceLayout) => storage.setItem(cocoWorkspaceKey,
-    encodeWorkspaceState(withTab(layout, "joysticks", "pias")));
+    encodeWorkspaceState(withTab(withTab(layout, "joysticks", "pias"), "cassette", "joysticks")));
+  const version8 = storage.getItem("dromaios:workspace:coco:8");
+  if (version8 !== null) {
+    storage.setItem(cocoWorkspaceKey, encodeWorkspaceState(withTab(decodeWorkspaceState(version8, ids), "cassette", "joysticks"))); return;
+  }
   const version7 = storage.getItem("dromaios:workspace:coco:7");
   if (version7 !== null) { save(decodeWorkspaceState(version7, ids)); return; }
   const version6 = storage.getItem("dromaios:workspace:coco:6");

@@ -1,5 +1,6 @@
 import { createMachineSound } from "./machine-sound-view.js";
 import { createCocoJoystickView } from "./coco-joystick-view.js";
+import { createCocoCassetteView } from "./coco-cassette-view.js";
 import { createCocoChangeLog } from "./coco-change-log.js";
 import { createChangeLogView } from "./change-log-view.js";
 import { createCocoWatchHistory } from "./coco-watch-history.js";
@@ -117,6 +118,11 @@ function mountCoco(root: HTMLElement): void {
   const speed = createExecutionSpeedControls(root, {
     clock: () => session.machine.clock, setPacing: execution.setPacing, changed: refresh,
   });
+  const cassette = createCocoCassetteView(root, () => session.machine.pias, {
+    changed: () => refreshPanels(["pias"]),
+    pause: () => { debug.pause(); execution.stop(); },
+    selecting: value => { selecting = value; refresh(); },
+  });
   const walkthrough = createRomWalkthrough(root, {
     routines: Object.values(guides).flatMap(guide => guide.routines),
     walkthroughs: Object.values(guides).flatMap(guide => guide.walkthroughs),
@@ -149,6 +155,7 @@ function mountCoco(root: HTMLElement): void {
     speed.refresh(selecting);
     sound.refresh({ running, normal: speed.normal, unavailable: selecting });
     joysticks.refresh(selecting);
+    cassette.refresh(selecting, running);
     for (const slot of slots) {
       slot.load.disabled = slot.forget.disabled = selecting;
       const rom = roms[slot.id];

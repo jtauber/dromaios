@@ -42,7 +42,7 @@ test("one browser checkpoint preserves native state, rejects stale formats, and 
   const [key, text] = [...storage.values][0]!;
   storage.setItem = () => { throw new Error("Quota"); };
   assert.throws(() => checkpoint.save(createCocoSession().snapshot()), /Quota/); assert.equal(storage.values.get(key), text);
-  for (const invalid of ["{", "null", " ".repeat(1_000_001), JSON.stringify({ ...JSON.parse(text), version: 6 }),
+  for (const invalid of ["{", "null", " ".repeat(4_000_001), JSON.stringify({ ...JSON.parse(text), version: 7 }),
     JSON.stringify({ ...JSON.parse(text), machine: "apple2" }), JSON.stringify({ ...JSON.parse(text), savedAt: "never" })]) {
     storage.values.set(key, invalid); assert.throws(() => checkpoint.read());
   }
@@ -60,8 +60,8 @@ test("CoCo ROM storage verifies bytes again and uses a key separate from Apple I
   assert.equal(storage.getItem("dromaios:apple2-rom:v1"), "unrelated media");
 });
 
-test("the CoCo workspace restores all eighteen tools and migrates older layouts only once", () => {
-  const ids = ["screen", "execution", "registers", "memory", "sam", "pias", "rom", "states", "code", "instruction", "direct-page", "stack-s", "stack-u", "walkthrough", "debugger", "calls", "log", "joysticks"];
+test("the CoCo workspace restores all nineteen tools and migrates older layouts only once", () => {
+  const ids = ["screen", "execution", "registers", "memory", "sam", "pias", "rom", "states", "code", "instruction", "direct-page", "stack-s", "stack-u", "walkthrough", "debugger", "calls", "log", "joysticks", "cassette"];
   const restored = decodeWorkspaceState(encodeWorkspaceState(cocoDefaultLayout), ids);
   assert.deepEqual(groups(restored).flatMap(group => group.panels).sort(), [...ids].sort());
   assert.match(cocoWorkspaceKey, /:coco:/);
@@ -96,17 +96,17 @@ test("legacy checkpoints preserve queued chords and convert phase progress expli
   const current = { ...session.snapshot(), input: [["A"]] as const, pressed: true, remainingClocks: 22_373 };
   checkpoint.save(current);
   const [key, text] = [...storage.values][0]!, envelope = JSON.parse(text);
-  assert.equal(envelope.version, 5);
+  assert.equal(envelope.version, 6);
   session.restore(checkpoint.read()!.state); assert.deepEqual(session.snapshot(), current);
   for (const version of [1, 2, 3]) {
     const { remainingClocks, ...state } = current;
     const { extended, clock, pias, ...base } = state.hardware;
-    const { joysticks, ...oldPias } = pias;
+    const { joysticks, cassette, ...oldPias } = pias;
     const hardware = { ...base, pias: oldPias, ...(version >= 2 ? { extended } : {}), ...(version === 3 ? { clock } : {}) };
     const old = { ...envelope, version, state: { ...state, hardware, remaining: 6000 } };
     storage.setItem(key, JSON.stringify(old));
     const migrated = checkpoint.read()!;
-    assert.equal(migrated.version, 5); assert.equal(migrated.state.remainingClocks, 22_373);
+    assert.equal(migrated.version, 6); assert.equal(migrated.state.remainingClocks, 22_373);
     assert.deepEqual(migrated.state.input, [["A"]]); assert.equal(migrated.state.pressed, true);
     session.restore(migrated.state); assert.equal(session.machine.ram.read(0x3456), 0x78);
     assert.equal(session.machine.clock.ticks, version === 3 ? 1234 : 0);
@@ -129,31 +129,42 @@ test("version-4 checkpoints gain disconnected joysticks; current snapshots retai
   const storage = memoryStorage(), session = createCocoSession(), checkpoint = cocoSavedState(() => storage, session.machine.clock.hertz!);
   const original = session.snapshot(); checkpoint.save(original);
   const [key, text] = [...storage.values][0]!;
-  const { joysticks, ...oldPias } = original.hardware.pias;
+  const { joysticks, cassette, ...oldPias } = original.hardware.pias;
   const old = { ...JSON.parse(text), version: 4, state: { ...original, hardware: { ...original.hardware, pias: oldPias } } };
   storage.setItem(key, JSON.stringify(old));
   const migrated = checkpoint.read()!;
-  assert.equal(migrated.version, 5); session.restore(migrated.state); assert.deepEqual(session.snapshot(), original);
+  assert.equal(migrated.version, 6); session.restore(migrated.state); assert.deepEqual(session.snapshot(), original);
   assert.equal(storage.getItem(key), JSON.stringify(old));
   session.machine.pias.connectJoystick("right", true); session.machine.pias.setJoystickPosition("right", 7, 58);
   session.machine.pias.setJoystickButton("right", true);
   const held = session.snapshot(); checkpoint.save(held); session.powerOn(); session.restore(checkpoint.read()!.state);
   assert.deepEqual(session.snapshot(), held);
-  storage.setItem(key, JSON.stringify({ ...old, version: 5 }));
-  assert.throws(() => session.restore(checkpoint.read()!.state), /joysticks/);
+  storage.setItem(key, JSON.stringify({ ...old, version: 6 }));
+  assert.throws(() => session.restore(checkpoint.read()!.state), /Machine snapshot requires/);
   assert.deepEqual(session.snapshot(), held);
 });
 
 test("Joysticks joins the version-7 PIA group once while preserving layout choices", () => {
   const ids = groups(cocoDefaultLayout).flatMap(group => group.panels), storage = memoryStorage();
-  const previous = ["joysticks", "log"].reduce(closePanel, cocoDefaultLayout), pia = panelGroup(previous, "pias")!;
+  const previous = ["cassette", "joysticks", "log"].reduce(closePanel, cocoDefaultLayout), pia = panelGroup(previous, "pias")!;
   storage.setItem("dromaios:workspace:coco:7", encodeWorkspaceState(collapseGroup(previous, pia.id, true)));
   migrateCocoWorkspace(storage, ids);
   const migrated = decodeWorkspaceState(storage.getItem(cocoWorkspaceKey)!, ids);
-  assert.deepEqual(panelGroup(migrated, "pias")?.panels, ["pias", "joysticks"]);
+  assert.deepEqual(panelGroup(migrated, "pias")?.panels, ["pias", "joysticks", "cassette"]);
   assert.equal(panelGroup(migrated, "pias")?.active, "pias"); assert.equal(panelGroup(migrated, "pias")?.collapsed, true);
   assert.equal(panelGroup(migrated, "log"), undefined);
   const hidden = encodeWorkspaceState(closePanel(migrated, "joysticks")); storage.setItem(cocoWorkspaceKey, hidden);
+  migrateCocoWorkspace(storage, ids); assert.equal(storage.getItem(cocoWorkspaceKey), hidden);
+});
+
+test("Cassette joins version-8 controls without reopening a hidden joystick panel", () => {
+  const ids = groups(cocoDefaultLayout).flatMap(group => group.panels), storage = memoryStorage();
+  const previous = ["cassette", "joysticks"].reduce(closePanel, cocoDefaultLayout);
+  storage.setItem("dromaios:workspace:coco:8", encodeWorkspaceState(previous));
+  migrateCocoWorkspace(storage, ids);
+  const migrated = decodeWorkspaceState(storage.getItem(cocoWorkspaceKey)!, ids);
+  assert.ok(panelGroup(migrated, "cassette")); assert.equal(panelGroup(migrated, "joysticks"), undefined);
+  const hidden = encodeWorkspaceState(closePanel(migrated, "cassette")); storage.setItem(cocoWorkspaceKey, hidden);
   migrateCocoWorkspace(storage, ids); assert.equal(storage.getItem(cocoWorkspaceKey), hidden);
 });
 

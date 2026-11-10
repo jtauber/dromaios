@@ -37,7 +37,13 @@ export function createCocoSession(firmware: RomImage | null = null, extended: Ro
     },
     releaseInput(): void { input.release(); },
     reset(): void { requireFirmware(); machine.reset(); input.release(); },
-    powerOn(): void { machine = powerOn(); input = createCocoKeyboardTransport(machine.pias, machine.clock.hertz!); },
+    powerOn(): void {
+      const tape = machine.pias.cassette.snapshot();
+      const fresh = powerOn();
+      const state = fresh.snapshot();
+      machine = create6809Coco({ firmware, extended }, { ...state, pias: { ...state.pias, cassette: { ...tape, mode: "stop" } } });
+      input = createCocoKeyboardTransport(machine.pias, machine.clock.hertz!);
+    },
     snapshot(): CocoSessionState { return { hardware: machine.snapshot(), ...input.snapshot() }; },
     restore(value: unknown): void {
       checkMachineSnapshot(value, ["hardware", "input", "pressed", "remainingClocks"]);

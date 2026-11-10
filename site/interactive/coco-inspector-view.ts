@@ -57,7 +57,7 @@ export function createCocoInspectors(root: HTMLElement, memoryMoved: () => void,
     const row = document.createElement("tr"), label = document.createElement("th"); label.scope = "row"; label.textContent = name; row.append(label);
     for (const key of ["pia0", "pia1"] as const) {
       const cell = document.createElement("td"); row.append(cell);
-      number(cell, "", "pias", machine => read(machine.pias.snapshot()[key]));
+      number(cell, "", "pias", machine => read(machine.pias.inspect()[key]));
     }
     at("coco-pias").append(row);
   }

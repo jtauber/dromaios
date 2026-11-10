@@ -23,6 +23,25 @@
   <noscript><p>Enable JavaScript to use the laboratory. <a href="{{ calc_url(coco_url) }}">Read the machine guide</a>.</p></noscript>
   <div class="workspace-scroll"><div class="workspace-dock" data-workspace-root aria-label="CoCo laboratory workspace"></div></div>
   <div data-workspace-panels hidden>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="cassette" data-panel-title="Cassette">
+      <p class="basic-readout" data-cassette-medium>No tape mounted</p>
+      <div class="basic-controls">
+        <input type="file" accept=".wav,audio/wav" data-cassette-file hidden>
+        <button type="button" data-cassette-load disabled>Load WAV…</button><button type="button" data-cassette-export disabled>Export WAV</button>
+        <button type="button" data-cassette-eject disabled>Eject</button>
+      </div>
+      <div class="basic-controls"><label>New tape <input data-cassette-name value="Untitled.wav" aria-label="New tape name" maxlength="255" size="12" disabled></label>
+        <button type="button" data-cassette-blank disabled>New blank</button><button type="button" data-cassette-copy disabled>Make writable copy</button></div>
+      <div class="basic-controls" role="group" aria-label="Cassette transport">
+        <button type="button" data-cassette-rewind disabled>Rewind</button><button type="button" data-cassette-play aria-pressed="false" disabled>Play</button>
+        <button type="button" data-cassette-record aria-pressed="false" disabled>Record</button><button type="button" data-cassette-stop aria-pressed="true" disabled>Stop</button>
+      </div>
+      <p class="basic-readout" data-cassette-status role="status"></p><progress data-cassette-progress aria-label="Tape position" max="1" value="0"></progress>
+      <p class="basic-message" data-cassette-message role="status"></p>
+      <p class="lab-hint">Record, then <code>CSAVE "DOT"</code>. Rewind and Play, then <code>CLOAD "DOT"</code>. Run advances the computer; BASIC controls the tape motor.</p>
+      <p class="lab-hint">Pause to load, replace, or export. Record overwrites from the current position. New blank replaces the mounted tape. WAV: mono 8-bit PCM, 44,100 Hz, up to one minute. Files stay on this device.</p>
+      <a href="{{ calc_url(coco_url) }}#saving-the-dot-program-on-cassette" target="_blank" rel="noopener">Save and reload the moving dot ↗</a>
+    </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="joysticks" data-panel-title="Joysticks">
       {% for port, label, horizontal, vertical in [('right', 'Right', 0, 1), ('left', 'Left', 2, 3)] %}
       <fieldset class="coco-joystick" data-joystick="{{ port }}">
@@ -72,7 +91,7 @@
       <details class="coco-help"><summary>Keyboard and execution</summary>
         <p class="lab-hint">Sound enables clocked audio during Normal Run. Try <code>SOUND 128,2</code> in Color BASIC, or <code>PLAY "T4O3L8V15CEGP8V7C"</code> with Extended BASIC. Pause and Unlimited are silent.</p>
         <p id="coco-keys" class="lab-hint">Click the screen to type or paste one line. Enter submits; Backspace edits; Escape or Ctrl-C sends Break; Home sends Clear. Host key repeat is ignored. Leaving the window pauses and releases queued keys.</p>
-        <p class="lab-hint">Reset CPU preserves RAM and device settings. Fresh power-on clears them and keeps the installed ROMs. Normal targets the declared CPU clock rate; Unlimited runs as fast as the browser allows. Clocks include waiting time. Mark clock measures an interval; Step, Step over, and Step out report their clocks separately.</p>
+        <p class="lab-hint">Reset CPU preserves RAM and device settings. Fresh power-on clears them, keeps the installed ROMs, and leaves the mounted tape stopped at its current position. Normal targets the declared CPU clock rate; Unlimited runs as fast as the browser allows. Clocks include waiting time. Mark clock measures an interval; Step, Step over, and Step out report their clocks separately.</p>
         <p class="lab-hint">Run to address executes normally and pauses before the next boundary at that PC, or after 2,000,000 boundaries. Breakpoints and RAM write watchpoints can stop it earlier. Run, Step, Pause, reset, and leaving the window cancel the target.</p>
       </details>
     </section>

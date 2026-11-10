@@ -184,11 +184,17 @@ Snapshot restoration rejects impossible switches and PIA inputs inconsistent
 with the board wiring. The browser saves its host queue separately, alongside
 the native snapshot.
 
-PIA 1 ports have high external inputs, so direction registers determine which
+PIA 1 port B has high external inputs, so direction registers determine which
 output latch bits reach the video controls. Both PIAs' unconnected C2 inputs
-are high. Serial transport, cassette, and cartridge
+are high. Serial transport and cartridge
 hardware are absent. PIA manual C2 output modes work; strobe modes reject
 writes as described in the PIA chapter.
+
+The [cassette interface](../../components/devices/specifications/coco-cassette.md)
+connects PIA 1 CA2 to the recorder's motor relay, PA7–PA2 to its recording
+input, and the playback comparator to PA0. PIA 1 PA0 is therefore no longer
+always high: it follows the tape input while Play and the motor are active.
+The other external PIA 1 port inputs retain their released-high approximation.
 
 ## Joysticks
 
@@ -264,6 +270,80 @@ interaction, and restoration. The [ROM tests](../../../tests/site/coco-joystick.
 check BASIC endpoints, centre, independent axes, cached readings, both fire
 buttons, and the exact moving-dot program. They inspect actual video RAM and
 rendered pixels, and replay a checkpoint taken during a conversion.
+
+## Cassette
+
+The [executable cassette circuit](../../components/devices/specifications/coco-cassette.md)
+owns the DAC-to-recording and playback-to-comparator conversions. The concrete
+recorder retains samples and transport state; `stepCoco` advances it with the
+same CPU clock as video sync. The interval uses its starting motor and DAC
+levels, and the next boundary sees the resulting playback sample. Waiting CPU
+intervals also move an engaged recorder. Inspection, pause, browser audio,
+and wall-clock time do not advance it.
+
+The initial interchange format is **mono eight-bit PCM WAV at 44,100 Hz**,
+limited to one minute. This stores the signal BASIC actually generates,
+including its leaders and gaps. The host neither supplies cassette bytes
+directly to the ROM nor modifies its program storage. `.cas` conversion,
+other WAV encodings, physical recorder noise, and cassette monitoring through
+the television speaker are outside this profile.
+
+`pias.cassette` supplies `blank(name)`, `insert(name, samples)`, `play()`,
+`record()`, `stop()`, `rewind()`, `writableCopy()`, and `eject()`.
+`inspect()` returns small transport readouts; `samples()` returns a detached
+copy for the WAV codec. Record overwrites from the current position and extends
+the tape. Imported recordings are read-only until explicitly copied. Stop
+preserves the position and fractional sample phase; Rewind also resets both.
+Play and Record only move the tape while the ROM enables its motor relay.
+
+### Saving the dot program on cassette
+
+Enter the [moving-dot program](#move-a-dot-with-a-joystick), one line at a time,
+but stay at BASIC's prompt. Release both fire buttons before typing.
+
+1. Pause the computer. In **Cassette**, name the new tape `DOT.wav`, then choose
+   **New blank** and **Record**. New blank replaces any currently mounted tape.
+2. Run the computer and enter:
+
+   ```text
+   CSAVE "DOT"
+   ```
+
+   BASIC turns the motor on, writes the recording, and returns to `OK` with
+   the motor off. Record remains engaged, just as on a real recorder.
+3. Pause, choose **Stop**, then **Export WAV**. The download is `DOT-saved.wav`;
+   it contains the ROM-produced waveform, not a machine checkpoint.
+4. Choose **Fresh power-on**, Run until the BASIC prompt, then Pause. The
+   mounted tape survives power-on, stopped at its old position, but for this
+   check use **Load WAV…** to select the exported file. Choose **Rewind** and
+   **Play**.
+5. Run and enter:
+
+   ```text
+   CLOAD "DOT"
+   ```
+
+   BASIC displays `S` while searching, `F DOT` when it finds the name, then
+   `OK` after loading. `LIST` shows the six program lines.
+6. Connect the right joystick again and enter `RUN`. Move its X/Y sliders;
+   the blue dot follows them and Hold fire changes it to red.
+
+For a checkpoint during either transfer, Pause while the motor is on, then
+choose **Save** in **Snapshot**. The saved state includes the tape samples,
+write permission, transport mode, and partially elapsed sample as well as the
+CPU, RAM, clock, and keyboard queue. Restoring reinstates all of them; Run
+continues the transfer. A stopped computer does not require pressing the
+recorder's Stop button. CPU reset preserves the recorder; Fresh power-on
+retains its medium and position but disengages Play/Record.
+
+The [ROM acceptance test](../../../tests/site/coco-cassette.test.ts) checks
+the exported waveform independently against the manual's block format and
+checksums, verifies all 118 tokenized program bytes after a fresh `CLOAD`,
+and checks the rendered dot and fire-button colour. Mid-record and mid-play
+checkpoints reproduce the same remaining boundaries and final machine state.
+The [hardware and image tests](../../../tests/machines/6809/coco/cassette.test.ts)
+cover the comparator, relay, resolved DAC pins, waiting behavior, protection,
+overwriting, sample phase, and malformed WAV rejection.
 
 ## Sound
 
@@ -759,9 +839,9 @@ While the picture is displayed, pause and save a snapshot. Run and press Space,
 then restore the snapshot while paused: the same picture and key-waiting program
 return. Run again and press Space to finish, then try `PRINT 2+3` or `LIST`.
 **Reset CPU** retains the installed ROM pair and RAM; **Fresh power-on** retains
-the ROMs but clears the program. Cassette commands and timing-dependent
-programs requiring instruction-internal video or peripheral timing remain outside this profile even though the ROM recognizes
-their BASIC keywords.
+the ROMs but clears the program. The [cassette walkthrough](#saving-the-dot-program-on-cassette)
+shows how to preserve a program across power-on. Programs requiring
+instruction-internal video or peripheral timing remain outside this profile.
 
 The optional [Extended BASIC test](../../../tests/site/coco-extended.test.ts)
 uses these exact program lines, independently checks the bitmap, exercises all
@@ -1333,11 +1413,12 @@ previous stop report is cleared.
 ## Snapshots and acceptance
 
 `snapshot()` owns copies of CPU and RAM state, both PIAs' latches and edge
-history, pressed keys, joystick positions/connections/buttons, the SAM control word, elapsed CPU clocks (including idle
+history, pressed keys, joystick positions/connections/buttons, cassette media
+and transport, the SAM control word, elapsed CPU clocks (including idle
 intervals), and both ROM identities (or explicit absence). The stateless VDG contributes an empty snapshot. Restoring
 requires matching verified media in both sockets; it does not reapply power-on or CPU reset.
 Taking a snapshot or rendering a frame must neither acknowledge a pending
-interrupt nor release a held key. Browser checkpoints use version 5. Versions
+interrupt nor release a held key. Browser checkpoints use version 6. Versions
 1 and 2 predate the clock: migration starts the schedule at zero and preserves
 old PIA levels and pending flags until the next edge. Version 1 also acquires
 an empty extension socket. Versions 1–3 used a 12,000-boundary keyboard phase:
@@ -1345,9 +1426,12 @@ migration preserves the fraction remaining as part of the new 50 ms phase,
 rounded up to a whole clock. The old phase's actual elapsed time cannot be
 reconstructed. Queued chords, held switches, and version-3 clocks are retained.
 Versions 1–4 acquire two disconnected joysticks, preserving their former high
-comparator and released fire inputs. Missing clock, joystick, or input fields
-in current checkpoints are rejected. Reading an older checkpoint does not
-overwrite it; saving writes version 5.
+comparator and released fire inputs. Versions 1–5 acquire an empty, stopped
+cassette recorder, preserving their former high PA0 input. Current browser
+checkpoints pack tape samples as base64; native snapshots use detached byte
+arrays. Missing clock, joystick, cassette, or input fields in current
+checkpoints are rejected. Reading an older checkpoint does not overwrite it;
+saving writes version 6. Storage errors preserve the previous checkpoint.
 
 The [laboratory execution tests](../../../tests/site/coco-execution.test.ts)
 compare Normal, Unlimited, and single stepping with queued repeated keys;

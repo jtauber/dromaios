@@ -9,11 +9,13 @@ export type CocoSnapshot = ReturnType<Coco["snapshot"]>;
 export function stepCoco(machine: Coco) {
   requireExecutionProfile(machine);
   const start = machine.clock.ticks;
+  const motor = machine.pias.cassetteMotor, output = machine.pias.cassetteOutput;
   const record = cpuBoundary(machine.pias, machine.step, machine.interrupt);
   // Entering a wait pays the instruction cost first. Subsequent waiting boundaries
   // advance the board without inventing an instruction or repeating its CPU cost.
   const idleClocks = record.outcome === "waiting" && record.clocks === 0 ? clocksUntilCocoSync(machine) : 0;
   machine.clock.advance(idleClocks);
+  machine.pias.cassette.advance(machine.clock.ticks - start, machine.clock.hertz!, motor, output);
   advanceCocoSync(machine, start);
   return { ...record, idleClocks };
 }

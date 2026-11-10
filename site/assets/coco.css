@@ -39,3 +39,5 @@
 .coco-joystick-axis input { width: 100%; margin: 0; accent-color: #91c5ec; }
 .coco-joystick-axis output { color: #9dd4b4; font-variant-numeric: tabular-nums; }
 .coco-joystick [aria-pressed="true"] { background: #385578; color: #fff; }
+.coco-laboratory [data-workspace-panel="cassette"] progress { width: 100%; accent-color: #91c5ec; }
+.coco-laboratory [data-workspace-panel="cassette"] [aria-pressed="true"] { background: #385578; color: #fff; }

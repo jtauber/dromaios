@@ -1,6 +1,9 @@
 import { Mc6821 } from "../../../components/devices/generated/mc6821.ts";
 import { CocoSound } from "../../../components/devices/generated/coco-sound.ts";
 import { CocoJoystick } from "../../../components/devices/generated/coco-joystick.ts";
+import { CocoCassetteCircuit } from "../../../components/devices/generated/coco-cassette.ts";
+import { CocoCassette } from "../../../components/devices/coco-cassette.ts";
+import type { CocoCassetteSnapshot } from "../../../components/devices/coco-cassette.ts";
 import type { CocoJoystickSnapshot } from "../../../components/devices/generated/coco-joystick.ts";
 import type { Mc6821Snapshot } from "../../../components/devices/generated/mc6821.ts";
 import type { ByteMemoryConnection } from "../../../components/memory/connection.ts";
@@ -13,6 +16,7 @@ export interface CocoPiasSnapshot {
   readonly pia1: Mc6821Snapshot;
   readonly keyboard: CocoKeyboardSnapshot;
   readonly joysticks: Readonly<Record<CocoJoystickPort, CocoJoystickSnapshot>>;
+  readonly cassette: CocoCassetteSnapshot;
 }
 
 export type CocoJoystickPort = "right" | "left";
@@ -23,21 +27,24 @@ export class CocoPias implements ByteMemoryConnection {
   readonly #pia1: Mc6821;
   readonly #keyboard: CocoKeyboard;
   readonly #sound = new CocoSound();
+  readonly #cassetteCircuit = new CocoCassetteCircuit();
+  readonly cassette: CocoCassette;
   readonly #joysticks: Readonly<Record<CocoJoystickPort, CocoJoystick>>;
 
   constructor(state?: CocoPiasSnapshot) {
-    if (state !== undefined && (!state.pia0 || !state.pia1 || !state.keyboard || !state.joysticks?.right || !state.joysticks.left)) {
-      throw new TypeError("CoCo PIA state requires both chips, the keyboard, and both joysticks.");
+    if (state !== undefined && (!state.pia0 || !state.pia1 || !state.keyboard || !state.joysticks?.right || !state.joysticks.left || !state.cassette)) {
+      throw new TypeError("CoCo PIA state requires both chips, the keyboard, both joysticks, and the cassette.");
     }
     this.#pia0 = new Mc6821(state?.pia0);
     this.#pia1 = new Mc6821(state?.pia1);
     this.#keyboard = new CocoKeyboard(state?.keyboard);
     this.#joysticks = { right: new CocoJoystick(state?.joysticks.right), left: new CocoJoystick(state?.joysticks.left) };
+    this.cassette = new CocoCassette(() => this.#updateInputPins(), state?.cassette);
     const pins = this.#inputPins();
     if (state !== undefined) {
       const a = this.#pia0.snapshot(), b = this.#pia1.snapshot();
       if (a.input_a !== pins.a || a.input_b !== pins.b || !a.ca2 || !a.cb2
-        || b.input_a !== 0xff || b.input_b !== 0xff || !b.ca2 || !b.cb2) {
+        || b.input_a !== this.#cassettePins() || b.input_b !== 0xff || !b.ca2 || !b.cb2) {
         throw new RangeError("PIA inputs do not match the CoCo wiring.");
       }
     }
@@ -48,6 +55,10 @@ export class CocoPias implements ByteMemoryConnection {
   get irq(): boolean { return this.#pia0.irq(); }
   get firq(): boolean { return this.#pia1.irq(); }
   get videoPins(): number { return this.#pia1.pinsB(); }
+  get cassetteMotor(): boolean { return this.#pia1.ca2High(); }
+  get cassetteOutput(): number { return this.#cassetteCircuit.outputSample(this.#pia1.pinsA()); }
+  /** Register inspection does not copy the mounted tape. */
+  inspect() { return { pia0: this.#pia0.snapshot(), pia1: this.#pia1.snapshot() }; }
   /** Normalized sound output; observing pins never acknowledges a PIA interrupt. */
   get soundLevel(): number {
     return this.#sound.output(this.#pia1.pinsA(), this.#pia1.pinsB(),
@@ -56,7 +67,7 @@ export class CocoPias implements ByteMemoryConnection {
 
   snapshot(): CocoPiasSnapshot {
     return { pia0: this.#pia0.snapshot(), pia1: this.#pia1.snapshot(), keyboard: this.#keyboard.snapshot(),
-      joysticks: { right: this.joystick("right"), left: this.joystick("left") } };
+      joysticks: { right: this.joystick("right"), left: this.joystick("left") }, cassette: this.cassette.snapshot() };
   }
 
   read(address: number): number {
@@ -127,5 +138,11 @@ export class CocoPias implements ByteMemoryConnection {
   #updateInputPins(): void {
     const { a, b } = this.#inputPins();
     this.#pia0.setPortInputs(a, b);
+    this.#pia1.setPortInputs(this.#cassettePins(), 0xff);
+  }
+
+  #cassettePins(): number {
+    const sample = this.cassetteMotor ? this.cassette.inputSample : 128;
+    return 0xfe | Number(this.#cassetteCircuit.inputHigh(sample));
   }
 }
