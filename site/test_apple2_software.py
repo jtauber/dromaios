@@ -12,9 +12,9 @@ class SoftwareWalkthroughTests(unittest.TestCase):
         self.record = json.loads(re.search(r"^```json\n(.*?)^```$", self.source, re.M | re.S)[1])
 
     def test_tours_resolve_the_acceptance_stops_and_publish_both_memory_spaces(self):
-        party, combat, magic, companions, rooms = ultima4_walkthroughs(self.source)
-        self.assertEqual([t["id"] for t in (party, combat, magic, companions, rooms)],
-                         ["ultima4-party", "ultima4-combat", "ultima4-magic", "ultima4-companions", "ultima4-rooms"])
+        party, combat, magic, companions, rooms, rules = ultima4_walkthroughs(self.source)
+        self.assertEqual([t["id"] for t in (party, combat, magic, companions, rooms, rules)],
+                         ["ultima4-party", "ultima4-combat", "ultima4-magic", "ultima4-companions", "ultima4-rooms", "ultima4-room-rules"])
         self.assertEqual([s["address"] for s in party["steps"]], ["40C0", "590E", "5959", "4047", "408D", "40C0"])
         self.assertEqual([s["address"] for s in combat["steps"]], ["6FB0", "708B", "71D7", "7A7E", "71D7", "40C0"])
         self.assertEqual(party["steps"][0]["bytes"], self.record["stops"]["command"]["bytes"])
@@ -36,12 +36,18 @@ class SoftwareWalkthroughTests(unittest.TestCase):
                          ["40C0", "40C0", "40C0", "6EB2", "6EB5", "6FAD", "71D7", "71D7", "71D7", "7670", "40C0", "40C0"])
         self.assertEqual(rooms["steps"][3]["when"][-1], {"address": 0xe0, "bytes": [4, 0, 1, 2]})
         self.assertEqual(rooms["steps"][8]["when"][-1], {"address": 0x7a7c, "bytes": [0, 255]})
+        self.assertEqual([s["address"] for s in rules["steps"]],
+                         ["71D7", "71D7", "797E", "79C1", "7A12", "797E", "79C1", "7670", "40C0", "6EB2", "6EB5", "6FAD", "71D7"])
+        self.assertEqual(rules["steps"][4]["when"][-1], {"address": 6, "bytes": [11, 5]})
+        self.assertEqual(rules["steps"][11]["when"][-1], {"address": 0x7a7c, "bytes": [0, 0]})
         # Changing a shared acceptance stop changes the published tour, without another address to maintain.
         self.record["stops"]["command"]["address"] = 0x4000
         self.record["magic"]["stops"]["healed"]["address"] = 0x4c44
+        self.record["rooms"]["stops"]["trigger"]["address"] = 0x7900
         changed = ultima4_walkthroughs("```json\n" + json.dumps(self.record) + "\n```")
         self.assertEqual(changed[0]["steps"][0]["address"], "4000")
         self.assertEqual(changed[2]["steps"][7]["address"], "4C44")
+        self.assertEqual([changed[5]["steps"][i]["address"] for i in (2, 5)], ["7900", "7900"])
 
     def test_bad_references_unbounded_runs_and_device_inspections_are_rejected(self):
         changes = [

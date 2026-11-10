@@ -97,3 +97,38 @@ test("room stops reject outdoor combat and require the selected actor and establ
     machine.ram.write(address, original);
   }
 });
+
+test("room trigger stops distinguish coordinates and scan boundaries; re-entry clears the exit restriction only after placement", () => {
+  const { machine } = createApple2Session();
+  const authored = record.walkthroughs.find((tour: { id: string }) => tour.id === "ultima4-room-rules");
+  function checkpoint(index: number, stop: { address: number; bytes: number[] }): SoftwareCheckpoint {
+    const result: SoftwareCheckpoint = { ...authored.steps[index], address: stop.address.toString(16), bytes: stop.bytes };
+    for (const [i, byte] of stop.bytes.entries()) machine.ram.write(stop.address + i, byte);
+    for (const condition of result.when) for (const [i, byte] of condition.bytes.entries()) machine.ram.write(condition.address + i, byte);
+    return result;
+  }
+  const upper = checkpoint(2, record.rooms.stops.trigger);
+  const lower = { ...upper, ...authored.steps[5], address: upper.address, bytes: upper.bytes };
+  assert.deepEqual([upper, lower].map(step => softwareCheckpointMatches(machine, step)), [true, false]);
+  machine.ram.write(7, 7);
+  assert.deepEqual([upper, lower].map(step => softwareCheckpointMatches(machine, step)), [false, true]);
+  machine.ram.write(0xd8, 4); // A later descriptor, still at the same scan instruction.
+  assert.equal(softwareCheckpointMatches(machine, lower), false);
+  const applied = checkpoint(3, record.rooms.stops.triggered);
+  assert.equal(softwareCheckpointMatches(machine, applied), true);
+  machine.ram.write(0xd8, 0);
+  assert.equal(softwareCheckpointMatches(machine, applied), false);
+  const refused = checkpoint(4, record.rooms.stops.exitRejected);
+  assert.equal(softwareCheckpointMatches(machine, refused), true);
+  for (const [address, value] of [[6, 10], [7, 4], [0x7a7d, 0]] as const) {
+    const original = machine.ram.read(address); machine.ram.write(address, value);
+    assert.equal(softwareCheckpointMatches(machine, refused), false);
+    machine.ram.write(address, original);
+  }
+  const placed = checkpoint(11, record.rooms.stops.placed);
+  const before = machine.snapshot();
+  assert.equal(softwareCheckpointMatches(machine, placed), true);
+  assert.deepEqual(machine.snapshot(), before);
+  machine.ram.write(0x7a7d, 255);
+  assert.equal(softwareCheckpointMatches(machine, placed), false);
+});

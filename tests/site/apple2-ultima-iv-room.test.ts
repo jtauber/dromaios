@@ -30,9 +30,14 @@ const guide = record("docs/software/ultima-iv.md") as {
   companions: { stops: { firstTurn: Stop } };
   rooms: {
     image: Identity; initial: readonly Member[]; final: readonly Member[];
-    stops: Record<"read" | "loaded" | "placed" | "leaving", Stop>;
+    stops: Record<"read" | "loaded" | "placed" | "leaving" | "trigger" | "triggered" | "exitRejected", Stop>;
     approach: readonly number[]; return: readonly number[]; enemies: readonly Enemy[];
     turns: readonly { actor: number; keys: readonly number[]; members: readonly (readonly number[])[]; enemies: readonly Enemy[]; next: number }[];
+    rules: {
+      approach: readonly number[]; east: readonly number[]; lower: readonly number[]; north: readonly number[];
+      changes: readonly (readonly [x: number, y: number, before: number, after: number])[];
+      reenteredEnemies: readonly Enemy[];
+    };
     exits: readonly { actor: number; key: number; next: number; positions: readonly number[]; active: readonly number[]; exit: readonly number[]; pc: number }[];
   };
 };
@@ -103,6 +108,22 @@ test("Ultima IV loads a raw dungeon room, defeats its enemies, returns both char
     if (!directory) return;
     mkdirSync(directory, { recursive: true }); writeFileSync(join(directory, `ultima-iv-room-${name}.json`), JSON.stringify(await snapshot(name)));
   }
+  function placeRoom(expectedEnemies: readonly Enemy[]): void {
+    let healthChecks = 0, expectedHealth = 0, baseHealth = 0;
+    runTo(rooms.stops.placed, [], 1_000_000, step => {
+      if (step.after.pc === 0x6f94) baseHealth = ram(0xd8)[0]!;
+      if (step.before.pc === 0x6f97) { assert.ok(step.before.a < baseHealth); expectedHealth = step.before.a | (baseHealth >>> 1); }
+      if (step.after.pc === 0x6f9e) { assert.equal(upper(0xef40 + step.after.x)[0], expectedHealth); healthChecks++; }
+    });
+    assert.equal(healthChecks, 7); assert.equal(ram(11)[0], 129);
+    assert.deepEqual(ram(0x310, 16), sector.slice(0, 16)); assert.deepEqual(ram(0x280, 121), sector.slice(128, 249));
+    for (let i = 0; i < 16; i++) {
+      assert.equal(upper(0xef50 + i)[0], sector[16 + i]);
+      if (sector[16 + i]) assert.deepEqual([...upper(0xef00 + i), ...upper(0xef10 + i)], [sector[32 + i], sector[48 + i]]);
+    }
+    for (let i = 0; i < 2; i++) assert.deepEqual([...upper(0xef80 + i), ...upper(0xef90 + i)], [sector[64 + i], sector[72 + i]]);
+    assert.deepEqual([...upper(0xefa0, 2)], [32, 34]); assert.deepEqual(enemies(), expectedEnemies);
+  }
   await t.test("a cold boot enters Covetous and decodes all 256 bytes of the first room's raw sector", async () => {
     bootToExchange(); await checkpoint("exchange");
     const working = new Dos33Disk(ready.exportImage(), { writable: true });
@@ -120,20 +141,7 @@ test("Ultima IV loads a raw dungeon room, defeats its enemies, returns both char
     function enterRoom(): void {
       runTo(rooms.stops.read, [11]); assert.deepEqual([...ram(0xe0, 4)], [4, 0, 1, 2]);
       runTo(rooms.stops.loaded); assert.deepEqual(ram(0x200, 256), sector); assert.equal(ram(11)[0], 3);
-      let healthChecks = 0, expectedHealth = 0, baseHealth = 0;
-      runTo(rooms.stops.placed, [], 1_000_000, step => {
-        if (step.after.pc === 0x6f94) baseHealth = ram(0xd8)[0]!;
-        if (step.before.pc === 0x6f97) { assert.ok(step.before.a < baseHealth); expectedHealth = step.before.a | (baseHealth >>> 1); }
-        if (step.after.pc === 0x6f9e) { assert.equal(upper(0xef40 + step.after.x)[0], expectedHealth); healthChecks++; }
-      });
-      assert.equal(healthChecks, 7); assert.equal(ram(11)[0], 129);
-      assert.deepEqual(ram(0x310, 16), sector.slice(0, 16)); assert.deepEqual(ram(0x280, 121), sector.slice(128, 249));
-      for (let i = 0; i < 16; i++) {
-        assert.equal(upper(0xef50 + i)[0], sector[16 + i]);
-        if (sector[16 + i]) assert.deepEqual([...upper(0xef00 + i), ...upper(0xef10 + i)], [sector[32 + i], sector[48 + i]]);
-      }
-      for (let i = 0; i < 2; i++) assert.deepEqual([...upper(0xef80 + i), ...upper(0xef90 + i)], [sector[64 + i], sector[72 + i]]);
-      assert.deepEqual([...upper(0xefa0, 2)], [32, 34]); assert.deepEqual(enemies(), rooms.enemies);
+      placeRoom(rooms.enemies);
       runTo(turn); assert.equal(ram(0xd4)[0], 1); position(5, 1, 129);
     }
     enterRoom(); const first = session.snapshot();
@@ -166,6 +174,96 @@ test("Ultima IV loads a raw dungeon room, defeats its enemies, returns both char
     }
     assert.deepEqual(upper(0xec00, 512), expected, "Only the two active members' MP, HP and XP change; equipment, inactive records and inventory survive");
     await checkpoint("cleared");
+  });
+  await t.test("room triggers change four tiles, a different exit is refused, and re-entry reconstructs the encounter", async () => {
+    const cleared = session.snapshot(), replay = await snapshot("Cleared room before trigger inspection");
+    const rules = rooms.rules, originalMap = ram(0x280, 121), dungeonMap = upper(0xe800, 512), roster = upper(0xec00, 512);
+    // Corridor low nibbles hold wandering monsters; ordinary dungeon turns move them.
+    const terrain = (map: Uint8Array) => map.map(tile => tile < 16 ? 0 : tile);
+    const changedMap = originalMap.slice();
+    for (const [x, y, before, after] of rules.changes) {
+      assert.equal(originalMap[y * 11 + x], before); changedMap[y * 11 + x] = after;
+    }
+    const coordinates = () => [...upper(0xef80, 2), ...upper(0xef90, 2)];
+    const northExit = () => assert.deepEqual([...ram(0x7a7c, 2)], [0, 255]);
+    function walkRoom(keys: readonly number[]): void {
+      const deltas = new Map([[21, [1, 0]], [8, [-1, 0]], [11, [0, -1]], [10, [0, 1]]]);
+      for (const key of keys) {
+        const actor = ram(0xd4)[0]! - 1, expected = coordinates(), active = upper(0xefa0, 2), before = ram(0x280, 121);
+        const delta = deltas.get(key); assert.ok(delta);
+        expected[actor]! += delta[0]!; expected[actor + 2]! += delta[1]!;
+        if (expected[actor + 2] === -1) { expected[actor] = expected[actor + 2] = 128; active[actor] = 0; }
+        runTo(turn, [key], 5_000_000);
+        assert.deepEqual(coordinates(), expected); assert.deepEqual(upper(0xefa0, 2), active);
+        const next = active.every(tile => tile !== 0) ? 2 - actor : active.findIndex(tile => tile !== 0) + 1;
+        assert.equal(ram(0xd4)[0], next); assert.equal(ram(11)[0], 129);
+        assert.deepEqual(ram(0x280, 121), before, "Only the two explicitly tested trigger steps change the map");
+        assert.deepEqual(enemies(), []);
+      }
+    }
+    async function trigger(key: number, x: number, y: number, label: string): Promise<void> {
+      runTo(rooms.stops.trigger, [key]);
+      assert.deepEqual([...ram(6, 2)], [x, y]); assert.deepEqual([...upper(0xef81), ...upper(0xef91)], [x, y]);
+      assert.equal(ram(0xd8)[0], 0); await checkpoint(`${label}-trigger`);
+      // Decode the disk's packed coordinates independently of the guest's row-offset lookup.
+      const expectedWrites = [0, 4, 8, 12].flatMap(offset => sector[offset + 1] === x * 16 + y
+        ? [sector[offset + 2]!, sector[offset + 3]!].filter(packed => packed !== 0)
+          .map(packed => [0x280 + 11 * (packed & 15) + (packed >>> 4), sector[offset]!]) : []);
+      assert.deepEqual(expectedWrites, rules.changes.map(([tx, ty, , value]) => [0x280 + 11 * ty + tx, value]));
+      const writes: number[][] = [];
+      runTo(rooms.stops.triggered, [], 1_000_000, step => {
+        for (const access of step.accesses) if (access.kind === "write" && access.address >= 0x280 && access.address < 0x2f9) {
+          writes.push([step.before.pc, access.address, access.value]);
+        }
+      });
+      assert.deepEqual(writes.map(([, address, value]) => [address, value]), expectedWrites);
+      assert.deepEqual(writes.map(([pc]) => pc), [0x79a4, 0x79b2, 0x79a4, 0x79b2]);
+      assert.deepEqual(ram(0x280, 121), changedMap); assert.deepEqual(ram(0x310, 16), sector.slice(0, 16));
+      assert.equal(ram(0xd8)[0], 16); northExit(); await checkpoint(`${label}-applied`);
+      runTo(turn); assert.equal(ram(0xd4)[0], 2);
+    }
+    try {
+      walkRoom(rules.approach.slice(0, 6)); northExit(); await checkpoint("north-committed");
+      walkRoom(rules.approach.slice(6)); await checkpoint("upper-near");
+      await trigger(10, 8, 3, "upper");
+      walkRoom(rules.east); assert.deepEqual(coordinates(), [128, 10, 128, 5]); await checkpoint("east-edge");
+      const beforeRefusal = upper(0xef80, 40); printed = "";
+      runTo(rooms.stops.exitRejected, [21]);
+      assert.deepEqual([...ram(6, 2)], [11, 5]); assert.deepEqual(upper(0xef80, 40), beforeRefusal); northExit();
+      await checkpoint("exit-rejected"); runTo(turn);
+      assert.match(printed, /ALL MUST USE\rTHE SAME EXIT!/);
+      assert.deepEqual(upper(0xef80, 40), beforeRefusal); assert.deepEqual(ram(0x280, 121), changedMap);
+      assert.equal(ram(0xd4)[0], 2); assert.equal(ram(11)[0], 129); northExit(); await checkpoint("refusal-complete");
+      walkRoom(rules.lower); await trigger(21, 8, 7, "lower");
+      walkRoom(rules.north); assert.deepEqual(coordinates(), [128, 4, 128, 0]);
+      runTo(rooms.stops.leaving, [11]); assert.deepEqual([...upper(0xefa0, 2)], [0, 0]); northExit();
+      assert.deepEqual(ram(0x280, 121), changedMap); assert.deepEqual(upper(0xe800, 512), dungeonMap);
+      await checkpoint("trigger-leaving");
+      runTo(command); position(5, 0, 3); assert.equal(ram(16)[0], 0);
+      assert.deepEqual(terrain(upper(0xe800, 512)), terrain(dungeonMap)); assert.deepEqual(ram(0x280, 121), changedMap);
+      await checkpoint("trigger-corridor");
+      runTo(command, [21]); runTo(command, [21]); assert.equal(ram(16)[0], 2);
+      runTo(rooms.stops.read, [11]); assert.deepEqual([...ram(0xe0, 4)], [4, 0, 1, 2]); northExit();
+      const reentryMap = upper(0xe800, 512);
+      assert.deepEqual(terrain(reentryMap), terrain(dungeonMap)); assert.equal(reentryMap[13], 0xd0);
+      assert.deepEqual(enemies(), []); await checkpoint("reentry-read");
+      runTo(rooms.stops.loaded); assert.deepEqual(ram(0x200, 256), sector);
+      assert.deepEqual(ram(0x280, 121), originalMap); assert.deepEqual([...upper(0xefa0, 2)], [0, 0]); northExit();
+      await checkpoint("reentry-loaded");
+      placeRoom(rules.reenteredEnemies); assert.deepEqual([...ram(0x7a7c, 2)], [0, 0]);
+      assert.notDeepEqual(enemies().map(([, , , health]) => health), rooms.enemies.map(([, , , health]) => health));
+      assert.deepEqual(upper(0xe800, 512), reentryMap); assert.deepEqual(members(), rooms.final);
+      const expectedRoster = roster.slice(); expectedRoster[0x16] = 0x48; expectedRoster[0x112] = 0;
+      assert.deepEqual(upper(0xec00, 512), expectedRoster,
+        "HP, XP, equipment and mixtures persist; only the mage's regenerated MP and the food fraction change on this route");
+      await checkpoint("reentry-placed"); runTo(turn); assert.equal(ram(0xd4)[0], 1); await checkpoint("reentered");
+      assert.equal(hash(session.machine.disk.exportImage()), guide.dungeon.image.sha256);
+    } finally {
+      // Rejoin the existing save acceptance from the cleared-room checkpoint, not the new live encounter.
+      const restored = await prepareApple2SavedState(replay, rom.image, media);
+      session = restored.session; set = restored.diskSet; diskName = restored.diskName!;
+      assert.deepEqual(session.snapshot(), cleared);
+    }
   });
   await t.test("each character leaves north before the room returns to dungeon exploration and Britannia", async () => {
     for (const [i, action] of rooms.exits.entries()) {

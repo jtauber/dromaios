@@ -334,8 +334,10 @@ moving or consuming a movement turn in this route. Returning to the ladder and
 climbing out also proves that the saved outdoor list survives time spent on a
 different disk and a laboratory checkpoint restore.
 
-This is an entrance-and-exit acceptance, not a cleared dungeon. Deeper levels,
-room combat, traps, treasure, and the Abyss sequence remain separate work.
+This first route checks the entrance and exit. The later
+[room encounter](#fight-a-dungeon-room-and-bring-both-characters-back) extends it
+to combat, triggers and re-entry; deeper levels, traps, treasure and the Abyss
+sequence remain separate work.
 
 ## Win a bridge-troll encounter
 
@@ -684,8 +686,9 @@ The game sets mode `$81` for this dungeon room, compared with `$80` for the
 outdoor encounters already checked. The named combat stops distinguish the
 mode and the current character at `$D4`, although they use the same `$71D7`
 command reader. Memory links expose the room, retained triggers, enemy arrays,
-party positions, active tiles, and both character records. This route loads and
-preserves the trigger data but does not activate a room trigger.
+party positions, active tiles, and both character records. The combat and direct
+return route preserves the trigger data. The separate
+[trigger inspection](#test-the-triggers-exit-rule-and-re-entry) below activates it.
 
 ### Clear the room's seven enemies
 
@@ -753,9 +756,87 @@ At `(156,27)`, DROMAIOS has regenerated to 48 MP and Iolo remains at 13 MP.
 Space takes another ordinary turn, increasing the saved move count without
 changing their statistics. No checkpoint or copied RAM supplies the new machine.
 
-This proves one room encounter and its return path. It does not establish
-persistent cleared rooms: `$E80D` remains `$D0`. Trigger activation, deeper
-levels, altar rooms and completing the dungeon remain separate acceptance work.
+This proves one room encounter and its return path. The following inspection
+checks what happens when the party enters that same room again.
+
+### Test the triggers, exit rule and re-entry
+
+Save a laboratory checkpoint immediately after the 37-action battle, with Iolo's
+turn pending. Select **Ultima IV · room triggers and exits**. This is a branch
+from the cleared room: it ends in a new encounter. Restore that checkpoint to
+take the original save-and-return route above.
+
+1. Iolo Right; DROMAIOS Up; Iolo Up; DROMAIOS Up; Iolo Right; DROMAIOS Up.
+   Use the original room tour for the alternating turns, then **North exit
+   committed** for the final move. DROMAIOS has left; Iolo is at `(6,2)`.
+   North is recorded as `00 FF` at `$7A7C`–`$7A7D`.
+2. Use **Iolo room command** after each of two Right movements to `(8,2)`.
+   Queue Down for **Upper trigger reached**, then continue without a key to
+   **Upper trigger applied**. Four tiles change, opening a passage to the east.
+3. Continue to **Iolo room command** without a key to finish the turn. Up,
+   Left twice, Down three times, Right four times reaches `(10,5)`.
+   Queue Right for **Different exit rejected**. The attempted coordinate is
+   `(11,5)`, but Iolo stays at `(10,5)` with his active slot unchanged.
+   Continue to **Iolo room command** to see `ALL MUST USE THE SAME EXIT!`.
+4. Left three times, Down twice reaches `(7,7)`. Queue Right for **Lower
+   trigger reached**, then continue to **Lower trigger reapplied**. It performs
+   the same four stores. The values are already present, so the battlefield
+   does not change this time; the descriptors have not been consumed.
+5. Finish the turn at **Iolo room command**. Left twice, Up five times, Left
+   twice, Up twice reaches `(4,0)`. Queue Up for **Both characters leave north**.
+   Both active slots are now zero. Continue to **Corridor after the trigger**:
+   `(5,0)`, facing north, in dungeon mode 3.
+6. Use the original tour's **Dungeon command ready** for Right twice to turn
+   south. Queue Up for **Read the room again**. Continue through **Original
+   map reloaded**, **Room state reset**, and **New room encounter ready**.
+
+The trigger scan begins at `$797E`. Each four-byte descriptor contains a tile,
+a trigger coordinate, and two destination coordinates. Coordinates pack X in the
+high nibble and Y in the low nibble: `$83` means `(8,3)`. The four descriptors
+retained at `$0310` are:
+
+```text
+16 83 95 A5    floor at (9,5) and (10,5) when entering (8,3)
+7F 83 A4 A6    wall at (10,4) and (10,6) when entering (8,3)
+16 87 95 A5    the same floor changes when entering (8,7)
+7F 87 A4 A6    the same wall changes when entering (8,7)
+```
+
+At `$79C1` the scan is complete. The acceptance decodes these packed coordinates
+independently, checks all four executed stores, and compares every battlefield
+byte. Destinations use `$0280 + 11 × Y + X`:
+
+| Square | RAM | Original tile | Trigger writes | Instruction |
+| --- | --- | --- | --- | --- |
+| `(9,5)` | `$02C0` | `$7F` wall | `$16` floor | `$79A4` |
+| `(10,5)` | `$02C1` | `$7E` rock | `$16` floor | `$79B2` |
+| `(10,4)` | `$02B6` | `$7E` rock | `$7F` wall | `$79A4` |
+| `(10,6)` | `$02CC` | `$7E` rock | `$7F` wall | `$79B2` |
+
+Opening the east passage does not override the shared-exit rule. The first
+character's departure fixes the direction for this encounter. At `$7A12` the
+game takes the refusal path for Iolo's eastward attempt. His position and active
+slot, the battlefield, and the north restriction survive the refusal. It still
+uses a turn.
+
+Re-entry reconstructs the encounter in two stages:
+
+| State | Observed behavior |
+| --- | --- |
+| Battlefield | Remains modified after leaving. The raw read at `$6EB5` restores all 256 original sector bytes, closing the east passage. |
+| Exit restriction | Still north after the read; room setup clears it to `00 00` before `$6FAD`. |
+| Enemies | All seven return in their original slots and positions. HP is freshly generated: 63, 27, 57, 110, 42, 111 and 44 on this route. |
+| Party placement | North-entry positions return: DROMAIOS `(3,2)`, Iolo `(2,2)`. DROMAIOS has the first turn. |
+| Trigger descriptors | Copied from the original sector again; both triggers remain available. |
+| Dungeon map | Terrain and room `$D0` at `$E80D` persist; there is no cleared-room marker here. Wandering monsters move in corridor tiles' low nibbles as dungeon turns pass. The raw room read and setup preserve the entire current 512-byte dungeon map. |
+| Character progress | DROMAIOS retains 183 HP / 154 XP; Iolo retains 279 HP / 296 XP. Equipment and mixtures persist. |
+| Ongoing time | DROMAIOS regenerates from 44 to 48 MP, and food accounting advances. The roster comparison permits only those two changed bytes, `$EC16` and `$ED12`. |
+
+The original Underworld disk remains byte-for-byte unchanged. This verifies the
+two triggers and re-entry behavior of Covetous room zero, with a north departure
+and an eastward refusal. It does not establish every room's triggers or every
+exit direction; deeper levels, altar rooms and completing the dungeon remain
+separate work.
 
 ## Follow the saved bytes
 
@@ -1080,7 +1161,7 @@ The repository contains neither the images nor extracted game files.
   "rooms": {
     "image": {"bytes": 143360, "sha256": "90c63285ac0631ba1ebce2b0e98ba5d5e81f50ffc52529ececec0e2a51b38b6b"},
     "initial": [[200, 138, 23], [299, 282, 13]],
-    "stops": {"read": {"address": 28338, "bytes": [32, 81, 8]}, "loaded": {"address": 28341, "bytes": [165, 11, 133]}, "placed": {"address": 28589, "bytes": [76, 125, 113]}, "leaving": {"address": 30320, "bytes": [32, 33, 8]}},
+    "stops": {"read": {"address": 28338, "bytes": [32, 81, 8]}, "loaded": {"address": 28341, "bytes": [165, 11, 133]}, "placed": {"address": 28589, "bytes": [76, 125, 113]}, "leaving": {"address": 30320, "bytes": [32, 33, 8]}, "trigger": {"address": 31102, "bytes": [189, 16, 3]}, "triggered": {"address": 31169, "bytes": [76, 45, 114]}, "exitRejected": {"address": 31250, "bytes": [104, 104, 32]}},
     "approach": [11, 11, 8, 11, 21, 11, 11, 21],
     "enemies": [[3, 6, 7, 57, 196], [4, 6, 5, 31, 196], [5, 6, 2, 61, 196], [6, 5, 6, 47, 156], [10, 8, 6, 111, 156], [11, 8, 4, 44, 156], [13, 7, 3, 56, 156]],
     "turns": [
@@ -1133,7 +1214,15 @@ The repository contains neither the images nor extracted game files.
       {"actor": 2, "key": 11, "next": 2, "positions": [128, 128, 128, 128], "active": [0, 0], "exit": [0, 255], "pc": 30320}
     ],
     "return": [8, 11, 11, 8, 11, 21, 11, 11],
-    "final": [[183, 154, 48], [279, 296, 13]]
+    "final": [[183, 154, 48], [279, 296, 13]],
+    "rules": {
+      "approach": [21, 11, 11, 11, 21, 11, 21, 21],
+      "east": [11, 8, 8, 10, 10, 10, 21, 21, 21, 21],
+      "lower": [8, 8, 8, 10, 10],
+      "north": [8, 8, 11, 11, 11, 11, 11, 8, 8, 11, 11],
+      "changes": [[9, 5, 127, 22], [10, 5, 126, 22], [10, 4, 126, 127], [10, 6, 126, 127]],
+      "reenteredEnemies": [[3, 6, 7, 63, 196], [4, 6, 5, 27, 196], [5, 6, 2, 57, 196], [6, 5, 6, 110, 156], [10, 8, 6, 42, 156], [11, 8, 4, 111, 156], [13, 7, 3, 44, 156]]
+    }
   },
   "walkthroughs": [
     {
@@ -1629,6 +1718,131 @@ The repository contains neither the images nor extracted game files.
           "limit": 30000000
         }
       ]
+    },
+    {
+      "id": "ultima4-room-rules",
+      "title": "Ultima IV · room triggers and exits",
+      "setup": "Continue immediately after the verified 37-action room battle, with Iolo’s turn pending. Keep a cleared-room laboratory checkpoint: this inspection route re-enters a populated room, while the original room tour provides the save-and-return route.",
+      "requires": ["stops.command", "save.start"],
+      "steps": [
+        {
+          "title": "North exit committed",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "Start immediately after the first room battle. Iolo Right; mage Up; Iolo Up; mage Up; Iolo Right; mage Up. Use the original room tour for alternating turns, with this stop for the last move.",
+          "observe": "DROMAIOS has left north. Iolo remains at (6,2); the recorded exit is $00,$FF. Save a laboratory checkpoint here if desired.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}],
+          "inspect": [{"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Recorded exit direction", "address": 31356, "space": "ram"}, {"label": "Current actor", "address": 212, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Iolo room command",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "Queue one of Iolo’s movements from the guide, then run here. Use this repeatable stop while he is the only character still in the room.",
+          "observe": "Mode $81 remains active and $D4 selects Iolo. This also finishes a trigger or rejected-exit operation without another key.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}],
+          "inspect": [{"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Recorded exit direction", "address": 31356, "space": "ram"}, {"label": "Current actor", "address": 212, "space": "ram"}, {"label": "Trigger descriptors", "address": 784, "space": "ram"}, {"label": "Battlefield", "address": 640, "space": "ram"}, {"label": "New east passage", "address": 704, "space": "ram"}, {"label": "Flanking wall tiles", "address": 694, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Upper trigger reached",
+          "stop": "rooms.stops.trigger",
+          "prepare": "From (6,2), Iolo Right twice reaches (8,2). Queue Down for this stop.",
+          "observe": "Iolo now occupies (8,3), before the trigger scan. Each descriptor holds a tile, a packed trigger coordinate, and two packed destinations.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}, {"address": 6, "bytes": [8, 3]}, {"address": 216, "bytes": [0]}],
+          "inspect": [{"label": "Trigger descriptors", "address": 784, "space": "ram"}, {"label": "Battlefield", "address": 640, "space": "ram"}, {"label": "New east passage", "address": 704, "space": "ram"}, {"label": "Flanking wall tiles", "address": 694, "space": "ram"}, {"label": "Moved-to square", "address": 6, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Upper trigger applied",
+          "stop": "rooms.stops.triggered",
+          "prepare": "Continue without a key.",
+          "observe": "Four writes open the east passage: (9,5) and (10,5) become floor $16; (10,4) and (10,6) become wall $7F. Every other battlefield byte is unchanged.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}, {"address": 6, "bytes": [8, 3]}, {"address": 216, "bytes": [16]}],
+          "inspect": [{"label": "Trigger descriptors", "address": 784, "space": "ram"}, {"label": "Battlefield", "address": 640, "space": "ram"}, {"label": "New east passage", "address": 704, "space": "ram"}, {"label": "Flanking wall tiles", "address": 694, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Different exit rejected",
+          "stop": "rooms.stops.exitRejected",
+          "prepare": "Finish Iolo’s turn. Up, Left, Left, Down, Down, Down, Right, Right, Right, Right reaches (10,5). Queue Right for this stop.",
+          "observe": "The attempted coordinate is (11,5), but Iolo remains at (10,5). Continue to Iolo room command to see ALL MUST USE THE SAME EXIT. The north restriction and active slot are unchanged.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}, {"address": 6, "bytes": [11, 5]}],
+          "inspect": [{"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Recorded exit direction", "address": 31356, "space": "ram"}, {"label": "Current actor", "address": 212, "space": "ram"}, {"label": "Attempted coordinate", "address": 6, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Lower trigger reached",
+          "stop": "rooms.stops.trigger",
+          "prepare": "After the refusal, Left three times, Down twice reaches (7,7). Queue Right for this stop.",
+          "observe": "The scan will find the two descriptors for (8,7). They target the same four tiles as the upper trigger.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}, {"address": 6, "bytes": [8, 7]}, {"address": 216, "bytes": [0]}],
+          "inspect": [{"label": "Trigger descriptors", "address": 784, "space": "ram"}, {"label": "Battlefield", "address": 640, "space": "ram"}, {"label": "New east passage", "address": 704, "space": "ram"}, {"label": "Flanking wall tiles", "address": 694, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Lower trigger reapplied",
+          "stop": "rooms.stops.triggered",
+          "prepare": "Continue without a key.",
+          "observe": "The same four stores execute again. Their values are already present, so the complete battlefield stays identical; descriptors are not consumed.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}, {"address": 6, "bytes": [8, 7]}, {"address": 216, "bytes": [16]}],
+          "inspect": [{"label": "Trigger descriptors", "address": 784, "space": "ram"}, {"label": "Battlefield", "address": 640, "space": "ram"}, {"label": "New east passage", "address": 704, "space": "ram"}, {"label": "Flanking wall tiles", "address": 694, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Both characters leave north",
+          "stop": "rooms.stops.leaving",
+          "prepare": "Finish Iolo’s turn. Left twice, Up five times, Left twice, Up twice reaches (4,0). Queue Up.",
+          "observe": "Both active party slots are now zero. The modified battlefield still exists in RAM, and north remains recorded until the next room setup.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 31356, "bytes": [0, 255]}],
+          "inspect": [{"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Recorded exit direction", "address": 31356, "space": "ram"}, {"label": "Current actor", "address": 212, "space": "ram"}, {"label": "Trigger descriptors", "address": 784, "space": "ram"}, {"label": "Battlefield", "address": 640, "space": "ram"}, {"label": "New east passage", "address": 704, "space": "ram"}, {"label": "Flanking wall tiles", "address": 694, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Corridor after the trigger",
+          "stop": "stops.command",
+          "prepare": "Continue without a key.",
+          "observe": "Mode 3 at (5,0), facing north. The dungeon square remains D0. The old battlefield buffer has not yet been replaced.",
+          "when": [{"address": 0, "bytes": [5, 0]}, {"address": 10, "bytes": [21, 3, 0]}, {"address": 16, "bytes": [0]}],
+          "inspect": [{"label": "Dungeon position", "address": 0, "space": "ram"}, {"label": "Room square", "address": 59405, "space": "lc-upper"}, {"label": "Trigger descriptors", "address": 784, "space": "ram"}, {"label": "Battlefield", "address": 640, "space": "ram"}, {"label": "New east passage", "address": 704, "space": "ram"}, {"label": "Flanking wall tiles", "address": 694, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Read the room again",
+          "stop": "rooms.stops.read",
+          "prepare": "Use Dungeon command ready in the original room tour for Right twice, turning south. Queue Up for this stop.",
+          "observe": "The game requests the same raw track 4, sector 0. The party is entering D0 again, with its accumulated HP and XP.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 3]}, {"address": 224, "bytes": [4, 0, 1, 2]}],
+          "inspect": [{"label": "Raw disk parameters", "address": 224, "space": "ram"}, {"label": "Character records", "address": 60416, "space": "lc-upper"}, {"label": "Trigger descriptors", "address": 784, "space": "ram"}, {"label": "Battlefield", "address": 640, "space": "ram"}, {"label": "New east passage", "address": 704, "space": "ram"}, {"label": "Flanking wall tiles", "address": 694, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Original map reloaded",
+          "stop": "rooms.stops.loaded",
+          "prepare": "Continue without a key.",
+          "observe": "The full sector has replaced $0200–$02FF, closing the trigger’s east passage. Exit direction is still north at this intermediate boundary; actors have not yet been placed.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 3]}, {"address": 224, "bytes": [4, 0, 1, 2]}],
+          "inspect": [{"label": "Reloaded room sector", "address": 512, "space": "ram"}, {"label": "Restored passage tiles", "address": 704, "space": "ram"}, {"label": "Exit direction before setup", "address": 31356, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Room state reset",
+          "stop": "rooms.stops.placed",
+          "prepare": "Continue without a key.",
+          "observe": "All seven enemies and both north-entry positions return. Enemy HP is freshly rolled and the exit restriction becomes $00,$00. Party HP and XP persist; MP, food and elapsed turns continue to evolve.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 31356, "bytes": [0, 0]}],
+          "inspect": [{"label": "Enemy positions", "address": 61184, "space": "lc-upper"}, {"label": "New enemy HP and active slots", "address": 61248, "space": "lc-upper"}, {"label": "Party positions", "address": 61312, "space": "lc-upper"}, {"label": "Exit restriction cleared", "address": 31356, "space": "ram"}, {"label": "Persistent character records", "address": 60416, "space": "lc-upper"}, {"label": "Retained trigger descriptors", "address": 784, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "New room encounter ready",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "Continue without a key. Stop here to inspect the new encounter, or restore your earlier cleared-room checkpoint to follow the original save route.",
+          "observe": "DROMAIOS has the first turn again. His HP/XP remain 183/154, Iolo’s 279/296. The previous battle is not restored; a new room encounter has been constructed.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [1]}, {"address": 31356, "bytes": [0, 0]}],
+          "inspect": [{"label": "Both character records", "address": 60416, "space": "lc-upper"}, {"label": "New enemy encounter", "address": 61184, "space": "lc-upper"}, {"label": "Room battlefield", "address": 640, "space": "ram"}],
+          "limit": 30000000
+        }
+      ]
     }
   ]
 }
@@ -1821,13 +2035,20 @@ node --test dist/tests/site/apple2-ultima-iv-room.test.js
 
 Its media identity is recorded separately from the earlier companion save.
 The supply trip is provenance for this fixture; the automated acceptance starts
-from its cold boot. With checkpoint output enabled, the test also retains
+from its cold boot. After combat it branches from a full cleared-room checkpoint
+to test both triggers, the refused east exit, the north exit and re-entry. It
+then restores and compares the complete checkpoint before continuing the original
+save route. With checkpoint output enabled, the test also retains
 `ultima_iv_br-room-saved.dsk` for manual resumption. The browser check follows
 all twelve named room stops, compares complete machine/input state with the
 native route, and checks the memory links without advancing the game. Its
 download matches all 143,360 bytes of the native export. Reloading that download
 from a verified Boot disk-request checkpoint restores all saved bytes and
 reproduces the next turn; the native acceptance performs both complete cold boots.
+The separate trigger tour has thirteen named stops and 62 memory links. Its
+browser run starts from the verified cleared-room checkpoint, reproduces the
+native machine/input state through the new encounter, and checks every link
+without advancing the game.
 
 Set `APPLE2_ULTIMA_IV_CHECKPOINTS` to an ignored local directory to retain the
 verified checkpoints and Britannia exports for
@@ -1902,9 +2123,12 @@ by saving and resuming the resulting party. The subsequent shopping and magic ro
 covers one reagent purchase, two Heal mixtures, one capped healing result, and
 persistence of the remaining inventory. The companion route adds Iolo through
 normal conversation, completes combat with two characters, and separates Heal’s
-caster from its recipient before saving and reloading the entire roster.
+caster from its recipient before saving and reloading the entire roster. The
+room route clears Covetous room zero, checks both triggers and the shared-exit
+rule, verifies the room's reconstruction on re-entry, and separately returns
+both characters to Britannia to save and reload their progress.
 Other companions, larger parties, other spells, failed recipes, insufficient
 resources, other classes and answer sequences, other towns and conversations,
-other enemies and combat options, deeper dungeon exploration and room combat,
+other enemies and combat options, deeper dungeon exploration and other rooms,
 sound expansion hardware, and a complete playthrough remain unverified. The
 machine chapter's disk, timing, display, and audio limitations continue to apply.
