@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "execution-controls.html" import run_speed, clock_measurements %}
 {% block description %}Run Color BASIC on a native Dromaios CoCo, with a dockable screen, processor, memory, and device inspectors.{% endblock %}
 {% block body_class %}laboratory-page{% endblock %}
 {% block head %}<script type="module" src="{{ calc_url(coco_lab_script) }}"></script>{% endblock %}
@@ -42,6 +43,7 @@
         <button type="button" data-machine-over disabled>Step over</button><button type="button" data-machine-out disabled>Step out</button><button type="button" data-machine-reset disabled>Reset CPU</button>
         <button type="button" data-machine-power disabled>Fresh power-on</button>
       </div>
+      {{ run_speed() }}
       <form class="basic-controls coco-run-target" data-run-target>
         <label>Address <input data-run-target-address aria-label="Run to address" placeholder="A027" maxlength="6" spellcheck="false" disabled></label>
         <button type="submit" data-run-target-button disabled>Run to address</button>
@@ -49,10 +51,11 @@
       <p class="basic-readout" data-debugger-status role="status"></p>
       <p class="basic-readout" data-machine-status role="status">Preparing hardware…</p>
       <p class="basic-message" data-machine-error role="alert"></p><p class="basic-message" data-machine-message role="status"></p>
+      {{ clock_measurements() }}
       <p class="lab-hint">Last step</p><pre data-last-step></pre>
       <details class="coco-help"><summary>Keyboard and execution</summary>
         <p id="coco-keys" class="lab-hint">Click the screen to type or paste one line. Enter submits; Backspace edits; Escape or Ctrl-C sends Break; Home sends Clear. Host key repeat is ignored. Leaving the window pauses and releases queued keys.</p>
-        <p class="lab-hint">Reset CPU preserves RAM and device settings. Fresh power-on clears them and keeps the installed ROMs. This profile is untimed: steps are not clock cycles.</p>
+        <p class="lab-hint">Reset CPU preserves RAM and device settings. Fresh power-on clears them and keeps the installed ROMs. Normal targets the declared CPU clock rate; Unlimited runs as fast as the browser allows. Clocks include waiting time. Mark clock measures an interval; Step, Step over, and Step out report their clocks separately.</p>
         <p class="lab-hint">Run to address executes normally and pauses before the next boundary at that PC, or after 2,000,000 boundaries. Breakpoints and RAM write watchpoints can stop it earlier. Run, Step, Pause, reset, and leaving the window cancel the target.</p>
       </details>
     </section>
@@ -106,7 +109,7 @@
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="sam" data-panel-title="SAM / video" data-panel-heading="MC6883 / MC6847" data-panel-live="true">
       <div class="coco-device-fields" data-coco-sam></div>
       <p class="basic-readout" data-coco-video-mode></p>
-      <p class="lab-hint">V: SAM sequence · GM: VDG format · CSS: colour set<br>M: memory · R: clock · TY: map · untimed</p>
+      <p class="lab-hint">V: SAM sequence · GM: VDG format · CSS: colour set<br>M: memory · R: clock · TY: map · NTSC, normal speed</p>
       <p class="lab-hint"><a href="{{ calc_url(coco_url) }}#try-bitmap-graphics" target="_blank" rel="noopener">Try bitmap graphics ↗</a></p>
     </section>
     <section class="lab-tool lab-panel-body" data-workspace-panel="pias" data-panel-title="PIAs / keyboard" data-panel-heading="MC6821 × 2" data-panel-live="true">

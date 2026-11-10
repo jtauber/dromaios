@@ -177,7 +177,7 @@ test("the published ROM walkthrough reaches the prompt and follows A through pol
   // Inspection never has a live bus connection, even with a key ready and the disk motor on.
   machine.disk.install(new Array(256).fill(0));
   machine.disk.insert(new Dos33Disk(new Uint8Array(Dos33Disk.size)));
-  machine.disk.read(9); machine.disk.read(12);
+  machine.disk.read(9); machine.disk.advanceCpuClocks(32); machine.disk.read(12);
   assert.equal(machine.disk.inspect().position, 1);
   machine.language.read(1); // Arm its prewrite latch without mapping RAM over ROM.
   const before = machine.snapshot(), read = machine.memory.read;

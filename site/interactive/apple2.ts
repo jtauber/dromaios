@@ -3,7 +3,7 @@ import { editApple2Register } from "./apple2-register-edit.js";
 import { editApple2Memory } from "./apple2-memory-edit.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createExecutionController } from "./execution-controller.js";
-import { createClockPacing } from "./clock-pacing.js";
+import { createExecutionSpeedControls } from "./execution-speed-controls.js";
 import { createApple2Sound } from "./apple2-sound-view.js";
 import { createExecutionIntervalView } from "./execution-interval-view.js";
 import { createApple2Session, apple2ControlKey, apple2ScreenKey, apple2Input } from "./apple2-session.js";
@@ -70,11 +70,6 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   let diskSet = new Apple2DiskSet();
   const intervals = createExecutionIntervalView(root, () => session.machine.clock);
   const sound = createApple2Sound(root, () => session.machine);
-  const hertz = session.machine.clock.hertz;
-  if (hertz === undefined) throw new Error("The Apple II chapter must declare its CPU clock frequency.");
-  const normalPacing = createClockPacing({ ticks: () => session.machine.clock.ticks, hertz, now: () => performance.now() });
-  const speedButtons = root.querySelectorAll<HTMLButtonElement>("[data-machine-speed]");
-  let normalSpeed = true;
   let diskMode: Apple2DiskMode = writableDisk ? "read-only" : "system-master";
   let diskAction: "boot" | "swap" = "boot";
   let selecting = false, selection = 0, flash = false, nextFlash = 0, restoring = false;
@@ -212,17 +207,9 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   });
   root.querySelector<HTMLElement>("[data-rom-explorer]")?.addEventListener("toggle", refresh);
   execution.setDelay(1);
-  execution.setPacing(normalPacing);
-  for (const button of speedButtons) {
-    button.title = button.dataset.machineSpeed === "normal"
-      ? `Limit Run to ${hertz.toLocaleString()} CPU clocks per second; busy inspectors may make it slower.`
-      : "Run as fast as the browser allows, yielding between batches.";
-    button.addEventListener("click", () => {
-      normalSpeed = button.dataset.machineSpeed === "normal";
-      execution.setPacing(normalSpeed ? normalPacing : undefined);
-      refresh();
-    });
-  }
+  const speed = createExecutionSpeedControls(root, {
+    clock: () => session.machine.clock, setPacing: execution.setPacing, changed: refresh,
+  });
 
   function pauseBeforeStep(): boolean {
     return explorer.pauseBeforeStep(basicBreakpoints.active ? basicBreakpoints.match : undefined);
@@ -263,10 +250,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (basicStep) basicStep.disabled = step.disabled || session.machine.language.ramRead();
     reset.disabled = !available;
     power.disabled = selecting;
-    for (const button of speedButtons) {
-      button.disabled = selecting;
-      button.setAttribute("aria-pressed", String((button.dataset.machineSpeed === "normal") === normalSpeed));
-    }
+    speed.refresh(selecting);
     for (const control of [keyboard, enter, interrupt]) if (control) control.disabled = !available;
     loadRom.disabled = file.disabled = forgetRom.disabled = selecting;
     loadDisk.disabled = diskFile.disabled = selecting || rom?.bootstrap === undefined;
@@ -294,7 +278,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     if (execution.error !== undefined) { explorer.fail(execution.error); screenInspector?.reset(); }
     if (execution.error !== undefined) message.textContent = execution.error;
     intervals.refresh({ running: execution.running, unavailable: selecting, stop: explorer.stop?.kind });
-    sound.refresh({ running: execution.running, normal: normalSpeed, unavailable: selecting });
+    sound.refresh({ running: execution.running, normal: speed.normal, unavailable: selecting });
     const latest = execution.error === undefined ? execution.records.at(-1)?.record : undefined;
     if (shouldUpdate("variables")) variables?.(session.machine);
     if (shouldUpdate("applesoft")) applesoft?.refresh(session.machine, latest, explorer.stop);

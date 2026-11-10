@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "apple2-controls.html" import media_attributes, execution_controls, clock_measurements, display_controls, rom_storage_controls, rom_routine_controls, media_picker with context %}
+{% from "execution-controls.html" import clock_measurements %}
+{% from "apple2-controls.html" import media_attributes, execution_controls, display_controls, rom_storage_controls, rom_routine_controls, media_picker with context %}
 {% block description %}The Apple II Plus laboratory: run Applesoft and DOS, step through ROM, and inspect the processor, memory, and devices with Dromaios.{% endblock %}
 {% block body_class %}laboratory-page{% endblock %}
 {% block head %}

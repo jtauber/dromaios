@@ -68,14 +68,16 @@ docking workspace. Its layout, Live choices, ROM, and snapshot use separate CoCo
 storage keys. The base Color BASIC 1.3 and optional Extended Color BASIC 1.1
 images have independent loaders, verification, and remembered files. Changing
 the extension starts fresh hardware; removing it also forgets that saved image.
-The native chapter owns both identities and their memory mapping. Version-1
-checkpoints migrate only from the exact former hardware shape to an empty
-extension socket; version 2 requires both ROM identities explicitly.
+The native chapter owns both identities, their memory mapping, and the
+versioned checkpoint migration contracts.
 
 `coco-session.ts` owns native execution and the queued keyboard continuation,
 independent of the DOM. `coco-keyboard-transport.ts` delivers bounded physical
-press/release phases; `coco-input.ts` maps browser keys and single-line paste.
+press/release phases in emulated clocks; `coco-input.ts` maps browser keys and single-line paste.
 `coco-laboratory.ts` connects those to execution controls and local media.
+Apple II and CoCo share `execution-speed-controls.ts` for Normal/Unlimited and
+`execution-interval-view.ts` for markers and Step/over/out measurements. Their
+shared markup lives in `templates/execution-controls.html`.
 The screen and inspector modules observe hardware without guest I/O reads.
 The native renderer combines generated SAM row addressing and VDG pixel decoding
 for text/SG4 and the eight standard bitmap modes. Both the screen footer and

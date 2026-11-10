@@ -13,7 +13,7 @@ export interface CocoSessionState extends CocoKeyboardTransportState {
 
 /** Native machine and host continuation, independent of DOM, docking, and drawing. */
 export function createCocoSession(firmware: RomImage | null = null, extended: RomImage | null = null) {
-  let machine = powerOn(), input = createCocoKeyboardTransport(machine.pias);
+  let machine = powerOn(), input = createCocoKeyboardTransport(machine.pias, machine.clock.hertz!);
   function powerOn() {
     const result = create6809Coco({ firmware, extended });
     if (firmware !== null) result.reset();
@@ -31,18 +31,21 @@ export function createCocoSession(firmware: RomImage | null = null, extended: Ro
     send(keys: readonly CocoChord[]): void { requireFirmware(); input.send(keys); },
     step() {
       requireFirmware(); input.beforeStep();
-      const record = stepCoco(machine); input.afterStep();
+      const start = machine.clock.ticks;
+      const record = stepCoco(machine); input.afterStep(machine.clock.ticks - start);
       return record;
     },
     releaseInput(): void { input.release(); },
     reset(): void { requireFirmware(); machine.reset(); input.release(); },
-    powerOn(): void { machine = powerOn(); input = createCocoKeyboardTransport(machine.pias); },
+    powerOn(): void { machine = powerOn(); input = createCocoKeyboardTransport(machine.pias, machine.clock.hertz!); },
     snapshot(): CocoSessionState { return { hardware: machine.snapshot(), ...input.snapshot() }; },
     restore(value: unknown): void {
-      checkMachineSnapshot(value, ["hardware", "input", "pressed", "remaining"]);
+      checkMachineSnapshot(value, ["hardware", "input", "pressed", "remainingClocks"]);
       const state = value as CocoSessionState;
       const restored = create6809Coco({ firmware, extended }, state.hardware);
-      const transport = createCocoKeyboardTransport(restored.pias, { input: state.input, pressed: state.pressed, remaining: state.remaining });
+      const transport = createCocoKeyboardTransport(restored.pias, restored.clock.hertz!, {
+        input: state.input, pressed: state.pressed, remainingClocks: state.remainingClocks,
+      });
       machine = restored; input = transport;
     },
   };

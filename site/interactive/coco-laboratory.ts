@@ -24,6 +24,8 @@ import { readRomFile } from "./rom-file.js";
 import type { RomFile } from "./rom-file.js";
 import { romFileStorage } from "./rom-storage.js";
 import { createExecutionController } from "./execution-controller.js";
+import { createExecutionSpeedControls } from "./execution-speed-controls.js";
+import { createExecutionIntervalView } from "./execution-interval-view.js";
 import { createCocoDebugger } from "./coco-debugger.js";
 import { createCocoDebuggerView } from "./coco-debugger-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
@@ -55,8 +57,9 @@ function mountCoco(root: HTMLElement): void {
     storage: romFileStorage(() => localStorage, slot.key, romImages[slot.id].size,
       file => readRomFile(file, romImages[slot.id])),
   }));
-  const saved = cocoSavedState(() => localStorage);
   let session = createCocoSession(), selecting = true, hasSaved = false;
+  const saved = cocoSavedState(() => localStorage, session.machine.clock.hertz!);
+  const intervals = createExecutionIntervalView(root, () => session.machine.clock);
   let requested: readonly string[] = [];
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")];
   const updates = createPanelUpdates(root, id => refreshPanels([id]), "dromaios:inspectors:coco:live");
@@ -103,9 +106,12 @@ function mountCoco(root: HTMLElement): void {
     canStep: () => session.hasFirmware && !selecting,
     pauseBeforeStep: () => debug.beforeStep(),
     schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
-    onChange: refresh, batchSize: 10_000,
+    onChange: refresh, batchSize: 10_000, batchTimeMs: 8,
   });
   execution.setDelay(1);
+  const speed = createExecutionSpeedControls(root, {
+    clock: () => session.machine.clock, setPacing: execution.setPacing, changed: refresh,
+  });
   const walkthrough = createRomWalkthrough(root, {
     routines: Object.values(guides).flatMap(guide => guide.routines),
     walkthroughs: Object.values(guides).flatMap(guide => guide.walkthroughs),
@@ -135,6 +141,7 @@ function mountCoco(root: HTMLElement): void {
     pause.disabled = !running; step.disabled = !ready || running || execution.error !== undefined;
     reset.disabled = !ready || running; power.disabled = selecting || running;
     targetButton.disabled = targetInput.disabled = !ready || running || execution.error !== undefined;
+    speed.refresh(selecting);
     for (const slot of slots) {
       slot.load.disabled = slot.forget.disabled = selecting;
       const rom = roms[slot.id];
@@ -145,9 +152,11 @@ function mountCoco(root: HTMLElement): void {
     save.disabled = !ready || running; restore.disabled = !ready || running || !hasSaved;
     forgetState.disabled = selecting || !hasSaved;
     at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${execution.steps.toLocaleString()} steps`
+      + ` · ${session.machine.clock.ticks.toLocaleString()} CPU clocks`
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
     at("machine-error").textContent = execution.error ?? "";
     debugView.refresh(running);
+    intervals.refresh({ running, unavailable: selecting, stop: execution.error ? "error" : debug.stop?.kind });
     if (shouldUpdate("log")) changeLog.refresh();
     if (shouldUpdate("debugger")) watchView.refresh();
     stepControls(step.disabled, debug.canStepOut);
@@ -171,7 +180,7 @@ function mountCoco(root: HTMLElement): void {
     refresh();
   }
   function changedMachine(): void {
-    changeLog.reset(); watchHistory.reset(); execution.reset(); debug.reset(); inspectors.reset(); }
+    intervals.clearStep(); changeLog.reset(); watchHistory.reset(); execution.reset(); debug.reset(); inspectors.reset(); }
   function installRom(id: RomSlot, verified: RomFile): void {
     const firmware = id === "firmware" ? verified : roms.firmware;
     const extended = id === "extended" ? verified : roms.extended;
@@ -207,9 +216,10 @@ function mountCoco(root: HTMLElement): void {
   }));
   run.addEventListener("click", () => { debug.run(); message.textContent = ""; execution.run(); screen.focus(); });
   pause.addEventListener("click", () => { debug.pause(); execution.stop(); });
-  step.addEventListener("click", () => { debug.step(); message.textContent = ""; execution.step(); });
+  step.addEventListener("click", () => { debug.step(); intervals.begin("step"); message.textContent = ""; execution.step(); });
   const stepControls = createDebuggerStepControls(root, {
-    over: debug.over, out: debug.out,
+    over: () => { debug.over(); intervals.begin("over"); },
+    out: () => { debug.out(); intervals.begin("out"); },
     run: () => { message.textContent = ""; execution.run(); },
     error: text => { message.textContent = text; },
   });

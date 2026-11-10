@@ -31,18 +31,18 @@ test("a ROM-free CoCo exposes RAM, while inspection leaves pending PIA edges and
   session.powerOn(); assert.equal(session.machine.ram.read(0x1234), 0); session.restore(saved);
   assert.deepEqual(session.snapshot(), saved);
   assert.throws(() => session.restore({ ...saved, hardware: { ...saved.hardware, ram: [] } }));
-  assert.throws(() => session.restore({ ...saved, input: [["A"]], pressed: true, remaining: 8 }));
+  assert.throws(() => session.restore({ ...saved, input: [["A"]], pressed: true, remainingClocks: 8 }));
   assert.deepEqual(session.snapshot(), saved, "a rejected snapshot does not replace the running machine");
 });
 
 test("one browser checkpoint preserves native state, rejects stale formats, and survives a failed replacement", () => {
-  const storage = memoryStorage(), checkpoint = cocoSavedState(() => storage), session = createCocoSession();
+  const storage = memoryStorage(), session = createCocoSession(), checkpoint = cocoSavedState(() => storage, session.machine.clock.hertz!);
   assert.equal(checkpoint.read(), undefined); session.machine.ram.write(100, 99); checkpoint.save(session.snapshot());
   session.powerOn(); session.restore(checkpoint.read()!.state); assert.equal(session.machine.ram.read(100), 99);
   const [key, text] = [...storage.values][0]!;
   storage.setItem = () => { throw new Error("Quota"); };
   assert.throws(() => checkpoint.save(createCocoSession().snapshot()), /Quota/); assert.equal(storage.values.get(key), text);
-  for (const invalid of ["{", "null", " ".repeat(1_000_001), JSON.stringify({ ...JSON.parse(text), version: 4 }),
+  for (const invalid of ["{", "null", " ".repeat(1_000_001), JSON.stringify({ ...JSON.parse(text), version: 5 }),
     JSON.stringify({ ...JSON.parse(text), machine: "apple2" }), JSON.stringify({ ...JSON.parse(text), savedAt: "never" })]) {
     storage.values.set(key, invalid); assert.throws(() => checkpoint.read());
   }
@@ -89,26 +89,39 @@ test("the CoCo workspace restores all seventeen tools and migrates older layouts
   migrateCocoWorkspace(version2, ids); assert.equal(version2.getItem(cocoWorkspaceKey), hiddenStack);
 });
 
-test("old BASIC-only checkpoints migrate to an empty extension socket, while new snapshots must specify it", () => {
-  const storage = memoryStorage(), checkpoint = cocoSavedState(() => storage), session = createCocoSession();
-  session.machine.ram.write(0x3456, 0x78); checkpoint.save(session.snapshot());
-  const [key, current] = [...storage.values][0]!, envelope = JSON.parse(current);
-  assert.equal(envelope.version, 3);
-  const { extended, clock, ...oldHardware } = envelope.state.hardware;
-  const old = { ...envelope, version: 1, state: { ...envelope.state, hardware: oldHardware } };
-  storage.setItem(key, JSON.stringify(old));
-  const migrated = checkpoint.read()!; assert.equal(migrated.version, 3); assert.equal(migrated.state.hardware.extended, null);
-  assert.deepEqual(migrated.state.hardware.clock, { ticks: 0 });
-  session.powerOn(); session.restore(migrated.state); assert.equal(session.machine.ram.read(0x3456), 0x78);
-  assert.equal(storage.getItem(key), JSON.stringify(old), "reading does not overwrite a recoverable old checkpoint");
-  storage.setItem(key, JSON.stringify({ ...old, version: 2 }));
-  assert.throws(() => session.restore(checkpoint.read()!.state), /Machine snapshot requires/);
-  storage.setItem(key, JSON.stringify({ ...old, version: 2, state: { ...old.state, hardware: { ...oldHardware, extended: null } } }));
-  session.restore(checkpoint.read()!.state); assert.equal(session.machine.clock.ticks, 0);
-  storage.setItem(key, JSON.stringify({ ...envelope, state: { ...envelope.state, hardware: { ...oldHardware, extended: null } } }));
-  assert.throws(() => session.restore(checkpoint.read()!.state), /Machine snapshot requires/, "v3 must retain its clock");
-  storage.setItem(key, JSON.stringify({ ...envelope, version: 1 }));
-  assert.throws(() => checkpoint.read(), /Machine snapshot requires/, "a v1 record cannot claim an extension");
+test("legacy checkpoints preserve queued chords and convert phase progress explicitly", () => {
+  const storage = memoryStorage(), session = createCocoSession(), checkpoint = cocoSavedState(() => storage, session.machine.clock.hertz!);
+  session.machine.ram.write(0x3456, 0x78); session.machine.clock.advance(1234);
+  session.machine.pias.setKey("A", true);
+  const current = { ...session.snapshot(), input: [["A"]] as const, pressed: true, remainingClocks: 22_373 };
+  checkpoint.save(current);
+  const [key, text] = [...storage.values][0]!, envelope = JSON.parse(text);
+  assert.equal(envelope.version, 4);
+  session.restore(checkpoint.read()!.state); assert.deepEqual(session.snapshot(), current);
+  for (const version of [1, 2, 3]) {
+    const { remainingClocks, ...state } = current;
+    const { extended, clock, ...base } = state.hardware;
+    const hardware = { ...base, ...(version >= 2 ? { extended } : {}), ...(version === 3 ? { clock } : {}) };
+    const old = { ...envelope, version, state: { ...state, hardware, remaining: 6000 } };
+    storage.setItem(key, JSON.stringify(old));
+    const migrated = checkpoint.read()!;
+    assert.equal(migrated.version, 4); assert.equal(migrated.state.remainingClocks, 22_373);
+    assert.deepEqual(migrated.state.input, [["A"]]); assert.equal(migrated.state.pressed, true);
+    session.restore(migrated.state); assert.equal(session.machine.ram.read(0x3456), 0x78);
+    assert.equal(session.machine.clock.ticks, version === 3 ? 1234 : 0);
+    assert.equal(storage.getItem(key), JSON.stringify(old), "reading leaves the original checkpoint recoverable");
+    for (const remaining of [-1, 12_001, 0.5]) {
+      storage.setItem(key, JSON.stringify({ ...old, state: { ...old.state, remaining } }));
+      assert.throws(() => checkpoint.read(), /Remaining keyboard steps/);
+    }
+  }
+  for (const version of [1, 2, 3, 4]) {
+    const { remainingClocks, ...state } = current;
+    const { clock, ...withoutClock } = state.hardware;
+    const malformed = { ...envelope, version, state: { ...state, hardware: version === 3 ? withoutClock : state.hardware, remaining: 0 } };
+    storage.setItem(key, JSON.stringify(malformed));
+    assert.throws(() => session.restore(checkpoint.read()!.state), /Machine snapshot requires/);
+  }
 });
 
 test("the CoCo walkthrough joins a version-3 ROM tab set once and preserves its selection and hidden tools", () => {

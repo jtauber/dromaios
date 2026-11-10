@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% from "apple2-controls.html" import media_attributes, execution_controls, clock_measurements, display_controls, rom_storage_controls, rom_controls, media_picker with context %}
+{% from "execution-controls.html" import clock_measurements %}
+{% from "apple2-controls.html" import media_attributes, execution_controls, display_controls, rom_storage_controls, rom_controls, media_picker with context %}
 {% block description %}Run Applesoft BASIC with low- and high-resolution graphics on an Apple II Plus in your browser and explore its executable machine description.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{{ calc_url('assets/highlight.css') }}">

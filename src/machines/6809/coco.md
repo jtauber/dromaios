@@ -164,9 +164,9 @@ inspection advance no clocks. The generated factory's raw `step`/`interrupt`
 methods account CPU clocks only; machine execution must use `stepCoco` for
 board arbitration and sync delivery.
 
-This schedule is independent of rendering, host timers, and batch sizes. It
-does not yet pace browser Run to real time, model SAM fast modes or DRAM
-contention, or make the instantaneous renderer follow a raster beam.
+This schedule is independent of rendering, host timers, and batch sizes. Browser
+pacing uses this clock without changing its schedule. SAM fast modes, DRAM
+contention, and raster-beam rendering remain outside the profile.
 
 `pias.setKey(key, pressed)` changes a physical switch. PIA 0 PB0–PB7 select
 columns and PA0–PA6 sense rows; PA7 is the disconnected joystick comparator,
@@ -237,6 +237,25 @@ before another. **Reset CPU** preserves RAM and devices; the host also cancels q
 input and releases keyboard switches. **Fresh power-on** constructs new hardware,
 clears RAM and input, and retains the installed ROM pair.
 
+**Normal**, selected on page load, limits Run to the chapter's 894,886.25 CPU
+clocks per second; busy inspectors or a slow browser may make it slower.
+**Unlimited** removes that limit. Both yield after at most 10,000 boundaries
+or an 8 ms host-time slice. Switching speed leaves the machine, debugger
+request, and input queue intact. Pausing, resuming, restoring, and switching
+speed discard accumulated host-time budgets; a delayed callback retains at
+most 16 ms of work. Time spent paused never becomes a catch-up burst.
+
+Execution shows elapsed CPU clocks, including waiting intervals. **Mark clock**
+sets an independent reference while paused; **Clear marker** removes it. Step,
+Step over, and Step out each measure their own elapsed clocks. A breakpoint,
+watchpoint, Pause, boundary limit, or execution error reports a stopped or
+failed interval rather than completion. Errors include clocks from earlier
+completed boundaries, not an invented duration for a failed instruction.
+CPU reset preserves the clock and marker but clears the last step measurement.
+Fresh power-on, ROM replacement, and checkpoint restoration replace the clock
+and clear both measurements, even if the restored clock value is later.
+Measurements and speed selection are laboratory controls, not checkpoint state.
+
 Click the screen to type. Letters become uppercase; Enter submits a line,
 Backspace sends the CoCo's left arrow, Home sends Clear, and Escape or Ctrl-C
 sends Break. Paste accepts one ASCII line, with an optional trailing newline.
@@ -244,9 +263,14 @@ Unsupported characters and multiline pastes are rejected before anything is
 queued. Text becomes physical keyboard chords, including Shift where needed.
 Browser key repeat is ignored.
 
-The host holds each queued chord for 12,000 execution boundaries and releases it
-for another 12,000 before the next chord. These generous budgets serve this
-ROM input transport; they do not claim real keyboard timing. Up to 1,024 chords
+The host holds each queued chord for at least **50 ms of emulated time**, then
+releases it for another 50 ms before the next chord. Each phase uses the declared
+clock frequency, rounded up to 44,745 CPU clocks. The transition occurs before
+the next CPU boundary after that duration; an instruction or wait can extend
+it slightly. The next phase receives its own full duration. Ordinary execution,
+interrupt entry, and idle waits all consume the saved `remainingClocks` budget;
+zero-clock offers and inspection do not. This is a host typing convention, not
+a hardware key-repeat model. Up to 1,024 chords
 may be queued. Pausing consumes no input. Losing window focus or hiding the
 page pauses execution, releases switches, and clears the queue, preventing a
 stuck key or unattended continuation. Moving between panels in the same window
@@ -304,7 +328,7 @@ Disassembly navigation uses its held storage image while Live is off; Pause,
 Step, and showing either panel refresh its observations.
 
 **Snapshot** saves one explicit browser checkpoint: native hardware plus the
-queued chords, current press/release phase, and remaining input budget.
+queued chords, current press/release phase, and remaining input clocks.
 Save and Restore require a paused machine. Restoring validates the complete
 state and matching ROM pair before replacing the session, stays paused, and clears
 the recent-step display. It does not issue a reset or inject another key.
@@ -1168,10 +1192,23 @@ history, pressed keys, the SAM control word, elapsed CPU clocks (including idle
 intervals), and both ROM identities (or explicit absence). The stateless VDG contributes an empty snapshot. Restoring
 requires matching verified media in both sockets; it does not reapply power-on or CPU reset.
 Taking a snapshot or rendering a frame must neither acknowledge a pending
-interrupt nor release a held key. Browser checkpoints use version 3. Versions
+interrupt nor release a held key. Browser checkpoints use version 4. Versions
 1 and 2 predate the clock: migration starts the schedule at zero and preserves
 old PIA levels and pending flags until the next edge. Version 1 also acquires
-an empty extension socket. A version-3 checkpoint missing its clock is rejected.
+an empty extension socket. Versions 1–3 used a 12,000-boundary keyboard phase:
+migration preserves the fraction remaining as part of the new 50 ms phase,
+rounded up to a whole clock. The old phase's actual elapsed time cannot be
+reconstructed. Queued chords, held switches, and version-3 clocks are retained.
+Missing clock or input fields in current checkpoints are rejected. Reading an
+older checkpoint does not overwrite it; saving writes version 4.
+
+The [laboratory execution tests](../../../tests/site/coco-execution.test.ts)
+compare Normal, Unlimited, and single stepping with queued repeated keys;
+measure nested calls, stopped requests, and waits; and check restoration and
+stale host callbacks. The [keyboard tests](../../../tests/site/coco-input.test.ts)
+check exact phase boundaries, zero-clock offers, and independent press/release
+durations. The real-ROM sessions below verify typing and graphics with this
+clock-based transport.
 
 ### Waiting for a video interrupt
 
