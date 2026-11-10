@@ -185,9 +185,78 @@ the native snapshot.
 
 PIA 1 ports have high external inputs, so direction registers determine which
 output latch bits reach the video controls. Both PIAs' unconnected C2 inputs
-are high. Joystick conversion, serial transport, cassette, audio, and cartridge
+are high. Joystick conversion, serial transport, cassette, and cartridge
 hardware are absent. PIA manual C2 output modes work; strobe modes reject
 writes as described in the PIA chapter.
+
+## Sound
+
+The [executable sound circuit](../../components/devices/specifications/coco-sound.md)
+decodes PIA 1 PA7–PA2 as a six-bit DAC. PIA 0 CA2/CB2 select its path to the
+television, and PIA 1 CB2 enables that path. PIA 1 PB1 is an independent
+one-bit output. The board's `pias.soundLevel` observes the resolved pins without
+reading guest registers or acknowledging interrupts. All retained sound state
+already belongs to the PIAs; restoring them and the CPU clock restores the
+guest's waveform generation. No new checkpoint fields are needed.
+
+In the laboratory's **Execution** panel, click **Sound**, select **Normal**,
+and **Run**. Sound starts off on every page load. **Unlimited**, manual Step,
+Pause, debugger stops, and hidden pages are silent. Reset, fresh power-on,
+media replacement, and checkpoint restore discard queued audio. Playback
+resumes from the current output, without replaying old samples.
+
+### Try Color BASIC SOUND
+
+With `bas13.rom` loaded, paste this line into the screen:
+
+```text
+SOUND 128,2
+```
+
+The first argument controls pitch, not frequency in hertz; the second controls
+duration. Both take values 1–255. This produces a short tone and returns to
+`OK`. Try `SOUND 176,2` for a higher pitch or `SOUND 128,8` for a longer tone.
+[Getting Started with Color BASIC][basic-manual], page 11, introduces the
+command. The ROM computes and writes the waveform; the host does not interpret
+SOUND or substitute a synthesizer.
+
+### Try Extended BASIC PLAY
+
+With both `bas13.rom` and `extbas11.rom` loaded, enter:
+
+```text
+PLAY "T4O3L8V15CEGP8V7C"
+```
+
+This plays C, E, and G, pauses, then plays a quieter C and returns to `OK`.
+`T4` sets tempo, `O3` the octave, `L8` the note length, and `V15` the initial
+volume. `P8` inserts a rest of that length; `V7` reduces the final note's
+volume. These are the ROM's PLAY conventions, described in
+[Getting Started with Extended Color BASIC][extended-manual], pages 133–138.
+The same PIA/DAC path produces both examples.
+
+### Clocked playback and acceptance
+
+Apple II and CoCo share the sample averaging, browser audio transport, and
+Sound controls. The Apple II supplies a Boolean latch converted to 0 or 1;
+the CoCo supplies a normalized amplitude. Each completed CPU or waiting
+boundary timestamps the final output with the machine clock. Samples average
+the held amplitude across their intervals, independently of host batch size.
+Within-instruction pulses are outside this model.
+
+The browser uses modest gain, an 80 Hz high-pass filter to remove DC, and at
+most 120 ms of queued audio. These are listening approximations, not the
+television's analogue electronics. A slow host can leave gaps in playback;
+it does not change guest timing to conceal them. Audio errors never stop the
+CPU. Toggle Sound off and on to retry a browser audio interruption.
+
+The [hardware tests](../../../tests/machines/6809/coco/sound.test.ts) check
+every DAC value, multiplexer selection, the independent one-bit path, port
+directions, and an independently timed 6809 waveform loop. The
+[ROM acceptance tests](../../../tests/site/coco-sound.test.ts) enter the two
+examples through the keyboard, measure their output, and replay sound from a
+mid-note checkpoint. They require caller-supplied verified ROMs; no ROM bytes
+or prerecorded audio are committed.
 
 ## An instantaneous screen
 
@@ -614,7 +683,7 @@ While the picture is displayed, pause and save a snapshot. Run and press Space,
 then restore the snapshot while paused: the same picture and key-waiting program
 return. Run again and press Space to finish, then try `PRINT 2+3` or `LIST`.
 **Reset CPU** retains the installed ROM pair and RAM; **Fresh power-on** retains
-the ROMs but clears the program. Sound, cassette commands, and timing-dependent
+the ROMs but clears the program. Cassette commands and timing-dependent
 programs requiring instruction-internal video or peripheral timing remain outside this profile even though the ROM recognizes
 their BASIC keywords.
 
@@ -1283,6 +1352,8 @@ and explicit release without firmware.
 
 [rom-catalogue]: https://github.com/mamedev/mame/blob/master/src/mame/trs/coco12.cpp
 [technical]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Color%20Computer%20Technical%20Reference%20Manual%20%28Tandy%29.pdf
+[basic-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Getting%20Started%20With%20Color%20Basic%20%281984%20Edition%29%20%28Tandy%29.pdf
+[extended-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Getting%20Started%20With%20Extended%20Color%20Basic%20%28Tandy%29.pdf
 
 [extended-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Getting%20Started%20With%20Extended%20Color%20Basic%20%28Tandy%29.pdf
 

@@ -15,13 +15,13 @@ test("a software delay loop toggles every 1023 CPU clocks and renders a 500 Hz t
     [0x2c, 0x30, 0xc0, 0xa2, 203, 0xca, 0xd0, 0xfd, 0x4c, 0, 2]
       .forEach((byte, index) => machine.ram.write(0x200 + index, byte));
     editApple2Register(machine, "pc", "0200");
-    const signal = createSpeakerSamples(machine.clock.hertz!, 48000, 0, false), edges: number[] = [], samples: number[] = [];
+    const signal = createSpeakerSamples(machine.clock.hertz!, 48000, 0, 0), edges: number[] = [], samples: number[] = [];
     let level = false, instructions = 0;
     while (edges.length < 100) {
       assert.ok(instructions < 50000); machine.step(); instructions++;
       const next = machine.speaker.level();
       if (next !== level) edges.push(machine.clock.ticks);
-      level = next; signal.advance(machine.clock.ticks, level);
+      level = next; signal.advance(machine.clock.ticks, Number(level));
       if (instructions % batchSize === 0) samples.push(...signal.take());
     }
     samples.push(...signal.take());
@@ -64,13 +64,13 @@ test("the verified Monitor bell produces 192 clocked speaker edges and replays e
     [0xa0, 0xc0, 0xa9, 0x0c, 0x20, 0xa8, 0xfc, 0xad, 0x30, 0xc0, 0x88, 0xd0, 0xf5, 0x60]);
   const saved = session.snapshot();
   function bell(batch: number) {
-    const signal = createSpeakerSamples(session.machine.clock.hertz!, 48000, session.machine.clock.ticks, session.machine.speaker.level());
+    const signal = createSpeakerSamples(session.machine.clock.hertz!, 48000, session.machine.clock.ticks, Number(session.machine.speaker.level()));
     const edges: number[] = [], samples: number[] = []; let level = session.machine.speaker.level(), count = 0;
     while (session.machine.cpu.snapshot().pc !== 0x203) {
       assert.ok(count++ < 100000); session.step();
       const next = session.machine.speaker.level();
       if (next !== level) edges.push(session.machine.clock.ticks);
-      level = next; signal.advance(session.machine.clock.ticks, level);
+      level = next; signal.advance(session.machine.clock.ticks, Number(level));
       if (count % batch === 0) samples.push(...signal.take());
     }
     samples.push(...signal.take()); return { edges, samples, state: session.snapshot() };

@@ -14,3 +14,10 @@
 <p data-clock-interval class="basic-readout" role="status" hidden></p>
 {% endmacro %}
 
+
+{% macro sound_controls() %}
+<div class="basic-controls sound-controls" role="group" aria-label="Speaker audio">
+  <button type="button" data-machine-sound aria-pressed="false" disabled title="Enable speaker audio during Normal Run. Pause and Unlimited are silent.">Sound</button>
+  <span data-sound-status class="basic-readout" role="status">Off</span>
+</div>
+{% endmacro %}

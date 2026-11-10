@@ -1,4 +1,5 @@
 import { Mc6821 } from "../../../components/devices/generated/mc6821.ts";
+import { CocoSound } from "../../../components/devices/generated/coco-sound.ts";
 import type { Mc6821Snapshot } from "../../../components/devices/generated/mc6821.ts";
 import type { ByteMemoryConnection } from "../../../components/memory/connection.ts";
 import { checkUnsigned } from "../../../components/validation.ts";
@@ -16,6 +17,7 @@ export class CocoPias implements ByteMemoryConnection {
   readonly #pia0: Mc6821;
   readonly #pia1: Mc6821;
   readonly #keyboard: CocoKeyboard;
+  readonly #sound = new CocoSound();
 
   constructor(state?: CocoPiasSnapshot) {
     if (state !== undefined && (!state.pia0 || !state.pia1 || !state.keyboard)) {
@@ -39,6 +41,11 @@ export class CocoPias implements ByteMemoryConnection {
   get irq(): boolean { return this.#pia0.irq(); }
   get firq(): boolean { return this.#pia1.irq(); }
   get videoPins(): number { return this.#pia1.pinsB(); }
+  /** Normalized sound output; observing pins never acknowledges a PIA interrupt. */
+  get soundLevel(): number {
+    return this.#sound.output(this.#pia1.pinsA(), this.#pia1.pinsB(),
+      this.#pia0.ca2High(), this.#pia0.cb2High(), this.#pia1.cb2High()) / 126;
+  }
 
   snapshot(): CocoPiasSnapshot {
     return { pia0: this.#pia0.snapshot(), pia1: this.#pia1.snapshot(), keyboard: this.#keyboard.snapshot() };

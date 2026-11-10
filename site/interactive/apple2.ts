@@ -4,7 +4,7 @@ import { editApple2Memory } from "./apple2-memory-edit.js";
 import { romImages } from "../../src/machines/generated/6502/apple2.js";
 import { createExecutionController } from "./execution-controller.js";
 import { createExecutionSpeedControls } from "./execution-speed-controls.js";
-import { createApple2Sound } from "./apple2-sound-view.js";
+import { createMachineSound } from "./machine-sound-view.js";
 import { createExecutionIntervalView } from "./execution-interval-view.js";
 import { createApple2Session, apple2ControlKey, apple2ScreenKey, apple2Input } from "./apple2-session.js";
 import { createApple2ScreenInspector } from "./apple2-screen-inspector-view.js";
@@ -69,7 +69,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   let session = createApple2Session(), rom: Apple2RomFile | undefined, diskName: string | null = null;
   let diskSet = new Apple2DiskSet();
   const intervals = createExecutionIntervalView(root, () => session.machine.clock);
-  const sound = createApple2Sound(root, () => session.machine);
+  const sound = createMachineSound(root, () => ({ clock: session.machine.clock, level: Number(session.machine.speaker.level()) }));
   let diskMode: Apple2DiskMode = writableDisk ? "read-only" : "system-master";
   let diskAction: "boot" | "swap" = "boot";
   let selecting = false, selection = 0, flash = false, nextFlash = 0, restoring = false;

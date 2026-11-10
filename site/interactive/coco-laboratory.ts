@@ -1,3 +1,4 @@
+import { createMachineSound } from "./machine-sound-view.js";
 import { createCocoChangeLog } from "./coco-change-log.js";
 import { createChangeLogView } from "./change-log-view.js";
 import { createCocoWatchHistory } from "./coco-watch-history.js";
@@ -59,6 +60,7 @@ function mountCoco(root: HTMLElement): void {
   }));
   let session = createCocoSession(), selecting = true, hasSaved = false;
   const saved = cocoSavedState(() => localStorage, session.machine.clock.hertz!);
+  const sound = createMachineSound(root, () => ({ clock: session.machine.clock, level: session.machine.pias.soundLevel }));
   const intervals = createExecutionIntervalView(root, () => session.machine.clock);
   let requested: readonly string[] = [];
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")];
@@ -100,6 +102,7 @@ function mountCoco(root: HTMLElement): void {
     step() {
       const caller = cocoDebugLocation(session.machine), log = changeLog.current();
       const record = log.capture(() => debug.capture(() => session.step()));
+      sound.observe();
       watchHistory.observe(record, caller, debug.watchpoints, log.memoryWrites(record));
       return record;
     },
@@ -142,6 +145,7 @@ function mountCoco(root: HTMLElement): void {
     reset.disabled = !ready || running; power.disabled = selecting || running;
     targetButton.disabled = targetInput.disabled = !ready || running || execution.error !== undefined;
     speed.refresh(selecting);
+    sound.refresh({ running, normal: speed.normal, unavailable: selecting });
     for (const slot of slots) {
       slot.load.disabled = slot.forget.disabled = selecting;
       const rom = roms[slot.id];

@@ -1,4 +1,4 @@
-{% from "execution-controls.html" import run_speed %}
+{% from "execution-controls.html" import run_speed, sound_controls %}
 {% macro media_attributes(media) -%}
 data-rom-bytes="{{ media.bytes }}" data-rom-sha256="{{ media.sha256 }}" data-rom-offset="{{ media.offset }}"
 data-bootstrap-bytes="{{ media.bootstrap.bytes }}" data-bootstrap-sha256="{{ media.bootstrap.sha256 }}" data-bootstrap-offset="{{ media.bootstrap.offset }}"
@@ -16,10 +16,7 @@ data-disk-bytes="{{ media.disk.bytes }}" data-disk-sha256="{{ media.disk.sha256 
   <button type="button" data-machine-power disabled>Fresh power-on</button>
 </div>
 {{ run_speed() }}
-<div class="basic-controls sound-controls" role="group" aria-label="Speaker audio">
-  <button type="button" data-apple2-sound aria-pressed="false" disabled title="Enable speaker audio during Normal Run. Pause and Unlimited are silent.">Sound</button>
-  <span data-sound-status class="basic-readout" role="status">Off</span>
-</div>
+{{ sound_controls() }}
 {% endmacro %}
 
 {% macro display_controls() %}

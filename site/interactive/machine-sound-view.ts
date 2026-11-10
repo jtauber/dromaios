@@ -2,11 +2,11 @@ import { createSpeakerPlayback } from "./speaker-samples.js";
 import { createSpeakerAudioOutput } from "./speaker-audio-output.js";
 
 /** Sound is an opt-in observer. Audio failures must never interrupt the guest CPU. */
-export function createApple2Sound(root: HTMLElement, machine: () => {
+export function createMachineSound(root: HTMLElement, machine: () => {
   readonly clock: { readonly ticks: number; readonly hertz: number | undefined };
-  readonly speaker: { level(): boolean };
+  readonly level: number;
 }) {
-  const button = root.querySelector<HTMLButtonElement>("[data-apple2-sound]")!;
+  const button = root.querySelector<HTMLButtonElement>("[data-machine-sound]")!;
   const status = root.querySelector<HTMLElement>("[data-sound-status]")!;
   let context: AudioContext | undefined, playback: ReturnType<typeof createSpeakerPlayback> | undefined;
   let enabled = false, generation = 0, error = "", running = false, normal = true, unavailable = false;
@@ -18,7 +18,7 @@ export function createApple2Sound(root: HTMLElement, machine: () => {
   function refresh(): void {
     try {
       const current = machine();
-      playback?.sync(current.clock, current.speaker.level(), enabled && running && normal && !unavailable && context?.state === "running");
+      playback?.sync(current.clock, current.level, enabled && running && normal && !unavailable && context?.state === "running");
     } catch (cause) { failed(cause); }
     button.disabled = unavailable;
     button.setAttribute("aria-pressed", String(enabled));
@@ -48,7 +48,8 @@ export function createApple2Sound(root: HTMLElement, machine: () => {
   button.disabled = false;
   return {
     observe(): void {
-      try { const current = machine(); playback?.observe(current.clock.ticks, current.speaker.level()); }
+      if (!enabled || !running || !normal || unavailable || context?.state !== "running") return;
+      try { const current = machine(); playback?.observe(current.clock.ticks, current.level); }
       catch (cause) { failed(cause); }
     },
     refresh(state: { readonly running: boolean; readonly normal: boolean; readonly unavailable: boolean }): void {

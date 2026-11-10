@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "execution-controls.html" import run_speed, clock_measurements %}
+{% from "execution-controls.html" import run_speed, clock_measurements, sound_controls %}
 {% block description %}Run Color BASIC on a native Dromaios CoCo, with a dockable screen, processor, memory, and device inspectors.{% endblock %}
 {% block body_class %}laboratory-page{% endblock %}
 {% block head %}<script type="module" src="{{ calc_url(coco_lab_script) }}"></script>{% endblock %}
@@ -44,6 +44,7 @@
         <button type="button" data-machine-power disabled>Fresh power-on</button>
       </div>
       {{ run_speed() }}
+      {{ sound_controls() }}
       <form class="basic-controls coco-run-target" data-run-target>
         <label>Address <input data-run-target-address aria-label="Run to address" placeholder="A027" maxlength="6" spellcheck="false" disabled></label>
         <button type="submit" data-run-target-button disabled>Run to address</button>
@@ -54,6 +55,7 @@
       {{ clock_measurements() }}
       <p class="lab-hint">Last step</p><pre data-last-step></pre>
       <details class="coco-help"><summary>Keyboard and execution</summary>
+        <p class="lab-hint">Sound enables clocked audio during Normal Run. Try <code>SOUND 128,2</code> in Color BASIC, or <code>PLAY "T4O3L8V15CEGP8V7C"</code> with Extended BASIC. Pause and Unlimited are silent.</p>
         <p id="coco-keys" class="lab-hint">Click the screen to type or paste one line. Enter submits; Backspace edits; Escape or Ctrl-C sends Break; Home sends Clear. Host key repeat is ignored. Leaving the window pauses and releases queued keys.</p>
         <p class="lab-hint">Reset CPU preserves RAM and device settings. Fresh power-on clears them and keeps the installed ROMs. Normal targets the declared CPU clock rate; Unlimited runs as fast as the browser allows. Clocks include waiting time. Mark clock measures an interval; Step, Step over, and Step out report their clocks separately.</p>
         <p class="lab-hint">Run to address executes normally and pauses before the next boundary at that PC, or after 2,000,000 boundaries. Breakpoints and RAM write watchpoints can stop it earlier. Run, Step, Pause, reset, and leaving the window cancel the target.</p>
