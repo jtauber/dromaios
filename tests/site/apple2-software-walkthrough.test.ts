@@ -132,3 +132,22 @@ test("room trigger stops distinguish coordinates and scan boundaries; re-entry c
   machine.ram.write(0x7a7d, 255);
   assert.equal(softwareCheckpointMatches(machine, placed), false);
 });
+
+test("Covetous ladder stops distinguish two levels at the same coordinates and validate the ladder tile", () => {
+  const { machine } = createApple2Session();
+  const authored = record.walkthroughs.find((tour: { id: string }) => tour.id === "ultima4-levels");
+  for (const [index, name, wrongLevel, wrongTile] of [[3, "descend", 1, 16], [5, "climb", 0, 32]] as const) {
+    const stop = record.rooms.stops[name];
+    const checkpoint: SoftwareCheckpoint = { ...authored.steps[index], address: stop.address.toString(16), bytes: stop.bytes };
+    for (const [i, byte] of checkpoint.bytes.entries()) machine.ram.write(stop.address + i, byte);
+    for (const condition of checkpoint.when) for (const [i, byte] of condition.bytes.entries()) machine.ram.write(condition.address + i, byte);
+    const before = machine.snapshot();
+    assert.equal(softwareCheckpointMatches(machine, checkpoint), true);
+    assert.deepEqual(machine.snapshot(), before);
+    for (const [address, value] of [[12, wrongLevel], [0xc8, wrongTile], [0, 6]] as const) {
+      const original = machine.ram.read(address); machine.ram.write(address, value);
+      assert.equal(softwareCheckpointMatches(machine, checkpoint), false);
+      machine.ram.write(address, original);
+    }
+  }
+});

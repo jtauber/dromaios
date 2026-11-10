@@ -12,9 +12,9 @@ class SoftwareWalkthroughTests(unittest.TestCase):
         self.record = json.loads(re.search(r"^```json\n(.*?)^```$", self.source, re.M | re.S)[1])
 
     def test_tours_resolve_the_acceptance_stops_and_publish_both_memory_spaces(self):
-        party, combat, magic, companions, rooms, rules = ultima4_walkthroughs(self.source)
-        self.assertEqual([t["id"] for t in (party, combat, magic, companions, rooms, rules)],
-                         ["ultima4-party", "ultima4-combat", "ultima4-magic", "ultima4-companions", "ultima4-rooms", "ultima4-room-rules"])
+        party, combat, magic, companions, rooms, rules, levels = ultima4_walkthroughs(self.source)
+        self.assertEqual([t["id"] for t in (party, combat, magic, companions, rooms, rules, levels)],
+                         ["ultima4-party", "ultima4-combat", "ultima4-magic", "ultima4-companions", "ultima4-rooms", "ultima4-room-rules", "ultima4-levels"])
         self.assertEqual([s["address"] for s in party["steps"]], ["40C0", "590E", "5959", "4047", "408D", "40C0"])
         self.assertEqual([s["address"] for s in combat["steps"]], ["6FB0", "708B", "71D7", "7A7E", "71D7", "40C0"])
         self.assertEqual(party["steps"][0]["bytes"], self.record["stops"]["command"]["bytes"])
@@ -40,6 +40,10 @@ class SoftwareWalkthroughTests(unittest.TestCase):
                          ["71D7", "71D7", "797E", "79C1", "7A12", "797E", "79C1", "7670", "40C0", "6EB2", "6EB5", "6FAD", "71D7"])
         self.assertEqual(rules["steps"][4]["when"][-1], {"address": 6, "bytes": [11, 5]})
         self.assertEqual(rules["steps"][11]["when"][-1], {"address": 0x7a7c, "bytes": [0, 0]})
+        self.assertEqual([s["address"] for s in levels["steps"]],
+                         ["71D7", "7670", "40C0", "4F6A", "40C0", "563B", "40C0", "71D7", "7670", "40C0"])
+        self.assertEqual(levels["steps"][3]["when"][-1], {"address": 0xc8, "bytes": [32]})
+        self.assertEqual(levels["steps"][5]["when"][-1], {"address": 0xc8, "bytes": [16]})
         # Changing a shared acceptance stop changes the published tour, without another address to maintain.
         self.record["stops"]["command"]["address"] = 0x4000
         self.record["magic"]["stops"]["healed"]["address"] = 0x4c44

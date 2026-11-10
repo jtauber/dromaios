@@ -30,13 +30,17 @@ const guide = record("docs/software/ultima-iv.md") as {
   companions: { stops: { firstTurn: Stop } };
   rooms: {
     image: Identity; initial: readonly Member[]; final: readonly Member[];
-    stops: Record<"read" | "loaded" | "placed" | "leaving" | "trigger" | "triggered" | "exitRejected", Stop>;
+    stops: Record<"read" | "loaded" | "placed" | "leaving" | "trigger" | "triggered" | "exitRejected" | "descend" | "climb", Stop>;
     approach: readonly number[]; return: readonly number[]; enemies: readonly Enemy[];
     turns: readonly { actor: number; keys: readonly number[]; members: readonly (readonly number[])[]; enemies: readonly Enemy[]; next: number }[];
     rules: {
       approach: readonly number[]; east: readonly number[]; lower: readonly number[]; north: readonly number[];
       changes: readonly (readonly [x: number, y: number, before: number, after: number])[];
       reenteredEnemies: readonly Enemy[];
+    };
+    levels: {
+      mageToEast: readonly number[]; ioloToEast: readonly number[]; explore: readonly number[];
+      retreat: readonly (readonly number[])[]; return: readonly number[]; final: readonly Member[];
     };
     exits: readonly { actor: number; key: number; next: number; positions: readonly number[]; active: readonly number[]; exit: readonly number[]; pc: number }[];
   };
@@ -108,6 +112,38 @@ test("Ultima IV loads a raw dungeon room, defeats its enemies, returns both char
     if (!directory) return;
     mkdirSync(directory, { recursive: true }); writeFileSync(join(directory, `ultima-iv-room-${name}.json`), JSON.stringify(await snapshot(name)));
   }
+  async function saveAndResume(label: string, expected: readonly Member[]): Promise<void> {
+    const exportName = `ultima_iv_br-${label}-saved.dsk`;
+    const mark = (name: string) => checkpoint(label === "room" ? name : `${label}-${name}`);
+    const original = session.machine.disk.exportImage(); runTo(guide.save.start, [81]);
+    const saved = guide.save.files.map(file => ({ ...file, payload: file.address < 0xc000
+      ? ram(file.address, file.bytes + 1) : upper(file.address, file.bytes + 1) }));
+    const writes: number[][] = [], reads: number[][] = [];
+    const detach = session.machine.disk.medium!.observeWrites(w => writes.push([w.track, w.sector]));
+    try { runTo(guide.save.returned, [], 50_000_000, step => {
+      if (step.before.pc !== 0xacc7) return;
+      const read = step.accesses.filter(a => a.kind === "read").at(-1)!; reads.push([read.address, read.value]);
+    }); } finally { detach(); }
+    assert.deepEqual(reads, saved.flatMap(file => Array.from(file.payload, (value, i) => [file.address + i, value])));
+    assert.deepEqual(writes, saved.flatMap(file => [...file.sectors.map(sector => [file.track, sector]), [17, 13]]));
+    const exported = session.machine.disk.exportImage(); checkUltima4Save(original, exported, saved);
+    runTo(command); await mark("saved");
+    const directory = process.env.APPLE2_ULTIMA_IV_CHECKPOINTS;
+    if (directory) writeFileSync(join(directory, exportName), exported);
+    session = createApple2Session(rom.image, { bootstrap: rom.bootstrap!, image: boot }); diskName = "ultima_iv_boot.dsk";
+    bootToExchange(); const loaded = new Dos33Disk(exported); set.add([{ name: exportName, disk: loaded }]);
+    insert(loaded, exportName); runTo(guide.save.partyLoaded, [27]);
+    assert.deepEqual(ram(0, 32), saved.find(file => file.name === "PRTY")!.payload.slice(0, 32));
+    runTo(guide.save.rosterLoaded);
+    for (const file of saved.filter(file => file.name !== "PRTY")) assert.deepEqual(upper(file.address, file.bytes), file.payload.slice(0, file.bytes));
+    runTo(command); position(156, 27, 1); assert.deepEqual(members(), expected);
+    assert.equal(amount(0xed47), 2); assert.equal(amount(0xed4b), 1); await mark("resumed");
+    const moves = decimal([...ram(0x1c, 4)]); runTo(command, [32]); position(156, 27, 1);
+    assert.equal(decimal([...ram(0x1c, 4)]), moves + 1); assert.deepEqual(members(), expected); await mark("continued");
+    assert.deepEqual(loaded.exportImage(), exported); assert.equal(hash(boot.exportImage()), guide.boot.sha256);
+    assert.equal(hash(ready.exportImage()), rooms.image.sha256); assert.equal(hash(under.exportImage()), guide.dungeon.image.sha256);
+  }
+  let clearedRoom: Awaited<ReturnType<typeof snapshot>> | undefined;
   function placeRoom(expectedEnemies: readonly Enemy[]): void {
     let healthChecks = 0, expectedHealth = 0, baseHealth = 0;
     runTo(rooms.stops.placed, [], 1_000_000, step => {
@@ -173,7 +209,7 @@ test("Ultima IV loads a raw dungeon room, defeats its enemies, returns both char
       expected[i * 32 + 22] = bytes[0]; expected.set(bytes.slice(1, 3), i * 32 + 24); expected.set(bytes.slice(3), i * 32 + 28);
     }
     assert.deepEqual(upper(0xec00, 512), expected, "Only the two active members' MP, HP and XP change; equipment, inactive records and inventory survive");
-    await checkpoint("cleared");
+    await checkpoint("cleared"); clearedRoom = await snapshot("Cleared room before the level round trip");
   });
   await t.test("room triggers change four tiles, a different exit is refused, and re-entry reconstructs the encounter", async () => {
     const cleared = session.snapshot(), replay = await snapshot("Cleared room before trigger inspection");
@@ -283,32 +319,65 @@ test("Ultima IV loads a raw dungeon room, defeats its enemies, returns both char
     assert.deepEqual(members(), rooms.final); await checkpoint("returned");
   });
   await t.test("Q exports all three save blocks and a new machine reloads both characters before another turn", async () => {
-    const original = session.machine.disk.exportImage(); runTo(guide.save.start, [81]);
-    const saved = guide.save.files.map(file => ({ ...file, payload: file.address < 0xc000
-      ? ram(file.address, file.bytes + 1) : upper(file.address, file.bytes + 1) }));
-    const writes: number[][] = [], reads: number[][] = [];
-    const detach = session.machine.disk.medium!.observeWrites(w => writes.push([w.track, w.sector]));
-    try { runTo(guide.save.returned, [], 50_000_000, step => {
-      if (step.before.pc !== 0xacc7) return;
-      const read = step.accesses.filter(a => a.kind === "read").at(-1)!; reads.push([read.address, read.value]);
-    }); } finally { detach(); }
-    assert.deepEqual(reads, saved.flatMap(file => Array.from(file.payload, (value, i) => [file.address + i, value])));
-    assert.deepEqual(writes, saved.flatMap(file => [...file.sectors.map(sector => [file.track, sector]), [17, 13]]));
-    const exported = session.machine.disk.exportImage(); checkUltima4Save(original, exported, saved);
-    runTo(command); await checkpoint("saved");
-    const directory = process.env.APPLE2_ULTIMA_IV_CHECKPOINTS;
-    if (directory) writeFileSync(join(directory, "ultima_iv_br-room-saved.dsk"), exported);
-    session = createApple2Session(rom.image, { bootstrap: rom.bootstrap!, image: boot }); diskName = "ultima_iv_boot.dsk";
-    bootToExchange(); const loaded = new Dos33Disk(exported); set.add([{ name: "ultima_iv_br-room-saved.dsk", disk: loaded }]);
-    insert(loaded, "ultima_iv_br-room-saved.dsk"); runTo(guide.save.partyLoaded, [27]);
-    assert.deepEqual(ram(0, 32), saved.find(file => file.name === "PRTY")!.payload.slice(0, 32));
-    runTo(guide.save.rosterLoaded);
-    for (const file of saved.filter(file => file.name !== "PRTY")) assert.deepEqual(upper(file.address, file.bytes), file.payload.slice(0, file.bytes));
-    runTo(command); position(156, 27, 1); assert.deepEqual(members(), rooms.final);
-    assert.equal(amount(0xed47), 2); assert.equal(amount(0xed4b), 1); await checkpoint("resumed");
-    const moves = decimal([...ram(0x1c, 4)]); runTo(command, [32]); position(156, 27, 1);
-    assert.equal(decimal([...ram(0x1c, 4)]), moves + 1); assert.deepEqual(members(), rooms.final); await checkpoint("continued");
-    assert.deepEqual(loaded.exportImage(), exported); assert.equal(hash(boot.exportImage()), guide.boot.sha256);
-    assert.equal(hash(ready.exportImage()), rooms.image.sha256); assert.equal(hash(under.exportImage()), guide.dungeon.image.sha256);
+    await saveAndResume("room", rooms.final);
+  });
+  await t.test("both characters leave east, visit level two, and return through the room's south exit", async () => {
+    assert.ok(clearedRoom);
+    const restored = await prepareApple2SavedState(clearedRoom, rom.image, media);
+    session = restored.session; set = restored.diskSet; diskName = restored.diskName!;
+    const levels = rooms.levels, originalMap = ram(0x280, 121), writes: number[][] = [];
+    for (const key of levels.mageToEast) {
+      assert.equal(ram(0xd4)[0], 2); runTo(turn, [32]); assert.equal(ram(0xd4)[0], 1);
+      runTo(turn, [key], 5_000_000, step => {
+        for (const access of step.accesses) if (access.kind === "write" && access.address >= 0x280 && access.address < 0x2f9) {
+          writes.push([access.address, access.value]);
+        }
+      });
+      assert.deepEqual(enemies(), []);
+    }
+    assert.deepEqual(writes, rooms.rules.changes.map(([x, y, , value]) => [0x280 + 11 * y + x, value]));
+    const changedMap = originalMap.slice();
+    for (const [x, y, , value] of rooms.rules.changes) changedMap[y * 11 + x] = value;
+    assert.deepEqual(ram(0x280, 121), changedMap);
+    assert.deepEqual([...upper(0xef80, 2), ...upper(0xef90, 2)], [128, 4, 128, 3]);
+    assert.deepEqual([...upper(0xefa0, 2)], [0, 34]); assert.deepEqual([...ram(0x7a7c, 2)], [11, 0]);
+    await checkpoint("levels-mage-east");
+    for (const [i, key] of levels.ioloToEast.entries()) runTo(i === levels.ioloToEast.length - 1 ? rooms.stops.leaving : turn, [key]);
+    assert.deepEqual([...upper(0xefa0, 2)], [0, 0]); assert.deepEqual([...ram(0x7a7c, 2)], [11, 0]);
+    await checkpoint("levels-both-east"); runTo(command); position(6, 1, 3);
+    assert.deepEqual([...ram(16, 2)], [1, 93]); await checkpoint("levels-east-corridor");
+    runTo(command, [11]); position(7, 1, 3); assert.equal(upper(0xe80f)[0], 0x20);
+    await checkpoint("levels-ladder");
+    runTo(rooms.stops.descend, [68]); assert.equal(ram(12)[0], 0); await checkpoint("levels-before-descent");
+    const disk = session.machine.disk.snapshot();
+    runTo(command); position(7, 1, 3); assert.equal(ram(12)[0], 1);
+    assert.deepEqual([...ram(16, 2)], [1, 91]); assert.equal(upper(0xe84f)[0], 0x10);
+    assert.equal(ram(0xc8)[0], 0x10); assert.deepEqual(session.machine.disk.snapshot(), disk, "The next level is already in RAM");
+    await checkpoint("levels-descended");
+    for (const key of levels.explore) runTo(command, [key]);
+    position(7, 1, 3); assert.deepEqual([...ram(16, 2)], [3, 89]);
+    runTo(rooms.stops.climb, [75]); assert.equal(ram(12)[0], 1); await checkpoint("levels-before-climb");
+    runTo(command); position(7, 1, 3); assert.equal(ram(12)[0], 0);
+    assert.deepEqual([...ram(16, 2)], [3, 88]); assert.equal(ram(0xc8)[0], 0x20); await checkpoint("levels-ascended");
+    runTo(command, [11]); runTo(rooms.stops.read, [11]);
+    assert.deepEqual([...ram(0xe0, 4)], [4, 0, 1, 2]); runTo(rooms.stops.loaded); assert.deepEqual(ram(0x200, 256), sector);
+    runTo(rooms.stops.placed);
+    // Facing west selects the east-entry formation in the room sector.
+    for (let i = 0; i < 2; i++) assert.deepEqual([...upper(0xef80 + i), ...upper(0xef90 + i)], [sector[80 + i], sector[88 + i]]);
+    assert.deepEqual(ram(0x280, 121), originalMap); assert.equal(enemies().length, 7);
+    assert.deepEqual([...ram(0x7a7c, 2)], [0, 0]); runTo(turn); await checkpoint("levels-return-room");
+    for (const [i, keys] of levels.retreat.entries()) runTo(i === levels.retreat.length - 1 ? rooms.stops.leaving : turn, keys, 5_000_000);
+    assert.deepEqual([...upper(0xefa0, 2)], [0, 0]); assert.deepEqual([...ram(0x7a7c, 2)], [0, 11]);
+    assert.deepEqual(members(), levels.final); await checkpoint("levels-both-south");
+    runTo(command); position(5, 2, 3); assert.deepEqual([...ram(16, 2)], [2, 86]); await checkpoint("levels-south-corridor");
+    for (const key of levels.return) runTo(command, [key]); position(1, 1, 3);
+    runTo(guide.stops.exchange, [75]); await checkpoint("levels-return-request");
+    const working = set.entries.find(entry => entry.name === "ultima_iv_br-room-working.dsk")!;
+    assert.ok(working.disk.writable); insert(working.disk, working.name); runTo(command, [27]); position(156, 27, 1);
+    assert.deepEqual(members(), levels.final); assert.equal(amount(0xed47), 2); assert.equal(amount(0xed4b), 1);
+    assert.equal(hash(under.exportImage()), guide.dungeon.image.sha256); await checkpoint("levels-returned");
+  });
+  await t.test("the level round trip survives export and a separate cold boot with both character records intact", async () => {
+    await saveAndResume("levels", rooms.levels.final);
   });
 });

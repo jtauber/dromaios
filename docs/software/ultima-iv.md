@@ -835,8 +835,89 @@ Re-entry reconstructs the encounter in two stages:
 The original Underworld disk remains byte-for-byte unchanged. This verifies the
 two triggers and re-entry behavior of Covetous room zero, with a north departure
 and an eastward refusal. It does not establish every room's triggers or every
-exit direction; deeper levels, altar rooms and completing the dungeon remain
-separate work.
+exit direction. The following route extends the check to a successful east
+departure and the first pair of inter-level ladders.
+
+### Take the east passage and visit level two
+
+**Ultima IV · Covetous level round trip** starts from the same cleared-room
+checkpoint, before either character has left. It is a separate branch from the
+north-exit inspection above. The goal is a complete trip through the east
+passage, down and up a level, back to Britannia, and through a saved-game reload.
+
+Keep Iolo at `(4,3)` by pressing Space on each of his turns. On DROMAIOS's turns,
+use Right four times, Down, Up, Left twice, Down three times, Right five times.
+Use the original room tour's alternating character stops, with **Mage has left
+east** for the final Right. The Down at `(8,2)` activates the upper trigger;
+DROMAIOS then goes around to the opened passage and leaves east. The exit bytes
+are now `0B 00`, and Iolo must use that side too.
+
+Iolo Right twice, Down twice, Right five times follows him out. Use **Both
+characters leave east** for the last Right, then **Covetous command** without a
+key. The party is at `(6,1)`, facing east. From here:
+
+1. Up reaches the ladder at `(7,1)`. Queue `D` for **Before descending**.
+   `$4F6A` is `INC $0C`: the level byte is still 0 before that instruction.
+2. Continue to **Level two reached**. Coordinates remain `(7,1)` and facing
+   stays east; `$0C` is now 1. The game displays `To level 2`.
+3. Use **Covetous command** after Right twice, Up, Down. These turn west,
+   advance to `(6,1)`, and retreat to the ladder while still facing west.
+4. Queue `K` for **Before climbing**. `$563B` is `DEC $0C`. Continue to
+   **Level one restored**: `(7,1)`, facing west, level byte 0.
+5. Up reaches `(6,1)`. Queue another Up for **Return room from the east**.
+   The raw room sector reloads. Both east-entry positions in this image are
+   `(8,5)`; the battlefield and seven enemies are restored, with no exit chosen.
+
+The eight 8×8 levels are already in the 512-byte `DNG4` map. A square's address
+is `$E800 + 64 × level + 8 × Y + X`, with the level numbered from zero. Thus
+the ladder at `(7,1)` is `$20` at `$E80F` on level 1 and `$10` at `$E84F` on
+level 2. The interpreter's cached current tile at `$C8` follows the selection.
+Descending changes the selected level without changing disk-controller state.
+Light drops from 92 to 91 on descent, to 89 after advancing and retreating,
+and to 88 on climbing; the two turns in place consume no light.
+
+Take the following route through the repopulated room. It leaves south, keeping
+the party away from the wandering enemies encountered on the northern return.
+Use the original room tour's character stops between actions; `A, Left` is an
+attack followed by its direction.
+
+| Round | DROMAIOS | Iolo |
+| --- | --- | --- |
+| 1 | Left | A, Left |
+| 2 | Left | A, Left |
+| 3 | Down | A, Left |
+| 4 | Down | A, Left |
+| 5 | Down | A, Left |
+| 6 | Left | Left |
+| 7 | Left | A, Left |
+| 8 | Down | Left |
+| 9 | Down | Left |
+| 10 | Down (leaves south) | Left |
+
+Only Iolo remains. Left twice, Up, Right twice, Down seven times takes him out.
+Use **Both characters leave south** for the last Down. The exit bytes are
+`00 0B`. DROMAIOS retains 183 HP / 154 XP; Iolo has lost 26 HP, ending at
+253 HP / 296 XP. Both remain in good condition, with their slings, two Heal
+mixtures and one Light mixture. This is a retreat; the party does not clear the
+room a second time.
+
+Continue to **Covetous command** for `(5,2)`, facing south. Right, Up twice,
+Right, Up, Left, Up twice reaches the entrance ladder at `(1,1)`. Press `K`,
+swap back to the same writable Britannia copy when requested, and queue Escape
+for **Back from level two**. At `(156,27)`, use the party/save tour to save and
+export `ultima_iv_br-levels-saved.dsk`.
+
+The acceptance checks all 803 DOS source reads and nine sector writes, then
+compares every exported byte. A new machine boots the original Boot disk and
+loads the exported Britannia disk: all 800 declared bytes of `PRTY`, `ROST` and
+`LIST` match before initialization. DROMAIOS resumes with 183 HP / 154 XP / 48 MP;
+Iolo with 253 HP / 296 XP / 13 MP. The equipment and mixtures survive, and Space
+takes another turn. No checkpoint or copied RAM supplies that new machine.
+
+This completes the selected two-level trip. Other levels, altar rooms and a
+complete dungeon or game playthrough remain unverified. It adds software
+compatibility evidence and an explanation of the map layout; no emulator
+hardware changes were required.
 
 ## Follow the saved bytes
 
@@ -1161,7 +1242,7 @@ The repository contains neither the images nor extracted game files.
   "rooms": {
     "image": {"bytes": 143360, "sha256": "90c63285ac0631ba1ebce2b0e98ba5d5e81f50ffc52529ececec0e2a51b38b6b"},
     "initial": [[200, 138, 23], [299, 282, 13]],
-    "stops": {"read": {"address": 28338, "bytes": [32, 81, 8]}, "loaded": {"address": 28341, "bytes": [165, 11, 133]}, "placed": {"address": 28589, "bytes": [76, 125, 113]}, "leaving": {"address": 30320, "bytes": [32, 33, 8]}, "trigger": {"address": 31102, "bytes": [189, 16, 3]}, "triggered": {"address": 31169, "bytes": [76, 45, 114]}, "exitRejected": {"address": 31250, "bytes": [104, 104, 32]}},
+    "stops": {"read": {"address": 28338, "bytes": [32, 81, 8]}, "loaded": {"address": 28341, "bytes": [165, 11, 133]}, "placed": {"address": 28589, "bytes": [76, 125, 113]}, "leaving": {"address": 30320, "bytes": [32, 33, 8]}, "trigger": {"address": 31102, "bytes": [189, 16, 3]}, "triggered": {"address": 31169, "bytes": [76, 45, 114]}, "exitRejected": {"address": 31250, "bytes": [104, 104, 32]}, "descend": {"address": 20330, "bytes": [230, 12, 32]}, "climb": {"address": 22075, "bytes": [198, 12, 16]}},
     "approach": [11, 11, 8, 11, 21, 11, 11, 21],
     "enemies": [[3, 6, 7, 57, 196], [4, 6, 5, 31, 196], [5, 6, 2, 61, 196], [6, 5, 6, 47, 156], [10, 8, 6, 111, 156], [11, 8, 4, 44, 156], [13, 7, 3, 56, 156]],
     "turns": [
@@ -1222,6 +1303,14 @@ The repository contains neither the images nor extracted game files.
       "north": [8, 8, 11, 11, 11, 11, 11, 8, 8, 11, 11],
       "changes": [[9, 5, 127, 22], [10, 5, 126, 22], [10, 4, 126, 127], [10, 6, 126, 127]],
       "reenteredEnemies": [[3, 6, 7, 63, 196], [4, 6, 5, 27, 196], [5, 6, 2, 57, 196], [6, 5, 6, 110, 156], [10, 8, 6, 42, 156], [11, 8, 4, 111, 156], [13, 7, 3, 44, 156]]
+    },
+    "levels": {
+      "mageToEast": [21, 21, 21, 21, 10, 11, 8, 8, 10, 10, 10, 21, 21, 21, 21, 21],
+      "ioloToEast": [21, 21, 10, 10, 21, 21, 21, 21, 21],
+      "explore": [21, 21, 11, 10],
+      "retreat": [[8], [65, 8], [8], [65, 8], [10], [65, 8], [10], [65, 8], [10], [65, 8], [8], [8], [8], [65, 8], [10], [8], [10], [8], [10], [8], [8], [8], [11], [21], [21], [10], [10], [10], [10], [10], [10], [10]],
+      "return": [21, 11, 11, 21, 11, 8, 11, 11],
+      "final": [[183, 154, 48], [253, 296, 13]]
     }
   },
   "walkthroughs": [
@@ -1843,6 +1932,104 @@ The repository contains neither the images nor extracted game files.
           "limit": 30000000
         }
       ]
+    },
+    {
+      "id": "ultima4-levels",
+      "title": "Ultima IV · Covetous level round trip",
+      "setup": "Start immediately after the verified 37-action room battle, with Iolo’s turn pending. Keep a cleared-room checkpoint. This route takes both characters east, visits level 2, returns through the room’s south exit, and saves outside.",
+      "requires": ["stops.command", "save.start"],
+      "steps": [
+        {
+          "title": "Mage has left east",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "Start at the cleared-room checkpoint. Follow the guide’s mage route, with Iolo passing before each move. Use this stop for the final Right.",
+          "observe": "DROMAIOS is outside; Iolo remains at (4,3). The first departure records east as $0B,$00. The upper trigger has opened the passage.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129, 0]}, {"address": 15, "bytes": [2]}, {"address": 212, "bytes": [2]}, {"address": 31356, "bytes": [11, 0]}],
+          "inspect": [{"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Recorded exit direction", "address": 31356, "space": "ram"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}, {"label": "Open east passage", "address": 704, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Both characters leave east",
+          "stop": "rooms.stops.leaving",
+          "prepare": "Iolo Right twice, Down twice, Right five times. Use Iolo room turn from the original tour between movements and this stop for the final Right.",
+          "observe": "Both active slots are zero. Continuing to Covetous command places the party at (6,1), facing east.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129, 0]}, {"address": 15, "bytes": [2]}, {"address": 31356, "bytes": [11, 0]}],
+          "inspect": [{"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Recorded exit direction", "address": 31356, "space": "ram"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Covetous command",
+          "stop": "stops.command",
+          "prepare": "Use this repeatable stop for dungeon movement, on either level. It also completes a room departure without another key.",
+          "observe": "Mode 3 is dungeon exploration. $0C is the zero-based level, $10 the facing, and $11 the remaining light.",
+          "when": [{"address": 10, "bytes": [21, 3]}, {"address": 15, "bytes": [2]}],
+          "inspect": [{"label": "Position, level, facing and light", "address": 0, "space": "ram"}, {"label": "Level one ladder", "address": 59407, "space": "lc-upper"}, {"label": "Level two ladder", "address": 59471, "space": "lc-upper"}, {"label": "Tile under the party", "address": 200, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Before descending",
+          "stop": "rooms.stops.descend",
+          "prepare": "From the east corridor at (6,1), Up reaches the ladder at (7,1). Queue D.",
+          "observe": "INC $0C is about to select level 2. Coordinates stay (7,1); the ladder down is $20 at $E80F.",
+          "when": [{"address": 0, "bytes": [7, 1]}, {"address": 10, "bytes": [21, 3]}, {"address": 12, "bytes": [0]}, {"address": 16, "bytes": [1]}, {"address": 200, "bytes": [32]}],
+          "inspect": [{"label": "Position, level, facing and light", "address": 0, "space": "ram"}, {"label": "Level one ladder", "address": 59407, "space": "lc-upper"}, {"label": "Level two ladder", "address": 59471, "space": "lc-upper"}, {"label": "Tile under the party", "address": 200, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Level two reached",
+          "stop": "stops.command",
+          "prepare": "Continue without a key.",
+          "observe": "The level byte is now 1 and the tile is the up ladder $10 at $E84F. All eight levels were already loaded; this transition needs no disk read.",
+          "when": [{"address": 0, "bytes": [7, 1]}, {"address": 10, "bytes": [21, 3]}, {"address": 12, "bytes": [1]}, {"address": 16, "bytes": [1]}],
+          "inspect": [{"label": "Position, level, facing and light", "address": 0, "space": "ram"}, {"label": "Level one ladder", "address": 59407, "space": "lc-upper"}, {"label": "Level two ladder", "address": 59471, "space": "lc-upper"}, {"label": "Tile under the party", "address": 200, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Before climbing",
+          "stop": "rooms.stops.climb",
+          "prepare": "Use Covetous command for Right twice, Up, Down: face west, advance to (6,1), then retreat to the ladder. Queue K.",
+          "observe": "DEC $0C is about to return from level 2 to level 1. Facing stays west.",
+          "when": [{"address": 0, "bytes": [7, 1]}, {"address": 10, "bytes": [21, 3]}, {"address": 12, "bytes": [1]}, {"address": 16, "bytes": [3]}, {"address": 200, "bytes": [16]}],
+          "inspect": [{"label": "Position, level, facing and light", "address": 0, "space": "ram"}, {"label": "Level one ladder", "address": 59407, "space": "lc-upper"}, {"label": "Level two ladder", "address": 59471, "space": "lc-upper"}, {"label": "Tile under the party", "address": 200, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Level one restored",
+          "stop": "stops.command",
+          "prepare": "Continue without a key.",
+          "observe": "The level byte is 0 again, coordinates (7,1), facing west. The tile under the party is once more $20.",
+          "when": [{"address": 0, "bytes": [7, 1]}, {"address": 10, "bytes": [21, 3]}, {"address": 12, "bytes": [0]}, {"address": 16, "bytes": [3]}],
+          "inspect": [{"label": "Position, level, facing and light", "address": 0, "space": "ram"}, {"label": "Level one ladder", "address": 59407, "space": "lc-upper"}, {"label": "Level two ladder", "address": 59471, "space": "lc-upper"}, {"label": "Tile under the party", "address": 200, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Return room from the east",
+          "stop": "companions.stops.firstTurn",
+          "prepare": "Use Covetous command for one Up to (6,1). Queue another Up for this stop.",
+          "observe": "The raw room has been reloaded. Both east-entry coordinates are (8,5) in this image; seven enemies return and the exit restriction is clear. Follow the guide’s retreat route.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129, 0]}, {"address": 15, "bytes": [2]}, {"address": 16, "bytes": [3]}, {"address": 212, "bytes": [1]}, {"address": 31356, "bytes": [0, 0]}],
+          "inspect": [{"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Recorded exit direction", "address": 31356, "space": "ram"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}, {"label": "Enemy slots", "address": 61184, "space": "lc-upper"}, {"label": "Original battlefield", "address": 640, "space": "ram"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Both characters leave south",
+          "stop": "rooms.stops.leaving",
+          "prepare": "Follow the return-room table. Use this stop for Iolo’s final Down.",
+          "observe": "Both leave south; $7A7C–$7A7D is $00,$0B. DROMAIOS retains 183 HP / 154 XP; Iolo has 253 HP / 296 XP. Continue to Covetous command for (5,2), facing south.",
+          "when": [{"address": 0, "bytes": [5, 1]}, {"address": 10, "bytes": [21, 129, 0]}, {"address": 15, "bytes": [2]}, {"address": 31356, "bytes": [0, 11]}],
+          "inspect": [{"label": "Party positions and active slots", "address": 61312, "space": "lc-upper"}, {"label": "Recorded exit direction", "address": 31356, "space": "ram"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}],
+          "limit": 30000000
+        },
+        {
+          "title": "Back from level two",
+          "stop": "stops.command",
+          "prepare": "From (5,2), Right, Up twice, Right, Up, Left, Up twice reaches the entrance. K requests Britannia. Swap back to the same writable copy, queue Escape, then run here.",
+          "observe": "The party is outside Covetous at (156,27), with both slings and unused mixtures intact. Use the party/save tour to save and export ultima_iv_br-levels-saved.dsk.",
+          "when": [{"address": 0, "bytes": [156, 27]}, {"address": 10, "bytes": [0, 1]}, {"address": 15, "bytes": [2]}],
+          "inspect": [{"label": "World position", "address": 0, "space": "ram"}, {"label": "Both character records", "address": 60416, "space": "lc-upper"}, {"label": "Mixtures", "address": 60736, "space": "lc-upper"}],
+          "limit": 30000000
+        }
+      ]
     }
   ]
 }
@@ -2038,17 +2225,25 @@ The supply trip is provenance for this fixture; the automated acceptance starts
 from its cold boot. After combat it branches from a full cleared-room checkpoint
 to test both triggers, the refused east exit, the north exit and re-entry. It
 then restores and compares the complete checkpoint before continuing the original
-save route. With checkpoint output enabled, the test also retains
+save route. It also restores that cleared-room checkpoint for the east-exit
+level round trip, saves a separate export, and verifies it in a third cold boot.
+The first boot supplies both branches; each export gets its own new machine.
+With checkpoint output enabled, the test also retains
 `ultima_iv_br-room-saved.dsk` for manual resumption. The browser check follows
 all twelve named room stops, compares complete machine/input state with the
 native route, and checks the memory links without advancing the game. Its
 download matches all 143,360 bytes of the native export. Reloading that download
 from a verified Boot disk-request checkpoint restores all saved bytes and
-reproduces the next turn; the native acceptance performs both complete cold boots.
+reproduces the next turn. The native acceptance boots the initial expedition and
+each exported save on separate new machines.
 The separate trigger tour has thirteen named stops and 62 memory links. Its
 browser run starts from the verified cleared-room checkpoint, reproduces the
 native machine/input state through the new encounter, and checks every link
 without advancing the game.
+The level route produces `ultima_iv_br-levels-saved.dsk` and checkpoints prefixed
+`ultima-iv-room-levels-` in the same output directory. Its browser check exercises
+all ten named stops and 38 memory links, preserves machine state during
+inspection, and exports the same 143,360 bytes as the native route.
 
 Set `APPLE2_ULTIMA_IV_CHECKPOINTS` to an ignored local directory to retain the
 verified checkpoints and Britannia exports for
@@ -2126,7 +2321,9 @@ normal conversation, completes combat with two characters, and separates Heal’
 caster from its recipient before saving and reloading the entire roster. The
 room route clears Covetous room zero, checks both triggers and the shared-exit
 rule, verifies the room's reconstruction on re-entry, and separately returns
-both characters to Britannia to save and reload their progress.
+both characters to Britannia to save and reload their progress. The level route
+adds a successful east departure, a visit to level 2, a southward retreat through
+the repopulated room, and another independently reloaded save.
 Other companions, larger parties, other spells, failed recipes, insufficient
 resources, other classes and answer sequences, other towns and conversations,
 other enemies and combat options, deeper dungeon exploration and other rooms,
