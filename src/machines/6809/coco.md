@@ -66,8 +66,9 @@ aliases are not reproduced. Color BASIC selects M=01 before its RAM test.
 P1 does not select another bank in this capacity. The native execution helper
 rejects M=1x and TY=1 before the next CPU boundary; those stored configurations
 are inspectable, but neither create extra RAM nor silently run through the
-normal map. V and R remain independent: unsupported display modes do not stop
-ordinary CPU execution, and clock selection does not imply timing accuracy.
+normal map. Unsupported display modes do not stop ordinary CPU execution.
+SAM R must remain 00 for the normal-speed clock profile below; other stored
+clock selections stop execution before the next CPU boundary.
 
 ## External firmware and reset
 
@@ -98,6 +99,8 @@ cpu 6809 {
 }
 
 reset { cpu }
+
+clock cpu 894886.25 Hz
 ```
 
 `create6809Coco({ firmware: null, extended: null })` allocates inspectable hardware before
@@ -109,10 +112,10 @@ preserves the machine; changing ROMs underneath a running interpreter is not
 a supported session transition. The laboratory starts fresh hardware when the
 extension changes. The separate `reset()` reads FFFE and
 FFFF through the declared map and enters at A027 for this ROM. It is a
-**CPU-only reset**, preserving RAM, SAM, PIAs, and held keys; it does not claim
+**CPU-only reset**, preserving RAM, SAM, PIAs, held keys, and elapsed clocks; it does not claim
 to reproduce the motherboard reset-button circuitry. Fresh power-on means a
 new factory instance: zero RAM, cleared SAM and PIA registers, released keys,
-and disconnected input levels high. The initial register values are an emulator
+and input levels high, with the clock at zero. The initial register values are an emulator
 convention; only the CPU chapter's reset effects are hardware reset behavior.
 
 ## Execution, keyboard, and interrupt levels
@@ -122,9 +125,48 @@ current PIA 1 FIRQ level before PIA 0 IRQ, asks the generated 6809 to accept
 or mask the request, and otherwise executes one instruction. An accepted
 interrupt or a SYNC release is its own returned record. Acknowledging a PIA
 data register removes its request at the next boundary; there is no sticky
-host-side pending flag. Explicit `setHorizontalSync` and `setFieldSync` events
-reach PIA 0 CA1 and CB1. They are never synthesized by rendering or by a
-browser frame rate. Serial carrier and cartridge events similarly reach PIA 1.
+host-side pending flag. The board clock delivers horizontal and field sync to
+PIA 0 CA1 and CB1. Rendering and browser frame rate never generate these events.
+Explicit serial carrier and cartridge events reach PIA 1.
+
+### Clock and sync schedule
+
+The NTSC board's 14.31818 MHz crystal supplies the VDG at one quarter of that
+rate, and the normal-speed SAM supplies the CPU E clock at one sixteenth:
+**894,886.25 Hz**. The [VDG chapter](../../components/devices/specifications/mc6847.md#ntsc-sync-periods)
+declares the line and field periods and the evidence for the 228-VDG-clock line.
+Four VDG clocks occupy one CPU clock: a line is **57 CPU clocks**, a field
+**14,934**, HS stays low for **4.125**, and FS for **1,824**.
+
+Phase zero is an HS rising edge, 4.125 CPU clocks after the preceding FS rising
+edge. Both inputs start high. HS first falls at 52.875 and rises at 57; FS first
+falls at 13,105.875 and rises at 14,929.875. These are deterministic power-on
+phase conventions, not a claim about the crystal's phase on real power-up.
+Phase repeats exactly without rounding each line. There is no extra mutable
+phase counter: `clock.ticks` and the PIA input levels and flags in the snapshot
+are sufficient to continue an in-progress pulse.
+
+At a boundary, `stepCoco` offers current interrupt levels, completes one timed
+CPU instruction or interrupt entry, then delivers **every** sync edge crossed
+during that interval. Both edges of a short pulse are delivered even if one
+instruction spans them. The PIA latches its selected edge; reading its data
+register acknowledges it. All instruction bus effects precede the interval's
+sync edges in this model, so instruction-internal sampling and races are not
+cycle accurate. Interrupt acceptance occurs at the following boundary.
+
+Entering SYNC or CWAI pays its CPU cost once. A subsequent waiting boundary
+advances to the next sync edge, rounded up to a complete CPU clock, without
+fetching an instruction. The returned record keeps `clocks` as CPU work and
+adds `idleClocks` for that waiting interval; their sum advances machine time.
+Masked offers retain the CPU chapter's SYNC/CWAI distinction. Run continues
+through waiting boundaries, even with both PIA interrupts disabled. Pause and
+inspection advance no clocks. The generated factory's raw `step`/`interrupt`
+methods account CPU clocks only; machine execution must use `stepCoco` for
+board arbitration and sync delivery.
+
+This schedule is independent of rendering, host timers, and batch sizes. It
+does not yet pace browser Run to real time, model SAM fast modes or DRAM
+contention, or make the instantaneous renderer follow a raster beam.
 
 `pias.setKey(key, pressed)` changes a physical switch. PIA 0 PB0–PB7 select
 columns and PA0–PA6 sense rows; PA7 is the disconnected joystick comparator,
@@ -163,8 +205,9 @@ error before reading screen data. These include V=111 DMA, external
 characters/SG6, extended semigraphics, and mismatched bitmap settings. Graphics
 can wrap through physical $7FFF to $0000 without visiting CPU I/O or ROM.
 
-The frame has no scan position or elapsed time. There is no automatic field
-interrupt, CRT/composite simulation, dynamic RAM refresh, or cycle accuracy.
+The rendered frame has no scan position and does not advance elapsed time.
+The board's sync schedule runs independently. There is no CRT/composite
+simulation, dynamic RAM refresh, or instruction-internal cycle accuracy.
 The laboratory maps these indices to fixed RGB colours and offers a scanline
 overlay. Both are presentation approximations, not composite video or hardware time.
 
@@ -203,7 +246,7 @@ Browser key repeat is ignored.
 
 The host holds each queued chord for 12,000 execution boundaries and releases it
 for another 12,000 before the next chord. These generous budgets serve this
-untimed ROM profile; they do not claim real keyboard timing. Up to 1,024 chords
+ROM input transport; they do not claim real keyboard timing. Up to 1,024 chords
 may be queued. Pausing consumes no input. Losing window focus or hiding the
 page pauses execution, releases switches, and clears the queue, preventing a
 stuck key or unattended continuation. Moving between panels in the same window
@@ -373,8 +416,7 @@ watch modes retain their existing semantics in the same shared presentation.
 The screen footer and SAM / video panel show the selected resolution, colour
 count, CSS, and start address. The SAM panel also exposes GM beside V, making
 the two chips' separate responsibilities visible. Broader ROM annotations,
-extended semigraphics, and an independently checked timing model remain
-subsequent work.
+extended semigraphics, and raster-position rendering remain subsequent work.
 
 ## Following Color BASIC
 
@@ -549,7 +591,7 @@ then restore the snapshot while paused: the same picture and key-waiting program
 return. Run again and press Space to finish, then try `PRINT 2+3` or `LIST`.
 **Reset CPU** retains the installed ROM pair and RAM; **Fresh power-on** retains
 the ROMs but clears the program. Sound, cassette commands, and timing-dependent
-programs remain outside this untimed profile even though the ROM recognizes
+programs requiring instruction-internal video or peripheral timing remain outside this profile even though the ROM recognizes
 their BASIC keywords.
 
 The optional [Extended BASIC test](../../../tests/site/coco-extended.test.ts)
@@ -1122,11 +1164,36 @@ previous stop report is cleared.
 ## Snapshots and acceptance
 
 `snapshot()` owns copies of CPU and RAM state, both PIAs' latches and edge
-history, pressed keys, the SAM control word, and both ROM identities (or
-explicit absence). The stateless VDG contributes an empty snapshot. Restoring
+history, pressed keys, the SAM control word, elapsed CPU clocks (including idle
+intervals), and both ROM identities (or explicit absence). The stateless VDG contributes an empty snapshot. Restoring
 requires matching verified media in both sockets; it does not reapply power-on or CPU reset.
 Taking a snapshot or rendering a frame must neither acknowledge a pending
-interrupt nor release a held key.
+interrupt nor release a held key. Browser checkpoints use version 3. Versions
+1 and 2 predate the clock: migration starts the schedule at zero and preserves
+old PIA levels and pending flags until the next edge. Version 1 also acquires
+an empty extension socket. A version-3 checkpoint missing its clock is rejected.
+
+### Waiting for a video interrupt
+
+The [clock acceptance test](../../../tests/machines/6809/coco/timing.test.ts)
+uses a synthetic ROM with an IRQ handler at A100. Its program sets S to 7FFF,
+selects PIA 0's data registers, disables HS IRQ, enables falling-edge FS IRQ,
+and reads FF02 to acknowledge an old flag. It configures PIA 1's video outputs
+for internal text, selects the SAM page at 0400, and writes
+40 (inverse `@`) there, then clears I and repeats SYNC followed by a branch
+back to SYNC. The handler reads FF02, increments 0400, and returns with RTI.
+A second run substitutes CWAI #EF for SYNC.
+
+Before the first FS falling edge, the character stays 40. At clock 13,106 the
+PIA requests IRQ. The next boundary enters the handler, which acknowledges the
+request and changes the character to 41 (inverse `A`). Subsequent fields advance
+the character once each. CWAI reuses its saved stack frame and pays four entry
+clocks; SYNC requires the ordinary 19-clock IRQ entry. Restoring a checkpoint
+at the pending edge must reproduce all subsequent records, RAM, PIA state,
+clocks, and pixels. Single steps and batches of 7 or 137 boundaries, with or
+without drawing, must give identical results. Additional checks cover both
+edges of a short HS pulse, multiple fields, masked waits, and phase near the
+clock counter's safe-integer limit. No private firmware is needed.
 
 The [synthetic tests](../../../tests/machines/6809/coco/machine.test.ts) run
 without private media. They cover the full vector alias, ROM protection and
@@ -1166,8 +1233,9 @@ The deterministic schedule runs 720,000 instructions before the boot sample,
 12,000 with each key held, 12,000 released, and 20,000 after each submitted
 line. These are generous instruction budgets for a reproducible acceptance
 check, **not** clock cycles, key-repeat timing, or the earliest prompt time.
-No sync events are required for this transcript. Separate synthetic tests
-cover the interrupt wiring, which the polling transcript alone cannot verify.
+The board sync schedule runs throughout, but this polling transcript does not
+exercise accepted video interrupts. The counter example above verifies those
+separately.
 
 The optional [browser-session test](../../../tests/site/coco-rom.test.ts) repeats
 the conversation through the same queued matrix transport used by the page,

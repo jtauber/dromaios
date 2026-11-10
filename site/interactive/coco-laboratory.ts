@@ -101,13 +101,7 @@ function mountCoco(root: HTMLElement): void {
       return record;
     },
     canStep: () => session.hasFirmware && !selecting,
-    pauseBeforeStep(): boolean {
-      if (debug.beforeStep()) return true;
-      if (execution.records.at(-1)?.outcome === "waiting" && !session.machine.pias.irq && !session.machine.pias.firq) {
-        debug.pause("CPU waiting for an interrupt."); return true;
-      }
-      return false;
-    },
+    pauseBeforeStep: () => debug.beforeStep(),
     schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
     onChange: refresh, batchSize: 10_000,
   });

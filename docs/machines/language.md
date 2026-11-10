@@ -317,7 +317,7 @@ see [generated factories](definitions.md#generated-factories) for the binding AP
 ### CPU clock
 
 `clock cpu` opts a composed machine into clocked execution. It requires a CPU
-with declared instruction and vector-interrupt timing, currently the 6502.
+with declared instruction and vector-interrupt timing, currently the 6502 and 6809.
 It adds `machine.clock`, `machine.step()`, and `machine.interrupt(source)`.
 Each successful call adds the returned record's `clocks` to `clock.ticks`.
 Ignored interrupts add zero; a throwing CPU call adds nothing and retains its

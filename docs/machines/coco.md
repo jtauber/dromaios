@@ -172,13 +172,14 @@ These checks establish the first untimed BASIC laboratory, not a complete
 hardware emulator. The executable chapter owns the current browser contract;
 the following criteria remain the guide when adding inspectors or timing.
 
-### Before adding hardware time
+### Hardware-time acceptance
 
-Before enabling periodic sync or timing-dependent software, add a separately
-reviewed emulated-time contract: independently checked 6809 instruction and
-interrupt costs, variable costs, waiting, and an NTSC line/field schedule with
-saved phase. Fixed instruction counts or browser frames are not hardware time.
-That later work need not model complete DRAM contention or analogue video.
+The [machine chapter](../../src/machines/6809/coco.md#clock-and-sync-schedule)
+now declares normal-speed NTSC timing on top of the 6809's instruction,
+interrupt, and variable-addressing costs. Its field-interrupt counter acceptance
+covers waiting and saved phase. Fixed instruction budgets and browser frames
+remain host scheduling choices, not hardware time. Complete DRAM contention,
+instruction-internal bus timing, and analogue video remain outside this profile.
 
 For the first profile, the same instruction-boundary input schedule must give
 the same CPU/device results with single steps, small or large batches, and no

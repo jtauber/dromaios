@@ -93,6 +93,17 @@ test("watching and previewing never read the guest bus or acknowledge pending PI
   assert.deepEqual(p.machine.snapshot(), before); assert.equal(p.debug.hit, undefined);
 });
 
+test("previewing a waiting CPU near a video edge cannot advance live time or assert IRQ", () => {
+  const p = fixture([0x13]);
+  p.single(); assert.equal(p.machine.cpu.snapshot().waitMode, "sync");
+  p.machine.clock.advance(48); assert.equal(p.machine.clock.ticks, 52);
+  p.machine.pias.write(1, 5);
+  const before = p.machine.snapshot();
+  previewCocoInstruction(p.machine, catalogue);
+  assert.deepEqual(p.machine.snapshot(), before); assert.equal(p.machine.pias.irq, false);
+  p.single(); assert.equal(p.machine.clock.ticks, 53); assert.equal(p.machine.pias.irq, true);
+});
+
 test("reset preserves preferences, detaches replaced RAM, and ignores partial writes on execution failure", () => {
   const p = fixture([0xb7, 0x12, 0x10]);
   p.debug.setWatchpoints([{ address: 0x1210, enabled: true }]); p.run();

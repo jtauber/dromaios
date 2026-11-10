@@ -1,15 +1,9 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 import { test } from "node:test";
-import { compileMachine } from "../../../../scripts/generate-machines.js";
 import { create6809Coco, romImages } from "../../../../src/machines/generated/6809/coco.js";
 import { renderCocoFrame, stepCoco } from "../../../../src/machines/6809/coco/runtime.js";
 import type { Coco } from "../../../../src/machines/6809/coco/runtime.js";
-import { RomImage } from "../../../../src/machines/rom-image.js";
+import { cocoTestRom } from "./fixture.js";
 
 function videoPins(machine: Coco, pins: number): void {
   machine.pias.write(0x23, 0); machine.pias.write(0x22, 0xf8);
@@ -47,18 +41,8 @@ test("native CoCo synthetic ROM, interrupt wiring, and restored continuation", a
   bytes.set([0xb6, 0xff, 0x20, 0x3b], 0x110); // FIRQ: acknowledge PIA1 A, RTI.
   bytes.set([0xa1, 0x10, 0xa1, 0x00], 0x1ff6); // FIRQ, IRQ vectors.
   bytes.set([0xa0, 0x00], 0x1ffe);
-  const sha256 = createHash("sha256").update(bytes).digest("hex");
-  const firmware = await RomImage.verify(bytes, { size: bytes.length, sha256 }, async data => createHash("sha256").update(data).digest("hex"));
+  const { create, firmware, sha256 } = await cocoTestRom(t, bytes);
   assert.throws(() => create6809Coco({ firmware, extended: null }), /does not match/);
-  // Exercise the actual literate composition, replacing only its ROM identity for this fixture.
-  const chapter = readFileSync("src/machines/6809/coco.md", "utf8").replace(romImages.firmware.sha256, sha256);
-  const generated = compileMachine(chapter, "6809/coco.md").replace(/from "([^"]+)"/g,
-    (_, path: string) => `from "${new URL(path, new URL("../../../../src/machines/generated/6809/coco.js", import.meta.url)).href}"`);
-  const directory = mkdtempSync(join(tmpdir(), "dromaios-coco-"));
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
-  writeFileSync(join(directory, "package.json"), '{"type":"module"}');
-  writeFileSync(join(directory, "machine.ts"), generated);
-  const { create6809Coco: create } = await import(pathToFileURL(join(directory, "machine.ts")).href) as { create6809Coco: typeof create6809Coco };
   const machine = create({ firmware: null, extended: null }), before = machine.snapshot();
   machine.firmware.install(firmware);
   assert.deepEqual(machine.snapshot(), { ...before, firmware: sha256 });

@@ -246,7 +246,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
     finish(cpu: CpuModel, requiredSize: number): CompositionDefinition {
       const definition = finishComponents();
       if (declarations.has("clock") && cpuModels[cpu].timedExecution !== "vectors") {
-        fail(declarations.get("clock")!, "clock cpu requires timed instructions and vector interrupts (currently CPU 6502)");
+        fail(declarations.get("clock")!, "clock cpu requires timed instructions and vector interrupts");
       }
       for (const target of clockDevices) {
         const value = component(target);

@@ -2,7 +2,7 @@ import { checkMachineSnapshot } from "../../src/machines/snapshot.js";
 import type { CocoSessionState } from "./coco-session.js";
 
 interface StoredCocoState {
-  readonly version: 2;
+  readonly version: 3;
   readonly machine: "coco-32k";
   readonly savedAt: string;
   readonly state: CocoSessionState;
@@ -21,20 +21,22 @@ export function cocoSavedState(storage: () => {
       const value: unknown = JSON.parse(text);
       checkMachineSnapshot(value, ["version", "machine", "savedAt", "state"]);
       const saved = value as Omit<StoredCocoState, "version"> & { readonly version: number };
-      if (![1, 2].includes(saved.version) || saved.machine !== "coco-32k" || typeof saved.savedAt !== "string"
+      if (![1, 2, 3].includes(saved.version) || saved.machine !== "coco-32k" || typeof saved.savedAt !== "string"
         || !Number.isFinite(Date.parse(saved.savedAt))) throw new Error("Invalid CoCo snapshot format.");
-      // Version 1 predates the extension socket. Migrate only its exact former shape;
-      // a missing field in version 2 must still be rejected, not guessed to mean empty.
-      if (saved.version === 1) {
+      // Older machines had no clock. Start the new schedule at phase zero while
+      // preserving their PIA levels and flags until the next scheduled edges.
+      // Accept only the exact old shapes, never a damaged current checkpoint.
+      if (saved.version < 3) {
         checkMachineSnapshot(saved.state, ["hardware", "input", "pressed", "remaining"]);
-        checkMachineSnapshot(saved.state.hardware, ["cpu", "ram", "firmware", "pias", "sam", "vdg"]);
-        return { ...saved, version: 2, state: { ...saved.state, hardware: { ...saved.state.hardware, extended: null } } };
+        checkMachineSnapshot(saved.state.hardware, ["cpu", "ram", "firmware", "pias", "sam", "vdg", ...(saved.version === 2 ? ["extended"] : [])]);
+        const hardware = { ...saved.state.hardware, extended: saved.version === 1 ? null : saved.state.hardware.extended, clock: { ticks: 0 } };
+        return { ...saved, version: 3, state: { ...saved.state, hardware } };
       }
       // The session validates every component, input phase, and ROM identity before installing it.
-      return { ...saved, version: 2 };
+      return { ...saved, version: 3 };
     },
     save(state: CocoSessionState): void {
-      storage().setItem(key, JSON.stringify({ version: 2, machine: "coco-32k", savedAt: new Date().toISOString(), state }));
+      storage().setItem(key, JSON.stringify({ version: 3, machine: "coco-32k", savedAt: new Date().toISOString(), state }));
     },
     forget(): void { storage().removeItem(key); },
   };

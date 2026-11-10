@@ -1,21 +1,46 @@
 import type { create6809Coco } from "../../generated/6809/coco.ts";
 import { characterRows } from "../../../components/devices/mc6847-character-set.ts";
+import { advanceCocoSync, clocksUntilCocoSync } from "./timing.ts";
 
 export type Coco = ReturnType<typeof create6809Coco>;
 export type CocoSnapshot = ReturnType<Coco["snapshot"]>;
 
-/** One CPU boundary, with current board interrupt levels rather than queued host requests. */
+/** One timed CPU boundary, or an idle interval ending at the next video sync edge. */
 export function stepCoco(machine: Coco) {
-  requireMemoryProfile(machine);
-  for (const source of ["firq", "irq"] as const) {
-    if (!machine.pias[source]) continue;
-    const record = machine.cpu.interrupt(source);
-    if (record.outcome !== "ignored") return record;
-  }
-  return machine.cpu.step();
+  requireExecutionProfile(machine);
+  const start = machine.clock.ticks;
+  const record = cpuBoundary(machine.pias, machine.step, machine.interrupt);
+  // Entering a wait pays the instruction cost first. Subsequent waiting boundaries
+  // advance the board without inventing an instruction or repeating its CPU cost.
+  const idleClocks = record.outcome === "waiting" && record.clocks === 0 ? clocksUntilCocoSync(machine) : 0;
+  machine.clock.advance(idleClocks);
+  advanceCocoSync(machine, start);
+  return { ...record, idleClocks };
 }
 
-function requireMemoryProfile({ sam }: Coco): void {
+/** Untimed arbitration for an isolated preview CPU; never advance the live board. */
+export function stepCocoCpu(machine: Pick<Coco, "cpu" | "pias" | "sam">) {
+  requireExecutionProfile(machine);
+  return cpuBoundary(machine.pias, () => machine.cpu.step(), source => machine.cpu.interrupt(source));
+}
+
+function cpuBoundary<Instruction, Interrupt extends { readonly outcome: string }>(
+  pias: Coco["pias"], step: () => Instruction, interrupt: (source: "firq" | "irq") => Interrupt,
+): Instruction | Interrupt {
+  for (const source of ["firq", "irq"] as const) {
+    if (!pias[source]) continue;
+    const record = interrupt(source);
+    if (record.outcome !== "ignored") return record;
+  }
+  return step();
+}
+
+function requireExecutionProfile(machine: Pick<Coco, "sam">): void {
+  requireMemoryProfile(machine);
+  if (machine.sam.clockMode() !== 0) throw new RangeError("Unsupported CoCo clock configuration: requires normal speed (SAM R=00).");
+}
+
+function requireMemoryProfile({ sam }: Pick<Coco, "sam">): void {
   if (!sam.supportedMemory()) throw new RangeError("Unsupported CoCo memory configuration: requires the normal 32 KiB profile.");
 }
 
