@@ -21,7 +21,8 @@ The connections follow the [Tandy Technical Reference Manual][technical],
 especially its address and pin maps, SAM/video description, and keyboard matrix.
 The [MC6821 chapter](../../components/devices/specifications/mc6821.md) owns PIA
 registers and control lines. The concrete [CoCo PIA wiring](coco/pias.ts)
-joins two chips to the [keyboard matrix](coco/keyboard.ts). Their registers
+joins two chips to the [keyboard matrix](coco/keyboard.ts) and two
+[joystick ports](../../components/devices/specifications/coco-joystick.md). Their registers
 repeat across FF00–FF1F and FF20–FF3F. The
 [SAM chapter](../../components/devices/specifications/mc6883.md) owns paired
 control writes and display addresses; the
@@ -169,8 +170,8 @@ pacing uses this clock without changing its schedule. SAM fast modes, DRAM
 contention, and raster-beam rendering remain outside the profile.
 
 `pias.setKey(key, pressed)` changes a physical switch. PIA 0 PB0–PB7 select
-columns and PA0–PA6 sense rows; PA7 is the disconnected joystick comparator,
-held high. Shift is a separate switch. Host text translation and input queues
+columns and PA0–PA6 sense rows; PA7 is the selected joystick comparator,
+high when disconnected. Shift is a separate switch. Host text translation and input queues
 belong outside the machine. The native acceptance test presses and releases
 keys, including Shift for `+` and `=`, rather than writing text into RAM.
 
@@ -185,9 +186,84 @@ the native snapshot.
 
 PIA 1 ports have high external inputs, so direction registers determine which
 output latch bits reach the video controls. Both PIAs' unconnected C2 inputs
-are high. Joystick conversion, serial transport, cassette, and cartridge
+are high. Serial transport, cassette, and cartridge
 hardware are absent. PIA manual C2 output modes work; strobe modes reject
 writes as described in the PIA chapter.
+
+## Joysticks
+
+Two instances of the [executable joystick specification](../../components/devices/specifications/coco-joystick.md)
+retain positions, connection state, and fire switches. Both start disconnected,
+centred at (32,32), with buttons released. PIA 0 CB2 chooses right (low) or left
+(high); CA2 chooses X (low) or Y (high). The selected potentiometer is compared
+with the six-bit DAC on PIA 1 PA7–PA2. PIA 0 PA7 is high when the position is
+at least the DAC value. Sound enable does not gate this comparison.
+
+Right fire grounds PA0; left fire grounds PA1. These are also keyboard rows,
+so buttons participate in the same switch-network resolution as held keys.
+The model propagates their low levels through the matrix, rather than masking
+bits after a keyboard read. Changes to positions, connections, buttons, port
+directions, DAC data, or selector outputs update the input pins immediately.
+No host conversion writes BASIC's results into RAM.
+
+Native callers use `pias.connectJoystick("right", true)`,
+`pias.setJoystickPosition("right", x, y)`, and
+`pias.setJoystickButton("right", pressed)`; substitute `"left"` for the other
+port. `pias.joystick(port)` returns a detached observation. Positions are 0–63,
+with X increasing rightward and Y downward. The device chapter defines the
+endpoint and disconnected-input approximations. CPU-only reset preserves these
+physical inputs. Fresh power-on starts with disconnected joysticks again.
+
+In the laboratory, open **Joysticks**, beside **PIAs / keyboard**. Each port has
+a **Connected** switch, X/Y sliders, **Centre**, and **Hold fire**. Sliders retain
+their positions; Centre sets both to 32. Hold fire keeps the switch pressed
+until toggled off, disconnected, or focus leaves the window. These controls work
+while paused or running, without adding keyboard characters. Checkpoints restore
+the displayed controls from their physical state, including a held button.
+Release fire before typing: its shared keyboard row can interfere with input.
+
+### Check BASIC's readings
+
+Connect both sticks and set right X/Y to (0,63) and left X/Y to (17,46), then enter:
+
+```text
+PRINT JOYSTK(0);JOYSTK(1);JOYSTK(2);JOYSTK(3)
+```
+
+The result is `0  63  17  46`. Centre both and repeat for four readings of 32.
+The ROM's `JOYSTK(0)` performs a new conversion of all four axes; the other
+three functions return cached results. To see that distinction, move right Y
+to 0, then `PRINT JOYSTK(1)`: it still prints 32. After `PRINT JOYSTK(0)`,
+`PRINT JOYSTK(1)` prints 0. [Getting Started with Color BASIC][basic-manual],
+pages 76–79, explains this convention and the fire-button inputs.
+
+### Move a dot with a joystick
+
+Connect the right joystick, release fire, and enter each line separately:
+
+```text
+10 CLS0:X=0:Y=0
+20 A=X:B=Y
+30 X=JOYSTK(0):Y=INT(JOYSTK(1)/2)
+40 C=3:IF (PEEK(65280) AND 1)=0 THEN C=4
+50 RESET(A,B):SET(X,Y,C)
+60 GOTO20
+```
+
+Type `RUN`, then move the X/Y sliders. A blue dot follows the right stick;
+Hold fire changes it to red. A and B retain the previous position while BASIC
+reads the joystick; the loop erases the old dot just before drawing the new one.
+Dividing Y by two maps 64 joystick positions onto the 32-row
+semigraphics screen. The program works in Color BASIC alone and with Extended
+BASIC installed. Click the screen and press Escape or Ctrl-C to Break, releasing
+fire first. Save a paused checkpoint to retain the program and joystick state.
+
+The [hardware tests](../../../tests/machines/6809/coco/joystick.test.ts) cover
+every axis/DAC comparison, selector and direction changes, fire/keyboard
+interaction, and restoration. The [ROM tests](../../../tests/site/coco-joystick.test.ts)
+check BASIC endpoints, centre, independent axes, cached readings, both fire
+buttons, and the exact moving-dot program. They inspect actual video RAM and
+rendered pixels, and replay a checkpoint taken during a conversion.
 
 ## Sound
 
@@ -1257,19 +1333,21 @@ previous stop report is cleared.
 ## Snapshots and acceptance
 
 `snapshot()` owns copies of CPU and RAM state, both PIAs' latches and edge
-history, pressed keys, the SAM control word, elapsed CPU clocks (including idle
+history, pressed keys, joystick positions/connections/buttons, the SAM control word, elapsed CPU clocks (including idle
 intervals), and both ROM identities (or explicit absence). The stateless VDG contributes an empty snapshot. Restoring
 requires matching verified media in both sockets; it does not reapply power-on or CPU reset.
 Taking a snapshot or rendering a frame must neither acknowledge a pending
-interrupt nor release a held key. Browser checkpoints use version 4. Versions
+interrupt nor release a held key. Browser checkpoints use version 5. Versions
 1 and 2 predate the clock: migration starts the schedule at zero and preserves
 old PIA levels and pending flags until the next edge. Version 1 also acquires
 an empty extension socket. Versions 1–3 used a 12,000-boundary keyboard phase:
 migration preserves the fraction remaining as part of the new 50 ms phase,
 rounded up to a whole clock. The old phase's actual elapsed time cannot be
 reconstructed. Queued chords, held switches, and version-3 clocks are retained.
-Missing clock or input fields in current checkpoints are rejected. Reading an
-older checkpoint does not overwrite it; saving writes version 4.
+Versions 1–4 acquire two disconnected joysticks, preserving their former high
+comparator and released fire inputs. Missing clock, joystick, or input fields
+in current checkpoints are rejected. Reading an older checkpoint does not
+overwrite it; saving writes version 5.
 
 The [laboratory execution tests](../../../tests/site/coco-execution.test.ts)
 compare Normal, Unlimited, and single stepping with queued repeated keys;

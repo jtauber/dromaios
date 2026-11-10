@@ -56,7 +56,7 @@ export class CocoKeyboard {
       }
       if (beforeRows === lowRows && beforeColumns === lowColumns) break;
     }
-    // PA7 is not a matrix row: the first profile holds the joystick comparator high.
+    // PA7 is not a matrix row; the board supplies the joystick comparator level.
     return { a: ~lowRows & 0xff, b: ~lowColumns & 0xff };
   }
 }
