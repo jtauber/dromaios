@@ -1,4 +1,4 @@
-import type { Choice, Flag, InstructionDefinition, Latch, Statement } from "../model.ts";
+import type { Choice, Flag, InstructionDefinition, Latch, Statement, ValueSource } from "../model.ts";
 import type { ChapterTokens } from "./document.ts";
 import type { VectorExecution } from "./execution.ts";
 import { checkStateEffects, usesMemory } from "./statements.ts";
@@ -14,16 +14,24 @@ export interface VectorEntry extends EntryAction {
   readonly resume?: { readonly field: string; readonly value: string; readonly action: string };
 }
 
-/** Flat vector models declare complete instruction timing and a cost for every accepted offer. */
-export function chapterVectorTiming(tokens: ChapterTokens, entries: readonly VectorEntry[]): Readonly<Record<string, number>> {
+export type VectorTiming = Readonly<Record<string, number | { readonly view: string }>>;
+
+/** Accepted-entry costs are constants or pure state views, sampled before entry effects. */
+export function chapterVectorTiming(tokens: ChapterTokens, entries: readonly VectorEntry[], views: ReadonlyMap<string, ValueSource>): VectorTiming {
   tokens.expect("offers");
-  const offers: Record<string, number> = {};
+  const offers: Record<string, number | { readonly view: string }> = {};
   do {
     const source = tokens.quoted();
     if (!entries.some(entry => entry.source === source) || Object.hasOwn(offers, source)) tokens.fail("Expected a distinct declared interrupt source.");
-    const clocks = tokens.number();
-    if (!Number.isInteger(clocks) || clocks < 1 || clocks > 65535) tokens.fail("Clock costs must be positive 16-bit integers.");
-    offers[source] = clocks;
+    if (tokens.take("view")) {
+      const name = tokens.word(), view = views.get(name) ?? tokens.fail(`Unknown timing view ${name}.`);
+      if (view.type !== 16) tokens.fail("Timing views must return 16-bit clock costs.");
+      offers[source] = { view: name };
+    } else {
+      const clocks = tokens.number();
+      if (!Number.isInteger(clocks) || clocks < 1 || clocks > 65535) tokens.fail("Clock costs must be positive 16-bit integers.");
+      offers[source] = clocks;
+    }
   } while (tokens.take(","));
   tokens.end();
   if (entries.some(entry => !Object.hasOwn(offers, entry.source))) tokens.fail("Timing needs every interrupt offer.");
@@ -120,6 +128,8 @@ ${resume === undefined ? "" : `            if (state[${q(resume.field)}] === ${q
           return undefined;`;
   }).join("\n");
   const waiting = policy.waiting;
+  const timing = policy.timing && `{ ${Object.entries(policy.timing).map(([source, cost]) =>
+    `${q(source)}: ${typeof cost === "number" ? cost : `views[${q(cost.view)}]`}`).join(", ")} }`;
   return `// Generated from the chapter's execution contract. Do not edit.
 import { checkByteMemory } from "../byte-execution.ts";
 import { vectorExecution } from "../vector-execution.ts";
@@ -136,7 +146,7 @@ export function createExecution<Snapshot>(state: Parameters<typeof opcodeEntries
   return vectorExecution(${q(cpu)}, ram, snapshot, {
     counter: programCounter(views[${q(policy.counter)}], value => actions[${q(policy.writeCounter)}](state, value)),
     word: ${q(policy.word)}, opcodeAdvance: ${q(policy.opcodeAdvance)},
-${policy.timing ? `    timing: ${JSON.stringify(policy.timing)},\n` : ""}${waiting === undefined ? "" : `    waiting: () => state[${q(waiting.field)}]${waiting.unless === undefined ? "" : ` !== ${q(waiting.unless)}`},\n`}    reset: memory => ${invoke(policy.reset, [], policy.resetMemory)},
+${timing ? `    timing: ${timing},\n` : ""}${waiting === undefined ? "" : `    waiting: () => state[${q(waiting.field)}]${waiting.unless === undefined ? "" : ` !== ${q(waiting.unless)}`},\n`}    reset: memory => ${invoke(policy.reset, [], policy.resetMemory)},
     handlers: opcodeTable(opcodeEntries(state)),
     entries: {
 ${policy.entries.map(entry => `      ${q(entry.source)}: memory => ${invoke(entry.action, entry.arguments, entry.memory)},`).join("\n")}

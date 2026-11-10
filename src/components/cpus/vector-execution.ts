@@ -28,7 +28,7 @@ interface VectorExecutionPolicy<Source extends string, Declined extends Declined
   readonly waiting?: () => boolean;
   readonly reset: (memory: ByteMemory) => void;
   readonly handlers: Readonly<Partial<Record<number, (context: WordInstructionContext & InstructionTimingContext) => void>>>;
-  readonly timing?: Readonly<Record<Source, number>>;
+  readonly timing?: Readonly<Record<Source, number | (() => number)>>;
   readonly entries: Readonly<Record<Source, (memory: ByteMemory) => void>>;
   readonly decline?: (source: Source) => Declined | undefined;
 }
@@ -78,18 +78,26 @@ export function vectorExecution<Snapshot, Source extends string, Declined extend
     return executed ? { ...transition, outcome: policy.waiting?.() ? "waiting" : "executed" }
       : { ...transition, outcome: "unsupported", reason: "opcode" };
   };
-  const runInterrupt = (source: Source): VectorInterrupt<Snapshot, Source, Declined> => {
+  const runInterrupt = (source: Source, timing?: { clocks: number }): VectorInterrupt<Snapshot, Source, Declined> => {
     if (typeof source !== "string" || !Object.hasOwn(policy.entries, source)) {
       throw new RangeError(`${cpu} interrupt source must be ${Object.keys(policy.entries).join(" or ")}.`);
     }
     const before = snapshot();
     const declined = policy.decline?.(source);
     if (declined) return { before, after: snapshot(), instruction: null, accesses: [], ...declined };
+    if (timing) {
+      const cost = requireTiming()[source];
+      const clocks = typeof cost === "number" ? cost : cost();
+      if (!Number.isInteger(clocks) || clocks < 1 || clocks > 65535) {
+        throw new RangeError("Interrupt clocks must be a positive 16-bit integer.");
+      }
+      timing.clocks = clocks;
+    }
     const memory = recordMemory(ram);
     policy.entries[source](memory);
     return { before, after: snapshot(), instruction: null, accesses: memory.accesses, source, outcome: "accepted" };
   };
-  const requireTiming = (): Readonly<Record<Source, number>> => {
+  const requireTiming = () => {
     if (!policy.timing) throw new Error(`${cpu} has no instruction timing contract.`);
     return policy.timing;
   };
@@ -107,8 +115,9 @@ export function vectorExecution<Snapshot, Source extends string, Declined extend
     }),
     interrupt: (source: Source) => atBoundary(() => runInterrupt(source)),
     interruptTimed: (source: Source) => atBoundary(() => {
-      const costs = requireTiming(), record = runInterrupt(source);
-      return { ...record, clocks: record.outcome === "accepted" ? costs[source] : 0 };
+      requireTiming();
+      const timing = { clocks: 0 }, record = runInterrupt(source, timing);
+      return { ...record, clocks: timing.clocks };
     }),
   };
 }

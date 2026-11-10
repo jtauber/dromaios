@@ -11,13 +11,14 @@ import { instructions as actions, sourceReaders } from "../../../../src/componen
 import { compileCpuChapter } from "../../../../src/components/cpus/semantics/literate/compile.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { ChapterError } from "../../../../src/components/cpus/semantics/literate/document.js";
+import type { ByteInstructionContext, InstructionTimingContext } from "../../../../src/components/cpus/instruction-context.js";
 
 const file = "src/components/cpus/specifications/6809.md", markdown = readFileSync(file, "utf8");
 const chapter = compileCpuChapter(markdown, { name: "6809" }, file);
 const state = (): Cpu6809State => ({ a: 0x55, b: 0xaa, dp: 0xff, x: 0x8000, y: 0x1234, s: 0xff, u: 0x8001,
   pc: 0x200, waitMode: "none", nmiArmed: true,
   flags: { e: true, f: true, h: true, i: false, n: true, z: true, v: true, c: true } });
-interface Context { fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void }
+type Context = ByteInstructionContext & InstructionTimingContext;
 type Body = (state: Cpu6809State, context: Context) => void;
 const unexpected = (): never => { throw new Error("Unexpected access"); };
 
@@ -273,7 +274,7 @@ test("6809 transfer views and software-frame policies remain editable through th
   const edited = await bodies(markdown
     .replace('  S <- pointer\n  NMIARMED <- 1', '  S <- pointer\n  NMIARMED <- 0')
     .replace('perform softwareEntry(u16($FFF4), u8($00))', 'perform softwareEntry(u16($FFE4), u8($10))')
-    .replace('family sync "0001 0011" named "SYNC" {\n  WAIT <- "sync"', 'family sync "0001 0011" named "SYNC" {\n  WAIT <- "cwai"'));
+    .replace('  WAIT <- "sync"', '  WAIT <- "cwai"'));
   const current = state(); current.nmiArmed = false;
   edited[0x1f]!(current, { fetchByte: () => 0x14, readByte: unexpected, writeByte: unexpected });
   assert.equal(current.s, current.x); assert.equal(current.nmiArmed, false);

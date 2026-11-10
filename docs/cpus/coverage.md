@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [0](../../src/components/cpus/specifications/6800.md) | [1,784](../../src/components/cpus/specifications/6800.md) | 745 | 197 / 197 | 100% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [0](../../src/components/cpus/specifications/6502.md) | [1,951](../../src/components/cpus/specifications/6502.md) | 696 | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [0](../../src/components/cpus/specifications/z80.md) | [2,911](../../src/components/cpus/specifications/z80.md) | 1,506 | 698 / 698 | 100% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,576](../../src/components/cpus/specifications/6809.md) | 1,307 | 268 / 268 | 100% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [0](../../src/components/cpus/specifications/6809.md) | [2,806](../../src/components/cpus/specifications/6809.md) | 1,453 | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [0](../../src/components/cpus/specifications/8088.md) | [4,581](../../src/components/cpus/specifications/8088.md) | 2,944 | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [0](../../src/components/cpus/specifications/68000.md) | [7,819](../../src/components/cpus/specifications/68000.md) | 4,370 | 36,029 / 36,029 | 100% |
 
@@ -84,13 +84,13 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Handwritten CPU cores (all eight) | 0 |
 | CPU-specific instruction definition files | 0 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 7,074 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **7,074** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 7,093 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **7,093** |
 | Shared CPU/machine Markdown reader (`src/literate.ts`, outside the CPU directory) | 30 |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,677 |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 24,907 |
 | CPU compilation and generation scripts (`compile-cpu-chapters.ts`, `generate-cpu-chapters.ts`, and `generate-cpu-semantics.ts`) | 166 |
-| Generated executable CPU output, counted separately | 606,790 |
-| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,003,115 |
+| Generated executable CPU output, counted separately | 607,474 |
+| Generated chapter data, catalogues, and entry-point metadata, counted separately | 1,006,135 |
 | Generated state schemas/types, counted separately | 213 |
 
 Chapter-data generation reuses an existing reference when it encounters the same
@@ -308,9 +308,12 @@ forms accept 4,096 words. Embedded literal values do not add coverage forms.
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
 The 6502 has optional [instruction and interrupt clock counts](../../src/components/cpus/specifications/6502.md#instruction-clocks)
-for all 151 documented forms; the 8088 has optional
+for all 151 documented forms; the 6809 has optional
+[instruction and interrupt clock counts](../../src/components/cpus/specifications/6809.md#instruction-clocks)
+for all 268 forms, including indexed penalties, stack masks, branch paths, and
+waiting/entry accounting. The 8088 has optional
 [nominal instruction clocks](../../src/components/cpus/specifications/8088.md#instruction-clocks)
-with its declared coverage and limitations. The other six omit clock counts.
+with its declared coverage and limitations. The other five omit clock counts.
 All eight omit complete electrical/bus-cycle modeling.
 External interrupt delivery follows each chapter's policies. Memory-mapped
 devices can be connected through [machine memory maps](../machines/memory-map.md);
@@ -780,8 +783,11 @@ and [program specifications](../README.md#cpu-examples) for acceptance evidence.
 **268 / 268 forms (100%).** All documented forms are complete: 221 on the
 base page, 38 on page 2 (`10`), and nine on page 3 (`11`). IRQ/FIRQ/NMI delivery
 uses explicit boundary offers, with full/short frames, wait modes, and NMI arming.
-There are no separate port-I/O forms. Mapped devices and timing remain outside
-the model. All 56 indexed forms support every documented postbyte.
+There are no separate port-I/O forms. All 56 indexed forms support every
+documented postbyte. Optional [instruction clocks](../../src/components/cpus/specifications/6809.md#instruction-clocks)
+cover every form and explicit interrupt entry, including variable addressing
+and waiting costs. Mapped devices and electrical bus timing remain outside
+the CPU model.
 
 The totals comprise 86 accumulator forms, 55 unary forms, 35 word transfers,
 28 word arithmetic/comparison forms, 16 short and 15 prefixed long branches,

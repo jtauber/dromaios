@@ -764,7 +764,13 @@ execution contracts. Further CPUs should supply evidence before extending them.
 
 A flat byte contract with `interrupt vectors` can add
 `timing offers "irq" 7, "nmi" 7`. Names must cover every declared source exactly
-once; each accepted-entry cost is a positive 16-bit integer. This generates
+once; each accepted-entry cost is a positive 16-bit integer. A cost can instead
+name a pure 16-bit state view, as in `"irq" view INTERRUPTCLOCKS`. The runtime
+samples it once after acceptance checks and before any entry effects; it must
+return a positive count. A zero result throws before entry changes state or
+memory. Ordinary and declined offers do not evaluate timing views. This allows
+a chapter to distinguish an already saved wait frame from ordinary entry
+without adding processor-specific rules to the shared runtime. This generates
 `stepTimed()` and `interruptTimed()` and readonly timed record aliases.
 Ordinary methods and reset retain their original shapes. Declined entries and
 already waiting steps report zero clocks; machine time is not CPU stored state.
@@ -781,8 +787,11 @@ restrictions transitively, so a source cannot introduce another base cost.
 An unsupported timed opcode throws `InstructionTimingUnavailable` after its
 fetch and restores the starting PC. Successful fetch callbacks remain observable;
 other thrown failures preserve completed effects and return no timing record.
-The [6502 chapter](../../src/components/cpus/specifications/6502.md#instruction-clocks)
-defines its costs and limits. [Language tests](../../tests/components/cpus/semantics/literate-vector-timing.test.ts)
+The [6502](../../src/components/cpus/specifications/6502.md#instruction-clocks) and
+[6809](../../src/components/cpus/specifications/6809.md#instruction-clocks) chapters
+define their costs and limits, including the placement of work around waiting.
+[Language tests](../../tests/components/cpus/semantics/literate-vector-timing.test.ts)
+and [timing-view tests](../../tests/components/cpus/semantics/literate-vector-timing-views.test.ts)
 verify costs, generated methods, source composition, and diagnostics.
 
 ### Public interfaces

@@ -87,7 +87,8 @@ test("6809 chapter frame arguments and CWAI reuse determine exact accesses and R
 test("named wait choices and gated entry work with renamed CPU, state, and interrupt sources", async () => {
   const text = markdown.replace('cpu "6809"', 'cpu "probe"').replace("interface Cpu6809", "interface CpuProbe")
     .replaceAll("WAIT", "PAUSE").replaceAll("waitMode", "phase").replaceAll("NMIARMED", "READY").replaceAll("nmiArmed", "armed")
-    .replace('source irq unless', 'source pulse unless').replace('source firq unless', 'source fast unless').replace('source nmi when', 'source edge when');
+    .replace('source irq unless', 'source pulse unless').replace('source firq unless', 'source fast unless').replace('source nmi when', 'source edge when')
+    .replace('"irq" view', '"pulse" view').replace('"firq" view', '"fast" view').replace('"nmi" view', '"edge" view');
   const Model = await generated(text, "probe", "CpuProbe"), state = { ...initial(), phase: "sync", armed: false };
   Reflect.deleteProperty(state, "waitMode"); Reflect.deleteProperty(state, "nmiArmed");
   const cpu = new Model(memory(), state), interrupt = (source: string) => Reflect.apply(cpu.interrupt, cpu, [source]);

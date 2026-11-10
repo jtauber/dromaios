@@ -8,7 +8,7 @@ import { chapterVectorEntries, chapterVectorTiming, generateVectorExecution } fr
 import { chapterInterruptEntries } from "./interrupt-entries.ts";
 import type { InterruptEntry } from "./interrupt-entries.ts";
 import { generateDecodedExecution } from "./decoded-execution.ts";
-import type { VectorEntry } from "./vector-execution.ts";
+import type { VectorEntry, VectorTiming } from "./vector-execution.ts";
 import { chapterBody } from "./document.ts";
 import type { ChapterTokens } from "./document.ts";
 
@@ -41,7 +41,7 @@ export interface VectorExecution extends ExecutionBase {
   readonly opcodeAdvance: "dispatch" | "read";
   readonly waiting?: { readonly field: string; readonly unless?: string };
   readonly entries: readonly VectorEntry[];
-  readonly timing?: Readonly<Record<string, number>>;
+  readonly timing?: VectorTiming;
 }
 interface DecodedBase extends ExecutionBase {
   readonly opcodeAdvance: "decode";
@@ -194,7 +194,7 @@ export function chapterExecution(header: ChapterTokens, lines: readonly ChapterT
     if (stopped !== undefined && !waiting) stop.fail("Vector execution requires stopped none or a latch or choice declared as waiting.");
     if (retire !== undefined || retireDeferral !== undefined) retireAt.fail("Vector execution currently requires retire none.");
     const entries = chapterVectorEntries(header, vectorLines, symbols);
-    const timing = fields.has("timing") ? chapterVectorTiming(required("timing"), entries) : undefined;
+    const timing = fields.has("timing") ? chapterVectorTiming(required("timing"), entries, symbols.views) : undefined;
     for (const [name, tokens] of fields) tokens.fail(`Unknown execution field ${name}.`);
     const waitingPolicy = waiting && stopped !== undefined
       ? { field: stopped, ...(stoppedUnless === undefined ? {} : { unless: stoppedUnless }) } : undefined;

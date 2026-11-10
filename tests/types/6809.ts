@@ -4,8 +4,33 @@ import type {
   Cpu6809Snapshot,
   Cpu6809State,
   Cpu6809StepRecord,
+  Cpu6809TimedStepRecord,
+  Cpu6809TimedInterruptRecord,
 } from "../../src/components/cpus/generated/6809-cpu.js";
 import type { Ram } from "../../src/components/memory/ram.js";
+
+export function checkTimingTypes(cpu: Cpu6809): void {
+  const step: Cpu6809TimedStepRecord = cpu.stepTimed();
+  const entry: Cpu6809TimedInterruptRecord = cpu.interruptTimed("firq");
+  const clocks: number = step.clocks + entry.clocks;
+  // @ts-expect-error Timed records are readonly too.
+  step.clocks = clocks;
+  // @ts-expect-error Interrupt clocks are readonly.
+  entry.clocks = clocks;
+  // @ts-expect-error Ordinary records do not acquire clocks.
+  cpu.step().clocks;
+  // @ts-expect-error Reset does not report clocks.
+  cpu.reset().clocks;
+  // @ts-expect-error Timed offers retain the source union.
+  cpu.interruptTimed("swi");
+  if (step.outcome === "waiting") {
+    const bytes: readonly number[] | undefined = step.instruction?.bytes;
+  }
+  if (entry.outcome === "resumed") {
+    const source: "irq" | "firq" = entry.source;
+    const reason: "masked" = entry.reason;
+  }
+}
 
 // Compiled by npm test; never called. Each expected error guards the public API.
 export function checkPublicTypes(cpu: Cpu6809, record: Cpu6809StepRecord): void {
