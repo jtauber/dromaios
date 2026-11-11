@@ -10,6 +10,17 @@ execution {
     (timing_policy (string (string_content)) (number) (string (string_content)) (number))))
 
 ==================
+Interrupt timing selected from state views
+==================
+execution {
+  timing offers "irq" view INTERRUPTCLOCKS, "firq" view FASTINTERRUPTCLOCKS, "fixed" 7
+}
+---
+(source_file
+  (execution_declaration
+    (timing_policy (string (string_content)) (state_identifier) (string (string_content)) (state_identifier) (string (string_content)) (number))))
+
+==================
 State declarations and mapped arrays
 ==================
 cpu "8008"

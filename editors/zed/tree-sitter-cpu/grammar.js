@@ -140,7 +140,8 @@ module.exports = grammar({
       $.timing_policy, $.segmentation_policy, $.prefix_policy, $.waiting_policy, $.pending_policy, $.fault_delivery_policy, $.unsupported_policy,
       $.opcode_policy, $.operand_policy, $.failure_policy, $.action_policy, $.retirement_policy, $.notification_policy, $.interrupt_policy,
     )), '}'),
-    timing_policy: $ => seq('timing', optional(seq('prefix', $.number, 'pending', $.number)), 'offers', commaSeparated(seq($.string, $.number))),
+    timing_policy: $ => seq('timing', optional(seq('prefix', $.number, 'pending', $.number)), 'offers',
+      commaSeparated(seq($.string, choice($.number, seq('view', $._state_name))))),
     word_execution_policy: $ => choice(
       seq('fetch', choice('big', 'little'), 'advance', 'after', 'word'), seq('alignment', $.number),
       seq('terminal', $._state_name), seq('fetched', 'action', $.identifier),

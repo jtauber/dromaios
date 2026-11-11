@@ -432,5 +432,5 @@ family timed "0000 0000" {
   }
 }
 execution segmented {
-  timing prefix 2 pending 70 offers "intr" 81, "nmi" 70
+  timing prefix 2 pending 70 offers "intr" 81, "nmi" view INTERRUPTCLOCKS
 }
