@@ -281,12 +281,29 @@ levels, and the next boundary sees the resulting playback sample. Waiting CPU
 intervals also move an engaged recorder. Inspection, pause, browser audio,
 and wall-clock time do not advance it.
 
-The initial interchange format is **mono eight-bit PCM WAV at 44,100 Hz**,
-limited to one minute. This stores the signal BASIC actually generates,
-including its leaders and gaps. The host neither supplies cassette bytes
-directly to the ROM nor modifies its program storage. `.cas` conversion,
-other WAV encodings, physical recorder noise, and cassette monitoring through
-the television speaker are outside this profile.
+Recordings export as **mono eight-bit PCM WAV at 44,100 Hz**, limited to one
+minute. This stores the signal BASIC actually generates, including its leaders
+and gaps. **Load tape** also accepts ordinary byte-aligned CoCo `.cas` files;
+the [CAS importer](../../components/devices/coco-tape-cas.ts) reconstructs a
+waveform for the same recorder. The host neither supplies cassette bytes
+directly to the ROM nor modifies its program storage.
+
+CAS contains bytes rather than measured pulses or silence. As explained in
+[MAME's format implementation](https://github.com/mamedev/mame/blob/master/src/lib/formats/coco_cas.cpp),
+legacy images can omit the leaders and delays needed by the ROM. This importer
+checks filename, data, and end-of-file blocks and their checksums. It supplies
+one second of silence and at least 128 `$55` leader bytes before each filename,
+after a filename, and before subsequent blocks in a gapped file. Other blocks
+receive at least one sync byte; existing longer leaders are retained. Each bit
+becomes one nominal 1200 Hz or 2400 Hz cycle, least-significant bit first.
+
+Multiple complete files and zero padding between blocks are accepted. CAS input
+is bounded to 64 KiB, and its reconstructed waveform must fit the same one-minute
+limit. Corrupt checksums, incomplete files, unknown block types, bit-shifted or
+copy-protected layouts are rejected before replacing the mounted tape. Other
+WAV encodings, physical recorder noise, and cassette monitoring through the
+television speaker remain outside this profile. Imported tapes start read-only;
+export always produces WAV, including after a CAS import.
 
 `pias.cassette` supplies `blank(name)`, `insert(name, samples)`, `play()`,
 `record()`, `stop()`, `rewind()`, `writableCopy()`, and `eject()`.
@@ -315,7 +332,7 @@ but stay at BASIC's prompt. Release both fire buttons before typing.
    it contains the ROM-produced waveform, not a machine checkpoint.
 4. Choose **Fresh power-on**, Run until the BASIC prompt, then Pause. The
    mounted tape survives power-on, stopped at its old position, but for this
-   check use **Load WAV…** to select the exported file. Choose **Rewind** and
+   check use **Load tape…** to select the exported file. Choose **Rewind** and
    **Play**.
 5. Run and enter:
 
@@ -344,6 +361,56 @@ checkpoints reproduce the same remaining boundaries and final machine state.
 The [hardware and image tests](../../../tests/machines/6809/coco/cassette.test.ts)
 cover the comparator, relay, resolved DAC pins, waiting behavior, protection,
 overwriting, sample phase, and malformed WAV rejection.
+
+### Machine code on cassette
+
+With both ROMs loaded, enter these lines one at a time. They reserve memory
+above `$5FFF`, fill 300 bytes at `$6000–$612B` with a repeating byte pattern,
+and place a short 6809 routine at `$6100`:
+
+```text
+10 CLEAR200,&H5FFF
+20 FOR I=0 TO299:POKE &H6000+I,I AND255:NEXT
+30 FOR I=0 TO11:READ B:POKE &H6100+I,B:NEXT
+40 DATA134,42,183,98,0,134,77,173,159,160,2,57
+RUN
+```
+
+The routine stores 42 at `$6200`, prints `M` through the ROM's character-output
+vector, and returns to BASIC. Its entry point is in the second tape data block:
+
+| Address | Bytes | Instruction |
+| --- | --- | --- |
+| 6100 | 86 2A | LDA #$2A |
+| 6102 | B7 62 00 | STA $6200 |
+| 6105 | 86 4D | LDA #$4D |
+| 6107 | AD 9F A0 02 | JSR [$A002] |
+| 610B | 39 | RTS |
+
+Pause, make a blank tape named `MARKER.wav`, engage Record, then Run and enter:
+
+```text
+CSAVEM "MARKER",&H6000,&H612B,&H6100
+```
+
+The arguments are the filename, first and **inclusive last** address, and
+execution address. After `OK`, Pause, Stop, and Export WAV. Fresh power-on
+clears RAM; Run to the prompt, enter `CLEAR200,&H5FFF`, and Pause. Load the
+exported `MARKER-saved.wav`, engage Play, Run, and enter:
+
+```text
+CLOADM "MARKER"
+```
+
+After `F MARKER` and `OK`, inspect `$6000–$612B` in Memory. Enter `EXEC`:
+the ROM uses the execution address from the tape header, prints `M`, and
+returns to `OK`. `PRINT PEEK(&H6200)` prints 42. No address is supplied to
+`EXEC`, so this checks that the header's entry point survived loading too.
+
+The cassette acceptance test compares every byte, checks the filename header,
+255-byte and 45-byte data blocks and their checksums, then repeats loading
+from a compact CAS representation. A checkpoint midway through that CAS
+playback resumes to exactly the same CPU, RAM, and tape state.
 
 ## Sound
 

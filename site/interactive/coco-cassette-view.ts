@@ -1,6 +1,7 @@
 import type { CocoPias } from "../../src/machines/6809/coco/pias.js";
 import { cocoTapeSampleRate } from "../../src/components/devices/coco-cassette.js";
 import { cocoTapeFileLimit, readCocoTapeWav, writeCocoTapeWav } from "../../src/components/devices/coco-tape-wav.js";
+import { readCocoTapeCas } from "../../src/components/devices/coco-tape-cas.js";
 
 /** Recorder controls operate the native transport; they never inspect or modify BASIC. */
 export function createCocoCassetteView(root: HTMLElement, pias: () => CocoPias, controls: {
@@ -26,14 +27,15 @@ export function createCocoCassetteView(root: HTMLElement, pias: () => CocoPias, 
     const selected = file.files?.[0]; if (!selected) return;
     controls.pause(); controls.selecting(true); message.textContent = "Reading tape…";
     try {
-      if (selected.size > cocoTapeFileLimit) throw new Error("Choose a WAV tape of at most one minute.");
-      const samples = readCocoTapeWav(new Uint8Array(await selected.arrayBuffer()));
-      pias().cassette.insert(selected.name, samples); message.textContent = "Tape loaded read-only. Rewind and Play, then enter CLOAD.";
+      if (selected.size > cocoTapeFileLimit) throw new Error("Choose a tape of at most one minute.");
+      const bytes = new Uint8Array(await selected.arrayBuffer());
+      const samples = /\.cas$/i.test(selected.name) ? readCocoTapeCas(bytes) : readCocoTapeWav(bytes);
+      pias().cassette.insert(selected.name, samples); message.textContent = "Tape loaded read-only. Play, then CLOAD for BASIC or CLOADM for machine code.";
     } catch (cause) { message.textContent = cause instanceof Error ? cause.message : String(cause); }
     finally { file.value = ""; controls.selecting(false); controls.changed(); }
   })(); });
   buttons.export!.addEventListener("click", () => action(() => {
-    const tape = pias().cassette, filename = tape.inspect().name!.replace(/(?:-saved)?\.wav$/i, "") + "-saved.wav";
+    const tape = pias().cassette, filename = tape.inspect().name!.replace(/(?:-saved)?\.(?:wav|cas)$/i, "") + "-saved.wav";
     const bytes = writeCocoTapeWav(tape.samples());
     const url = URL.createObjectURL(new Blob([Uint8Array.from(bytes)], { type: "audio/wav" }));
     const link = document.createElement("a"); link.href = url; link.download = filename; link.click();

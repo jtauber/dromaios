@@ -10,45 +10,14 @@ import { createCocoSession } from "../../site/interactive/coco-session.js";
 import { cocoSavedState } from "../../site/interactive/coco-saved-state.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { cocoScreenText } from "../../site/interactive/coco-inspection.js";
+import { tapeBlocks, casBlock } from "../helpers/coco-tape.js";
+import { readCocoTapeCas } from "../../src/components/devices/coco-tape-cas.js";
 
 const needsRom = !process.env.COCO_ROM && "Set COCO_ROM to Color BASIC 1.3.";
 const chapter = readFileSync("src/machines/6809/coco.md", "utf8");
 const program = chapter.split("### Move a dot with a joystick\n")[1]!.match(/```text\n([^`]+)\n```/)![1]!.split("\n");
 
-// Independent format check: recover periods from the waveform, then decode LSB-first
-// bytes and the manual's $55/$3C/type/length/data/checksum blocks. Never used to load RAM.
-function tapeBlocks(samples: Uint8Array) {
-  const bits: number[] = []; let previous = 0;
-  for (let i = 1; i < samples.length; i++) if (samples[i]! > 128 && samples[i - 1]! <= 128) {
-    const period = i - previous; previous = i;
-    bits.push(period >= 17 && period <= 46 ? Number(period < 30) : -1);
-  }
-  function byte(at: number): number {
-    let result = 0;
-    for (let bit = 0; bit < 8; bit++) {
-      const value = bits[at + bit]; if (value === undefined || value < 0) return -1;
-      result |= value << bit;
-    }
-    return result;
-  }
-  const blocks: { type: number; data: number[] }[] = [];
-  for (let i = 0; i + 32 < bits.length; i++) {
-    if (byte(i) !== 0x55 || byte(i + 8) !== 0x3c) continue;
-    const type = byte(i + 16), size = byte(i + 24), data = Array.from({ length: size }, (_, j) => byte(i + 32 + j * 8));
-    assert.ok(type >= 0 && size >= 0 && data.every(value => value >= 0));
-    assert.equal(byte(i + 32 + size * 8), (type + size + data.reduce((sum, value) => sum + value, 0)) & 255);
-    blocks.push({ type, data }); i += (5 + size) * 8 - 1;
-  }
-  return blocks;
-}
-
-test("CSAVE exports the dot waveform; fresh CLOAD restores its bytes and execution, with exact mid-transfer checkpoint replay", { skip: needsRom }, async () => {
-  const firmware = await RomImage.verify(readFileSync(process.env.COCO_ROM!), romImages.firmware,
-    async bytes => createHash("sha256").update(bytes).digest("hex"));
-  const session = createCocoSession(firmware);
-  const storage = new Map<string, string>();
-  const saved = cocoSavedState(() => ({ getItem: key => storage.get(key) ?? null,
-    setItem: (key, value) => { storage.set(key, value); }, removeItem: key => { storage.delete(key); } }), session.machine.clock.hertz!);
+function cassetteSessionDriver(session: ReturnType<typeof createCocoSession>) {
   function run(count: number): void { for (let i = 0; i < count; i++) session.step(); }
   function until(predicate: () => boolean, limit = 3_000_000): number {
     for (let i = 0; i < limit; i++) { if (predicate()) return i; session.step(); }
@@ -58,6 +27,17 @@ test("CSAVE exports the dot waveform; fresh CLOAD restores its bytes and executi
     session.send(cocoTextInput(text + "\n")); until(() => session.inputSettled); run(30_000);
   }
   function prompt(): boolean { return !session.machine.pias.cassetteMotor && /\nOK(?:\n█)?$/.test(cocoScreenText(session.machine)); }
+  return { run, until, line, prompt };
+}
+
+test("CSAVE exports the dot waveform; fresh CLOAD restores its bytes and execution, with exact mid-transfer checkpoint replay", { skip: needsRom }, async () => {
+  const firmware = await RomImage.verify(readFileSync(process.env.COCO_ROM!), romImages.firmware,
+    async bytes => createHash("sha256").update(bytes).digest("hex"));
+  const session = createCocoSession(firmware);
+  const storage = new Map<string, string>();
+  const saved = cocoSavedState(() => ({ getItem: key => storage.get(key) ?? null,
+    setItem: (key, value) => { storage.set(key, value); }, removeItem: key => { storage.delete(key); } }), session.machine.clock.hertz!);
+  const { run, until, line, prompt } = cassetteSessionDriver(session);
   function programBytes(): number[] {
     const ram = session.machine.ram, word = (at: number) => ram.read(at) * 256 + ram.read(at + 1);
     return Array.from({ length: word(0x1b) - word(0x19) }, (_, i) => ram.read(word(0x19) + i));
@@ -99,6 +79,46 @@ test("CSAVE exports the dot waveform; fresh CLOAD restores its bytes and executi
     }
   }
   dot(2); session.machine.pias.setJoystickButton("right", true); dot(3);
+});
+
+test("CSAVEM spans two blocks; fresh CLOADM from WAV and compact CAS restores all bytes and EXEC uses the saved entry", {
+  skip: !(process.env.COCO_ROM && process.env.COCO_EXTENDED_ROM) && "Set COCO_ROM and COCO_EXTENDED_ROM for machine-code cassette acceptance.",
+}, async () => {
+  const digest = async (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+  const firmware = await RomImage.verify(readFileSync(process.env.COCO_ROM!), romImages.firmware, digest);
+  const extended = await RomImage.verify(readFileSync(process.env.COCO_EXTENDED_ROM!), romImages.extended, digest);
+  const session = createCocoSession(firmware, extended), { run, until, line, prompt } = cassetteSessionDriver(session);
+  const expected = Array.from({ length: 300 }, (_, i) => i & 255);
+  expected.splice(256, 12, 0x86, 0x2a, 0xb7, 0x62, 0x00, 0x86, 0x4d, 0xad, 0x9f, 0xa0, 0x02, 0x39);
+  const bytes = () => Array.from({ length: 300 }, (_, i) => session.machine.ram.read(0x6000 + i));
+  run(720_000);
+  const setup = chapter.split("### Machine code on cassette\n")[1]!.match(/```text\n([^`]+)\n```/)![1]!.split("\n");
+  setup.forEach(line); until(prompt); assert.deepEqual(bytes(), expected);
+  session.machine.pias.cassette.blank("MARKER.wav"); session.machine.pias.cassette.record();
+  line('CSAVEM "MARKER",&H6000,&H612B,&H6100'); until(prompt);
+  const wav = writeCocoTapeWav(session.machine.pias.cassette.samples()), blocks = tapeBlocks(readCocoTapeWav(wav));
+  assert.deepEqual(blocks, [
+    { type: 0, data: [...Buffer.from("MARKER  "), 2, 0, 0, 0x61, 0, 0x60, 0] },
+    { type: 1, data: expected.slice(0, 255) }, { type: 1, data: expected.slice(255) }, { type: 255, data: [] },
+  ]);
+  // CAS may omit the recorded leaders and gaps: the importer must restore them.
+  const cas = Uint8Array.from(blocks.flatMap(({ type, data }) => casBlock(type, data).slice(1, -1)));
+  for (const [name, samples] of [["MARKER-saved.wav", readCocoTapeWav(wav)], ["MARKER.cas", readCocoTapeCas(cas)]] as const) {
+    session.powerOn(); run(720_000); line("CLEAR200,&H5FFF");
+    assert.notDeepEqual(bytes(), expected); assert.equal(session.machine.ram.read(0x6200), 0);
+    session.machine.pias.cassette.insert(name, samples); session.machine.pias.cassette.play(); line('CLOADM "MARKER"');
+    until(() => session.machine.ram.read(0x60fe) === 254);
+    assert.notEqual(session.machine.ram.read(0x6100), 0x86, "Checkpoint lies between the two data blocks");
+    const halfway = session.snapshot(); assert.equal(halfway.hardware.pias.cassette.mode, "play");
+    const remaining = until(prompt), loaded = session.snapshot();
+    assert.match(cocoScreenText(session.machine), /F MARKER\nOK/); assert.deepEqual(bytes(), expected);
+    session.machine.pias.cassette.eject(); session.restore(JSON.parse(JSON.stringify(halfway))); run(remaining);
+    assert.deepEqual(session.snapshot(), loaded); assert.equal(session.machine.pias.cassette.inspect().writable, false);
+    session.send(cocoTextInput("EXEC\n")); until(() => session.machine.cpu.snapshot().pc === 0x6100);
+    until(() => session.inputSettled); run(30_000);
+    assert.equal(session.machine.ram.read(0x6200), 42); assert.match(cocoScreenText(session.machine), /EXEC\nM\nOK/);
+    line("PRINT PEEK(&H6200)"); assert.match(cocoScreenText(session.machine), /\n 42\nOK/);
+  }
 });
 
 test("version-5 checkpoints gain an empty recorder; packed PCM and transport validation reject damaged restores atomically", () => {

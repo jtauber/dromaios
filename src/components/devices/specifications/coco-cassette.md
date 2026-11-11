@@ -61,6 +61,10 @@ to one minute in this initial profile; reaching the limit stops the transport.
 The WAV codec accepts mono, unsigned eight-bit PCM at 44,100 Hz, including
 ordinary RIFF metadata chunks. Other encodings are rejected before replacement.
 It exports the recorded signal, without decoding or constructing BASIC blocks.
+The [CAS adapter](../coco-tape-cas.ts) can also reconstruct a waveform from
+ordinary CoCo blocks before inserting it into this same transport. Its
+[format limits](../../../machines/6809/coco.md#cassette) belong to media import;
+the circuit and recorder still see samples, not filenames or program addresses.
 
 Snapshots copy all tape samples and transport state, including a partially
 elapsed sample. CPU reset leaves the recorder alone. The laboratory retains

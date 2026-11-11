@@ -5,6 +5,8 @@ import { readCocoTapeWav, writeCocoTapeWav } from "../../../../src/components/de
 import { CocoPias } from "../../../../src/machines/6809/coco/pias.js";
 import { create6809Coco } from "../../../../src/machines/generated/6809/coco.js";
 import { stepCoco } from "../../../../src/machines/6809/coco/runtime.js";
+import { readCocoTapeCas } from "../../../../src/components/devices/coco-tape-cas.js";
+import { casBlock, tapeBlocks } from "../../../helpers/coco-tape.js";
 
 test("cassette relay, DAC and input comparator follow resolved PIA pins without acknowledging interrupts", () => {
   const io = new CocoPias(); io.write(0x21, 0x34); // Motor off, data register selected.
@@ -80,4 +82,41 @@ test("WAV codec preserves samples and padding, skips metadata, and rejects malfo
     const corrupt = valid.slice(); corrupt[at] = 99; assert.throws(() => readCocoTapeWav(corrupt));
   }
   assert.throws(() => readCocoTapeWav(valid.subarray(0, valid.length - 1)));
+});
+
+test("CAS import reconstructs LSB-first waveforms, short leaders, gapped blocks, and multiple files", () => {
+  const header = [...Buffer.from("BYTES   "), 2, 0, 0, 0x61, 0, 0x60, 0];
+  const data = Array.from({ length: 255 }, (_, i) => i);
+  const blocks = [{ type: 0, data: header }, { type: 1, data }, { type: 1, data: [255] }, { type: 255, data: [] }];
+  const cas = Uint8Array.from(blocks.flatMap(({ type, data }) => casBlock(type, data)));
+  const samples = readCocoTapeCas(cas);
+  assert.deepEqual(tapeBlocks(samples), blocks); // Includes every possible data byte and its checksum.
+  assert.ok(samples.slice(0, cocoTapeSampleRate).every(value => value === 128));
+  const repeated = Uint8Array.from([...cas, ...cas]);
+  assert.deepEqual(tapeBlocks(readCocoTapeCas(repeated)), [...blocks, ...blocks]);
+  const gapHeader = [...header]; gapHeader[10] = 255;
+  const gapBlocks = [{ type: 0, data: gapHeader }, ...blocks.slice(1)];
+  const gapped = readCocoTapeCas(Uint8Array.from(gapBlocks.flatMap(({ type, data }) => casBlock(type, data))));
+  assert.deepEqual(tapeBlocks(gapped), gapBlocks); assert.ok(gapped.length > samples.length + 2 * cocoTapeSampleRate);
+  const compact = Uint8Array.from(blocks.flatMap(({ type, data }) => casBlock(type, data).slice(1, -1)));
+  assert.deepEqual(tapeBlocks(readCocoTapeCas(compact)), blocks);
+});
+
+test("CAS rejection cannot replace a mounted tape or accept partial, corrupt, nonstandard, or oversized recordings", () => {
+  const header = [...Buffer.from("TEST    "), 2, 0, 0, 0x60, 0, 0x60, 0];
+  const valid = [...casBlock(0, header), ...casBlock(1, [0x39]), ...casBlock(255, [])];
+  const tape = new CocoCassette(); tape.insert("old.wav", [12, 34]); const before = tape.snapshot();
+  const corrupt = [...valid]; corrupt[19]! ^= 1; // Filename checksum.
+  for (const bytes of [[], [0x55], [0x3c], valid.slice(0, -2), [...valid, 99], corrupt,
+    casBlock(0, header), casBlock(1, [1]), casBlock(255, []),
+    [...casBlock(0, header), ...casBlock(0, header)],
+    [...casBlock(0, header), ...casBlock(2, [])],
+    [...casBlock(0, header), ...casBlock(255, [0])],
+    [...casBlock(0, [1]), ...casBlock(255, [])],
+    [...casBlock(0, [...header.slice(0, 10), 1, ...header.slice(11)]), ...casBlock(255, [])],
+    [...Array(12_000).fill(0x55), ...valid], // Within file limit, but over a minute of reconstructed audio.
+    Array(65_537).fill(0)]) {
+    assert.throws(() => tape.insert("bad.cas", readCocoTapeCas(Uint8Array.from(bytes))));
+    assert.deepEqual(tape.snapshot(), before);
+  }
 });

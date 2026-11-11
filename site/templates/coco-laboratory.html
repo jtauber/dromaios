@@ -26,8 +26,8 @@
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="cassette" data-panel-title="Cassette">
       <p class="basic-readout" data-cassette-medium>No tape mounted</p>
       <div class="basic-controls">
-        <input type="file" accept=".wav,audio/wav" data-cassette-file hidden>
-        <button type="button" data-cassette-load disabled>Load WAV…</button><button type="button" data-cassette-export disabled>Export WAV</button>
+        <input type="file" accept=".wav,.cas,audio/wav" data-cassette-file hidden>
+        <button type="button" data-cassette-load disabled>Load tape…</button><button type="button" data-cassette-export disabled>Export WAV</button>
         <button type="button" data-cassette-eject disabled>Eject</button>
       </div>
       <div class="basic-controls"><label>New tape <input data-cassette-name value="Untitled.wav" aria-label="New tape name" maxlength="255" size="12" disabled></label>
@@ -39,8 +39,9 @@
       <p class="basic-readout" data-cassette-status role="status"></p><progress data-cassette-progress aria-label="Tape position" max="1" value="0"></progress>
       <p class="basic-message" data-cassette-message role="status"></p>
       <p class="lab-hint">Record, then <code>CSAVE "DOT"</code>. Rewind and Play, then <code>CLOAD "DOT"</code>. Run advances the computer; BASIC controls the tape motor.</p>
-      <p class="lab-hint">Pause to load, replace, or export. Record overwrites from the current position. New blank replaces the mounted tape. WAV: mono 8-bit PCM, 44,100 Hz, up to one minute. Files stay on this device.</p>
+      <p class="lab-hint">Pause to load, replace, or export. Record overwrites from the current position. New blank replaces the mounted tape. Load ordinary CoCo CAS files or mono 8-bit PCM WAV at 44,100 Hz, up to one minute. Export always produces WAV. Files stay on this device.</p>
       <a href="{{ calc_url(coco_url) }}#saving-the-dot-program-on-cassette" target="_blank" rel="noopener">Save and reload the moving dot ↗</a>
+      <a href="{{ calc_url(coco_url) }}#machine-code-on-cassette" target="_blank" rel="noopener">Save, load, and execute machine code ↗</a>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="joysticks" data-panel-title="Joysticks">
       {% for port, label, horizontal, vertical in [('right', 'Right', 0, 1), ('left', 'Left', 2, 3)] %}
