@@ -142,3 +142,18 @@ test("version-5 checkpoints gain an empty recorder; packed PCM and transport val
     assert.throws(() => session.restore(saved.read()!.state)); assert.deepEqual(session.snapshot(), before);
   }
 });
+
+test("a cassette longer than one minute survives WAV and packed browser checkpoints", () => {
+  const session = createCocoSession(), storage = new Map<string, string>();
+  const saved = cocoSavedState(() => ({ getItem: key => storage.get(key) ?? null,
+    setItem: (key, value) => { storage.set(key, value); }, removeItem: key => { storage.delete(key); } }), session.machine.clock.hertz!);
+  const samples = new Uint8Array(44_100 * 70).fill(128);
+  samples[0] = 12; samples[samples.length - 1] = 234;
+  const wav = writeCocoTapeWav(samples);
+  session.machine.pias.cassette.insert("long.wav", readCocoTapeWav(wav));
+  saved.save(session.snapshot());
+  assert.ok([...storage.values()][0]!.length > 4_000_000, "exercises the former checkpoint size limit");
+  session.machine.pias.cassette.eject(); session.restore(saved.read()!.state);
+  assert.deepEqual(session.machine.pias.cassette.samples(), samples);
+  assert.equal(session.machine.pias.cassette.inspect().writable, false);
+});

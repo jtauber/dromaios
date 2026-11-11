@@ -4,7 +4,7 @@ export const cocoTapeFileLimit = cocoTapeSampleLimit + 65_536;
 
 /** Read RIFF structure strictly; metadata is skipped, never interpreted as samples. */
 export function readCocoTapeWav(bytes: Uint8Array): Uint8Array {
-  if (bytes.length < 44 || bytes.length > cocoTapeFileLimit) throw new RangeError("Expected a WAV tape of at most one minute.");
+  if (bytes.length < 44 || bytes.length > cocoTapeFileLimit) throw new RangeError("Expected a WAV tape of at most two minutes.");
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const tag = (at: number) => String.fromCharCode(...bytes.subarray(at, at + 4));
   if (tag(0) !== "RIFF" || tag(8) !== "WAVE" || view.getUint32(4, true) !== bytes.length - 8) throw new Error("Invalid RIFF/WAVE tape.");
@@ -31,7 +31,7 @@ export function readCocoTapeWav(bytes: Uint8Array): Uint8Array {
 }
 
 export function writeCocoTapeWav(samples: Uint8Array): Uint8Array {
-  if (samples.length > cocoTapeSampleLimit) throw new RangeError("Tape exceeds the one-minute limit.");
+  if (samples.length > cocoTapeSampleLimit) throw new RangeError("Tape exceeds the two-minute limit.");
   const bytes = new Uint8Array(44 + samples.length + (samples.length & 1)), view = new DataView(bytes.buffer);
   function tag(offset: number, value: string): void { for (let i = 0; i < 4; i++) bytes[offset + i] = value.charCodeAt(i); }
   tag(0, "RIFF"); view.setUint32(4, bytes.length - 8, true); tag(8, "WAVE"); tag(12, "fmt ");

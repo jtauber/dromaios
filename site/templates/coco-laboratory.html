@@ -39,9 +39,10 @@
       <p class="basic-readout" data-cassette-status role="status"></p><progress data-cassette-progress aria-label="Tape position" max="1" value="0"></progress>
       <p class="basic-message" data-cassette-message role="status"></p>
       <p class="lab-hint">Record, then <code>CSAVE "DOT"</code>. Rewind and Play, then <code>CLOAD "DOT"</code>. Run advances the computer; BASIC controls the tape motor.</p>
-      <p class="lab-hint">Pause to load, replace, or export. Record overwrites from the current position. New blank replaces the mounted tape. Load ordinary CoCo CAS files or mono 8-bit PCM WAV at 44,100 Hz, up to one minute. Export always produces WAV. Files stay on this device.</p>
+      <p class="lab-hint">Pause to load, replace, or export. Record overwrites from the current position. New blank replaces the mounted tape. Load ordinary CoCo CAS files or mono 8-bit PCM WAV at 44,100 Hz, up to two minutes. Export always produces WAV. Files stay on this device.</p>
       <a href="{{ calc_url(coco_url) }}#saving-the-dot-program-on-cassette" target="_blank" rel="noopener">Save and reload the moving dot ↗</a>
       <a href="{{ calc_url(coco_url) }}#machine-code-on-cassette" target="_blank" rel="noopener">Save, load, and execute machine code ↗</a>
+      <a href="{{ calc_url(coco_url) }}#play-3-d-brickaway" target="_blank" rel="noopener">Play 3-D Brickaway ↗</a>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="joysticks" data-panel-title="Joysticks">
       {% for port, label, horizontal, vertical in [('right', 'Right', 0, 1), ('left', 'Left', 2, 3)] %}

@@ -114,7 +114,7 @@ test("CAS rejection cannot replace a mounted tape or accept partial, corrupt, no
     [...casBlock(0, header), ...casBlock(255, [0])],
     [...casBlock(0, [1]), ...casBlock(255, [])],
     [...casBlock(0, [...header.slice(0, 10), 1, ...header.slice(11)]), ...casBlock(255, [])],
-    [...Array(12_000).fill(0x55), ...valid], // Within file limit, but over a minute of reconstructed audio.
+    [...Array(24_000).fill(0x55), ...valid], // Within file limit, but over two minutes of reconstructed audio.
     Array(65_537).fill(0)]) {
     assert.throws(() => tape.insert("bad.cas", readCocoTapeCas(Uint8Array.from(bytes))));
     assert.deepEqual(tape.snapshot(), before);

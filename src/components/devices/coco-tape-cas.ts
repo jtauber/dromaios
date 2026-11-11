@@ -9,7 +9,7 @@ export function readCocoTapeCas(bytes: Uint8Array): Uint8Array {
   function interval(duration: number, wave: boolean): void {
     ticks += duration;
     const end = Math.round(ticks * cocoTapeSampleRate / 2400), start = position;
-    if (end > samples.length) throw new RangeError("CAS waveform exceeds the one-minute tape limit.");
+    if (end > samples.length) throw new RangeError("CAS waveform exceeds the two-minute tape limit.");
     for (; position < end; position++) samples[position] = wave
       ? Math.round(128 + 100 * Math.sin(2 * Math.PI * (position - start + .5) / (end - start))) : 128;
   }

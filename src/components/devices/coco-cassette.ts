@@ -2,7 +2,7 @@ import { checkUnsigned } from "../validation.ts";
 import { checkMachineSnapshot } from "../../machines/snapshot.ts";
 
 export const cocoTapeSampleRate = 44_100;
-export const cocoTapeSampleLimit = cocoTapeSampleRate * 60;
+export const cocoTapeSampleLimit = cocoTapeSampleRate * 120;
 export type CocoTapeMode = "stop" | "play" | "record";
 export interface CocoCassetteSnapshot {
   readonly name: string | null;
@@ -70,7 +70,7 @@ export class CocoCassette {
   }
   record(): void {
     if (!this.#writable) throw new Error("Create a blank tape or make a writable copy before recording.");
-    if (this.#position >= cocoTapeSampleLimit) throw new Error("The tape has reached its one-minute limit.");
+    if (this.#position >= cocoTapeSampleLimit) throw new Error("The tape has reached its two-minute limit.");
     this.#mode = "record"; this.#changed();
   }
   stop(): void { this.#mode = "stop"; this.#changed(); }
@@ -99,6 +99,6 @@ export class CocoCassette {
 }
 
 function checkSamples(samples: Uint8Array | readonly number[]): void {
-  if (!(samples instanceof Uint8Array) && !Array.isArray(samples) || samples.length > cocoTapeSampleLimit) throw new RangeError("Expected at most one minute of tape samples.");
+  if (!(samples instanceof Uint8Array) && !Array.isArray(samples) || samples.length > cocoTapeSampleLimit) throw new RangeError("Expected at most two minutes of tape samples.");
   for (const sample of samples) checkUnsigned("Tape sample", sample, 255);
 }

@@ -22,7 +22,8 @@ export function cocoSavedState(storage: () => {
     read(): StoredCocoState | undefined {
       const text = storage().getItem(key);
       if (text === null) return undefined;
-      if (text.length > 4_000_000) throw new Error("Saved CoCo snapshot is too large.");
+      // Base64 PCM plus room for 32 KiB RAM, devices, and the keyboard queue.
+      if (text.length > Math.ceil(cocoTapeSampleLimit / 3) * 4 + 256 * 1024) throw new Error("Saved CoCo snapshot is too large.");
       const value: unknown = JSON.parse(text);
       checkMachineSnapshot(value, ["version", "machine", "savedAt", "state"]);
       const saved = value as Omit<StoredCocoState, "version"> & { readonly version: number };

@@ -57,7 +57,7 @@ New blank tapes are writable. Imported WAVs are read-only until explicitly
 copied; Record overwrites from the current position and extends the tape.
 Stop preserves position and fractional phase. Rewind stops and returns to zero.
 At playback end the transport stops and supplies silence. Recording is bounded
-to one minute in this initial profile; reaching the limit stops the transport.
+to two minutes in this initial profile; reaching the limit stops the transport.
 The WAV codec accepts mono, unsigned eight-bit PCM at 44,100 Hz, including
 ordinary RIFF metadata chunks. Other encodings are rejected before replacement.
 It exports the recorded signal, without decoding or constructing BASIC blocks.

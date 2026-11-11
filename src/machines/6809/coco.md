@@ -281,8 +281,8 @@ levels, and the next boundary sees the resulting playback sample. Waiting CPU
 intervals also move an engaged recorder. Inspection, pause, browser audio,
 and wall-clock time do not advance it.
 
-Recordings export as **mono eight-bit PCM WAV at 44,100 Hz**, limited to one
-minute. This stores the signal BASIC actually generates, including its leaders
+Recordings export as **mono eight-bit PCM WAV at 44,100 Hz**, limited to two
+minutes. This stores the signal BASIC actually generates, including its leaders
 and gaps. **Load tape** also accepts ordinary byte-aligned CoCo `.cas` files;
 the [CAS importer](../../components/devices/coco-tape-cas.ts) reconstructs a
 waveform for the same recorder. The host neither supplies cassette bytes
@@ -298,7 +298,7 @@ receive at least one sync byte; existing longer leaders are retained. Each bit
 becomes one nominal 1200 Hz or 2400 Hz cycle, least-significant bit first.
 
 Multiple complete files and zero padding between blocks are accepted. CAS input
-is bounded to 64 KiB, and its reconstructed waveform must fit the same one-minute
+is bounded to 64 KiB, and its reconstructed waveform must fit the same two-minute
 limit. Corrupt checksums, incomplete files, unknown block types, bit-shifted or
 copy-protected layouts are rejected before replacing the mounted tape. Other
 WAV encodings, physical recorder noise, and cassette monitoring through the
@@ -411,6 +411,91 @@ The cassette acceptance test compares every byte, checks the filename header,
 255-byte and 45-byte data blocks and their checksums, then repeats loading
 from a compact CAS representation. A checkpoint midway through that CAS
 playback resumes to exactly the same CPU, RAM, and tape state.
+
+### Play 3-D Brickaway
+
+An independently produced cassette exercises these parts together: **3-D
+Brickaway**, by Britt Monk, is a 1982 machine-code game controlled with the
+right joystick. Its [contemporary review][brickaway-review] describes the
+perspective court, transparent paddle, and sound. Avalon Hill also published
+it as Breakthru; its [instruction sheet][brickaway-instructions] explains
+starting with fire and steering the paddle in both directions.
+
+The acceptance image is the CAS member of the archive's
+[3D Brickaway (Avalon Hill) ZIP][brickaway-cassette]. Keep it outside version
+control; neither the game nor ROM bytes ship with the site.
+
+| Image property | Accepted value |
+| --- | --- |
+| Local filename | `media/coco/3d-brickaway.cas` |
+| Length | 11,563 bytes |
+| SHA-256 | `da1e6a1671fd66fa9a269b61d960cccba2e4368cb54bd6f284b7babfeccaa365` |
+| Cassette filename | `3DBRICK ` (one trailing space) |
+| Data | 11,017 bytes, loaded at `$1648–$4150` |
+| Execution address | `$412B` |
+| Reconstructed tape | 66.585 seconds at 44,100 samples/second |
+
+Use Color BASIC 1.3 and Extended Color BASIC 1.1. In the laboratory:
+
+1. Fresh power-on and Run to `OK`, then Pause. Load `3d-brickaway.cas` in
+   **Cassette**, engage **Play**, then Run and type `CLOADM` followed by Enter.
+   `F 3DBRICK` appears during loading; wait for `OK`. Unlimited can shorten
+   the wait without changing cassette timing in emulated clocks.
+2. To test recovery during loading, Pause while the motor is on and the tape
+   is partway through. **Save snapshot** retains the entire mounted waveform
+   and its position. Fresh power-on, then **Restore snapshot** and Run:
+   loading continues from the saved point and reaches `OK`.
+3. In **Joysticks**, connect the right joystick, centre it, and release fire.
+   Enter `EXEC`. The tunnel screen appears and asks for the right joystick
+   button. Choose **Normal** and enable **Sound** before starting play.
+4. Toggle **Hold fire** on and off. After the opening sound, the ball travels
+   down the court. Move both right-joystick sliders to steer the paddle.
+   The first brick hit raises the score to `00100`, removes one brick,
+   changes the colour set, and sounds a short burst.
+5. Pause during play and Save again, replacing the loading checkpoint. Move
+   the sliders or power on afresh, then Restore. The paddle, ball, score,
+   joystick positions, and tape return to the saved state. Run resumes play.
+
+The browser stores one checkpoint. A long tape makes it several megabytes;
+insufficient browser storage reports a failed save and preserves the previous
+checkpoint. Normal speed is required for audible output; Unlimited deliberately
+mutes host audio. The game uses 256×192 one-bit graphics and composite artifact
+colours. Our fixed palette shows green/black or buff/black, so this check
+establishes playable geometry, not the original television's full colour image.
+
+The [optional game test](../../../tests/site/coco-brickaway.test.ts) takes
+`COCO_ROM`, `COCO_EXTENDED_ROM`, and `COCO_BRICKAWAY_CAS`. It checks every loaded
+byte against the pinned cassette payload, restores a checkpoint halfway through
+the waveform, and requires the same final CPU, RAM, devices, clock, and input
+state. During play, independent X and Y changes must move the rendered paddle
+and leave pixels outside the old/new paddle regions unchanged. The first hit
+must remove one of forty bricks and add 100 points. Restoring a play checkpoint
+must reproduce that result, including the sixteen DAC pulses and identical
+48 kHz audio samples with different sample-drain batch sizes.
+
+These addresses were identified by inspecting this exact image and observing
+its execution. They are useful in Memory and **Run to address**; they are not
+emulator hooks or general CoCo contracts:
+
+| Address | Observation |
+| --- | --- |
+| `$2559` | Poll right fire before starting the game |
+| `$2A0B` | Paddle is drawn; next ball update is about to begin |
+| `$015A–$015B` | Right X/Y measurements returned by the ROM |
+| `$1E18–$1E19` | Score, high byte first |
+| `$1E22–$1E23` | Paddle's video RAM address |
+| `$1E24` | Balls remaining |
+| `$1E26–$1E2A` | Five rows of eight brick-presence bits |
+| `$2440`, `$244D` | Game writes high and low DAC levels at `$FF20` |
+| `$2445` | Enable the DAC sound path through PIA 1 CB2 |
+
+This is acceptance of loading, starting, controls, the first brick collision,
+and recovery. Completing all five walls and the power-hit scoring strategy
+have not been verified.
+
+[brickaway-cassette]: https://colorcomputerarchive.com/repo/Cassettes/Games/3D%20Brickaway%20%28Avalon%20Hill%29.zip
+[brickaway-instructions]: https://colorcomputerarchive.com/repo/Documents/Manuals/Games/Breakthru%20Instructions.jpg
+[brickaway-review]: https://colorcomputerarchive.com/repo/Documents/Magazines/Rainbow%2C%20The%20%28OCR%29/The%20Rainbow%20Vol.%2002%20No.%2005%20-%20November%201982.pdf
 
 ## Sound
 
