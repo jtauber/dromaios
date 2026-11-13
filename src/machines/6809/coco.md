@@ -15,6 +15,9 @@ Its [reference audit](../../../docs/machines/coco.md) records comparisons with d
 Dromaios components. No ROM traps, injected BASIC tokens, browser callbacks,
 or reference-emulator devices are needed.
 
+The optional [FD-502 disk profile](coco-disk.md) adds a cartridge ROM and
+controller to this composition; this base map keeps the cartridge socket empty.
+
 ## Components and memory map
 
 The connections follow the [Tandy Technical Reference Manual][technical],

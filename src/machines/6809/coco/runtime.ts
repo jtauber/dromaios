@@ -1,23 +1,41 @@
 import type { create6809Coco } from "../../generated/6809/coco.ts";
 import { characterRows } from "../../../components/devices/mc6847-character-set.ts";
 import { advanceCocoSync, clocksUntilCocoSync } from "./timing.ts";
+import type { CocoDiskController } from "./disk-controller.ts";
+import type { Cpu6809TimedStepRecord } from "../../../components/cpus/generated/6809-cpu.ts";
 
 export type Coco = ReturnType<typeof create6809Coco>;
 export type CocoSnapshot = ReturnType<Coco["snapshot"]>;
 
-/** One timed CPU boundary, or an idle interval ending at the next video sync edge. */
-export function stepCoco(machine: Coco) {
+/** One timed CPU boundary, or an idle interval ending at the next board event. */
+export function stepCoco(machine: Coco & { readonly disk?: CocoDiskController }) {
   requireExecutionProfile(machine);
   const start = machine.clock.ticks;
   const motor = machine.pias.cassetteMotor, output = machine.pias.cassetteOutput;
-  const record = cpuBoundary(machine.pias, machine.step, machine.interrupt);
+  const disk = machine.disk;
+  const halted = disk?.halted;
+  const execute = () => {
+    if (halted) return haltedBoundary(machine);
+    const nmi = disk?.takeNmi() ? machine.interrupt("nmi") : undefined;
+    return nmi && nmi.outcome !== "ignored" ? nmi
+      : cpuBoundary(machine.pias, machine.step, machine.interrupt);
+  };
+  const record = disk ? disk.cpuBoundary(execute) : execute();
   // Entering a wait pays the instruction cost first. Subsequent waiting boundaries
   // advance the board without inventing an instruction or repeating its CPU cost.
-  const idleClocks = record.outcome === "waiting" && record.clocks === 0 ? clocksUntilCocoSync(machine) : 0;
+  const idleClocks = record.outcome === "waiting" && record.clocks === 0
+    ? Math.min(clocksUntilCocoSync(machine), disk?.clocksUntilEvent() ?? Infinity) : 0;
   machine.clock.advance(idleClocks);
   machine.pias.cassette.advance(machine.clock.ticks - start, machine.clock.hertz!, motor, output);
+  disk?.advanceCpuClocks(machine.clock.ticks - start);
   advanceCocoSync(machine, start);
   return { ...record, idleClocks };
+}
+
+/** Cartridge HALT leaves CPU state unchanged; only board time advances. */
+function haltedBoundary(machine: Coco): Cpu6809TimedStepRecord {
+  const before = machine.cpu.snapshot();
+  return { outcome: "waiting", before, after: machine.cpu.snapshot(), instruction: null, accesses: [], clocks: 0 };
 }
 
 /** Untimed arbitration for an isolated preview CPU; never advance the live board. */

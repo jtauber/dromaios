@@ -19,6 +19,8 @@ export const deviceModels = {
     output: false, selectors: [] },
   "coco-pias": { name: "CocoPias", module: "../machines/6809/coco/pias", size: 0x40,
     reads: Array.from({ length: 0x40 }, (_, i) => i), writes: Array.from({ length: 0x40 }, (_, i) => i), output: false, selectors: [] },
+  "coco-disk-controller": { name: "CocoDiskController", module: "../machines/6809/coco/disk-controller", size: 0x20,
+    reads: Array.from({ length: 0x20 }, (_, i) => i), writes: Array.from({ length: 0x20 }, (_, i) => i), output: false, selectors: [] },
   "byte-input": { name: "ByteInput", module: "devices/byte-input", size: 2, reads: [0, 1], writes: [], output: false, selectors: [] },
   "byte-output": { name: "ByteOutput", module: "devices/byte-output", size: 1, reads: [], writes: [0], output: true, selectors: [] },
   "apple2-disk-ii": { name: "Apple2DiskII", module: "devices/apple2-disk-ii", size: 0x200,
