@@ -8,21 +8,10 @@ import { stepCoco } from "../../../../src/machines/6809/coco/runtime.js";
 import { cocoScreenText } from "../../../../site/interactive/coco-inspection.js";
 import { cocoTextInput } from "../../../../site/interactive/coco-input.js";
 import { createCocoKeyboardTransport } from "../../../../site/interactive/coco-keyboard-transport.js";
+import { answerDisk } from "./disk-fixture.js";
 
 const needsRoms = !(process.env.COCO_ROM && process.env.COCO_EXTENDED_ROM && process.env.COCO_DISK_ROM)
   && "Set COCO_ROM, COCO_EXTENDED_ROM and COCO_DISK_ROM for Disk BASIC 1.1 acceptance.";
-
-/** Independently authored Disk BASIC directory/FAT and ASCII file, never exported by this controller. */
-function answerDisk(): Uint8Array {
-  const image = new Uint8Array(35 * 18 * 256).fill(0xff), program = Buffer.from("10 PRINT 42\r20 END\r");
-  image.set(program, 0); // Granule 0 begins at track 0, sector 1.
-  image[(17 * 18 + 1) * 256] = 0xc1; // FAT: last granule, one used sector.
-  const entry = (17 * 18 + 2) * 256; // Directory: track 17, sector 3.
-  image.fill(0, entry, entry + 32); image.set(Buffer.from("ANSWER  BAS"), entry);
-  image[entry + 12] = 0xff; // ASCII BASIC; first granule and high byte count are zero.
-  image[entry + 15] = program.length;
-  return image;
-}
 
 test("Disk BASIC boots, lists and runs ANSWER through FF4B; mid-sector restore and ROM error paths", { skip: needsRoms }, async () => {
   const digest = async (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");

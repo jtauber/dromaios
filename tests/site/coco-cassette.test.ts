@@ -127,7 +127,9 @@ test("version-5 checkpoints gain an empty recorder; packed PCM and transport val
     setItem: (key, value) => { values.set(key, value); }, removeItem: key => { values.delete(key); } }), session.machine.clock.hertz!);
   saved.save(session.snapshot()); const key = [...values.keys()][0]!, envelope = JSON.parse(values.get(key)!);
   const { cassette, ...pias } = envelope.state.hardware.pias;
-  const legacy = { ...envelope, version: 5, state: { ...envelope.state, hardware: { ...envelope.state.hardware, pias } } };
+  const { diskName, hardware, ...continuation } = envelope.state;
+  const { dos, disk, ...base } = hardware;
+  const legacy = { ...envelope, version: 5, state: { ...continuation, hardware: { ...base, pias } } };
   values.set(key, JSON.stringify(legacy)); session.restore(saved.read()!.state);
   assert.equal(session.machine.pias.cassette.inspect().name, null); assert.equal(values.get(key), JSON.stringify(legacy));
   session.machine.pias.cassette.blank("tiny.wav"); session.machine.pias.cassette.record();

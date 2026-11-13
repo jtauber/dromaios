@@ -131,8 +131,9 @@ DRQ/INTRQ, pending NMI edge, HALT deferral, event delay, and clock fraction. The
 image is shared between native snapshots; a deserialized image is validated
 and copied. CPU reset preserves these fields. A fresh factory starts with an
 empty controller; the caller may mount the same image for a fresh boot.
-The existing browser laboratory still selects the base machine; disk controls
-are a subsequent integration step.
+The [browser laboratory](coco.md#disk-basic-in-the-laboratory) selects this
+profile with an optional Disk BASIC ROM and Drive 0 controls. Its fresh power-on
+retains mounted media; checkpoints restore the image and in-flight transfer.
 
 [mame]: https://github.com/mamedev/mame/blob/master/src/devices/bus/coco/coco_fdc.cpp
 [6809-timing]: https://colorcomputerarchive.com/repo/Documents/Datasheets/MC6809%20HMOS%208%20Bit%20Microprocessor%20%28Motorola%29.pdf

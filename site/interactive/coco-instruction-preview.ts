@@ -7,11 +7,17 @@ import { readCocoStorage } from "./coco-inspection.js";
 /** Reuse native interrupt arbitration with a copied CPU; PIA/SAM state is only observed. */
 export function previewCocoInstruction(machine: Coco, catalogue: Catalogue6809) {
   const state = machine.cpu.snapshot();
+  const halted = machine.disk?.halted;
+  const nmi = machine.disk?.inspect().nmi_pending && state.nmiArmed;
   const preview = preview6809(state, address => readCocoStorage(machine, address), catalogue,
     address => address < 0x8000 ? "ram" : address >= 0xff00 && address < 0xffe0 ? "device" : "ignored",
-    cpu => stepCocoCpu({ cpu, pias: machine.pias, sam: machine.sam }));
+    cpu => halted ? { outcome: "waiting", before: state, after: cpu.snapshot(), instruction: null, accesses: [] }
+      : nmi ? cpu.interrupt("nmi") : stepCocoCpu({ cpu, pias: machine.pias, sam: machine.sam }));
+  if (halted) return { ...preview, assembly: "HALT · waiting for disk", addressing: [],
+    effects: ["Step advances board time; no instruction is fetched."],
+    explanation: "The disk controller holds HALT until data or command completion releases the CPU." };
   // Entry can stop at an unavailable vector or stack address before a record exists.
-  const source = machine.pias.firq && !state.flags.f ? "FIRQ" : machine.pias.irq && !state.flags.i ? "IRQ" : undefined;
+  const source = nmi ? "NMI" : machine.pias.firq && !state.flags.f ? "FIRQ" : machine.pias.irq && !state.flags.i ? "IRQ" : undefined;
   return preview.blocked && source ? { ...preview, assembly: `${source} · entry preview stopped`, addressing: [],
     explanation: "External interrupt entry precedes the instruction at PC." } : preview;
 }

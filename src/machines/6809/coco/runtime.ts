@@ -1,14 +1,15 @@
 import type { create6809Coco } from "../../generated/6809/coco.ts";
+import type { create6809CocoDisk } from "../../generated/6809/coco-disk.ts";
 import { characterRows } from "../../../components/devices/mc6847-character-set.ts";
 import { advanceCocoSync, clocksUntilCocoSync } from "./timing.ts";
-import type { CocoDiskController } from "./disk-controller.ts";
 import type { Cpu6809TimedStepRecord } from "../../../components/cpus/generated/6809-cpu.ts";
 
-export type Coco = ReturnType<typeof create6809Coco>;
+export type Coco = (ReturnType<typeof create6809Coco> & { readonly disk?: undefined; readonly dos?: undefined })
+  | ReturnType<typeof create6809CocoDisk>;
 export type CocoSnapshot = ReturnType<Coco["snapshot"]>;
 
 /** One timed CPU boundary, or an idle interval ending at the next board event. */
-export function stepCoco(machine: Coco & { readonly disk?: CocoDiskController }) {
+export function stepCoco(machine: Coco) {
   requireExecutionProfile(machine);
   const start = machine.clock.ticks;
   const motor = machine.pias.cassetteMotor, output = machine.pias.cassetteOutput;

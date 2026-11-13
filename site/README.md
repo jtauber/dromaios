@@ -65,16 +65,23 @@ program to try after POST and the results to expect from editing and running it.
 ROM identity, browser behavior, and limitations.
 `/machines/color-computer/laboratory/` connects that native machine to the shared
 docking workspace. Its layout, Live choices, ROM, and snapshot use separate CoCo
-storage keys. The base Color BASIC 1.3 and optional Extended Color BASIC 1.1
-images have independent loaders, verification, and remembered files. Changing
-the extension starts fresh hardware; removing it also forgets that saved image.
-The native chapter owns both identities, their memory mapping, and the
+storage keys. The browser selects the [disk-equipped profile](../src/machines/6809/coco-disk.md),
+with independent loaders, verification, and remembered files for Color BASIC 1.3,
+Extended Color BASIC 1.1, and Disk Extended Color BASIC 1.1. The cartridge ROM
+is optional; Disk BASIC requires both other ROMs. Changing extensions starts
+fresh hardware, retaining disk and cassette media; removing an extension also
+forgets its saved ROM. The native chapters own the identities, memory mapping, and the
 versioned checkpoint migration contracts.
 
-`coco-session.ts` owns native execution and the queued keyboard continuation,
+`coco-session.ts` owns native execution, mounted disk metadata, and queued keyboard continuation,
 independent of the DOM. `coco-keyboard-transport.ts` delivers bounded physical
 press/release phases in emulated clocks; `coco-input.ts` maps browser keys and single-line paste.
 `coco-laboratory.ts` connects those to execution controls and local media.
+`coco-disk-view.ts` provides read-only Drive 0 mounting and passive controller
+status. Fresh power-on retains the image; version-7 browser checkpoints pack it
+alongside cassette samples and restore the in-flight transfer. Older checkpoints
+gain an empty cartridge. Layout version 10 adds Drive 0 beside Cassette without
+reopening hidden tools or changing the selected tab of an existing group.
 Apple II and CoCo share `execution-speed-controls.ts` for Normal/Unlimited and
 `execution-interval-view.ts` for markers and Step/over/out measurements. Their
 shared markup lives in `templates/execution-controls.html`.
@@ -100,7 +107,9 @@ on either machine.
 `COCO_ROM=/path/to/color-basic-1.3.rom npm test` additionally runs the native and
 browser-session BASIC transcripts. Set `COCO_EXTENDED_ROM` as well to test the
 Extended BASIC banner, chapter drawing program, all five PMODE settings, keyboard
-return/Break, and snapshot continuation. No ROM bytes are included in tests or output.
+return/Break, and snapshot continuation. Add `COCO_DISK_ROM` for Disk BASIC's
+`DIR`, `LOAD "ANSWER"`, and `RUN` transcript, power-on retention, and packed
+mid-sector checkpoint replay. No ROM bytes are included in tests or output.
 For browser checks, load the local image, run the chapter's conversation, pause
 and save a snapshot, alter the program, restore, and run it again. Check focus-loss
 release, remembered-ROM reload, memory scrolling and Live controls, and the

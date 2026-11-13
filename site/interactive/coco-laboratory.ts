@@ -1,6 +1,7 @@
 import { createMachineSound } from "./machine-sound-view.js";
 import { createCocoJoystickView } from "./coco-joystick-view.js";
 import { createCocoCassetteView } from "./coco-cassette-view.js";
+import { createCocoDiskView } from "./coco-disk-view.js";
 import { createCocoChangeLog } from "./coco-change-log.js";
 import { createChangeLogView } from "./change-log-view.js";
 import { createCocoWatchHistory } from "./coco-watch-history.js";
@@ -9,7 +10,7 @@ import { decode6809 } from "./6809-disassembly.js";
 import { createCallStack } from "./call-stack-view.js";
 import { createDebuggerStepControls } from "./debugger-step-controls.js";
 import { cocoDebugLocation } from "./coco-debugger.js";
-import { romImages } from "../../src/machines/generated/6809/coco.js";
+import { romImages } from "../../src/machines/generated/6809/coco-disk.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
 import { createCocoRomAnnotations, observeCocoRoms, cocoWalkthroughAvailable } from "./coco-rom-guide.js";
 import type { CocoRomGuides } from "./coco-rom-guide.js";
@@ -46,13 +47,15 @@ function mountCoco(root: HTMLElement): void {
   const targetForm = at<HTMLFormElement>("run-target"), targetInput = at<HTMLInputElement>("run-target-address");
   const targetButton = at<HTMLButtonElement>("run-target-button");
   const removeExtended = at<HTMLButtonElement>("extended-rom-remove");
+  const removeDisk = at<HTMLButtonElement>("disk-rom-remove");
   const save = at<HTMLButtonElement>("snapshot-save"), restore = at<HTMLButtonElement>("snapshot-restore");
   const forgetState = at<HTMLButtonElement>("snapshot-forget");
   type RomSlot = keyof typeof romImages;
-  const roms: Record<RomSlot, RomFile | undefined> = { firmware: undefined, extended: undefined };
+  const roms: Record<RomSlot, RomFile | undefined> = { firmware: undefined, extended: undefined, dos: undefined };
   const slots = ([
     { id: "firmware", prefix: "rom", label: "Color BASIC 1.3", key: "dromaios:coco-rom:v1" },
     { id: "extended", prefix: "extended-rom", label: "Extended Color BASIC 1.1", key: "dromaios:coco-extended-rom:v1" },
+    { id: "dos", prefix: "disk-rom", label: "Disk Extended Color BASIC 1.1", key: "dromaios:coco-disk-rom:v1" },
   ] as const).map(slot => ({ ...slot,
     file: at<HTMLInputElement>(`${slot.prefix}-file`), load: at<HTMLButtonElement>(`${slot.prefix}-load`),
     forget: at<HTMLButtonElement>(`${slot.prefix}-forget`), status: at(`${slot.prefix}-status`),
@@ -109,7 +112,7 @@ function mountCoco(root: HTMLElement): void {
       watchHistory.observe(record, caller, debug.watchpoints, log.memoryWrites(record));
       return record;
     },
-    canStep: () => session.hasFirmware && !selecting,
+    canStep: () => session.ready && !selecting,
     pauseBeforeStep: () => debug.beforeStep(),
     schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
     onChange: refresh, batchSize: 10_000, batchTimeMs: 8,
@@ -120,6 +123,11 @@ function mountCoco(root: HTMLElement): void {
   });
   const cassette = createCocoCassetteView(root, () => session.machine.pias, {
     changed: () => refreshPanels(["pias"]),
+    pause: () => { debug.pause(); execution.stop(); },
+    selecting: value => { selecting = value; refresh(); },
+  });
+  const disk = createCocoDiskView(root, () => session, {
+    changed: () => refreshPanels(["disk"]),
     pause: () => { debug.pause(); execution.stop(); },
     selecting: value => { selecting = value; refresh(); },
   });
@@ -136,7 +144,7 @@ function mountCoco(root: HTMLElement): void {
     },
   })!;
   function runTo(address: number, space?: "rom"): void {
-    if (!session.hasFirmware || selecting || execution.running || execution.error !== undefined) return;
+    if (!session.ready || selecting || execution.running || execution.error !== undefined) return;
     targetInput.value = cocoHex(address); targetInput.setCustomValidity("");
     debug.runTo(address, space); message.textContent = ""; execution.run();
   }
@@ -147,7 +155,7 @@ function mountCoco(root: HTMLElement): void {
   }
   function refreshPanels(ids: readonly string[]): void { requested = ids; refresh(); requested = []; }
   function refresh(): void {
-    const ready = session.hasFirmware && !selecting, running = execution.running;
+    const ready = session.ready && !selecting, running = execution.running;
     run.disabled = !ready || running || execution.error !== undefined;
     pause.disabled = !running; step.disabled = !ready || running || execution.error !== undefined;
     reset.disabled = !ready || running; power.disabled = selecting || running;
@@ -156,18 +164,22 @@ function mountCoco(root: HTMLElement): void {
     sound.refresh({ running, normal: speed.normal, unavailable: selecting });
     joysticks.refresh(selecting);
     cassette.refresh(selecting, running);
+    disk.refresh(selecting, running);
     for (const slot of slots) {
       slot.load.disabled = slot.forget.disabled = selecting;
       const rom = roms[slot.id];
       slot.status.textContent = rom ? `${rom.name} · verified ${slot.label}`
-        : slot.id === "firmware" ? "No Color BASIC ROM loaded · RAM and devices are available" : "No extension loaded · Color BASIC only";
+        : slot.id === "firmware" ? "No Color BASIC ROM loaded · RAM and devices are available"
+          : slot.id === "extended" ? "No Extended BASIC ROM loaded" : "No Disk BASIC ROM loaded";
     }
     removeExtended.disabled = selecting || running || roms.extended === undefined;
+    removeDisk.disabled = selecting || running || roms.dos === undefined;
     save.disabled = !ready || running; restore.disabled = !ready || running || !hasSaved;
     forgetState.disabled = selecting || !hasSaved;
     at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${execution.steps.toLocaleString()} steps`
       + ` · ${session.machine.clock.ticks.toLocaleString()} CPU clocks`
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
+    if (session.hasFirmware && !session.ready) at("machine-status").textContent = "Load Extended Color BASIC 1.1 to use Disk BASIC.";
     at("machine-error").textContent = execution.error ?? "";
     debugView.refresh(running);
     intervals.refresh({ running, unavailable: selecting, stop: execution.error ? "error" : debug.stop?.kind });
@@ -198,8 +210,9 @@ function mountCoco(root: HTMLElement): void {
   function installRom(id: RomSlot, verified: RomFile): void {
     const firmware = id === "firmware" ? verified : roms.firmware;
     const extended = id === "extended" ? verified : roms.extended;
-    if (id === "firmware" && !session.hasFirmware) { session.installFirmware(verified.image); session.reset(); }
-    else session = createCocoSession(firmware?.image ?? null, extended?.image ?? null);
+    const dos = id === "dos" ? verified : roms.dos;
+    if (id === "firmware" && !session.hasFirmware) { session.installFirmware(verified.image); session.machine.reset(); }
+    else session.configureRoms({ firmware: firmware?.image ?? null, extended: extended?.image ?? null, dos: dos?.image ?? null });
     roms[id] = verified; changedMachine();
     message.textContent = session.hasFirmware ? "ROM loaded. Run boots BASIC; click the screen to type."
       : "Extension loaded. Load Color BASIC 1.3 to boot.";
@@ -223,9 +236,17 @@ function mountCoco(root: HTMLElement): void {
   }
   removeExtended.addEventListener("click", () => action(() => {
     // Forget first: if storage rejects removal, keep the current configuration intact.
-    const slot = slots.find(slot => slot.id === "extended")!;
-    slot.storage.forget(); session = createCocoSession(roms.firmware?.image ?? null); roms.extended = undefined;
-    slot.storageStatus.textContent = "Extension removed and forgotten. Fresh hardware is ready for Color BASIC.";
+    for (const slot of slots.filter(slot => slot.id !== "firmware")) slot.storage.forget();
+    session.configureRoms({ firmware: roms.firmware?.image ?? null, extended: null, dos: null });
+    for (const slot of slots.filter(slot => slot.id !== "firmware")) {
+      roms[slot.id] = undefined; slot.storageStatus.textContent = "ROM removed and forgotten. Fresh hardware is ready for Color BASIC.";
+    }
+    changedMachine();
+  }));
+  removeDisk.addEventListener("click", () => action(() => {
+    const slot = slots.find(slot => slot.id === "dos")!; slot.storage.forget();
+    session.configureRoms({ firmware: roms.firmware?.image ?? null, extended: roms.extended?.image ?? null, dos: null });
+    roms.dos = undefined; slot.storageStatus.textContent = "Disk BASIC removed and forgotten. The disk remains mounted.";
     changedMachine();
   }));
   run.addEventListener("click", () => { debug.run(); message.textContent = ""; execution.run(); screen.focus(); });
@@ -310,7 +331,7 @@ function mountCoco(root: HTMLElement): void {
         if (roms[slot.id]) slot.storageStatus.textContent = "Remembered ROM verified. Paused and ready.";
       } catch { slot.storageStatus.textContent = `The remembered ROM could not be restored. Choose your local ${slot.label} file.`; }
     }));
-    session = createCocoSession(roms.firmware?.image ?? null, roms.extended?.image ?? null); changedMachine();
+    session = createCocoSession(roms.firmware?.image ?? null, roms.extended?.image ?? null, roms.dos?.image ?? null); changedMachine();
     selecting = false; refreshPanels(panels.map(panel => panel.dataset.workspacePanel!));
   })();
 }

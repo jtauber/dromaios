@@ -610,31 +610,79 @@ RGB palette, and scanline overlay are presentation choices. Full analogue
 composite decoding, CRT simulation, dynamic RAM refresh, and instruction-internal
 cycle accuracy remain outside the model.
 
+## Disk BASIC in the laboratory
+
+The laboratory includes the [FD-502 disk cartridge](coco-disk.md) and **Drive 0**.
+Load Color BASIC 1.3, Extended Color BASIC 1.1, and Disk Extended Color BASIC 1.1
+in the **ROM** panel. All three must be present to run Disk BASIC. Its startup
+code discovers the cartridge normally; the host does not jump into DOS.
+The base machine definition above remains usable without a cartridge.
+
+In **Drive 0**, choose **Load disk** and select a headerless, single-sided
+35-track image: 18 sectors of 256 bytes per track, or 161,280 bytes total.
+Mounting and ejecting require a paused machine and an idle controller. Disks
+are read-only in this profile. The panel shows the physical head, logical
+track and sector, transfer progress, and DRQ, INTRQ, and HALT without reading
+guest device registers. Memory and Disassembly can inspect the Disk BASIC ROM;
+Instruction distinguishes a disk HALT wait from an instruction or NMI entry.
+
+With an image containing the ASCII BASIC file `ANSWER.BAS` (`10 PRINT 42` and
+`20 END`), choose **Run**, click the screen, and enter one line at a time:
+
+```text
+DIR
+ANSWER   BAS  0 A 1
+OK
+LOAD "ANSWER"
+OK
+RUN
+ 42
+OK
+```
+
+**Fresh power-on** clears RAM and resets the controller while retaining the
+mounted image and its filename. Run again and repeat the commands: `ANSWER`
+must still load from Drive 0. **Save snapshot** includes the disk bytes and
+the complete transfer state. After replacing or ejecting the disk, **Restore
+snapshot** restores that saved disk, not the replacement. A checkpoint during
+a sector read continues with the next byte, preserving HALT deferral and the
+pending NMI edge; it does not restart the command. The same three ROM identities
+must be loaded when restoring.
+
+The [browser-session acceptance](../../../tests/site/coco-disk.test.ts) uses an
+independently constructed image with a directory, allocation table, and ASCII
+program. It verifies this transcript before and after fresh power-on, and saves
+a packed browser checkpoint halfway through a sector to compare the resumed
+execution and hardware with the uninterrupted load. Disk images and ROMs stay
+local; neither is uploaded or included in the published site.
+
 ## Using the laboratory
 
 The [CoCo laboratory](https://microcomputer.world/machines/color-computer/laboratory/)
 uses the shared docking workspace with its own saved layout and Live preferences.
 Load the Color BASIC image identified above and, optionally, the separate
-Extended BASIC image, then choose **Run**. The ROM panel has one load control
+Extended BASIC image and Disk BASIC cartridge ROM, then choose **Run**. The ROM panel has one load control
 and status per socket. Each image is verified independently and remembered
 locally when browser storage is available. Files are never uploaded. Reload
-verifies both remembered images independently and
+verifies the remembered images independently and
 opens a fresh, paused machine; it does not automatically execute or restore a
-saved program. **Forget remembered Color BASIC** and **Forget remembered Extended BASIC**
+saved program. Each **Forget remembered** control
 remove only the corresponding saved file, keeping the current loaded image.
 
 RAM and device inspectors work before firmware is loaded. Loading Color BASIC for the first time
 preserves that hardware and resets the CPU; replacing the base ROM or loading
-the extension starts fresh hardware with the selected ROM pair. The extension
-may be loaded first, but execution waits for Color BASIC. **Use Color BASIC only**
-removes and forgets the extension and starts a fresh BASIC-only machine. If
+an extension starts fresh hardware with the selected ROMs, retaining mounted
+disk and cassette media. Extensions may be loaded first, but execution waits
+for Color BASIC; Disk BASIC also requires Extended BASIC. **Remove Disk BASIC**
+removes and forgets Disk BASIC. **Use Color BASIC only** removes and forgets both
+extensions and starts a fresh BASIC-only machine. If
 forgetting fails, the current configuration is preserved. A rejected file leaves
 CPU, RAM, and device state intact and execution
 paused. **Step** advances one native machine boundary, which may be an instruction,
 interrupt entry, or wait result. **Pause** finishes the current batch and stops
 before another. **Reset CPU** preserves RAM and devices; the host also cancels queued
 input and releases keyboard switches. **Fresh power-on** constructs new hardware,
-clears RAM and input, and retains the installed ROM pair.
+clears RAM and input, and retains the installed ROMs and mounted media.
 
 **Normal**, selected on page load, limits Run to the chapter's 894,886.25 CPU
 clocks per second; busy inspectors or a slow browser may make it slower.
@@ -727,16 +775,14 @@ Disassembly navigation uses its held storage image while Live is off; Pause,
 Step, and showing either panel refresh its observations.
 
 **Snapshot** saves one explicit browser checkpoint: native hardware plus the
-queued chords, current press/release phase, and remaining input clocks.
+queued chords, current press/release phase, remaining input clocks, and disk filename.
 Save and Restore require a paused machine. Restoring validates the complete
-state and matching ROM pair before replacing the session, stays paused, and clears
+state and matching ROM identities before replacing the session, stays paused, and clears
 the recent-step display. It does not issue a reset or inject another key.
-The checkpoint contains both ROM identities or explicit absence, not their
-bytes. Restoration requires the same pair: a BASIC-only checkpoint cannot
-silently acquire an extension, and an Extended BASIC checkpoint cannot lose it.
-Version-1 browser checkpoints predate the extension socket; their exact former
-hardware shape is upgraded to an empty socket before normal validation. New
-version-2 checkpoints must supply the field explicitly. Failed restoration
+The checkpoint contains all three ROM identities or explicit absence, not their
+bytes. A checkpoint cannot silently acquire or lose an extension. Older browser
+checkpoints acquire empty devices and ROM sockets as described under
+[Snapshots and acceptance](#snapshots-and-acceptance). Failed restoration
 preserves the current session, and failed saving preserves the previous checkpoint.
 Layout and Live choices are not machine state.
 
@@ -1592,7 +1638,9 @@ and transport, the SAM control word, elapsed CPU clocks (including idle
 intervals), and both ROM identities (or explicit absence). The stateless VDG contributes an empty snapshot. Restoring
 requires matching verified media in both sockets; it does not reapply power-on or CPU reset.
 Taking a snapshot or rendering a frame must neither acknowledge a pending
-interrupt nor release a held key. Browser checkpoints use version 6. Versions
+interrupt nor release a held key. The browser adds the disk cartridge and its
+third ROM identity, controller state, mounted image, and filename. Browser
+checkpoints use version 7. Versions
 1 and 2 predate the clock: migration starts the schedule at zero and preserves
 old PIA levels and pending flags until the next edge. Version 1 also acquires
 an empty extension socket. Versions 1–3 used a 12,000-boundary keyboard phase:
@@ -1601,11 +1649,12 @@ rounded up to a whole clock. The old phase's actual elapsed time cannot be
 reconstructed. Queued chords, held switches, and version-3 clocks are retained.
 Versions 1–4 acquire two disconnected joysticks, preserving their former high
 comparator and released fire inputs. Versions 1–5 acquire an empty, stopped
-cassette recorder, preserving their former high PA0 input. Current browser
-checkpoints pack tape samples as base64; native snapshots use detached byte
-arrays. Missing clock, joystick, cassette, or input fields in current
+cassette recorder, preserving their former high PA0 input. Versions 1–6 acquire
+an idle disk cartridge with no image, filename, or Disk BASIC ROM. Current browser
+checkpoints pack tape samples and disk bytes as base64; native disk snapshots
+share an immutable byte array. Missing clock, joystick, cassette, disk, or input fields in current
 checkpoints are rejected. Reading an older checkpoint does not overwrite it;
-saving writes version 6. Storage errors preserve the previous checkpoint.
+saving writes version 7. Storage errors preserve the previous checkpoint.
 
 The [laboratory execution tests](../../../tests/site/coco-execution.test.ts)
 compare Normal, Unlimited, and single stepping with queued repeated keys;

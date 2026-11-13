@@ -12,9 +12,11 @@ export type CocoRomGuides = Readonly<Record<"firmware" | "extended", RomGuide>>;
 export function observeCocoRoms(machine: Coco) {
   const supported = machine.sam.supportedMemory();
   const firmware = supported && machine.firmware.loaded, extended = supported && machine.extended.loaded;
-  return { firmware, extended,
+  const dos = supported && (machine.dos?.loaded ?? false);
+  return { firmware, extended, dos,
     mapped: (address: number) => extended && address >= 0x8000 && address < 0xa000
-      || firmware && (address >= 0xa000 && address < 0xc000 || address >= 0xffe0),
+      || firmware && (address >= 0xa000 && address < 0xc000 || address >= 0xffe0)
+      || dos && address >= 0xc000 && address < 0xff00,
   };
 }
 

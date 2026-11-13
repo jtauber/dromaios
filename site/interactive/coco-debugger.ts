@@ -62,7 +62,8 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
     over(): void {
       hit = undefined;
       const selected = machine(), state = selected.cpu.snapshot();
-      const external = selected.pias.firq && !state.flags.f || selected.pias.irq && !state.flags.i;
+      const external = selected.disk?.halted || selected.disk?.inspect().nmi_pending && state.nmiArmed
+        || selected.pias.firq && !state.flags.f || selected.pias.irq && !state.flags.i;
       const decoded = !external && state.waitMode === "none"
         ? decode6809(address => readCocoStorage(selected, address), state.pc, catalogue) : undefined;
       policy.over(location(), decoded?.complete ? decoded.shape?.stack?.flow : undefined);

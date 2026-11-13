@@ -17,6 +17,10 @@ export function readCocoStorage(machine: Coco, address: number): number | undefi
     const value = machine.firmware.read(address & 0x1fff);
     return value === "bus-error" ? undefined : value;
   }
+  if (machine.dos?.loaded && address >= 0xc000 && address < 0xff00) {
+    const value = machine.dos.read(address & 0x1fff);
+    return value === "bus-error" ? undefined : value;
+  }
   return undefined;
 }
 

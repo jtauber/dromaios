@@ -21,7 +21,7 @@ const chapter = readFileSync("src/machines/6809/coco.md", "utf8");
 const guides: CocoRomGuides & Record<keyof CocoRomGuides, { sha256: string }> = JSON.parse(chapter.match(/```json\n([\s\S]*?)```/)![1]!);
 const annotations = createCocoRomAnnotations(guides);
 const decode = (address: number, bytes: readonly number[]) => decode6809(at => bytes[(at - address) & 0xffff], address, catalogue);
-const mapping = (firmware: boolean, extended: boolean) => ({ firmware, extended,
+const mapping = (firmware: boolean, extended: boolean) => ({ firmware, extended, dos: false,
   mapped: (address: number) => extended && address >= 0x8000 && address < 0xa000
     || firmware && (address >= 0xa000 && address < 0xc000 || address >= 0xffe0),
 });
