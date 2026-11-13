@@ -68,11 +68,14 @@ export function cocoDisplayMode(machine: Coco): CocoDisplayMode {
   throw new RangeError(`Unsupported CoCo display configuration: SAM V=${sam.videoMode().toString(2).padStart(3, "0")}, VDG pins=$${pins.toString(16).toUpperCase().padStart(2, "0")}.`);
 }
 
+/** Display interpretation only; it is not retained in the machine snapshot. */
+export type CocoVideoSignal = "direct" | "composite" | "composite-reversed";
+
 /** Capture the active raster from physical RAM; never perform CPU-bus or PIA reads. */
-export function renderCocoFrame(machine: Coco): Uint8Array {
+export function renderCocoFrame(machine: Coco, signal: CocoVideoSignal = "direct"): Uint8Array {
   const mode = cocoDisplayMode(machine), pixels = new Uint8Array(256 * 192);
   if (mode.kind === "text") renderText(machine, pixels);
-  else renderBitmap(machine, mode, pixels);
+  else renderBitmap(machine, mode, pixels, signal);
   return pixels;
 }
 
@@ -91,16 +94,20 @@ function renderText(machine: Coco, pixels: Uint8Array): void {
   }
 }
 
-function renderBitmap(machine: Coco, mode: Extract<CocoDisplayMode, { kind: "bitmap" }>, pixels: Uint8Array): void {
+function renderBitmap(machine: Coco, mode: Extract<CocoDisplayMode, { kind: "bitmap" }>, pixels: Uint8Array, signal: CocoVideoSignal): void {
   const { ram, sam, vdg } = machine, pins = machine.pias.videoPins;
-  const pixelWidth = 256 / mode.width, pixelHeight = 192 / mode.height, pixelsPerByte = 8 / mode.bitsPerPixel;
+  const artifacts = signal !== "direct" && vdg.artifactMode(pins);
+  const pixelWidth = artifacts ? 2 : 256 / mode.width, pixelHeight = 192 / mode.height;
+  const pixelsPerByte = artifacts ? 4 : 8 / mode.bitsPerPixel;
   for (let row = 0; row < mode.height; row++) {
     const start = row * pixelHeight * 256;
     for (let column = 0; column < sam.displayBytesPerRow(); column++) {
       const byte = ram.read(sam.displayAddress(row, column));
       for (let pixel = 0; pixel < pixelsPerByte; pixel++) {
         const x = (column * pixelsPerByte + pixel) * pixelWidth;
-        pixels.fill(vdg.graphicsColour(byte, pixel, pins), start + x, start + x + pixelWidth);
+        const colour = artifacts ? vdg.artifactPairColour(byte, pixel, signal === "composite-reversed")
+          : vdg.graphicsColour(byte, pixel, pins);
+        pixels.fill(colour, start + x, start + x + pixelWidth);
       }
     }
     // A SAM byte row persists for several raster lines in the lower-resolution modes.

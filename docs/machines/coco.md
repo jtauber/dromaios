@@ -196,7 +196,7 @@ key repeat is distinct from the ROM's held-key behavior.
 Repaint, inspect registers, preview memory, and browse code with a PIA interrupt
 pending and keys held. These operations must leave CPU, RAM, PIA/SAM state,
 and keyboard matrix unchanged. Repeat with panels hidden and Live disabled.
-Fixed RGB colours and absent composite artifacts must be declared as
+Fixed RGB colours and the composite artifact-colour approximation must be declared as
 presentation approximations. Invalid media must preserve the session; hardware
 remains stopped and inspectable until the host has a valid boot configuration.
 

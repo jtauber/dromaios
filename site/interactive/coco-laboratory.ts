@@ -71,7 +71,7 @@ function mountCoco(root: HTMLElement): void {
   const guides: CocoRomGuides = JSON.parse(at("coco-rom-guides").textContent!);
   const annotations = createCocoRomAnnotations(guides);
   const catalogue: Catalogue6809 = JSON.parse(at("coco-instructions").textContent!);
-  const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root);
+  const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root, () => refreshPanels(["screen"]));
   function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
   const debug = createCocoDebugger(() => session.machine, catalogue);
   const assembly = (address: number, bytes: readonly number[]) => decode6809(index => bytes[(index - address) & 0xffff], address, catalogue).assembly;

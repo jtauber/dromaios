@@ -89,3 +89,48 @@ test("6809 stores select bitmap video through the native bus, snapshots retain i
   assert.equal(cocoDisplayMode(restored).kind, "text"); assert.match(cocoScreenText(restored), /^A/);
   assert.notDeepEqual(renderCocoFrame(restored), frame);
 });
+
+test("composite rendering follows SAM wrapping, preserves row phase, and only exchanges the two artifact colours", () => {
+  const machine = create6809Coco({ firmware: null, extended: null });
+  configure(machine, 6, 0xf8, 0x3f); // $7E00 crosses the end of physical RAM.
+  const patterns = [0x00, 0xff, 0x55, 0xaa, 0x1b, 0x66, 0x03, 0x06];
+  for (let row = 0; row < 192; row++) for (let column = 0; column < 32; column++) {
+    machine.ram.write((0x7e00 + row * 32 + column) % 0x8000, patterns[(row + column) % patterns.length]!);
+  }
+  machine.pias.write(3, 5); machine.pias.setFieldSync(false);
+  machine.pias.cassette.insert("stationary.wav", [12, 34]); machine.pias.cassette.play();
+  machine.pias.cassette.advance(1, 88_200, true, 0);
+  const before = machine.snapshot(), reads: number[] = [], read = machine.ram.read.bind(machine.ram);
+  machine.ram.read = address => { reads.push(address); return read(address); };
+  machine.memory.read = machine.memory.write = () => { throw new Error("Video must not use the CPU bus"); };
+  const direct = renderCocoFrame(machine);
+  assert.deepEqual(renderCocoFrame(machine, "direct"), direct);
+  const expectedReads = Array.from({ length: 6144 }, (_, i) => (0x7e00 + i) % 0x8000);
+  for (const signal of ["composite", "composite-reversed"] as const) {
+    reads.length = 0;
+    const frame = renderCocoFrame(machine, signal), palette = signal === "composite" ? [8, 11, 12, 4] : [8, 12, 11, 4];
+    for (let y = 0; y < 192; y++) for (let x = 0; x < 256; x++) {
+      const byte = patterns[(y + Math.floor(x / 8)) % patterns.length]!;
+      const pairs = byte.toString(4).padStart(4, "0");
+      assert.equal(frame[y * 256 + x], palette[Number(pairs[Math.floor(x / 2) % 4])]);
+    }
+    assert.deepEqual(reads, expectedReads, "one physical read per byte, including both sides of each wrap");
+    assert.notDeepEqual(frame, direct);
+    assert.deepEqual(machine.snapshot(), before); assert.equal(machine.pias.irq, true);
+  }
+});
+
+test("composite presentation leaves green RG6, text, SG4, and every other bitmap mode unchanged", () => {
+  const machine = create6809Coco({ firmware: null, extended: null });
+  for (let i = 0; i < 0x8000; i++) machine.ram.write(i, storedByte(i));
+  for (const pins of [0, 8, ...Array.from({ length: 15 }, (_, i) => 0x80 + i * 8)]) {
+    const gm = Math.floor((pins - 0x80) / 16);
+    configure(machine, pins < 0x80 ? 0 : modes[gm]!.v, pins);
+    const direct = renderCocoFrame(machine);
+    assert.deepEqual(renderCocoFrame(machine, "composite"), direct);
+    assert.deepEqual(renderCocoFrame(machine, "composite-reversed"), direct);
+  }
+  configure(machine, 0, 0xf8);
+  machine.ram.read = () => { throw new Error("Unsupported display must not read RAM"); };
+  assert.throws(() => renderCocoFrame(machine, "composite"), /Unsupported CoCo display/);
+});

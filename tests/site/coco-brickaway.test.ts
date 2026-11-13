@@ -69,6 +69,8 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   until(() => pc() === 0x2a0b, 1_000_000); // Paddle drawn; next ball update has not begun.
   assert.equal(word(0x1e18), 0);
   const playing = session.snapshot(); saved.save(playing);
+  assert.deepEqual(renderCocoFrame(session.machine, "composite"), renderCocoFrame(session.machine),
+    "the green opening scene keeps its direct colours");
   function frame(step = () => { session.step(); }): void {
     step();
     for (let i = 0; i < 1_000_000; i++) { if (pc() === 0x2a0b) return; step(); }
@@ -115,7 +117,18 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
     assert.ok(edges.every(edge => [0x2440, 0x2445, 0x244d].includes(edge.address)), "sound is produced by the game's DAC and sound-enable writes");
     assert.ok(audio.some(sample => sample > 0.1));
     const raster = renderCocoFrame(session.machine); assert.ok(raster.includes(4), "hit selects the buff colour set");
-    return { state: session.snapshot(), raster, audio, edges };
+    const beforeDisplay = session.snapshot();
+    const composite = renderCocoFrame(session.machine, "composite"), reversed = renderCocoFrame(session.machine, "composite-reversed");
+    assert.ok(composite.includes(11) && composite.includes(12), "the unchanged game produces both artifact colours");
+    for (let pixel = 0; pixel < raster.length; pixel += 2) {
+      const pair = Number(raster[pixel] === 4) * 2 + Number(raster[pixel + 1] === 4);
+      const colour = [8, 11, 12, 4][pair]!;
+      assert.equal(composite[pixel], colour); assert.equal(composite[pixel + 1], colour);
+      const swapped = [8, 12, 11, 4][pair]!;
+      assert.equal(reversed[pixel], swapped); assert.equal(reversed[pixel + 1], swapped);
+    }
+    assert.deepEqual(session.snapshot(), beforeDisplay, "switching display interpretation cannot alter play or sound");
+    return { state: beforeDisplay, raster, composite, reversed, audio, edges };
   }
   session.restore(saved.read()!.state); const first = firstBrick(1000);
   session.powerOn(); session.machine.pias.cassette.eject(); session.restore(saved.read()!.state);

@@ -69,7 +69,14 @@
           </div>
         </div>
         <div class="lab-display-footer"><p class="basic-readout" data-display-status></p>
-          <label class="coco-inline"><input type="checkbox" data-coco-scanlines checked> Scanlines</label></div>
+          <div class="coco-display-options">
+            <div class="coco-signal" role="group" aria-label="Display signal">
+              <button type="button" data-coco-signal="direct" aria-pressed="false" title="Show the VDG's individual dots and direct colours">Direct</button>
+              <button type="button" data-coco-signal="composite" aria-pressed="true" title="Approximate NTSC artifact colours in high-resolution black/buff graphics">Composite</button>
+            </div>
+            <button type="button" data-coco-phase aria-pressed="false" title="Exchange blue and orange/red artifact colours" disabled>Swap colours</button>
+            <label class="coco-inline"><input type="checkbox" data-coco-scanlines checked> Scanlines</label>
+          </div></div>
       </div>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">

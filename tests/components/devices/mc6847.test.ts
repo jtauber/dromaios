@@ -73,3 +73,34 @@ test("VDG bitmap modes select geometry and unpack every byte MSB first in both c
   });
   assert.throws(() => vdg.graphicsColour(0, 8, 0x80), RangeError);
 });
+
+test("VDG artifact eligibility requires RG6 black/buff and ignores the unrelated low PIA pins", () => {
+  const vdg = new Mc6847();
+  for (let pins = 0; pins < 256; pins++) assert.equal(vdg.artifactMode(pins), pins >= 0xf8);
+});
+
+test("VDG artifact pairs distinguish black, white, both stripe phases, and the declared cross-pair limitation", () => {
+  const vdg = new Mc6847();
+  const patterns = [
+    [0x00, [8, 8, 8, 8]], [0xff, [4, 4, 4, 4]],
+    [0x55, [11, 11, 11, 11]], [0xaa, [12, 12, 12, 12]],
+    [0x1b, [8, 11, 12, 4]], [0x66, [11, 12, 11, 12]],
+    [0x03, [8, 8, 8, 4]], [0x06, [8, 8, 11, 12]],
+  ] as const;
+  for (const [byte, expected] of patterns) for (let pair = 0; pair < 4; pair++) {
+    assert.equal(vdg.artifactPairColour(byte, pair, false), expected[pair]);
+    const colour = expected[pair]!;
+    assert.equal(vdg.artifactPairColour(byte, pair, true), colour === 11 ? 12 : colour === 12 ? 11 : colour);
+  }
+  for (let byte = 0; byte < 256; byte++) {
+    const pairs = byte.toString(2).padStart(8, "0").match(/../g)!;
+    for (const reverse of [false, true]) for (let pair = 0; pair < 8; pair++) {
+      const expected: Record<string, number> = { "00": 8, "01": reverse ? 12 : 11, "10": reverse ? 11 : 12, "11": 4 };
+      assert.equal(vdg.artifactPairColour(byte, pair, reverse), pair < 4 ? expected[pairs[pair]!] : 8);
+    }
+  }
+  assert.throws(() => vdg.artifactPairColour(256, 0, false), RangeError);
+  assert.throws(() => vdg.artifactPairColour(0, 8, false), RangeError);
+  assert.throws(() => vdg.artifactPairColour(0, 0, 1 as never));
+  assert.deepEqual(vdg.snapshot(), {});
+});

@@ -459,9 +459,13 @@ Use Color BASIC 1.3 and Extended Color BASIC 1.1. In the laboratory:
 The browser stores one checkpoint. A long tape makes it several megabytes;
 insufficient browser storage reports a failed save and preserves the previous
 checkpoint. Normal speed is required for audible output; Unlimited deliberately
-mutes host audio. The game uses 256×192 one-bit graphics and composite artifact
-colours. Our fixed palette shows green/black or buff/black, so this check
-establishes playable geometry, not the original television's full colour image.
+mutes host audio. The game uses 256×192 one-bit graphics. Its opening green/black
+scene keeps its direct colours. After the first brick hit selects black/buff,
+the laboratory's **Composite** display interprets dot pairs as blue and
+orange/red artifact colours. **Direct** shows the individual black/buff dots;
+**Swap colours** exchanges the two artifact colours without changing the game.
+This uses the VDG chapter's [two-dot approximation](../../components/devices/specifications/mc6847.md#ntsc-artifact-colours),
+not a full simulation of the original television image.
 
 The [optional game test](../../../tests/site/coco-brickaway.test.ts) takes
 `COCO_ROM`, `COCO_EXTENDED_ROM`, and `COCO_BRICKAWAY_CAS`. It checks every loaded
@@ -471,7 +475,11 @@ state. During play, independent X and Y changes must move the rendered paddle
 and leave pixels outside the old/new paddle regions unchanged. The first hit
 must remove one of forty bricks and add 100 points. Restoring a play checkpoint
 must reproduce that result, including the sixteen DAC pulses and identical
-48 kHz audio samples with different sample-drain batch sizes.
+48 kHz audio samples with different sample-drain batch sizes. The green scene
+must be identical under direct and composite display. After the hit, both
+artifact colours must occur; every pair must match the declared colour table
+in both phases, with CPU, RAM, devices, input, and audio state unchanged by
+rendering. Restoring the checkpoint must reproduce both composite rasters too.
 
 These addresses were identified by inspecting this exact image and observing
 its execution. They are useful in Memory and **Run to address**; they are not
@@ -582,11 +590,22 @@ error before reading screen data. These include V=111 DMA, external
 characters/SG6, extended semigraphics, and mismatched bitmap settings. Graphics
 can wrap through physical $7FFF to $0000 without visiting CPU I/O or ROM.
 
+The native renderer defaults to direct colours. Its optional `composite` and
+`composite-reversed` interpretations use the VDG chapter's artifact-mode and
+pair-colour views, keeping the same physical RAM reads. They affect only RG6
+black/buff graphics; other modes retain their direct colours. The laboratory
+defaults to **Composite** and offers **Direct**, **Swap colours**, and a
+scanline overlay. Swap is available only in the modeled artifact mode. Changing
+these controls redraws a paused screen even with Live off and never executes
+an instruction. Display choices survive power-on and checkpoint restoration
+within the page, but are not machine state; reloading starts with Composite
+and the unswapped phase.
+
 The rendered frame has no scan position and does not advance elapsed time.
-The board's sync schedule runs independently. There is no CRT/composite
-simulation, dynamic RAM refresh, or instruction-internal cycle accuracy.
-The laboratory maps these indices to fixed RGB colours and offers a scanline
-overlay. Both are presentation approximations, not composite video or hardware time.
+The board's sync schedule runs independently. The pair approximation, fixed
+RGB palette, and scanline overlay are presentation choices. Full analogue
+composite decoding, CRT simulation, dynamic RAM refresh, and instruction-internal
+cycle accuracy remain outside the model.
 
 ## Using the laboratory
 

@@ -41,3 +41,8 @@
 .coco-joystick [aria-pressed="true"] { background: #385578; color: #fff; }
 .coco-laboratory [data-workspace-panel="cassette"] progress { width: 100%; accent-color: #91c5ec; }
 .coco-laboratory [data-workspace-panel="cassette"] [aria-pressed="true"] { background: #385578; color: #fff; }
+
+.coco-display-options { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.coco-signal { display: inline-flex; gap: 2px; }
+.coco-display-options button { padding: 3px 6px; font-size: 11px; }
+.coco-display-options [aria-pressed="true"] { background: #385578; color: #fff; }
