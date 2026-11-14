@@ -7,7 +7,7 @@ import { CocoCassette, cocoTapeSampleLimit } from "../../src/components/devices/
 import { CocoDiskController, cocoDiskSize } from "../../src/machines/6809/coco/disk-controller.js";
 
 interface StoredCocoState {
-  readonly version: 7;
+  readonly version: 8;
   readonly machine: "coco-32k";
   readonly savedAt: string;
   readonly state: CocoSessionState;
@@ -28,7 +28,7 @@ export function cocoSavedState(storage: () => {
       const value: unknown = JSON.parse(text);
       checkMachineSnapshot(value, ["version", "machine", "savedAt", "state"]);
       const saved = value as Omit<StoredCocoState, "version"> & { readonly version: number };
-      if (![1, 2, 3, 4, 5, 6, 7].includes(saved.version) || saved.machine !== "coco-32k" || typeof saved.savedAt !== "string"
+      if (![1, 2, 3, 4, 5, 6, 7, 8].includes(saved.version) || saved.machine !== "coco-32k" || typeof saved.savedAt !== "string"
         || !Number.isFinite(Date.parse(saved.savedAt))) throw new Error("Invalid CoCo snapshot format.");
       // Versions 1 and 2 had no clock: start their schedule at phase zero while
       // preserving PIA levels and flags until the next scheduled edges.
@@ -73,16 +73,22 @@ export function cocoSavedState(storage: () => {
         checkMachineSnapshot(disk, ["circuit", "image", "microsecondPhase", "haltDeferred"]);
         const image = unpack(disk.image, cocoDiskSize, "disk");
         if (image !== null && image.length !== cocoDiskSize) throw new Error("Invalid saved disk size.");
-        state = { ...state, hardware: { ...state.hardware, disk: { ...disk, image } } };
+        let circuit = disk.circuit;
+        if (saved.version === 7) {
+          const { writable, ...previous } = new CocoDiskController().inspect();
+          checkMachineSnapshot(circuit, Object.keys(previous));
+          circuit = { ...circuit, writable: false };
+        }
+        state = { ...state, hardware: { ...state.hardware, disk: { ...disk, circuit, image } } };
       }
       // The session validates every component, input phase, and ROM identity before installing it.
-      return { ...saved, version: 7, state };
+      return { ...saved, version: 8, state };
     },
     save(state: CocoSessionState): void {
       const tape = state.hardware.pias.cassette;
       const packed = { ...state, hardware: { ...state.hardware, disk: { ...state.hardware.disk, image: pack(state.hardware.disk.image) }, pias: { ...state.hardware.pias,
         cassette: { ...tape, samples: pack(tape.samples) } } } };
-      storage().setItem(key, JSON.stringify({ version: 7, machine: "coco-32k", savedAt: new Date().toISOString(), state: packed }));
+      storage().setItem(key, JSON.stringify({ version: 8, machine: "coco-32k", savedAt: new Date().toISOString(), state: packed }));
     },
     forget(): void { storage().removeItem(key); },
   };

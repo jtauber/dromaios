@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { CocoDiskCircuit } from "../../../src/components/devices/generated/coco-disk.js";
 
 function mounted() {
-  const chip = new CocoDiskCircuit(); chip.setMedia(true); chip.setControl(0x29); return chip;
+  const chip = new CocoDiskCircuit(); chip.setMedia(true, false); chip.setControl(0x29); return chip;
 }
 function event(chip: CocoDiskCircuit, byte = 0): number {
   const delay = chip.remainingMicroseconds(); assert.ok(delay > 0);
@@ -85,11 +85,11 @@ test("bad IDs time out, absent media waits for software, and writes cannot chang
     const chip = mounted(); chip.write(1, track!); chip.write(2, sector!); chip.write(0, command!);
     assert.equal(finish(chip), 32 + 800000); assert.equal(chip.status(), 0x10);
   }
-  const chip = mounted(); chip.setMedia(false); chip.write(0, 0x80);
+  const chip = mounted(); chip.setMedia(false, false); chip.write(0, 0x80);
   assert.equal(chip.status(), 1); assert.equal(chip.remainingMicroseconds(), 0);
   chip.elapse(1000000); assert.equal(chip.status(), 1);
   chip.write(0, 0xd0); assert.equal(chip.status(), 0, "abort preserves the active Type II status class");
-  chip.setMedia(true); chip.write(0, 0xa0);
+  chip.setMedia(true, false); chip.write(0, 0xa0);
   assert.equal(chip.status(), 0x40); assert.equal(chip.snapshot().intrq, true);
 });
 
@@ -111,4 +111,55 @@ test("unsupported commands and busy register writes reject atomically; ordinary 
     { drq: true }, { intrq: true, nmi_level: true }, { immediate: true }, { phase: 2, timer: 32, media: false }]) {
     assert.throws(() => new CocoDiskCircuit({ ...reset, ...invalid }), RangeError);
   }
+});
+
+test("writes request the first byte separately, then retire 256 timed bytes and the final CRC", () => {
+  const chip = mounted(); chip.setMedia(true, true);
+  assert.equal(chip.status(), 4, "write permission removes WP but preserves physical track zero");
+  chip.write(0, 0xa4); assert.equal(event(chip), 30032);
+  assert.equal(chip.snapshot().phase, 6); assert.equal(chip.snapshot().drq, true);
+  assert.equal(chip.writesByte(), false); assert.equal(chip.remainingMicroseconds(), 288);
+  chip.write(3, 0xa5); assert.equal(chip.snapshot().drq, false);
+  assert.equal(event(chip), 288); assert.equal(chip.snapshot().phase, 7);
+  for (let i = 0; i < 256; i++) {
+    if (i) { assert.equal(chip.snapshot().drq, true); chip.write(3, i ^ 0xa5); }
+    assert.equal(chip.writeByte(), i ^ 0xa5); assert.equal(chip.mediaOffset(), i);
+    assert.equal(chip.writesByte(), true); assert.equal(event(chip), 32);
+    assert.equal(chip.snapshot().byte_index, i + 1); assert.equal(chip.snapshot().error, 0);
+  }
+  assert.equal(chip.snapshot().phase, 4); assert.equal(chip.snapshot().drq, false);
+  assert.equal(chip.writesByte(), false); assert.equal(chip.nmiPending(), false);
+  assert.equal(event(chip), 88); assert.equal(chip.status(), 0); assert.equal(chip.nmiPending(), true);
+});
+
+test("missing the first write request aborts; later underruns write zero and continue", () => {
+  const chip = mounted(); chip.setMedia(true, true); chip.write(0, 0xa0);
+  event(chip); assert.equal(event(chip), 288);
+  assert.equal(chip.status(), 4); assert.equal(chip.snapshot().byte_index, 0);
+  assert.equal(chip.writesByte(), false); assert.equal(chip.snapshot().intrq, true);
+  chip.write(0, 0xa0); event(chip); chip.write(3, 0x5a); event(chip);
+  assert.equal(chip.writeByte(), 0x5a); event(chip);
+  assert.equal(chip.writeByte(), 0); event(chip);
+  assert.equal(chip.status(), 7); assert.equal(chip.snapshot().byte_index, 2);
+  chip.write(3, 0x81); assert.equal(chip.writeByte(), 0x81); event(chip);
+  assert.equal(chip.snapshot().error, 4);
+  chip.write(0, 0xd0); assert.equal(chip.snapshot().byte_index, 3); assert.equal(chip.status(), 4);
+});
+
+test("write requests enforce DATA ownership and writable-state invariants", () => {
+  const chip = mounted(); chip.setMedia(true, true);
+  for (const command of [0xa1, 0xa3, 0xab, 0xb0]) {
+    const before = chip.snapshot(); assert.throws(() => chip.write(0, command)); assert.deepEqual(chip.snapshot(), before);
+  }
+  chip.write(0, 0xa0); const search = chip.snapshot();
+  assert.throws(() => chip.write(3, 1)); assert.deepEqual(chip.snapshot(), search);
+  event(chip); chip.write(3, 1); const supplied = chip.snapshot();
+  for (const address of [1, 2, 3]) {
+    assert.throws(() => chip.write(address, 9)); assert.deepEqual(chip.snapshot(), supplied);
+  }
+  for (const invalid of [{ writable: false }, { media: false }, { byte_index: 1 }, { command: 0x80 }, { timer: 289 }]) {
+    assert.throws(() => new CocoDiskCircuit({ ...supplied, ...invalid }));
+  }
+  chip.reset(); assert.equal(chip.snapshot().writable, true); assert.equal(chip.snapshot().media, true);
+  assert.throws(() => new CocoDiskCircuit({ ...chip.snapshot(), media: false }));
 });

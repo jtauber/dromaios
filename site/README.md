@@ -77,10 +77,11 @@ versioned checkpoint migration contracts.
 independent of the DOM. `coco-keyboard-transport.ts` delivers bounded physical
 press/release phases in emulated clocks; `coco-input.ts` maps browser keys and single-line paste.
 `coco-laboratory.ts` connects those to execution controls and local media.
-`coco-disk-view.ts` provides read-only Drive 0 mounting and passive controller
-status. Fresh power-on retains the image; version-7 browser checkpoints pack it
-alongside cassette samples and restore the in-flight transfer. Older checkpoints
-gain an empty cartridge. Layout version 10 adds Drive 0 beside Cassette without
+`coco-disk-view.ts` provides Drive 0 mounting, explicit writable copies, raw disk
+export, and passive controller status. Fresh power-on retains the image and write
+permission; version-8 browser checkpoints pack media alongside cassette samples
+and restore in-flight reads and writes. Version-7 disks migrate read-only; earlier
+checkpoints gain an empty cartridge. Layout version 10 adds Drive 0 beside Cassette without
 reopening hidden tools or changing the selected tab of an existing group.
 Apple II and CoCo share `execution-speed-controls.ts` for Normal/Unlimited and
 `execution-interval-view.ts` for markers and Step/over/out measurements. Their
@@ -108,8 +109,10 @@ on either machine.
 browser-session BASIC transcripts. Set `COCO_EXTENDED_ROM` as well to test the
 Extended BASIC banner, chapter drawing program, all five PMODE settings, keyboard
 return/Break, and snapshot continuation. Add `COCO_DISK_ROM` for Disk BASIC's
-`DIR`, `LOAD "ANSWER"`, and `RUN` transcript, power-on retention, and packed
-mid-sector checkpoint replay. No ROM bytes are included in tests or output.
+`DIR`, `LOAD "ANSWER"`, and `RUN` transcript, plus SAVE/export/fresh-boot reload,
+power-on retention, and packed mid-sector checkpoint replay in both directions.
+`COCO_SAVE_EXPORT=/path/to/ANSWER-saved.dsk` optionally retains the SAVE test's
+exported disk for browser verification. No ROM bytes are included in tests or output.
 For browser checks, load the local image, run the chapter's conversation, pause
 and save a snapshot, alter the program, restore, and run it again. Check focus-loss
 release, remembered-ROM reload, memory scrolling and Live controls, and the

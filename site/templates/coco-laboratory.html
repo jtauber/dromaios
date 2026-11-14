@@ -27,11 +27,13 @@
       <p class="basic-readout" data-disk-medium>No disk mounted</p>
       <div class="basic-controls"><input type="file" accept=".dsk,.img" data-disk-file hidden>
         <button type="button" data-disk-load disabled>Load disk…</button><button type="button" data-disk-eject disabled>Eject disk</button></div>
+      <div class="basic-controls"><button type="button" data-disk-copy disabled>Make writable copy</button><button type="button" data-disk-export disabled>Export disk</button></div>
       <p class="basic-readout" data-disk-status role="status"></p>
       <p class="basic-readout" data-disk-signals></p>
       <progress data-disk-progress aria-label="Sector bytes transferred" max="256" value="0"></progress>
       <p class="basic-message" data-disk-message role="status"></p>
-      <p class="lab-hint">Read-only, 35-track, single-sided disks (161,280 bytes). Let the command finish, then Pause to exchange disks. Fresh power-on keeps the disk; snapshots include it and any transfer in progress.</p>
+      <p class="lab-hint">35-track, single-sided disks (161,280 bytes). Loaded disks start read-only. Pause while idle to make a writable copy or exchange disks; your original file is unchanged. Export downloads the current bytes. Fresh power-on and snapshots retain the disk and write permission.</p>
+      <p class="lab-hint">Enter <code>10 PRINT 42</code>, then <code>SAVE "ANSWER"</code>. Export when SAVE finishes. Reload the exported disk after fresh power-on, then LOAD and RUN. A paused transfer can also be saved in Snapshot or exported with only the bytes written so far.</p>
       <p class="lab-hint">Load Color BASIC, Extended BASIC, and Disk BASIC in ROM, then Run. Type <code>DIR</code> to list files, <code>LOAD "ANSWER"</code>, then <code>RUN</code> for the example disk.</p>
       <a href="{{ calc_url(coco_url) }}#disk-basic-in-the-laboratory" target="_blank" rel="noopener">Disk BASIC setup and example ↗</a>
     </section>

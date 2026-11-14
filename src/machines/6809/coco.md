@@ -621,7 +621,8 @@ The base machine definition above remains usable without a cartridge.
 In **Drive 0**, choose **Load disk** and select a headerless, single-sided
 35-track image: 18 sectors of 256 bytes per track, or 161,280 bytes total.
 Mounting and ejecting require a paused machine and an idle controller. Disks
-are read-only in this profile. The panel shows the physical head, logical
+start read-only; **Make writable copy** enables writes to the mounted copy
+without changing the original file. The panel shows the physical head, logical
 track and sector, transfer progress, and DRQ, INTRQ, and HALT without reading
 guest device registers. Memory and Disassembly can inspect the Disk BASIC ROM;
 Instruction distinguishes a disk HALT wait from an instruction or NMI entry.
@@ -641,12 +642,12 @@ OK
 ```
 
 **Fresh power-on** clears RAM and resets the controller while retaining the
-mounted image and its filename. Run again and repeat the commands: `ANSWER`
+mounted image, write permission, and filename. Run again and repeat the commands: `ANSWER`
 must still load from Drive 0. **Save snapshot** includes the disk bytes and
 the complete transfer state. After replacing or ejecting the disk, **Restore
 snapshot** restores that saved disk, not the replacement. A checkpoint during
-a sector read continues with the next byte, preserving HALT deferral and the
-pending NMI edge; it does not restart the command. The same three ROM identities
+a sector transfer continues with the next byte, preserving pending DATA, HALT
+deferral, and the NMI edge; it does not restart the command. The same three ROM identities
 must be loaded when restoring.
 
 The [browser-session acceptance](../../../tests/site/coco-disk.test.ts) uses an
@@ -655,6 +656,47 @@ program. It verifies this transcript before and after fresh power-on, and saves
 a packed browser checkpoint halfway through a sector to compare the resumed
 execution and hardware with the uninterrupted load. Disk images and ROMs stay
 local; neither is uploaded or included in the published site.
+
+### Save ANSWER and reload the exported disk
+
+Mount a formatted 35-track disk with free space, Pause while the controller is
+idle, and choose **Make writable copy**. Run and enter these lines separately:
+
+```text
+NEW
+10 PRINT 42
+20 END
+SAVE "ANSWER"
+DIR
+```
+
+`SAVE` writes tokenized BASIC by default. The directory should show
+`ANSWER   BAS  0 B 1`: BASIC, binary/tokenized, one granule. Wait for `OK` after
+SAVE and DIR, then Pause and choose **Export disk**. The downloaded `-saved.dsk`
+contains the actual sector bytes written by Disk BASIC, including its directory
+and allocation table; the host does not synthesize a file from interpreter RAM.
+
+Choose **Fresh power-on**, load the exported image in Drive 0, and Run. At `OK`,
+enter `DIR`, `LOAD "ANSWER"`, and `RUN`: the program must print `42`. Importing
+the exported file starts read-only again. Fresh power-on without replacing the
+disk instead retains its current write permission.
+
+For transfer inspection, Pause during SAVE and save a checkpoint. Restore
+brings back the edited disk, write permission, the committed byte prefix, and
+any DATA byte still waiting for its disk deadline. Resuming produces the same
+disk as the uninterrupted SAVE. Export is also available while paused in a
+transfer, but it contains only bytes written so far; it does not finish a command
+or promise a consistent BASIC directory. Power-on similarly keeps partial writes
+but abandons the controller's pending byte. Formatting and deleted data marks
+remain outside the controller profile.
+
+The [SAVE/export acceptance](../../../tests/site/coco-disk-write.test.ts) starts
+with an independently constructed empty directory and free allocation table,
+checks the new file's directory entry, restores a packed checkpoint after 128
+DATA writes, and verifies LOAD/RUN after booting from the exported bytes.
+The [sector tests](../../../tests/machines/6809/coco/disk.test.ts) additionally
+compare every raw image byte, including unaffected sectors, lost-data padding,
+aborted writes, and immutable held checkpoints.
 
 ## Using the laboratory
 
@@ -1640,7 +1682,7 @@ requires matching verified media in both sockets; it does not reapply power-on o
 Taking a snapshot or rendering a frame must neither acknowledge a pending
 interrupt nor release a held key. The browser adds the disk cartridge and its
 third ROM identity, controller state, mounted image, and filename. Browser
-checkpoints use version 7. Versions
+checkpoints use version 8. Versions
 1 and 2 predate the clock: migration starts the schedule at zero and preserves
 old PIA levels and pending flags until the next edge. Version 1 also acquires
 an empty extension socket. Versions 1–3 used a 12,000-boundary keyboard phase:
@@ -1650,11 +1692,13 @@ reconstructed. Queued chords, held switches, and version-3 clocks are retained.
 Versions 1–4 acquire two disconnected joysticks, preserving their former high
 comparator and released fire inputs. Versions 1–5 acquire an empty, stopped
 cassette recorder, preserving their former high PA0 input. Versions 1–6 acquire
-an idle disk cartridge with no image, filename, or Disk BASIC ROM. Current browser
+an idle disk cartridge with no image, filename, or Disk BASIC ROM. Version 7
+disks acquire explicit read-only permission; a missing permission in a current
+checkpoint is rejected. Current browser
 checkpoints pack tape samples and disk bytes as base64; native disk snapshots
 share an immutable byte array. Missing clock, joystick, cassette, disk, or input fields in current
 checkpoints are rejected. Reading an older checkpoint does not overwrite it;
-saving writes version 7. Storage errors preserve the previous checkpoint.
+saving writes version 8. Storage errors preserve the previous checkpoint.
 
 The [laboratory execution tests](../../../tests/site/coco-execution.test.ts)
 compare Normal, Unlimited, and single stepping with queued repeated keys;

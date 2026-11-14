@@ -35,7 +35,7 @@ test("Drive 0 survives power-on and packed checkpoints; replacement and failed r
   assert.throws(() => session.ejectDisk(), /Finish or abort/); assert.deepEqual(session.snapshot(), checkpoint);
   saved.save(checkpoint);
   const [key, text] = [...local.values][0]!, packed = JSON.parse(text);
-  assert.equal(typeof packed.state.hardware.disk.image, "string"); assert.equal(packed.version, 7);
+  assert.equal(typeof packed.state.hardware.disk.image, "string"); assert.equal(packed.version, 8);
   session.powerOn(); session.mountDisk("OTHER.dsk", new Uint8Array(161280));
   session.restore(saved.read()!.state); assert.deepEqual(session.snapshot(), checkpoint);
   for (const invalid of [null, "", 99]) {
@@ -61,7 +61,7 @@ test("version-6 checkpoints gain an empty cartridge, without rewriting the store
   const [key, text] = [...local.values][0]!, envelope = JSON.parse(text);
   delete envelope.state.diskName; delete envelope.state.hardware.disk; delete envelope.state.hardware.dos; envelope.version = 6;
   const legacy = JSON.stringify(envelope); local.setItem(key, legacy);
-  const restored = saved.read()!; assert.equal(restored.version, 7);
+  const restored = saved.read()!; assert.equal(restored.version, 8);
   session.restore(restored.state); assert.deepEqual(session.snapshot(), expected); assert.equal(local.getItem(key), legacy);
   envelope.version = 7; local.setItem(key, JSON.stringify(envelope)); assert.throws(() => saved.read());
 });

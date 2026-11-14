@@ -21,10 +21,10 @@ export function createCocoSession(firmware: RomImage | null = null, extended: Ro
     return result;
   }
   function replace(bindings: { firmware: RomImage | null; extended: RomImage | null; dos: RomImage | null }): void {
-    const tape = machine.pias.cassette.snapshot(), image = machine.disk.snapshot().image;
+    const tape = machine.pias.cassette.snapshot(), disk = machine.disk.snapshot();
     const state = fresh(bindings).snapshot();
     const next = create6809CocoDisk(bindings, { ...state, pias: { ...state.pias, cassette: { ...tape, mode: "stop" } } });
-    next.disk.mount(image);
+    next.disk.mount(disk.image, { writable: disk.circuit.writable });
     machine = next; ({ firmware, extended, dos } = bindings);
     input = createCocoKeyboardTransport(machine.pias, machine.clock.hertz!);
   }

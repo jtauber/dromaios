@@ -28,10 +28,11 @@ export interface CocoDiskSnapshot {
   readonly haltDeferred: boolean;
 }
 
-/** FD-502 bus wiring and immutable media; register/command behavior belongs to the chapter. */
+/** FD-502 bus wiring and owned media; register/command behavior belongs to the chapter. */
 export class CocoDiskController implements ByteMemoryConnection {
   readonly #circuit: CocoDiskCircuit;
   #image: readonly number[] | null;
+  #edited?: number[];
   #microsecondPhase: number;
   #haltDeferred: boolean;
 
@@ -50,6 +51,9 @@ export class CocoDiskController implements ByteMemoryConnection {
   get halted(): boolean { return this.#circuit.halted() && !this.#haltDeferred; }
   inspect(): CocoDiskCircuitSnapshot { return this.#circuit.snapshot(); }
   snapshot(): CocoDiskSnapshot {
+    if (this.#edited) {
+      this.#image = Object.freeze(this.#edited); ownedImages.add(this.#image); this.#edited = undefined;
+    }
     return { circuit: this.#circuit.snapshot(), image: this.#image, microsecondPhase: this.#microsecondPhase, haltDeferred: this.#haltDeferred };
   }
   reset(): void { this.#circuit.reset(); this.#haltDeferred = false; }
@@ -62,10 +66,23 @@ export class CocoDiskController implements ByteMemoryConnection {
     finally { this.#haltDeferred = !before && this.#circuit.halted(); }
   }
 
-  mount(bytes: Uint8Array | readonly number[] | null): void {
+  mount(bytes: Uint8Array | readonly number[] | null, { writable = false } = {}): void {
     if (this.#circuit.status() & 1) throw new Error("Finish or abort the disk command before changing media.");
+    if (typeof writable !== "boolean" || bytes === null && writable) throw new TypeError("Write permission requires a mounted disk and a Boolean value.");
     const image = bytes === null ? null : ownImage(bytes);
-    this.#image = image; this.#circuit.setMedia(image !== null);
+    this.#image = image; this.#edited = undefined; this.#circuit.setMedia(image !== null, writable);
+  }
+
+  writableCopy(): void {
+    if (this.#circuit.status() & 1) throw new Error("Finish or abort the disk command before changing write permission.");
+    if (this.#image === null) throw new Error("Mount a disk before making a writable copy.");
+    this.#circuit.setMedia(true, true);
+  }
+
+  /** Detached raw sectors, including bytes already written by an unfinished command. */
+  exportImage(): Uint8Array<ArrayBuffer> {
+    if (this.#image === null) throw new Error("Drive 0 is empty.");
+    return Uint8Array.from(this.#edited ?? this.#image);
   }
 
   read(address: number): number {
@@ -109,7 +126,12 @@ export class CocoDiskController implements ByteMemoryConnection {
       const elapsed = Math.min(remaining, deadline);
       this.#circuit.elapse(elapsed); remaining -= elapsed;
       if (elapsed === deadline) {
-        const byte = this.#circuit.needsByte() ? this.#image![this.#circuit.mediaOffset()]! : 0;
+        const byte = this.#circuit.needsByte() ? (this.#edited ?? this.#image)![this.#circuit.mediaOffset()]! : 0;
+        if (this.#circuit.writesByte()) {
+          // Preserve held snapshots; only the first later write copies the shared image.
+          const image = this.#edited ??= this.#image!.slice();
+          image[this.#circuit.mediaOffset()] = this.#circuit.writeByte();
+        }
         this.#circuit.event(byte);
       }
     }

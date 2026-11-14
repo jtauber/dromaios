@@ -120,3 +120,51 @@ test("NMI assertion is offered once, ahead of IRQ, even if the CPU has not armed
     machine.disk.write(8, 0xd8); assert.equal(machine.disk.takeNmi(), true);
   }
 });
+
+function diskEvent(disk: CocoDiskController): void { disk.advanceCpuClocks(disk.clocksUntilEvent()); }
+
+test("sector writes change the exact physical image bytes, preserve snapshots and export detached media", () => {
+  const disk = new CocoDiskController(), original = new Uint8Array(cocoDiskSize).fill(0xcd);
+  disk.mount(original); disk.writableCopy(); const initial = disk.snapshot();
+  disk.write(0, 0x29); disk.write(11, 4); disk.write(8, 0x10);
+  while (disk.inspect().phase) diskEvent(disk);
+  disk.write(10, 7); disk.write(8, 0xa0); diskEvent(disk);
+  assert.throws(() => disk.writableCopy()); assert.throws(() => disk.mount(null));
+  const offset = (4 * 18 + 6) * 256, expected = original.slice();
+  disk.write(11, 0xa5); diskEvent(disk);
+  for (let i = 0; i < 256; i++) {
+    if (i) disk.write(11, i ^ 0xa5);
+    assert.equal(disk.exportImage()[offset + i], 0xcd, "DATA has not reached media before its deadline");
+    diskEvent(disk); expected[offset + i] = i ^ 0xa5;
+  }
+  diskEvent(disk); assert.equal(disk.inspect().phase, 0); assert.equal(disk.inspect().error, 0);
+  assert.deepEqual(disk.exportImage(), expected); assert.deepEqual(initial.image, [...original]);
+  const exported = disk.exportImage(); exported.fill(0); assert.deepEqual(disk.exportImage(), expected);
+  const held = disk.snapshot(); assert.ok(Object.isFrozen(held.image));
+  disk.write(8, 0xa0); diskEvent(disk); disk.write(11, 0x42); diskEvent(disk); diskEvent(disk);
+  disk.write(11, 0x99); // Pending DATA must not be committed by an abort.
+  disk.write(8, 0xd0); expected[offset] = 0x42;
+  assert.deepEqual(disk.exportImage(), expected); assert.equal(held.image![offset], 0xa5);
+  disk.reset(); assert.equal(disk.inspect().writable, true); assert.deepEqual(disk.exportImage(), expected);
+  disk.mount(expected); assert.equal(disk.inspect().writable, false);
+});
+
+test("a write checkpoint owns the edited prefix and pending DATA; underruns and clock partitions replay exactly", () => {
+  const disk = new CocoDiskController(); disk.mount(new Uint8Array(cocoDiskSize).fill(0xcc), { writable: true });
+  disk.write(0, 0x29); disk.write(8, 0xa0); diskEvent(disk); disk.write(11, 0x41); diskEvent(disk); diskEvent(disk);
+  disk.write(11, 0x42); const held = disk.snapshot(), restored = new CocoDiskController(JSON.parse(JSON.stringify(held)));
+  assert.equal(held.image![0], 0x41); assert.equal(held.image![1], 0xcc); assert.equal(held.circuit.data, 0x42);
+  disk.advanceCpuClocks(10_000);
+  for (const clocks of [1, 7, 83, 2000, 7909]) restored.advanceCpuClocks(clocks);
+  assert.deepEqual(restored.snapshot(), disk.snapshot()); assert.equal(disk.inspect().error, 4);
+  const expected = new Uint8Array(cocoDiskSize).fill(0xcc); expected.fill(0, 2, 256); expected.set([0x41, 0x42]);
+  assert.deepEqual(disk.exportImage(), expected); assert.equal(held.image![1], 0xcc);
+  const fresh = new CocoDiskController(); fresh.mount(expected);
+  fresh.write(0, 0x29); fresh.write(8, 0xa0); assert.equal(fresh.inspect().error, 0x40);
+  assert.deepEqual(fresh.exportImage(), expected);
+  fresh.writableCopy(); fresh.write(8, 0xa0); diskEvent(fresh); diskEvent(fresh);
+  assert.equal(fresh.inspect().error, 4); assert.deepEqual(fresh.exportImage(), expected, "missing first DATA leaves the disk intact");
+  assert.throws(() => fresh.mount(null, { writable: true })); assert.deepEqual(fresh.exportImage(), expected);
+  fresh.mount(null); assert.equal(fresh.inspect().writable, false);
+  assert.throws(() => fresh.writableCopy()); assert.throws(() => fresh.exportImage());
+});

@@ -1,4 +1,4 @@
-# CoCo FD-502 disk controller: a read-only WD1773 profile
+# CoCo FD-502 disk controller: a WD1773 sector profile
 
 The disk cartridge adds an operating system ROM and a controller to the CoCo's
 cartridge connector. Disk Extended Color BASIC extends the resident interpreter;
@@ -15,22 +15,25 @@ provides an independent cross-check for the latch and signal connections.
 
 ## Selected drive and timing fidelity
 
-There is one connected, 40-track drive, numbered 0, with a write-protected
+There is one connected, 40-track drive, numbered 0, with a
 35-track, single-sided disk: 18 ascending sectors per track, 256 bytes each.
 The host supplies a headerless 161,280-byte image. File allocation, directories,
-and BASIC tokens are opaque to this device. Track register and physical head
+and BASIC tokens are opaque to this device. Mounted images start write-protected;
+the host may explicitly enable a writable copy. Track register and physical head
 position are separate, so writing TRACK never moves the head.
 
-Restore, Seek, Step, Step In, Step Out, single-sector Read, and Force Interrupt
-(`D0` and `D8`) are implemented. Write Sector reports write protection when a
-disk is selected. Multi-sector commands, track/address commands, conditional
+Restore, Seek, Step, Step In, Step Out, single-sector Read and Write, and Force Interrupt
+(`D0` and `D8`) are implemented. Write Sector reports write protection on protected
+media. Deleted data marks, multi-sector commands, track/address commands, conditional
 Force Interrupt, FM, other drives, and side 1 are outside this profile. Unsupported
 commands are rejected before changing state. Normal busy commands are ignored;
-Force Interrupt can terminate an active transfer. Changing TRACK, SECTOR, DATA,
+Force Interrupt can terminate an active transfer. Changing TRACK, SECTOR,
 or drive/motor/density selection during a command is outside this profile and
 rejects atomically; the ROM may still rewrite HALT enable during a transfer.
+DATA writes are accepted during a write request and acknowledge DRQ. Premature
+or duplicate DATA writes during a command reject without changing the transfer.
 
-Each MFM data byte arrives after **32 microseconds**, whether the host reads it
+On reads each MFM data byte arrives after **32 microseconds**, whether the host reads it
 or not. An unread byte overwritten at the next byte deadline sets Lost Data;
 transfer continues. Completion follows the final byte and two CRC byte times.
 The image has implicit normal data marks and valid CRCs. Type I step intervals
@@ -44,10 +47,11 @@ software aborts it. This distinguishes missing media from a bad sector number.
 ## Stored state and cartridge lines
 
 Phases are idle (0), stepping (1), searching (2), reading (3), final CRC or
-failed-search delay (4), and verifying (5). TIMER is the time until the next
+failed-search delay (4), verifying (5), first write request (6), and writing (7).
+TIMER is the time until the next
 controller event. Zero means there is no scheduled event, including a search
 without rotating media. LEFT counts remaining step pulses; BYTE_INDEX counts
-data bytes presented to the CPU. TYPE_ONE retains the status-register layout
+data bytes presented to the CPU on reads, or committed to media on writes. TYPE_ONE retains the status-register layout
 even when Force Interrupt replaces the command during an active transfer.
 
 ```device
@@ -68,6 +72,7 @@ state {
   latch TYPE_ONE
   latch INWARD
   latch MEDIA
+  latch WRITABLE
   latch DRQ
   latch INTRQ
   latch IMMEDIATE
@@ -138,7 +143,8 @@ source status "Type I exposes track zero/protection; Type II exposes DRQ/lost da
   error = register ERROR
   typeOne = latch TYPE_ONE
   trackZero = select(and(selected, zero(cylinder)), u8(4), u8(0))
-  protected = select(and(selected, media), u8($40), u8(0))
+  writable = latch WRITABLE
+  protected = select(and(and(selected, media), not(writable)), u8($40), u8(0))
   flags = select(typeOne, or(trackZero, protected), select(drq, u8(2), u8(0)))
   return or(or(error, flags), select(zero(phase), u8(0), u8(1)))
 }
@@ -152,6 +158,17 @@ source needsByte "The next event transfers one image byte into DATA" : flag {
   phase = register PHASE
   index = register BYTE_INDEX
   return and(equal(phase, u8(3)), lessThan(index, u16(256), unsigned))
+}
+
+source writesByte "The next event commits a byte to media, even after an underrun" : flag {
+  phase = register PHASE
+  return equal(phase, u8(7))
+}
+
+source writeByte "An unserviced request writes zero instead of stale DATA" : 8 {
+  drq = latch DRQ
+  data = register DATA
+  return select(drq, u8(0), data)
 }
 
 source mediaOffset "Physical cylinder, ascending sector, then byte within sector" : 32 {
@@ -261,19 +278,15 @@ action beginCommand "Dispatch accepted commands, keeping head position separate 
     TIMER <- select(zero(left), u32(24), interval)
   }
   when bit(command, 7) {
-    when equal(and(command, u8($E0)), u8($A0)) {
-      selected = source selected()
-      media = latch MEDIA
-      when and(selected, media) {
-        ERROR <- u8($40)
-        perform finish()
-      }
-      when not(and(selected, media)) {
-        PHASE <- u8(2)
-        TIMER <- u32(0)
-      }
+    selected = source selected()
+    media = latch MEDIA
+    writable = latch WRITABLE
+    protected: flag = and(equal(and(command, u8($E0)), u8($A0)), and(and(selected, media), not(writable)))
+    when protected {
+      ERROR <- u8($40)
+      perform finish()
     }
-    when not(equal(and(command, u8($E0)), u8($A0))) {
+    when not(protected) {
       PHASE <- u8(2)
       spinning = source spinning()
       TIMER <- select(spinning, select(bit(command, 2), u32(30032), u32(32)), u32(0))
@@ -332,8 +345,10 @@ action event "Retire one due event; the board supplies only the raw image byte" 
     idMatches = source sectorPresent()
     sideMatches: flag = not(and(bit(command, 1), bit(command, 3)))
     when and(idMatches, sideMatches) {
-      PHASE <- u8(3)
-      TIMER <- u32(32)
+      writing: flag = bit(command, 5)
+      PHASE <- select(writing, u8(6), u8(3))
+      DRQ <- writing
+      TIMER <- select(writing, u32(288), u32(32))
     }
     when not(and(idMatches, sideMatches)) {
       ERROR <- u8($10)
@@ -363,6 +378,28 @@ action event "Retire one due event; the board supplies only the raw image byte" 
   when equal(phase, u8(4)) {
     perform finish()
   }
+  when equal(phase, u8(6)) {
+    drq = latch DRQ
+    when drq {
+      ERROR <- u8(4)
+      perform finish()
+    }
+    when not(drq) {
+      PHASE <- u8(7)
+      TIMER <- u32(32)
+    }
+  }
+  when equal(phase, u8(7)) {
+    drq = latch DRQ
+    error = register ERROR
+    ERROR <- or(error, select(drq, u8(4), u8(0)))
+    index = register BYTE_INDEX
+    last: flag = equal(index, u16(255))
+    BYTE_INDEX <- add(index, u16(1))
+    DRQ <- not(last)
+    PHASE <- select(last, u8(4), u8(7))
+    TIMER <- select(last, u32(88), u32(32))
+  }
 }
 
 action elapse "Consume at most the current event delay; board dispatches the event" (microseconds: 32) {
@@ -372,8 +409,9 @@ action elapse "Consume at most the current event delay; board dispatches the eve
   }
 }
 
-action setMedia "The board inserts/ejects only while the controller is idle" (present: flag) {
+action setMedia "The board changes media or write protection only while idle" (present: flag, writable: flag) {
   MEDIA <- present
+  WRITABLE <- and(present, writable)
 }
 ```
 
@@ -381,7 +419,23 @@ The board splits elapsed time at each deadline and passes `event` the byte at
 `mediaOffset` only when `needsByte` is true. It must not advance beyond TIMER in
 one `elapse` call. These host inputs are wiring operations, not guest registers.
 Media exchange is rejected during an active command, preserving that transfer.
-All images are write-protected; there is no silent writable copy.
+For writes it observes `writesByte`, `mediaOffset`, and `writeByte` before the
+event, then commits that byte at the same deadline. Writing DATA only fills the
+controller's latch; it does not immediately alter the image. Thus a checkpoint
+can retain a supplied byte that has not reached the media yet. Force Interrupt
+or reset retains earlier committed bytes and discards the pending byte.
+
+The [write sequence][wd-write], printed pages 1-9–1-13, distinguishes the first
+request from later underruns. Here a matching ID immediately raises the first
+DRQ, with the flowchart's nine MFM byte times (288 µs) to service it. Missing
+that deadline aborts with Lost Data and leaves media unchanged. A supplied byte
+starts a sequence of 32 µs media deadlines; subsequent misses write zero, set
+Lost Data, and continue. The final byte is followed by 64 µs for CRC and 24 µs
+before INTRQ. This functional profile collapses the write preamble and address
+mark rather than simulating gap bytes or the serial shift register. Deleted
+marks and incomplete CRCs cannot be represented in a raw sector image; an
+aborted write retains the completed byte prefix, without claiming to model its
+on-disk CRC damage. Media exchange is permitted only while idle.
 
 ## Register accesses, validation, and reset
 
@@ -418,7 +472,7 @@ source writeRegister "Reject unmodeled commands before any effects" (address: 8,
   phase = register PHASE
   available: flag = or(force, zero(phase))
   group = and(value, u8($F0))
-  sectorCommand: flag = or(equal(group, u8($80)), equal(group, u8($A0)))
+  sectorCommand: flag = or(equal(group, u8($80)), equal(and(value, u8($F1)), u8($A0)))
   interruptCommand: flag = or(equal(value, u8($D0)), equal(value, u8($D8)))
   supported: flag = or(not(bit(value, 7)), or(sectorCommand, interruptCommand))
   control = register CONTROL
@@ -426,7 +480,9 @@ source writeRegister "Reject unmodeled commands before any effects" (address: 8,
   densityOk: flag = or(not(transfer), bit(control, 5))
   immediate = latch IMMEDIATE
   immediateOk: flag = or(not(immediate), force)
-  registersWritable: flag = or(command, zero(phase))
+  drq = latch DRQ
+  writeRequest: flag = and(drq, or(equal(phase, u8(6)), equal(phase, u8(7))))
+  registersWritable: flag = or(or(command, zero(phase)), and(equal(address, u8(3)), writeRequest))
   accepted: flag = and(registersWritable, or(not(and(command, available)), and(supported, and(densityOk, immediateOk))))
   when and(command, and(available, accepted)) {
     when force {
@@ -444,6 +500,7 @@ source writeRegister "Reject unmodeled commands before any effects" (address: 8,
   }
   when and(accepted, equal(address, u8(3))) {
     DATA <- value
+    DRQ <- 0
   }
   return accepted
 }
@@ -465,22 +522,32 @@ source validState "Bound phases, physical head, byte counter, and event ownershi
   control = register CONTROL
   immediate = latch IMMEDIATE
   typeOne = latch TYPE_ONE
-  phaseAndHead: flag = and(not(lessThan(u8(5), phase, unsigned)), lessThan(cylinder, u8(40), unsigned))
+  phaseAndHead: flag = and(not(lessThan(u8(7), phase, unsigned)), lessThan(cylinder, u8(40), unsigned))
   counters: flag = and(not(lessThan(u16(256), index, unsigned)), not(lessThan(u16(255), left, unsigned)))
   ranges: flag = and(phaseAndHead, counters)
   lines: flag = and(not(xor(level, and(intrq, bit(control, 5)))), not(and(intrq, bit(control, 7))))
   idle: flag = or(not(zero(phase)), and(zero(timer), and(zero(left), not(drq))))
   timed: flag = or(or(zero(phase), or(equal(phase, u8(2)), equal(phase, u8(5)))), not(zero(timer)))
   timers: flag = and(timed, not(lessThan(u32(1000000), timer, unsigned)))
-  request: flag = or(not(drq), and(equal(phase, u8(3)), not(zero(index))))
+  writing: flag = or(equal(phase, u8(6)), equal(phase, u8(7)))
+  request: flag = or(not(drq), or(writing, and(equal(phase, u8(3)), not(zero(index)))))
   reading: flag = equal(phase, u8(3))
   spinning = source spinning()
   searching: flag = or(equal(phase, u8(2)), equal(phase, u8(5)))
   searchClock: flag = or(not(searching), not(xor(spinning, not(zero(timer)))))
   validId = source sectorPresent()
-  readState: flag = or(not(reading), and(and(spinning, validId), and(not(typeOne), bit(control, 5))))
+  command = register COMMAND
+  readMode: flag = and(equal(and(command, u8($F0)), u8($80)), and(not(typeOne), bit(control, 5)))
+  readState: flag = or(not(reading), and(and(spinning, validId), readMode))
+  writable = latch WRITABLE
+  media = latch MEDIA
+  writeMode: flag = and(equal(and(command, u8($F1)), u8($A0)), and(not(typeOne), bit(control, 5)))
+  writeState: flag = or(not(writing), and(and(spinning, validId), and(writeMode, and(writable, lessThan(index, u16(256), unsigned)))))
+  firstByte: flag = or(not(equal(phase, u8(6))), and(zero(index), not(lessThan(u32(288), timer, unsigned))))
+  writeClock: flag = or(not(equal(phase, u8(7))), and(not(lessThan(u32(32), timer, unsigned)), or(not(zero(index)), not(drq))))
+  permission: flag = or(not(writable), media)
   pending: flag = and(or(not(intrq), zero(phase)), or(not(immediate), and(intrq, zero(phase))))
-  return and(and(and(ranges, lines), and(idle, timers)), and(and(request, readState), and(pending, searchClock)))
+  return and(and(and(ranges, lines), and(idle, timers)), and(and(request, readState), and(and(pending, searchClock), and(and(writeState, firstByte), and(writeClock, permission)))))
 }
 
 action initialize "Deterministic power-on convention: empty drive, track zero, no command" {
@@ -520,6 +587,8 @@ interface CocoDiskCircuit {
   view status
   view remainingMicroseconds
   view needsByte
+  view writesByte
+  view writeByte
   view mediaOffset
   input consumeNmi
   input setControl
@@ -542,4 +611,5 @@ Reset here is an explicit controller reset, not the CoCo's CPU-only reset.
 
 [schematic]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Color%20Computer%20Disk%20Cart%20FD502%2026-3133%20Schematic%20%28Tandy%29.pdf
 [wd]: https://www.tiffe.de/Robotron/misc/Winchester-HD/Western_Digital/western_Digital.pdf
+[wd-write]: https://www.hxc2001.com/download/datasheet/floppy/thirdparty/FDC/WesternDigital/WD%201773%20Floppy%20Disk%20Controller.pdf
 [mame]: https://github.com/mamedev/mame/blob/master/src/devices/bus/coco/coco_fdc.cpp

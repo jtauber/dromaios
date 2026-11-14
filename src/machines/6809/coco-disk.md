@@ -106,7 +106,11 @@ Disk BASIC requires all three. Construction, inspection, and empty sockets work
 without firmware, as on the base machine. The ROM discovers the cartridge;
 the host does not patch startup vectors or jump into DOS. `disk.mount(bytes)`
 accepts only a headerless, single-sided, 35×18×256 image. `disk.mount(null)`
-ejects it. Both require an idle controller. All mounted disks are write-protected.
+ejects it. Both require an idle controller. Mounting starts write-protected;
+`disk.writableCopy()` explicitly enables guest writes while idle. Native callers
+may also pass `{ writable: true }` to `mount`. `disk.exportImage()` returns a
+detached raw image, including any completed prefix of an unfinished write.
+Neither operation knows about BASIC files or allocation tables.
 
 Use the shared `stepCoco(machine)` for execution. Once HALT is released, it
 consumes a pending NMI assertion before the PIA interrupt levels. HALT
@@ -127,13 +131,18 @@ timing convention for the selected ROM's accesses, not a cycle-accurate claim
 for arbitrary read-modify-write or multi-byte accesses to controller registers.
 
 Snapshots retain the image, physical head, logical registers, in-flight byte,
-DRQ/INTRQ, pending NMI edge, HALT deferral, event delay, and clock fraction. The immutable
+DRQ/INTRQ, pending NMI edge, HALT deferral, write permission, pending DATA,
+event delay, and clock fraction. The immutable
 image is shared between native snapshots; a deserialized image is validated
-and copied. CPU reset preserves these fields. A fresh factory starts with an
+and copied. A later guest write copies shared bytes before modifying them, so
+held checkpoints remain unchanged. CPU reset preserves these fields. A fresh factory starts with an
 empty controller; the caller may mount the same image for a fresh boot.
 The [browser laboratory](coco.md#disk-basic-in-the-laboratory) selects this
 profile with an optional Disk BASIC ROM and Drive 0 controls. Its fresh power-on
-retains mounted media; checkpoints restore the image and in-flight transfer.
+retains mounted media and write permission; checkpoints restore the image and
+in-flight read or write. The [SAVE acceptance](../../../tests/site/coco-disk-write.test.ts)
+creates a BASIC file through the ROM, replays a write checkpoint, exports the
+raw disk, and loads and runs that file after fresh power-on.
 
 [mame]: https://github.com/mamedev/mame/blob/master/src/devices/bus/coco/coco_fdc.cpp
 [6809-timing]: https://colorcomputerarchive.com/repo/Documents/Datasheets/MC6809%20HMOS%208%20Bit%20Microprocessor%20%28Motorola%29.pdf
