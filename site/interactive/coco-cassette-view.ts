@@ -30,7 +30,7 @@ export function createCocoCassetteView(root: HTMLElement, pias: () => CocoPias, 
       if (selected.size > cocoTapeFileLimit) throw new Error("Choose a tape of at most two minutes.");
       const bytes = new Uint8Array(await selected.arrayBuffer());
       const samples = /\.cas$/i.test(selected.name) ? readCocoTapeCas(bytes) : readCocoTapeWav(bytes);
-      pias().cassette.insert(selected.name, samples); message.textContent = "Tape loaded read-only. Play, then CLOAD for BASIC or CLOADM for machine code.";
+      pias().cassette.insert(selected.name, samples); message.textContent = "Tape loaded read-only. Choose Play, then use the running program’s load command.";
     } catch (cause) { message.textContent = cause instanceof Error ? cause.message : String(cause); }
     finally { file.value = ""; controls.selecting(false); controls.changed(); }
   })(); });

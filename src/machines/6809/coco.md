@@ -925,8 +925,100 @@ these controls, and replay a packed checkpoint after power-on and Pak removal.
 Set `COCO_CARTRIDGE_DIR` to a local directory containing `edtasm-plus.ccc`,
 `wildcatting.ccc`, `polaris.ccc`, `art-gallery.ccc`, and `project-nebula.ccc`,
 along with the three ROM environment variables used by the disk tests.
-These checks cover the stated interactions, not every game level or editor,
-cassette, and presentation feature.
+These checks cover the stated interactions, not every game level or editor
+and presentation feature. The cassette round trips below verify saving work
+from Art Gallery and EDTASM through the same recorder.
+
+### Save an Art Gallery picture
+
+The cartridge's [manual][art-gallery-manual], printed page 9, describes its
+own save and load menu. These commands drive the existing cassette pins;
+the host does not extract a picture from RAM or inject one when loading.
+
+1. Load `art-gallery.ccc` and Run. Choose `1` at the menu to draw. For a small
+   three-colour example, press `W` and move right several times, `E` and move
+   down, then `T` and move right again. Press Break to return to the menu.
+   Option `5` displays the picture without the drawing cursor; Break returns.
+2. Pause. In **Cassette**, name a new tape `ART.wav`, choose **New blank**, then
+   **Record**. Resume Run. Click the screen, choose menu option `2`, and press
+   Enter when asked to prepare the recorder. Wait for the full menu to return.
+3. Pause and choose **Export WAV**. Keep `ART-saved.wav`. The file contains the
+   program's recorded waveform; it is independent of any laboratory checkpoint.
+4. Choose **Fresh power-on** and Run to the cartridge menu. RAM and the picture
+   are cleared; the Pak remains inserted. Pause, **Load tape** with the exported
+   WAV, and choose **Play**. Resume Run, choose `3` in Art Gallery, and press
+   Enter at its recorder prompt. Wait for the menu without a read error.
+5. Choose `5` to view the restored picture, or `1` to continue drawing.
+
+This example uses the first colour set. Art Gallery writes a one-byte header
+containing `$00`, sixteen 192-byte data blocks, and an empty end block. The data
+is the entire **3,072-byte picture at $0400–$0FFF**, in display order. It uses
+ordinary CoCo block framing and checksums, but its header is not BASIC's
+15-byte filename record. Treat the exported WAV as an Art Gallery tape, not as
+a program to load with `CLOAD` or `CLOADM`.
+
+The [cartridge cassette acceptance](../../../tests/site/coco-cartridge-cassette.test.ts)
+independently decodes those blocks and checks their checksums and all picture
+bytes. It expands each pair of bitmap bits to a colour index and repeats each
+pixel twice horizontally and vertically. Every one of the **49,152 displayed
+pixels** must match both before saving and after the exported file is loaded
+through the cartridge on fresh hardware. Presentation mode avoids confusing
+the brush's blinking overlay with a change to the stored picture.
+
+### Save EDTASM source and reassemble it
+
+The [EDTASM manual][edtasm-manual], printed pages 9–10, distinguishes editor
+text from assembled object code. `W` writes source and `L` loads it. The editor
+retains line numbers in the text file, and a load appends to an existing edit
+buffer. Fresh power-on gives this exercise an empty buffer.
+
+1. Load `edtasm-plus.ccc`, Run, and enter the five source lines in the
+   [example above](#rom-cartridges) using `I` followed by Enter. Press Break
+   when done. Save source before executing it.
+2. Type `W ANSWER` and Enter. At `READY CASSETTE`, Pause, create a blank
+   `ANSWER-source.wav`, and choose **Record**. Resume Run, click the screen,
+   and press Enter. Wait for the editor's `*` prompt, then Pause and
+   **Export WAV**. Keep `ANSWER-source-saved.wav`.
+3. The source can now be assembled and run with `A/IM/AO/NL`, `Z`, and `G6000`,
+   each followed by Enter. The six bytes at $6000 are `86 2A B7 61 00 3F`;
+   the program writes decimal 42 at $6100 and stops in ZBUG at `START+5`.
+4. Choose **Fresh power-on**, Run to the editor, and Pause. Load the exported
+   WAV in **Cassette**, choose **Play**, then resume Run. Type `L ANSWER` and
+   Enter; press Enter again at `READY CASSETTE`. Wait for the editor's `*`.
+   The motor briefly stops between header and data, so motor-off alone does
+   **not** mean the source has finished loading.
+5. Enter `P` to list the restored source. Lines `00100` through `00140` must
+   match the original five lines, including the label and operands. Assemble
+   with `A/IM/AO/NL` and wait for `00000 TOTAL ERRORS`. Enter `Z`, then `G6000`
+   to execute it again. Memory at $6100 must again contain `$2A`.
+
+The same [acceptance test](../../../tests/site/coco-cartridge-cassette.test.ts)
+checks the recorded filename `ANSWER`, file type 3 (text), and ASCII and gapped
+flags. Its one 82-byte data block contains the numbered lines separated and
+terminated by carriage returns. After fresh power-on, the test checks that the
+source and assembled code are absent. Loading text must leave $6000 untouched;
+only the subsequent assembly installs the six expected bytes. Both executions
+must produce the same value and ZBUG breakpoint.
+
+### Recover a cartridge tape transfer
+
+During either application's recording or loading, Pause with the tape motor
+on and choose **Save snapshot**. Let the operation finish. To exercise recovery,
+power on afresh or eject the tape, then **Restore snapshot** and Run. Restoration
+brings back the cartridge, tape bytes, read/write permission, transport position,
+fractional sample phase, PIA state, CPU/RAM, clock, and queued keys. A recording
+must produce the same export, and a load must produce the same picture or source.
+Saving a loading checkpoint replaces the previous recording checkpoint; the lab
+stores only one.
+
+The automated checks take packed browser checkpoints inside both transfers:
+after 600,000 samples for the picture and 180,000 for source, while data remains
+in transit. They discard the active machine, tape, and cartridge before restoring,
+then compare the entire final state after exactly the same remaining CPU
+boundaries. Recovered exports must be byte-for-byte identical. These tests use
+`COCO_ROM`, `COCO_EXTENDED_ROM`, `COCO_DISK_ROM`, and `COCO_CARTRIDGE_DIR`, just
+like the Program Pak checks above. No new tape format or cartridge-specific
+recorder is required.
 
 ### Bedlam is a cassette
 
