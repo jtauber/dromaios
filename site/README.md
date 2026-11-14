@@ -112,7 +112,11 @@ return/Break, and snapshot continuation. Add `COCO_DISK_ROM` for Disk BASIC's
 `DIR`, `LOAD "ANSWER"`, and `RUN` transcript, plus SAVE/export/fresh-boot reload,
 power-on retention, and packed mid-sector checkpoint replay in both directions.
 `COCO_SAVE_EXPORT=/path/to/ANSWER-saved.dsk` optionally retains the SAVE test's
-exported disk for browser verification. No ROM bytes are included in tests or output.
+exported disk for browser verification. The machine-code disk acceptance runs
+the chapter's 5 KiB setup, checks its three-granule allocation and every file/RAM
+byte, and replays checkpoints during both SAVEM and LOADM before EXEC uses the
+saved entry point. `COCO_BINARY_EXPORT=/path/to/SPAN-saved.dsk` retains that
+exported disk. No ROM bytes are included in tests or output.
 For browser checks, load the local image, run the chapter's conversation, pause
 and save a snapshot, alter the program, restore, and run it again. Check focus-loss
 release, remembered-ROM reload, memory scrolling and Live controls, and the

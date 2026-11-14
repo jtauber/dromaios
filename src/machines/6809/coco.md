@@ -698,6 +698,96 @@ The [sector tests](../../../tests/machines/6809/coco/disk.test.ts) additionally
 compare every raw image byte, including unaffected sectors, lost-data padding,
 aborted writes, and immutable held checkpoints.
 
+### Machine code across disk granules
+
+`SAVEM` saves a memory range and an execution address; `LOADM` restores it, and
+`EXEC` uses the saved entry point. The [Disk System quick reference][disk-reference]
+describes the commands and the directory's file-type and granule columns.
+This example saves **5,120 bytes** at `$5000–$63FF`, spanning 21 sectors and
+three nine-sector allocation granules once the binary file's headers are included.
+It exercises the loader, allocation chain, and transitions between sectors and tracks.
+
+Use the three ROMs and a formatted disk with at least three free granules.
+Choose **Make writable copy**, Run, and enter these lines individually:
+
+```text
+NEW
+10 CLEAR200,&H4FFF
+20 FOR I=0 TO5119:POKE &H5000+I,(I+INT(I/256))AND255:NEXT
+30 FOR I=0 TO18:READ B:POKE &H6200+I,B:NEXT
+40 DATA182,80,14,187,89,1,187,99,255
+50 DATA183,100,0,134,77,173,159,160,2,57
+RUN
+```
+
+`CLEAR` reserves the image above BASIC's memory limit. Each 256-byte section
+has a different pattern: at offset `I`, the value is `(I + floor(I/256)) mod 256`.
+That makes duplicated or reordered sectors detectable. The DATA statements
+replace 19 bytes with a routine in the **third granule**:
+
+| Address | Bytes | Instruction | Effect |
+| --- | --- | --- | --- |
+| 6200 | B6 50 0E | LDA $500E | Read 14 from the first granule. |
+| 6203 | BB 59 01 | ADDA $5901 | Add 10 from the second. |
+| 6206 | BB 63 FF | ADDA $63FF | Add 18 from the last byte of the third. |
+| 6209 | B7 64 00 | STA $6400 | Store the sum, 42, outside the saved image. |
+| 620C | 86 4D | LDA #$4D | Select the character M. |
+| 620E | AD 9F A0 02 | JSR [$A002] | Print through the ROM's character-output vector. |
+| 6212 | 39 | RTS | Return to BASIC. |
+
+After the setup returns to `OK`, enter:
+
+```text
+SAVEM "SPAN",&H5000,&H63FF,&H6200
+DIR
+```
+
+The last address is inclusive, and the execution address deliberately differs
+from the load address. Expect `SPAN     BIN  2 B 3` in DIR. Pause after `OK` and
+**Export disk**. Choose **Fresh power-on**, load the exported `.dsk`, Run to the
+prompt, and enter:
+
+```text
+CLEAR200,&H4FFF
+LOADM "SPAN"
+EXEC
+PRINT PEEK(&H6400)
+```
+
+LOADM returns to `OK` without executing the routine. EXEC, with no address,
+prints `M` and returns to BASIC; the final PRINT displays `42`. Memory now
+contains the original pattern and routine at `$5000–$63FF`.
+
+On the acceptance's empty disk, Disk BASIC allocates granules 32 → 33 → 34.
+The third skips physical track 17, which holds the directory and allocation table:
+
+| Granule | Physical sectors | File offsets (hex) | Contents |
+| --- | --- | --- | --- |
+| 32 | Track 16, sectors 1–9 | 0000–08FF | Five-byte preamble, then RAM $5000–$58FA. |
+| 33 | Track 16, sectors 10–18 | 0900–11FF | RAM $58FB–$61FA. |
+| 34 | Track 18, sectors 1–3 | 1200–1409 | RAM $61FB–$63FF, then the execution postamble. |
+
+The [round-trip acceptance](../../../tests/site/coco-disk-binary.test.ts) runs
+the setup above through BASIC, then independently follows the exported directory
+and allocation chain. It checks all 5,120 payload bytes, the `00 14 00 50 00`
+load preamble and `FF 00 00 62 00` execution postamble, and the final sector's
+ten used bytes. It compares every reloaded RAM byte after cold boot, and observes
+the CPU enter `$6200` before checking the result. None of these host inspections
+supplies bytes to the guest loader.
+
+Both SAVEM and LOADM are checkpointed halfway through a sector in the second
+granule. Restore replaces a different mounted disk and reproduces the same
+remaining instruction boundaries, CPU, RAM, clock, controller, and disk image
+as uninterrupted execution. The write checkpoint includes pending DATA and
+writable permission; the read checkpoint retains the already loaded RAM prefix
+and read-only permission. The final byte of the first granule is payload offset
+`$08FA`, because the five-byte preamble occupies the start of the file. At the
+read checkpoint, `$5000–$58F9` has reached its destination but `$58FA` has not:
+the ROM's buffer-refill routine saves that last byte on the stack while reading
+the next sector, then returns it to LOADM. This distinction between a disk read
+and a loader store is visible in the [Disk BASIC disassembly][disk-unravelled],
+at `$C611–$C626`, and is checked by the acceptance.
+
 ## Using the laboratory
 
 The [CoCo laboratory](https://microcomputer.world/machines/color-computer/laboratory/)
@@ -1787,3 +1877,5 @@ and explicit release without firmware.
 [extended-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Getting%20Started%20With%20Extended%20Color%20Basic%20%28Tandy%29.pdf
 
 [extended-unravelled]: https://colorcomputerarchive.com/repo/Documents/Books/Unravelled%20Series/extended-basic-unravelled.pdf
+[disk-reference]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Color%20Computer%20Disk%20System%20-%20Quick%20Reference%20Guide%20%28Tandy%29.pdf
+[disk-unravelled]: https://colorcomputerarchive.com/repo/Documents/Books/Unravelled%20Series/disk-basic-unravelled.pdf
