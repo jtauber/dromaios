@@ -177,7 +177,7 @@ are resolved after parsing, so images and connections may precede their targets.
 Component names are case-sensitive: a lowercase letter followed by lowercase
 letters, digits, or underscores. `cpu`, `memory`, `ports`, `reset`, `snapshot`,
 `clock`, `step`, and `interrupt` are reserved
-for the factory API; `window` and `discard` are reserved routing words. Every component name is unique within the machine. The
+for the factory API; `window`, `discard`, and `unmapped` are reserved routing words. Every component name is unique within the machine. The
 available kinds are:
 
 | Kind | Declaration | Local addresses |
@@ -271,7 +271,9 @@ in that direction may follow it. A failed selected transfer propagates its
 result; it does not try another route.
 
 A destination is a component with an optional hexadecimal `offset` (default
-zero), or `discard` for writes only. The whole window must fit every destination
+zero), `discard` for writes only, or `unmapped` for reads only. An unmapped
+read returns a failed transfer to the board bus, which applies its declared
+undriven value (or raises a bus error on the 68000). The whole window must fit every destination
 from that offset. Its own extent must fit the map and not overlap other regions.
 A write to `discard` succeeds without touching storage; a write routed to ROM
 retains ROM's normal refusal. A window owns no bytes, latches, or snapshot state:

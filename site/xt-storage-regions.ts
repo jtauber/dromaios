@@ -10,7 +10,7 @@ export function xtStorageRegions(machine: CompositionDefinition): XtStorageRegio
     const route = window?.read[0];
     if (window && (window.read.length !== 1 || route?.when.length)) throw new Error("XT inspector needs a static read mapping.");
     const target = "component" in region ? { component: region.component, offset: 0 } : route?.target;
-    if (!target || target === "discard") return [];
+    if (!target || typeof target === "string") return [];
     const component = machine.components.find(part => part.name === target.component);
     if (component?.kind === "ibm-ega") return [{ start: region.start, size: deviceModels["ibm-ega"].size, component: "ega", offset: 0 } satisfies XtStorageRegion];
     if (!component || !("size" in component)) return [];

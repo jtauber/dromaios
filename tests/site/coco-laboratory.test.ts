@@ -18,7 +18,7 @@ function memoryStorage() {
 
 function withoutDisk(state: ReturnType<ReturnType<typeof createCocoSession>["snapshot"]>) {
   const { diskName, hardware, ...input } = state;
-  const { dos, disk, ...base } = hardware;
+  const { dos, disk, cartridge, ...base } = hardware;
   return { ...input, hardware: base };
 }
 
@@ -48,7 +48,7 @@ test("one browser checkpoint preserves native state, rejects stale formats, and 
   const [key, text] = [...storage.values][0]!;
   storage.setItem = () => { throw new Error("Quota"); };
   assert.throws(() => checkpoint.save(createCocoSession().snapshot()), /Quota/); assert.equal(storage.values.get(key), text);
-  for (const invalid of ["{", "null", " ".repeat(4_000_001), JSON.stringify({ ...JSON.parse(text), version: 9 }),
+  for (const invalid of ["{", "null", " ".repeat(4_000_001), JSON.stringify({ ...JSON.parse(text), version: 10 }),
     JSON.stringify({ ...JSON.parse(text), machine: "apple2" }), JSON.stringify({ ...JSON.parse(text), savedAt: "never" })]) {
     storage.values.set(key, invalid); assert.throws(() => checkpoint.read());
   }
@@ -102,7 +102,7 @@ test("legacy checkpoints preserve queued chords and convert phase progress expli
   const current = { ...session.snapshot(), input: [["A"]] as const, pressed: true, remainingClocks: 22_373 };
   checkpoint.save(current);
   const [key, text] = [...storage.values][0]!, envelope = JSON.parse(text);
-  assert.equal(envelope.version, 8);
+  assert.equal(envelope.version, 9);
   session.restore(checkpoint.read()!.state); assert.deepEqual(session.snapshot(), current);
   for (const version of [1, 2, 3]) {
     const { remainingClocks, ...state } = withoutDisk(current);
@@ -112,7 +112,7 @@ test("legacy checkpoints preserve queued chords and convert phase progress expli
     const old = { ...envelope, version, state: { ...state, hardware, remaining: 6000 } };
     storage.setItem(key, JSON.stringify(old));
     const migrated = checkpoint.read()!;
-    assert.equal(migrated.version, 8); assert.equal(migrated.state.remainingClocks, 22_373);
+    assert.equal(migrated.version, 9); assert.equal(migrated.state.remainingClocks, 22_373);
     assert.deepEqual(migrated.state.input, [["A"]]); assert.equal(migrated.state.pressed, true);
     session.restore(migrated.state); assert.equal(session.machine.ram.read(0x3456), 0x78);
     assert.equal(session.machine.clock.ticks, version === 3 ? 1234 : 0);
@@ -139,7 +139,7 @@ test("version-4 checkpoints gain disconnected joysticks; current snapshots retai
   const old = { ...JSON.parse(text), version: 4, state: { ...withoutDisk(original), hardware: { ...withoutDisk(original).hardware, pias: oldPias } } };
   storage.setItem(key, JSON.stringify(old));
   const migrated = checkpoint.read()!;
-  assert.equal(migrated.version, 8); session.restore(migrated.state); assert.deepEqual(session.snapshot(), original);
+  assert.equal(migrated.version, 9); session.restore(migrated.state); assert.deepEqual(session.snapshot(), original);
   assert.equal(storage.getItem(key), JSON.stringify(old));
   session.machine.pias.connectJoystick("right", true); session.machine.pias.setJoystickPosition("right", 7, 58);
   session.machine.pias.setJoystickButton("right", true);

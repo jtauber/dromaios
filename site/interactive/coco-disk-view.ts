@@ -45,7 +45,7 @@ export function createCocoDiskView(root: HTMLElement, session: () => ReturnType<
       // A restore or power-on supersedes the previous load/eject result.
       if (current.machine !== observedMachine) { message.textContent = ""; observedMachine = current.machine; }
       at("medium").textContent = current.diskName === null ? "No disk mounted" : `${current.diskName} · ${state.writable ? "Writable copy" : "Read-only"} · 35 tracks`;
-      at("status").textContent = `${["Idle", "Seeking", "Finding sector", "Reading sector", "Completing", "Verifying", "Requesting first byte", "Writing sector"][state.phase]}`
+      at("status").textContent = current.cartridgeName ? "Disconnected while a ROM cartridge occupies the expansion slot." : `${["Idle", "Seeking", "Finding sector", "Reading sector", "Completing", "Verifying", "Requesting first byte", "Writing sector"][state.phase]}`
         + ` · Motor ${state.control & 8 ? "on" : "off"} · Head ${state.cylinder} · Track ${state.track} · Sector ${state.sector}`;
       at("signals").textContent = `DRQ ${+state.drq} · INTRQ ${+state.intrq} · HALT ${+current.machine.disk.halted}`;
       const progress = at<HTMLProgressElement>("progress"); progress.value = state.byte_index;

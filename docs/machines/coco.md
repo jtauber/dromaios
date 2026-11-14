@@ -1,7 +1,8 @@
 # TRS-80 Color Computer: target and acceptance plan
 
-The selected machine is a **CoCo 1 hardware profile with 32 KiB RAM and Color BASIC 1.3**,
-using the existing generated 6809. The first untimed milestone is complete: native
+The initial milestone selected a **CoCo 1 hardware profile with 32 KiB RAM and Color BASIC 1.3**,
+using the existing generated 6809. The executable chapter now also covers
+clocked operation, 64 KiB, cartridges, cassette, and disk software. The first untimed milestone is complete: native
 ROM boot, keyboard input, text and semigraphics, a small stored BASIC program,
 and a usable laboratory.
 This broadens the platform before further Apple II DOS exploration.

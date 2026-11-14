@@ -94,11 +94,12 @@ lessons retain their teaching devices.
 
 The [Apple II Plus](docs/machines/apple2.md) also runs ROM BASIC and read-only
 DOS 3.3, with a separate laboratory for execution and inspection. The
-[TRS-80 Color Computer](src/machines/6809/coco.md) now has its own laboratory: its native,
-untimed 32 KiB profile runs Color BASIC with matrix keyboard input and text/
-semigraphics decoding on the existing 6809. The workspace adds CPU, memory,
-PIA/SAM inspection, remembered local ROM loading, and snapshots. The
-[reference audit and acceptance plan](docs/machines/coco.md) records the remaining work.
+[TRS-80 Color Computer](src/machines/6809/coco.md) has a clocked 32 or 64 KiB
+profile with ROM BASIC, keyboard and joystick input, sound, cassette, disk, and
+ROM cartridges. Its laboratory provides shared debugger tools, CPU/memory/device
+inspection, local media loading, and repeatable snapshots. The executable chapter
+owns the current model and software acceptance; the
+[reference audit](docs/machines/coco.md) records the initial comparison.
 The [IBM PC/XT](docs/machines/pc-xt.md) now runs original firmware through POST
 and empty-drive bootstrap into ROM BASIC on the existing 8088. Native keyboard
 input edits, lists, and runs stored programs, with Ctrl-Break, firmware warm boot,

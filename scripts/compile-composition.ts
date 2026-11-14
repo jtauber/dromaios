@@ -151,7 +151,7 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
       lines.push(`    ${direction}: (address: number${direction === "write" ? ", value: number" : ""}) => {`);
       for (const route of definition[direction]) {
         const condition = route.when.map(({ component, view }) => `${part(component)}.${view}()`).join(" && ");
-        const result = route.target === "discard" ? ""
+        const result = route.target === "discard" ? "" : route.target === "unmapped" ? ' "bus-error" as const'
           : ` ${part(route.target.component)}.${direction}(address + ${route.target.offset}${direction === "write" ? ", value" : ""})`;
         lines.push(`      ${condition ? `if (${condition}) ` : ""}return${result};`);
       }

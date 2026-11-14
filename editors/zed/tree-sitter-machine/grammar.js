@@ -68,7 +68,7 @@ module.exports = grammar({
     map_entry: $ => seq(field('address', $.number), '=', choice($.component_name, $.memory_window)),
     memory_window: $ => seq('window', field('size', $.number), '{', repeat($.memory_route), '}'),
     memory_route: $ => seq(choice('read', 'write'), '=', choice(
-      'discard', seq($.component_name, optional(seq('offset', $.number))),
+      'discard', 'unmapped', seq($.component_name, optional(seq('offset', $.number))),
     ), optional(seq('when', $.device_view, repeat(seq('and', $.device_view))))),
     device_view: $ => seq($.component_name, '.', $.field_name),
     image_block: $ => seq('image', $.component_name, field('address', $.number), $.byte_block),

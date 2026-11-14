@@ -1,11 +1,13 @@
 import type { create6809Coco } from "../../generated/6809/coco.ts";
+import type { create6809Coco64 } from "../../generated/6809/coco64.ts";
 import type { create6809CocoDisk } from "../../generated/6809/coco-disk.ts";
 import { characterRows } from "../../../components/devices/mc6847-character-set.ts";
 import { advanceCocoSync, clocksUntilCocoSync } from "./timing.ts";
 import type { Cpu6809TimedStepRecord } from "../../../components/cpus/generated/6809-cpu.ts";
+import { cocoMemorySupported, cocoDisplayAddress } from "./memory.ts";
 
-export type Coco = (ReturnType<typeof create6809Coco> & { readonly disk?: undefined; readonly dos?: undefined })
-  | ReturnType<typeof create6809CocoDisk>;
+export type Coco = (ReturnType<typeof create6809Coco> & { readonly disk?: undefined; readonly dos?: undefined; readonly cartridge?: undefined })
+  | ReturnType<typeof create6809CocoDisk> | ReturnType<typeof create6809Coco64>;
 export type CocoSnapshot = ReturnType<Coco["snapshot"]>;
 
 /** One timed CPU boundary, or an idle interval ending at the next board event. */
@@ -13,7 +15,7 @@ export function stepCoco(machine: Coco) {
   requireExecutionProfile(machine);
   const start = machine.clock.ticks;
   const motor = machine.pias.cassetteMotor, output = machine.pias.cassetteOutput;
-  const disk = machine.disk;
+  const disk = machine.cartridge?.inserted() ? undefined : machine.disk;
   const halted = disk?.halted;
   const execute = () => {
     if (halted) return haltedBoundary(machine);
@@ -30,6 +32,11 @@ export function stepCoco(machine: Coco) {
   machine.pias.cassette.advance(machine.clock.ticks - start, machine.clock.hertz!, motor, output);
   disk?.advanceCpuClocks(machine.clock.ticks - start);
   advanceCocoSync(machine, start);
+  // A ROM Pak ties CART to Q. At each complete boundary, its selected edge
+  // has occurred; PIA1 CB1 latches it until acknowledged. Q finishes high.
+  if (machine.cartridge?.inserted() && machine.clock.ticks > start) {
+    machine.pias.setCartridgeLine(false); machine.pias.setCartridgeLine(true);
+  }
   return { ...record, idleClocks };
 }
 
@@ -40,7 +47,7 @@ function haltedBoundary(machine: Coco): Cpu6809TimedStepRecord {
 }
 
 /** Untimed arbitration for an isolated preview CPU; never advance the live board. */
-export function stepCocoCpu(machine: Pick<Coco, "cpu" | "pias" | "sam">) {
+export function stepCocoCpu(machine: Pick<Coco, "cpu" | "pias" | "sam" | "ram">) {
   requireExecutionProfile(machine);
   return cpuBoundary(machine.pias, () => machine.cpu.step(), source => machine.cpu.interrupt(source));
 }
@@ -56,13 +63,13 @@ function cpuBoundary<Instruction, Interrupt extends { readonly outcome: string }
   return step();
 }
 
-function requireExecutionProfile(machine: Pick<Coco, "sam">): void {
+function requireExecutionProfile(machine: Pick<Coco, "sam" | "ram">): void {
   requireMemoryProfile(machine);
   if (machine.sam.clockMode() !== 0) throw new RangeError("Unsupported CoCo clock configuration: requires normal speed (SAM R=00).");
 }
 
-function requireMemoryProfile({ sam }: Pick<Coco, "sam">): void {
-  if (!sam.supportedMemory()) throw new RangeError("Unsupported CoCo memory configuration: requires the normal 32 KiB profile.");
+function requireMemoryProfile(machine: Pick<Coco, "sam" | "ram">): void {
+  if (!cocoMemorySupported(machine)) throw new RangeError(`Unsupported CoCo memory configuration for ${machine.ram.size / 1024} KiB RAM.`);
 }
 
 export type CocoDisplayMode = { readonly kind: "text" } | {
@@ -99,9 +106,9 @@ export function renderCocoFrame(machine: Coco, signal: CocoVideoSignal = "direct
 }
 
 function renderText(machine: Coco, pixels: Uint8Array): void {
-  const { ram, sam, vdg } = machine, pins = machine.pias.videoPins;
+  const { ram, vdg } = machine, pins = machine.pias.videoPins;
   for (let row = 0; row < 16; row++) for (let column = 0; column < 32; column++) {
-    const byte = ram.read(sam.displayAddress(row, column));
+    const byte = ram.read(cocoDisplayAddress(machine, row, column));
     const semigraphics = vdg.semigraphics(byte), glyph = vdg.glyph(byte);
     const foreground = vdg.foreground(byte, pins), background = vdg.background(byte, pins);
     for (let line = 0; line < 12; line++) {
@@ -121,7 +128,7 @@ function renderBitmap(machine: Coco, mode: Extract<CocoDisplayMode, { kind: "bit
   for (let row = 0; row < mode.height; row++) {
     const start = row * pixelHeight * 256;
     for (let column = 0; column < sam.displayBytesPerRow(); column++) {
-      const byte = ram.read(sam.displayAddress(row, column));
+      const byte = ram.read(cocoDisplayAddress(machine, row, column));
       for (let pixel = 0; pixel < pixelsPerByte; pixel++) {
         const x = (column * pixelsPerByte + pixel) * pixelWidth;
         const colour = artifacts ? vdg.artifactPairColour(byte, pixel, signal === "composite-reversed")

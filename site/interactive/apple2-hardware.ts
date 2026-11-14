@@ -42,7 +42,7 @@ export function apple2MemoryMap(catalogue: Apple2HardwareCatalogue, state: Apple
       if (!(key in selectors)) throw new Error(`Unknown Apple II inspection selector: ${key}`);
       return selectors[key];
     }));
-    if (!route || route.target === "discard") return direction === "read" ? `Unmapped · $${hex(catalogue.undriven, 2)}` : "Discarded";
+    if (!route || typeof route.target === "string") return direction === "read" ? `Unmapped · $${hex(catalogue.undriven, 2)}` : "Discarded";
     const { component, offset } = route.target;
     const name = apple2ComponentNames[component] ?? component;
     if (component === "firmware" && !state.firmware || component === "disk" && !state.disk.installed) {
@@ -59,7 +59,7 @@ export function apple2DeviceAccess(catalogue: Apple2HardwareCatalogue, address: 
   if (address < 0xc000 || address >= 0xd000) return undefined;
   const region = catalogue.regions.find(region => address >= region.start && address < region.start + region.size)!;
   const route = region[direction][0];
-  if (!route || route.target === "discard") return { device: "unmapped", description: direction === "read"
+  if (!route || typeof route.target === "string") return { device: "unmapped", description: direction === "read"
     ? `No modeled device; bus supplies $${hex(catalogue.undriven, 2)}` : "Write discarded", source: "src/machines/6502/apple2.md#components-and-address-decoding" };
   if (route.when.length) throw new Error("Conditional Apple II I/O routing needs an observed mapping.");
   const { component, offset } = route.target, device = catalogue.components[component]!;

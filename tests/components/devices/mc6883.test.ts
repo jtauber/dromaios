@@ -32,16 +32,16 @@ test("SAM starts fully reset, exposes independent fields, and restores without r
   assert.throws(() => new Mc6883({ control: 0x10000 }), RangeError);
 });
 
-test("SAM text addresses follow every F page within physical 32 KiB, independently of P1", () => {
+test("SAM text addresses follow every F page within the 64 KiB display address space, independently of P1", () => {
   for (let f = 0; f < 128; f++) for (const page of [0, 1]) {
     const sam = new Mc6883({ control: 0x2000 + f * 8 + page * 0x400 });
     for (let row = 0; row < 16; row++) for (let column = 0; column < 32; column++) {
-      assert.equal(sam.displayAddress(row, column), (f * 512 + row * 32 + column) % 0x8000);
+      assert.equal(sam.displayAddress(row, column), (f * 512 + row * 32 + column) % 0x10000);
     }
   }
 });
 
-test("SAM matched display rows have the documented strides and repeats, wrapping physical RAM", () => {
+test("SAM matched display rows have the documented strides and repeats, wrapping sixteen-bit addresses", () => {
   const rows = [[32, 12], [16, 3], [32, 3], [16, 2], [32, 2], [16, 1], [32, 1], [0, 0]] as const;
   rows.forEach(([bytes, lines], mode) => {
     for (const f of [0, 2, 0x30, 0x3f, 0x7f]) for (const page of [0, 1]) {
@@ -49,7 +49,7 @@ test("SAM matched display rows have the documented strides and repeats, wrapping
       assert.equal(sam.displayBytesPerRow(), bytes); assert.equal(sam.displayLinesPerRow(), lines);
       if (lines === 0) continue; // DMA has no visible rows.
       for (let row = 0; row < 192 / lines; row++) for (let column = 0; column < bytes; column++) {
-        assert.equal(sam.displayAddress(row, column), (f * 512 + row * bytes + column) % 0x8000);
+        assert.equal(sam.displayAddress(row, column), (f * 512 + row * bytes + column) % 0x10000);
       }
     }
   });

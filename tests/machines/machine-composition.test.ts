@@ -65,6 +65,7 @@ components { bank=ram 1000 rom=rom 2000 card=apple2-language-card video=apple2-v
       { target: "discard", when: [] },
     ],
   } }]);
+  assert.doesNotThrow(() => parseMachine(source.replace("read=rom offset 1000", "read=unmapped")));
   for (const [before, after, message] of [
     ["window 1000", "window 0", /must be positive/],
     ["window 1000", "window 1001", /beyond its target/],
@@ -72,6 +73,7 @@ components { bank=ram 1000 rom=rom 2000 card=apple2-language-card video=apple2-v
     ["read=rom offset 1000", "read=discard", /Only writes/],
     ["read=rom offset 1000", "", /unconditional read/],
     ["write=discard", "", /unconditional write/],
+    ["write=discard", "write=unmapped", /Only reads/],
     ["write=discard", "write=discard write=bank", /must be last/],
     ["card.ramRead", "video.inverse", /zero-input flag view/], // Has a byte input.
     ["card.ramRead", "video.textAddress", /zero-input flag view/], // Returns an address.

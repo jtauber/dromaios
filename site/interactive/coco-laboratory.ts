@@ -1,3 +1,5 @@
+import { cocoMemorySupported, cocoRamAddress } from "../../src/machines/6809/coco/memory.js";
+import { createCocoCartridgeView } from "./coco-cartridge-view.js";
 import { createMachineSound } from "./machine-sound-view.js";
 import { createCocoJoystickView } from "./coco-joystick-view.js";
 import { createCocoCassetteView } from "./coco-cassette-view.js";
@@ -63,7 +65,11 @@ function mountCoco(root: HTMLElement): void {
     storage: romFileStorage(() => localStorage, slot.key, romImages[slot.id].size,
       file => readRomFile(file, romImages[slot.id])),
   }));
-  let session = createCocoSession(), selecting = true, hasSaved = false;
+  const memoryKey = "dromaios:coco:ram";
+  let memorySize: 32 | 64 = 32;
+  try { if (localStorage.getItem(memoryKey) === "64") memorySize = 64; } catch { /* Default to 32 KiB. */ }
+  const memoryButtons = [...root.querySelectorAll<HTMLButtonElement>("[data-coco-ram]")];
+  let session = createCocoSession(null, null, null, memorySize), selecting = true, hasSaved = false;
   const saved = cocoSavedState(() => localStorage, session.machine.clock.hertz!);
   const sound = createMachineSound(root, () => ({ clock: session.machine.clock, level: session.machine.pias.soundLevel }));
   const joysticks = createCocoJoystickView(root, () => session.machine.pias, () => refreshPanels(["pias"]));
@@ -76,6 +82,12 @@ function mountCoco(root: HTMLElement): void {
   const catalogue: Catalogue6809 = JSON.parse(at("coco-instructions").textContent!);
   const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root, () => refreshPanels(["screen"]));
   function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
+  function browseRam(address: number): void {
+    const logical = cocoRamAddress(session.machine, address) === address ? address
+      : address >= 0x8000 && cocoRamAddress(session.machine, address - 0x8000) === address ? address - 0x8000 : undefined;
+    if (logical === undefined) { message.textContent = `Physical RAM $${cocoHex(address)} is not visible in the current CPU map.`; return; }
+    browse(logical);
+  }
   const debug = createCocoDebugger(() => session.machine, catalogue);
   const assembly = (address: number, bytes: readonly number[]) => decode6809(index => bytes[(index - address) & 0xffff], address, catalogue).assembly;
   const changeLog = createChangeLogView(root, () => session.machine, createCocoChangeLog,
@@ -83,7 +95,7 @@ function mountCoco(root: HTMLElement): void {
   const watchHistory = createCocoWatchHistory();
   const watchView = createMemoryWatchHistoryView(root, watchHistory, {
     assembly: entry => assembly(entry.caller.address, entry.bytes), storageLabel: () => "RAM",
-    browseMemory: browse,
+    browseMemory: browseRam,
     browseCode(location) {
       if (cocoDebugLocation(session.machine, location.address).space !== location.space) {
         return `Cannot browse $${cocoHex(location.address)}: its observed ${location.space} mapping is no longer visible.`;
@@ -92,7 +104,7 @@ function mountCoco(root: HTMLElement): void {
     },
   })!;
   const debugView = createCocoDebuggerView(root, debug, {
-    changed: () => code.refreshBreakpoints(), memory: browse,
+    changed: () => code.refreshBreakpoints(), memory: browseRam,
     history: address => watchView.select({ address }),
     watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
     code: address => { code.browse(address); workspace.show("code"); },
@@ -131,6 +143,15 @@ function mountCoco(root: HTMLElement): void {
     pause: () => { debug.pause(); execution.stop(); },
     selecting: value => { selecting = value; refresh(); },
   });
+  const cartridge = createCocoCartridgeView(root, () => session, {
+    changed: () => { changedMachine(); refreshPanels(panels.map(panel => panel.dataset.workspacePanel!)); },
+    pause: () => { debug.pause(); execution.stop(); },
+    selecting: value => { selecting = value; refresh(); },
+  });
+  for (const button of memoryButtons) button.addEventListener("click", () => action(() => {
+    session.configureMemory(button.dataset.cocoRam === "64" ? 64 : 32); changedMachine();
+    try { localStorage.setItem(memoryKey, String(session.memorySize)); } catch { /* Keep this visit's choice. */ }
+  }));
   const walkthrough = createRomWalkthrough(root, {
     routines: Object.values(guides).flatMap(guide => guide.routines),
     walkthroughs: Object.values(guides).flatMap(guide => guide.walkthroughs),
@@ -165,6 +186,11 @@ function mountCoco(root: HTMLElement): void {
     joysticks.refresh(selecting);
     cassette.refresh(selecting, running);
     disk.refresh(selecting, running);
+    cartridge.refresh(selecting, running);
+    for (const button of memoryButtons) {
+      button.disabled = selecting || running;
+      button.setAttribute("aria-pressed", String(Number(button.dataset.cocoRam) === session.memorySize));
+    }
     for (const slot of slots) {
       slot.load.disabled = slot.forget.disabled = selecting;
       const rom = roms[slot.id];
@@ -176,7 +202,7 @@ function mountCoco(root: HTMLElement): void {
     removeDisk.disabled = selecting || running || roms.dos === undefined;
     save.disabled = !ready || running; restore.disabled = !ready || running || !hasSaved;
     forgetState.disabled = selecting || !hasSaved;
-    at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${execution.steps.toLocaleString()} steps`
+    at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${session.memorySize} KiB · ${execution.steps.toLocaleString()} steps`
       + ` · ${session.machine.clock.ticks.toLocaleString()} CPU clocks`
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
     if (session.hasFirmware && !session.ready) at("machine-status").textContent = "Load Extended Color BASIC 1.1 to use Disk BASIC.";
@@ -193,10 +219,10 @@ function mountCoco(root: HTMLElement): void {
       : `${"source" in record ? record.source.toUpperCase() + " · " : ""}${record.outcome}` : "No steps recorded";
     inspectors.refresh(session.machine, shouldUpdate);
     const state = session.machine.cpu.snapshot(), mapping = observeCocoRoms(session.machine);
-    walkthrough.refresh({ address: state.pc, space: mapping.mapped(state.pc) ? "rom" : state.pc < 0x8000 ? "ram" : "unavailable" },
-      ready && execution.error === undefined && session.machine.sam.supportedMemory(), running);
+    walkthrough.refresh(cocoDebugLocation(session.machine),
+      ready && execution.error === undefined && cocoMemorySupported(session.machine), running);
     if (shouldUpdate("code")) code.refresh(address => readCocoStorage(session.machine, address), state, execution.records, annotations.observe(mapping));
-    if (shouldUpdate("instruction")) instruction(session.machine.sam.supportedMemory()
+    if (shouldUpdate("instruction")) instruction(cocoMemorySupported(session.machine)
       ? previewCocoInstruction(session.machine, catalogue) : "Unsupported SAM memory configuration.");
     if (shouldUpdate("screen")) display.refresh(session.machine);
   }
@@ -331,7 +357,7 @@ function mountCoco(root: HTMLElement): void {
         if (roms[slot.id]) slot.storageStatus.textContent = "Remembered ROM verified. Paused and ready.";
       } catch { slot.storageStatus.textContent = `The remembered ROM could not be restored. Choose your local ${slot.label} file.`; }
     }));
-    session = createCocoSession(roms.firmware?.image ?? null, roms.extended?.image ?? null, roms.dos?.image ?? null); changedMachine();
+    session = createCocoSession(roms.firmware?.image ?? null, roms.extended?.image ?? null, roms.dos?.image ?? null, memorySize); changedMachine();
     selecting = false; refreshPanels(panels.map(panel => panel.dataset.workspacePanel!));
   })();
 }

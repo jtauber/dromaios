@@ -20,9 +20,9 @@ test("version-7 disks migrate read-only; current write permission is mandatory a
   const session = createCocoSession(), local = storage(), saved = cocoSavedState(() => local, session.machine.clock.hertz!);
   session.mountDisk("blank.dsk", new Uint8Array(cocoDiskSize).fill(0xff)); saved.save(session.snapshot());
   const [key, text] = [...local.values][0]!, legacy = JSON.parse(text);
-  legacy.version = 7; delete legacy.state.hardware.disk.circuit.writable;
+  legacy.version = 7; delete legacy.state.hardware.cartridge; delete legacy.state.hardware.disk.circuit.writable;
   const old = JSON.stringify(legacy); local.setItem(key, old); const migrated = saved.read()!;
-  assert.equal(migrated.version, 8); assert.equal(migrated.state.hardware.disk.circuit.writable, false);
+  assert.equal(migrated.version, 9); assert.equal(migrated.state.hardware.disk.circuit.writable, false);
   session.machine.disk.writableCopy(); session.restore(migrated.state);
   assert.equal(session.machine.disk.inspect().writable, false); assert.equal(local.getItem(key), old);
   legacy.version = 8; local.setItem(key, JSON.stringify(legacy)); const before = session.snapshot();
@@ -54,7 +54,7 @@ test("a version-7 checkpoint with an unread sector byte keeps that transfer when
   session.machine.disk.write(0, 0xa9); session.machine.disk.write(8, 0x80); session.machine.disk.advanceCpuClocks(60);
   const expected = session.snapshot(); assert.equal(expected.hardware.disk.circuit.drq, true);
   saved.save(expected); const [key, text] = [...local.values][0]!, legacy = JSON.parse(text);
-  legacy.version = 7; delete legacy.state.hardware.disk.circuit.writable; local.setItem(key, JSON.stringify(legacy));
+  legacy.version = 7; delete legacy.state.hardware.cartridge; delete legacy.state.hardware.disk.circuit.writable; local.setItem(key, JSON.stringify(legacy));
   session.powerOn(); session.machine.disk.writableCopy(); session.restore(saved.read()!.state);
   assert.deepEqual(session.snapshot(), expected); assert.equal(session.machine.disk.read(11), 0x5a);
 });

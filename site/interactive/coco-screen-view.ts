@@ -35,7 +35,7 @@ export function createCocoScreen(root: HTMLElement, changed: () => void) {
         swap.disabled = true;
         context.clearRect(0, 0, 256, 192); text.textContent = ""; notice.hidden = false;
         notice.textContent = machine.firmware.loaded ? "Display mode not supported yet" : "Load your Color BASIC ROM";
-        status.textContent = machine.firmware.loaded ? (cause instanceof Error ? cause.message : String(cause)) : "32 KiB RAM ready · no ROM loaded";
+        status.textContent = machine.firmware.loaded ? (cause instanceof Error ? cause.message : String(cause)) : `${machine.ram.size / 1024} KiB RAM ready · no ROM loaded`;
         return;
       }
       notice.hidden = true;

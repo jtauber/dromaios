@@ -1,3 +1,4 @@
+import { cocoMemorySupported } from "../../src/machines/6809/coco/memory.js";
 import type { Coco } from "../../src/machines/6809/coco/runtime.js";
 import { createRomNotes } from "./rom-guide.js";
 import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
@@ -10,12 +11,14 @@ export type CocoRomGuides = Readonly<Record<"firmware" | "extended", RomGuide>>;
 
 /** Exact ROM identities are enforced at loading; capture mapping with the inspected bytes. */
 export function observeCocoRoms(machine: Coco) {
-  const supported = machine.sam.supportedMemory();
-  const firmware = supported && machine.firmware.loaded, extended = supported && machine.extended.loaded;
-  const dos = supported && (machine.dos?.loaded ?? false);
+  const supported = cocoMemorySupported(machine), romMap = !(machine.ram.size === 0x10000 && machine.sam.allRam());
+  const firmware = supported && machine.firmware.loaded && romMap, extended = supported && machine.extended.loaded && romMap;
+  const vectors = supported && machine.firmware.loaded;
+  const dos = supported && romMap && !machine.cartridge?.inserted() && (machine.dos?.loaded ?? false);
   return { firmware, extended, dos,
     mapped: (address: number) => extended && address >= 0x8000 && address < 0xa000
-      || firmware && (address >= 0xa000 && address < 0xc000 || address >= 0xffe0)
+      || firmware && address >= 0xa000 && address < 0xc000
+      || vectors && address >= 0xffe0
       || dos && address >= 0xc000 && address < 0xff00,
   };
 }
@@ -36,7 +39,8 @@ export function createCocoRomAnnotations(guides: CocoRomGuides) {
     observe(mapping: ReturnType<typeof observeCocoRoms>) {
       const label = (address: number) => {
         const socket = owner.get(address);
-        return socket && mapping[socket] ? reference.at(address) : undefined;
+        const visible = socket && (mapping[socket] || socket === "firmware" && address >= 0xffe0 && mapping.mapped(address));
+        return visible ? reference.at(address) : undefined;
       };
       return (row: Decoded6809, dp?: number) => {
         const address = address6809Operand(row, dp), exact = address === undefined ? undefined : label(address);

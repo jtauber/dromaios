@@ -4,11 +4,12 @@ import { cocoKeyboardPhaseClocks } from "./coco-keyboard-transport.js";
 import type { CocoSessionState } from "./coco-session.js";
 import { CocoJoystick } from "../../src/components/devices/generated/coco-joystick.js";
 import { CocoCassette, cocoTapeSampleLimit } from "../../src/components/devices/coco-cassette.js";
+import { CocoCartridge } from "../../src/machines/6809/coco/cartridge.js";
 import { CocoDiskController, cocoDiskSize } from "../../src/machines/6809/coco/disk-controller.js";
 
 interface StoredCocoState {
-  readonly version: 8;
-  readonly machine: "coco-32k";
+  readonly version: 9;
+  readonly machine: "coco-32k" | "coco-64k";
   readonly savedAt: string;
   readonly state: CocoSessionState;
 }
@@ -24,11 +25,11 @@ export function cocoSavedState(storage: () => {
       const text = storage().getItem(key);
       if (text === null) return undefined;
       // Base64 tape and disk plus room for RAM, devices, names, and the keyboard queue.
-      if (text.length > Math.ceil((cocoTapeSampleLimit + cocoDiskSize) / 3) * 4 + 256 * 1024) throw new Error("Saved CoCo snapshot is too large.");
+      if (text.length > Math.ceil((cocoTapeSampleLimit + cocoDiskSize) / 3) * 4 + 512 * 1024) throw new Error("Saved CoCo snapshot is too large.");
       const value: unknown = JSON.parse(text);
       checkMachineSnapshot(value, ["version", "machine", "savedAt", "state"]);
       const saved = value as Omit<StoredCocoState, "version"> & { readonly version: number };
-      if (![1, 2, 3, 4, 5, 6, 7, 8].includes(saved.version) || saved.machine !== "coco-32k" || typeof saved.savedAt !== "string"
+      if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(saved.version) || !(saved.machine === "coco-32k" || saved.version === 9 && saved.machine === "coco-64k") || typeof saved.savedAt !== "string"
         || !Number.isFinite(Date.parse(saved.savedAt))) throw new Error("Invalid CoCo snapshot format.");
       // Versions 1 and 2 had no clock: start their schedule at phase zero while
       // preserving PIA levels and flags until the next scheduled edges.
@@ -81,14 +82,25 @@ export function cocoSavedState(storage: () => {
         }
         state = { ...state, hardware: { ...state.hardware, disk: { ...disk, circuit, image } } };
       }
+      if (saved.version < 9) {
+        checkMachineSnapshot(state.hardware, ["cpu", "ram", "firmware", "extended", "dos", "pias", "sam", "vdg", "clock", "disk"]);
+        state = { ...state, hardware: { ...state.hardware, cartridge: new CocoCartridge().snapshot() } };
+      } else {
+        const cartridge = state.hardware?.cartridge;
+        checkMachineSnapshot(cartridge, ["name", "image"]);
+        state = { ...state, hardware: { ...state.hardware, cartridge: { ...cartridge, image: unpack(cartridge.image, 0x4000, "cartridge") } } };
+      }
+      if (!Array.isArray(state.hardware?.ram) || state.hardware.ram.length !== (saved.machine === "coco-64k" ? 0x10000 : 0x8000)) {
+        throw new Error("Saved CoCo RAM capacity does not match its profile.");
+      }
       // The session validates every component, input phase, and ROM identity before installing it.
-      return { ...saved, version: 8, state };
+      return { ...saved, version: 9, state };
     },
     save(state: CocoSessionState): void {
       const tape = state.hardware.pias.cassette;
-      const packed = { ...state, hardware: { ...state.hardware, disk: { ...state.hardware.disk, image: pack(state.hardware.disk.image) }, pias: { ...state.hardware.pias,
+      const packed = { ...state, hardware: { ...state.hardware, cartridge: { ...state.hardware.cartridge, image: pack(state.hardware.cartridge.image) }, disk: { ...state.hardware.disk, image: pack(state.hardware.disk.image) }, pias: { ...state.hardware.pias,
         cassette: { ...tape, samples: pack(tape.samples) } } } };
-      storage().setItem(key, JSON.stringify({ version: 8, machine: "coco-32k", savedAt: new Date().toISOString(), state: packed }));
+      storage().setItem(key, JSON.stringify({ version: 9, machine: state.hardware.ram.length === 0x10000 ? "coco-64k" : "coco-32k", savedAt: new Date().toISOString(), state: packed }));
     },
     forget(): void { storage().removeItem(key); },
   };

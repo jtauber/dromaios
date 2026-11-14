@@ -123,7 +123,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
         case "components":
           block("components", () => {
             const token = name();
-            if (["cpu", "memory", "ports", "reset", "snapshot", "window", "discard", "clock", "step", "interrupt"].includes(token.text)) fail(token, `Reserved component name ${token.text}`);
+            if (["cpu", "memory", "ports", "reset", "snapshot", "window", "discard", "unmapped", "clock", "step", "interrupt"].includes(token.text)) fail(token, `Reserved component name ${token.text}`);
             if (components.has(token.text)) fail(token, `Duplicate component ${token.text}`);
             expect("=");
             const kind = take();

@@ -246,22 +246,14 @@ of representative software for each machine, then carry it through boot,
 loading, interaction, and repeatable use. Agree those acceptance criteria before
 implementation, using the existing emulator projects as references.
 
-The [TRS-80 Color Computer](docs/machines/coco.md) has completed its first
-untimed milestone, using **dromaios-coco** as its primary reference and the
-existing generated 6809: a selected CoCo 1 configuration running ROM BASIC with
-keyboard, text/semigraphics, and a laboratory. The acceptance plan records the
-reference audit, integrated acceptance, device boundaries, and remaining timing work.
-The [native executable chapter](src/machines/6809/coco.md) now passes the
-headless BASIC transcript on its untimed 32 KiB profile. Its laboratory adds
-matrix keyboard input, text/SG4 and all eight standard bitmap modes,
-CPU/memory/device inspectors, remembered ROMs, and snapshot continuation.
-6809 disassembly, instruction explanations, independent S/U stack and direct-page
-tools, and a ROM walkthrough are in place. A Color BASIC POKE experiment connects
-the video specifications to the laboratory. Optional Extended Color BASIC adds
-a verified second ROM, native drawing commands, and a graphics-program
-walkthrough. Hardware timing, extended semigraphics, and additional media
-remain separate fidelity milestones. Shared debugger tools now serve both
-Apple II and CoCo.
+The [TRS-80 Color Computer](docs/machines/coco.md) has completed its initial
+ROM BASIC milestone, using **dromaios-coco** as its primary reference and the
+existing generated 6809. The [native executable chapter](src/machines/6809/coco.md)
+now owns a clocked 32 or 64 KiB model with Extended and Disk BASIC, cassette,
+ROM cartridges, sound, joysticks, and independently produced software acceptance.
+The laboratory combines shared debugger tools with device inspection and saved
+sessions. Extended semigraphics, physical DRAM aliasing, fast-clock modes, and
+additional peripheral hardware remain separate fidelity milestones.
 
 The **IBM PC/XT** runs the generated 8088 and uses **dromaios-pc** as its
 primary reference. Its

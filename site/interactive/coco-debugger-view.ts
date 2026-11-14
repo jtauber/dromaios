@@ -15,7 +15,7 @@ export function createCocoDebuggerView(root: HTMLElement, debug: ReturnType<type
     values: () => debug.breakpoints, set: debug.setBreakpoints, changed: actions.changed,
   })!;
   createBreakpointView(root.querySelector("[data-coco-watchpoints]"), {
-    kind: "watchpoint", key: "dromaios:debugger:coco:watchpoints", maximum: 0x7fff,
+    kind: "watchpoint", key: "dromaios:debugger:coco:watchpoints", maximum: 0xffff,
     values: () => debug.watchpoints, set: debug.setWatchpoints, changed: actions.watchesChanged, history: actions.history,
   });
   const status = createDebuggerStatus(root);

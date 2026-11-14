@@ -48,6 +48,38 @@ lost-data deadlines, missing sectors, physical versus logical tracks, step
 rates, write protection, NMI edges, clock partitioning, and observation without
 acknowledgement. No external images are needed for those checks.
 
+## One expansion socket
+
+The laboratory can replace the disk cartridge with an ordinary **ROM Program
+Pak**, also available on the [64 KiB board](coco64.md). A raw 2, 4, 8, or
+16 KiB image occupies C000–FEFF, repeating when its ROM does not decode the
+upper address lines. The FF00 page still belongs to the board. Bank-switched
+cartridges, extra cartridge RAM, custom peripheral hardware, and a Multi-Pak
+Interface are outside this slot model.
+
+A ROM Pak disconnects the disk ROM, FF40–FF5F registers, HALT, and NMI. The
+mounted disk remains in host storage for later use, but its controller does
+not advance while disconnected. The map below expresses undriven reads with
+`read = unmapped`; these return the board's FF value without storage or side
+effects. Writes to either ROM or a disconnected controller are discarded.
+
+Ordinary auto-start Paks connect CART to the CPU's Q clock. CART reaches PIA 1
+CB1 and its FIRQ request, as shown in the [Tandy technical reference][technical].
+This model supplies both Q edges at each completed CPU/idle boundary. That
+preserves the PIA's selected-edge latch and acknowledgment behavior at our
+instruction-boundary resolution; it does not model intra-instruction E/Q
+transitions. Color BASIC detects that signal and enters the Pak itself. Insertion
+does not synthesize vectors or change the reset address to C000. Color BASIC
+is still required even when a Pak uses little of its firmware.
+
+Insertion and removal in the laboratory perform fresh power-on. The immutable
+cartridge image and its name belong to the native snapshot; a browser checkpoint
+contains the bytes, and can restore the Pak after removal. On the 64 KiB board,
+TY can hide cartridge ROM behind RAM without disconnecting its CART signal.
+The [slot tests](../../../tests/site/coco-cartridge.test.ts) check mirroring,
+write protection, disk disconnection, CART acknowledgment, and packed restoration.
+The [software examples](coco.md#rom-cartridges) exercise original Program Paks.
+
 ## Machine composition
 
 The base and disk profiles deliberately declare their concrete maps separately;
@@ -65,19 +97,30 @@ components {
     sam = mc6883
     vdg = mc6847
     disk = coco-disk-controller
+    cartridge = coco-cartridge
 }
 
 map 10000 {
     0000 = ram
     8000 = extended
     A000 = firmware
-    C000 = dos
+    C000 = window 2000 {
+        read = cartridge when cartridge.inserted
+        read = dos
+        write = discard
+    }
     E000 = window 1F00 {
+        read = cartridge offset 2000 when cartridge.inserted
         read = dos
         write = discard
     }
     FF00 = pias
-    FF40 = disk
+    FF40 = window 20 {
+        read = disk when cartridge.empty
+        read = unmapped
+        write = disk when cartridge.empty
+        write = discard
+    }
     FFC0 = sam
     FFE0 = window 20 {
         read = firmware offset 1FE0
@@ -146,3 +189,5 @@ raw disk, and loads and runs that file after fresh power-on.
 
 [mame]: https://github.com/mamedev/mame/blob/master/src/devices/bus/coco/coco_fdc.cpp
 [6809-timing]: https://colorcomputerarchive.com/repo/Documents/Datasheets/MC6809%20HMOS%208%20Bit%20Microprocessor%20%28Motorola%29.pdf
+
+[technical]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Color%20Computer%20Technical%20Reference%20Manual%20%28Tandy%29.pdf

@@ -1,3 +1,4 @@
+import { cocoMemorySupported, cocoRamAddress } from "../../src/machines/6809/coco/memory.js";
 import type { Coco, stepCoco } from "../../src/machines/6809/coco/runtime.js";
 import type { RamWrite } from "../../src/components/memory/ram.js";
 import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instruction-debugger.js";
@@ -18,11 +19,12 @@ export interface CocoWriteHit extends RamWrite {
 
 export function cocoDebugLocation(machine: Coco, address = machine.cpu.snapshot().pc): DebugLocation {
   const mapping = observeCocoRoms(machine);
-  return { address, space: !machine.sam.supportedMemory() ? "unavailable" : address < 0x8000 ? "ram"
-    : mapping.mapped(address) ? "rom" : "unavailable" };
+  const physical = cocoRamAddress(machine, address);
+  return { address, space: !cocoMemorySupported(machine) ? "unavailable" : physical !== undefined ? (physical === address ? "ram" : "upper RAM")
+    : machine.cartridge?.inserted() && address >= 0xc000 && address < 0xff00 ? "cartridge" : mapping.mapped(address) ? "rom" : "unavailable" };
 }
 
-/** This fixed-map profile needs address-only preferences, separate from saved machine state. */
+/** Breakpoints use logical CPU addresses; write watchpoints use physical RAM, separate from saved machine state. */
 export function decodeCocoAddressStops(saved: string | null, maximum: number): readonly CocoAddressStop[] {
   return decodeInstructionBreakpoints(saved, [], maximum).map(({ address, enabled }) => ({ address, enabled }));
 }
@@ -51,7 +53,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
     get canStepOut() { return policy.canStepOut; },
     setBreakpoints(points: readonly CocoAddressStop[]): void { policy.setBreakpoints(validate(points, 0xffff)); },
     setWatchpoints(points: readonly CocoAddressStop[]): void {
-      watches = validate(points, 0x7fff);
+      watches = validate(points, 0xffff);
       writes.watch(watches.filter(point => point.enabled).map(point => point.address));
     },
     run(): void { hit = undefined; policy.run(location()); },
@@ -62,7 +64,8 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
     over(): void {
       hit = undefined;
       const selected = machine(), state = selected.cpu.snapshot();
-      const external = selected.disk?.halted || selected.disk?.inspect().nmi_pending && state.nmiArmed
+      const disk = selected.cartridge?.inserted() ? undefined : selected.disk;
+      const external = disk?.halted || disk?.inspect().nmi_pending && state.nmiArmed
         || selected.pias.firq && !state.flags.f || selected.pias.irq && !state.flags.i;
       const decoded = !external && state.waitMode === "none"
         ? decode6809(address => readCocoStorage(selected, address), state.pc, catalogue) : undefined;

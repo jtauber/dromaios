@@ -16,7 +16,9 @@ Dromaios components. No ROM traps, injected BASIC tokens, browser callbacks,
 or reference-emulator devices are needed.
 
 The optional [FD-502 disk profile](coco-disk.md) adds a cartridge ROM and
-controller to this composition; this base map keeps the cartridge socket empty.
+controller to this composition, or accepts a [ROM Program Pak](#rom-cartridges).
+The laboratory also offers a [64 KiB configuration](#64-kib-ram). This base
+map keeps 32 KiB RAM and an empty cartridge socket.
 
 ## Components and memory map
 
@@ -77,7 +79,7 @@ clock selections stop execution before the next CPU boundary.
 ## External firmware and reset
 
 Each socket accepts one exact, separate 8,192-byte image. Combined dumps,
-other versions, and cartridges are outside the profile. Color BASIC is required
+other versions, and cartridges are outside this base factory. Color BASIC is required
 to boot; the extension alone has no reset vector. With the extension absent,
 the same machine runs Color BASIC alone. The ROM's own initialization detects
 and enters the extension; the host does not patch vectors, BASIC tokens, or RAM.
@@ -189,8 +191,8 @@ the native snapshot.
 
 PIA 1 port B has high external inputs, so direction registers determine which
 output latch bits reach the video controls. Both PIAs' unconnected C2 inputs
-are high. Serial transport and cartridge
-hardware are absent. PIA manual C2 output modes work; strobe modes reject
+are high. Serial transport is absent; expansion hardware belongs to the
+[cartridge profile](coco-disk.md#one-expansion-socket). PIA manual C2 output modes work; strobe modes reject
 writes as described in the PIA chapter.
 
 The [cassette interface](../../components/devices/specifications/coco-cassette.md)
@@ -876,6 +878,109 @@ These are observation points in this exact game image, not emulator hooks:
 
 [donkey-disk]: https://colorcomputerarchive.com/repo/Disks/Games/Donkey%20King%20%28Tom%20Mix%20Software%29.zip
 [donkey-instructions]: https://colorcomputerarchive.com/repo/Documents/Manuals/Games/Donkey%20King%20%28Tom%20Mix%20Software%29.jpg
+
+## ROM cartridges
+
+The **ROMs** panel's **Load cartridge** control accepts a raw `.ccc`, `.rom`,
+or `.bin` Program Pak of 2, 4, 8, or 16 KiB. Load Color BASIC first; Extended
+and Disk BASIC may remain installed. Inserting a Pak performs fresh power-on
+and disconnects Disk BASIC and its controller, as the real single expansion
+socket would. Choose **Run** to let Color BASIC discover the Pak. **Remove
+cartridge** powers on again with Disk BASIC available. Cartridge bytes survive
+fresh power-on and are included in saved checkpoints; they are not automatically
+remembered as another system ROM.
+
+These original [Tandy cartridges][program-paks] are checked on the 32 KiB
+configuration. Click the screen before typing; **Esc** sends the CoCo's Break.
+Connect the **right** joystick for Polaris and Project Nebula; use its pad to
+steer and its Fire control to shoot. Normal speed enables sound.
+
+| Program | Getting started | Acceptance |
+| --- | --- | --- |
+| [EDTASM+][edtasm-manual] | The editor opens with `EDTASM+ 1.0`. Use `I` to insert source; Break returns to command mode. | Assemble and execute the example below. |
+| [Wildcatting][wildcatting-manual] | Choose `1` player, type a name and Enter, then `N` for keyboard control. Space opens the oil field; arrows move its marker; Space requests a survey. | Move from X=1, Y=1 to X=2, Y=2 and inspect that location's survey. |
+| [Polaris][polaris-manual] | Choose `1` player, then steer and fire with the right joystick. | Reach the bitmap game, sample joystick coordinates through the ROM, and distinguish moved and firing frames. |
+| [Art Gallery][art-gallery-manual] | Choose `1` to draw. `W` selects red, `E` blue, `R` green, and `T` yellow; arrows move the brush. Break returns to the menu. | Leave a visible red trail behind the blinking cursor. |
+| [Project Nebula][nebula-manual] | Press Space at the title, `1` for beginner target shooting, then `0` for difficulty. Steer and fire with the right joystick. | Reach flight, distinguish steering and firing frames, and observe DAC sound transitions. |
+
+In EDTASM, enter these lines after `I` and Enter. Preserve the initial spaces
+before directives and instructions without labels:
+
+```text
+ ORG $6000
+START LDA #42
+ STA $6100
+ SWI
+ END START
+```
+
+Press Break, enter `A/IM/AO/NL`, and wait for zero errors. `/IM` assembles into
+memory and `/AO` honors the origin. Memory at $6000 must contain
+`86 2A B7 61 00 3F`. Enter `Z`, then `G6000`: the program stores decimal 42 at
+$6100 and returns to ZBUG at `START+5` through its SWI breakpoint.
+
+The [Program Pak tests](../../../tests/site/coco-program-paks.test.ts) pin each
+image's SHA-256, boot through the unmodified Color BASIC reset vector, exercise
+these controls, and replay a packed checkpoint after power-on and Pak removal.
+Set `COCO_CARTRIDGE_DIR` to a local directory containing `edtasm-plus.ccc`,
+`wildcatting.ccc`, `polaris.ccc`, `art-gallery.ccc`, and `project-nebula.ccc`,
+along with the three ROM environment variables used by the disk tests.
+These checks cover the stated interactions, not every game level or editor,
+cassette, and presentation feature.
+
+### Bedlam is a cassette
+
+The [Bedlam image][bedlam-cassette] used here is `bedlam.cas`, not a ROM Pak.
+Remove any cartridge, boot to BASIC, load it in **Cassette**, and choose **Play**.
+Type `CLOADM` and wait for `F BEDLAM` followed by `OK`; then type `EXEC`.
+Press Space after the opening description. `LOOK` describes the padded room;
+`OPEN DOOR` opens its green door. The [original manual][bedlam-manual] describes
+the adventure's vocabulary.
+
+The [Bedlam acceptance](../../../tests/site/coco-bedlam.test.ts), enabled with
+`COCO_BEDLAM_CAS`, independently decodes the cassette blocks and checks every
+loaded byte, both commands, and exact continuation from a packed play checkpoint.
+The images remain local; no third-party software is included in the repository
+or published site.
+
+## 64 KiB RAM
+
+Choose **64** beside RAM in the ROMs panel to use the
+[64 KiB machine definition](coco64.md). Changing capacity performs fresh
+power-on, retaining installed ROMs, the ROM Pak, and mounted media. **32**
+returns to the original board. A saved checkpoint restores its own capacity.
+Memory inspection follows the selected CPU map; physical RAM watchpoints can
+also observe the upper half. A watch-history address hidden by the current map
+is reported as hidden rather than linked to unrelated ROM bytes.
+
+[Zork I][zork-disk] provides an independent 64 KiB disk workload. Its memory
+requirement is recorded in the contemporary [Australian Rainbow article][zork-64k].
+With no ROM Pak inserted, load all three system ROMs, mount `zork-i.dsk`, choose
+64 KiB, and Run. At BASIC's prompt type `DOS`. This is a boot disk; `DIR` is
+not its entry point. At `[MORE]`, press Space and wait for `>` before typing.
+`OPEN MAILBOX` reveals a leaflet, and `READ LEAFLET` displays its welcome text.
+
+The [64 KiB acceptance](../../../tests/site/coco64.test.ts), enabled with
+`COCO_ZORK_DISK`, checks that disk loading populates upper physical RAM and
+that TY exposes it behind ROM while the CPU vectors remain mapped to firmware.
+It restores a packed checkpoint halfway through a sector and another at the
+command prompt, comparing exact machine state after replay. The same disk on
+32 KiB must stop at the unsupported all-RAM switch instead of inventing storage.
+[Map tests](../../../tests/machines/6809/coco/memory64.test.ts) separately check
+P1 banking, protected ROM writes, I/O and vectors, video access to upper RAM,
+and capacity validation. DRAM row/column aliases and fast-clock modes remain
+outside the declared model.
+
+[program-paks]: https://colorcomputerarchive.com/repo/Cartridges/
+[edtasm-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Programming/EDTASM%2B%20With%20ZBUG%20%28Tandy%29.pdf
+[wildcatting-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Games/Wildcatting%20%28Tandy%29.pdf
+[polaris-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Games/Polaris%20%28Tandy%29.pdf
+[art-gallery-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Applications/Art%20Gallery%20%28Tandy%29.pdf
+[nebula-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Games/Project%20Nebula%20%28Tandy%29.pdf
+[bedlam-manual]: https://colorcomputerarchive.com/repo/Documents/Manuals/Games/Bedlam%20%28Tandy%29.pdf
+[bedlam-cassette]: https://colorcomputerarchive.com/repo/Cassettes/Games/Bedlam%20%28Tandy%29.zip
+[zork-disk]: https://colorcomputerarchive.com/repo/Disks/Games/Infocom%20Adventures/Zork%20I%20%28Infocom%29.zip
+[zork-64k]: https://colorcomputerarchive.com/repo/Documents/Magazines/Australian%20Rainbow/Australian%20Rainbow%20-%20No.%2061%2C%20August%201986.pdf
 
 ## Using the laboratory
 
@@ -1861,7 +1966,7 @@ requires matching verified media in both sockets; it does not reapply power-on o
 Taking a snapshot or rendering a frame must neither acknowledge a pending
 interrupt nor release a held key. The browser adds the disk cartridge and its
 third ROM identity, controller state, mounted image, and filename. Browser
-checkpoints use version 8. Versions
+checkpoints use version 9 and identify either the 32 or 64 KiB machine. Versions
 1 and 2 predate the clock: migration starts the schedule at zero and preserves
 old PIA levels and pending flags until the next edge. Version 1 also acquires
 an empty extension socket. Versions 1–3 used a 12,000-boundary keyboard phase:
@@ -1873,11 +1978,13 @@ comparator and released fire inputs. Versions 1–5 acquire an empty, stopped
 cassette recorder, preserving their former high PA0 input. Versions 1–6 acquire
 an idle disk cartridge with no image, filename, or Disk BASIC ROM. Version 7
 disks acquire explicit read-only permission; a missing permission in a current
-checkpoint is rejected. Current browser
-checkpoints pack tape samples and disk bytes as base64; native disk snapshots
-share an immutable byte array. Missing clock, joystick, cassette, disk, or input fields in current
+checkpoint is rejected. Versions 1–8 retain the 32 KiB capacity and acquire
+an empty ROM Pak socket. Current browser checkpoints pack tape samples, disk
+bytes, and cartridge ROM bytes as base64; native disk and cartridge snapshots
+share immutable byte arrays. The declared capacity must match the RAM length.
+Missing clock, joystick, cassette, disk, cartridge, or input fields in current
 checkpoints are rejected. Reading an older checkpoint does not overwrite it;
-saving writes version 8. Storage errors preserve the previous checkpoint.
+saving writes version 9. Storage errors preserve the previous checkpoint.
 
 The [laboratory execution tests](../../../tests/site/coco-execution.test.ts)
 compare Normal, Unlimited, and single stepping with queued repeated keys;

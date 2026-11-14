@@ -65,10 +65,13 @@ program to try after POST and the results to expect from editing and running it.
 ROM identity, browser behavior, and limitations.
 `/machines/color-computer/laboratory/` connects that native machine to the shared
 docking workspace. Its layout, Live choices, ROM, and snapshot use separate CoCo
-storage keys. The browser selects the [disk-equipped profile](../src/machines/6809/coco-disk.md),
+storage keys. The browser offers the [32 KiB disk-equipped profile](../src/machines/6809/coco-disk.md)
+and a [64 KiB configuration](../src/machines/6809/coco64.md),
 with independent loaders, verification, and remembered files for Color BASIC 1.3,
 Extended Color BASIC 1.1, and Disk Extended Color BASIC 1.1. The cartridge ROM
-is optional; Disk BASIC requires both other ROMs. Changing extensions starts
+is optional; Disk BASIC requires both other ROMs. A plain ROM Program Pak can
+replace the disk cartridge in either configuration. Changing capacity or a Pak
+starts fresh hardware; checkpoints include capacity and Pak bytes. Changing extensions starts
 fresh hardware, retaining disk and cassette media; removing an extension also
 forgets its saved ROM. The native chapters own the identities, memory mapping, and the
 versioned checkpoint migration contracts.

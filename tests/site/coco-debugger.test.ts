@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { create6809Coco64 } from "../../src/machines/generated/6809/coco64.js";
 import { create6809Coco } from "../../src/machines/generated/6809/coco.js";
 import { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
 import { stepCoco } from "../../src/machines/6809/coco/runtime.js";
@@ -62,7 +63,7 @@ test("reads, disabled watches, ROM/device writes and host edits cannot claim a R
   p.machine.cpu = new Cpu6809(p.machine.memory, { ...p.machine.cpu.snapshot(), pc: 0x2000 });
   p.runTo(0x2009); assert.equal(p.execution.steps, 7); assert.equal(p.debug.hit, undefined);
   assert.equal(p.debug.stop?.kind, "target");
-  assert.throws(() => p.debug.setWatchpoints([{ address: 0x8000, enabled: true }]), /7FFF/);
+  assert.throws(() => p.debug.setWatchpoints([{ address: 0x10000, enabled: true }]), /FFFF/);
   assert.equal(p.debug.watchpoints[0]?.address, 0x1210);
 });
 
@@ -149,4 +150,23 @@ test("CoCo Step over/out shares call tracking and breakpoints/watchpoints cancel
   assert.equal(p.debug.stop?.kind, "out"); assert.equal(p.machine.cpu.snapshot().pc, 0x2003);
   assert.equal(p.debug.canStepOut, false);
   p.debug.reset(); assert.equal(p.debug.trackingNote, undefined); assert.equal(p.debug.breakpoints.length, 1);
+});
+
+
+test("64 KiB watchpoints use physical RAM while instruction locations follow P1 and TY", () => {
+  const machine = create6809Coco64({ firmware: null, extended: null, dos: null });
+  machine.sam.write(0x1d, 0); machine.sam.write(0x15, 0); // M=10, P1=1.
+  [0xb7, 0x12, 0x34].forEach((byte, i) => machine.ram.write(0xa000 + i, byte)); // STA $1234
+  machine.cpu = new Cpu6809(machine.memory, state6809({ pc: 0x2000, a: 42, d: 42 * 256 }));
+  const debug = createCocoDebugger(() => machine, catalogue);
+  debug.setWatchpoints([{ address: 0x9234, enabled: true }]);
+  assert.deepEqual(cocoDebugLocation(machine), { address: 0x2000, space: "upper RAM" });
+  const before = machine.snapshot(); const preview = previewCocoInstruction(machine, catalogue);
+  assert.deepEqual(machine.snapshot(), before, "preview uses the banked map without writing live RAM");
+  assert.ok(preview);
+  debug.run(); debug.capture(() => stepCoco(machine));
+  assert.equal(debug.hit?.address, 0x9234); assert.equal(debug.hit?.after, 42);
+  assert.equal(machine.ram.read(0x1234), 0); assert.equal(debug.stop?.kind, "watchpoint");
+  machine.sam.write(0x1f, 0);
+  assert.deepEqual(cocoDebugLocation(machine, 0xa000), { address: 0xa000, space: "ram" });
 });

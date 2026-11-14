@@ -3,7 +3,7 @@ import type { ComponentDefinition } from "./composition.ts";
 import type { MachineSyntax, Token } from "./syntax.ts";
 
 export interface MemoryRoute {
-  readonly target: { readonly component: string; readonly offset: number } | "discard";
+  readonly target: { readonly component: string; readonly offset: number } | "discard" | "unmapped";
   readonly when: readonly { readonly component: string; readonly view: string }[];
 }
 export interface MemoryWindowDefinition {
@@ -28,9 +28,10 @@ export function readMemoryWindow(syntax: MachineSyntax, component: (token: Token
     expect("=");
     const destination = take();
     let target: MemoryRoute["target"];
-    if (destination.text === "discard") {
-      if (direction.text !== "write") fail(destination, "Only writes may be discarded");
-      target = "discard";
+    if (destination.text === "discard" || destination.text === "unmapped") {
+      if (destination.text === "discard" && direction.text !== "write") fail(destination, "Only writes may be discarded");
+      if (destination.text === "unmapped" && direction.text !== "read") fail(destination, "Only reads may be unmapped");
+      target = destination.text;
     } else {
       let offset = 0;
       if (current().text === "offset") { take(); offset = readNumber(take(), "Component offset", 0xffffff); }
