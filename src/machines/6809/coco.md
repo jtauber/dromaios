@@ -788,6 +788,95 @@ the next sector, then returns it to LOADM. This distinction between a disk read
 and a loader store is visible in the [Disk BASIC disassembly][disk-unravelled],
 at `$C611–$C626`, and is checked by the acceptance.
 
+### Play Donkey King from disk
+
+**Donkey King** (Tom Mix Software) is an independently produced game whose
+[original instruction sheet][donkey-instructions] specifies 32 KiB and offers
+both cassette and disk editions. Player one uses the right joystick: move the
+stick to walk or climb, and press fire to jump. The four screens introduce
+barrels, pins, jacks, and conveyors. This acceptance covers the first screen,
+not completion of the game or two-player play.
+
+Use the unmodified `DONKEY.DSK` member of the
+[Donkey King disk archive][donkey-disk], kept locally outside version control.
+Neither the game nor ROM bytes ship with the site.
+
+| Image property | Accepted value |
+| --- | --- |
+| Local filename | `media/coco/donkey-king.dsk` |
+| Length | 161,280 bytes; standard 35-track disk |
+| SHA-256 | `494f0bb08390d30816370f55226249fcb7cc1725bfc74ed35977eed3dee570f6` |
+| Directory entry | `DONKEY  BIN`, type 2, binary, nine granules |
+| Allocation chain | 32 → 33 → 34 → 35 → 30 → 31 → 36 → 37 → 28 |
+| File contents | Five-byte load header, 19,710 payload bytes, five-byte EXEC trailer |
+| Load range and entry | `$3203–$7F00`, then `EXEC` enters `$3203` |
+
+Load Color BASIC 1.3, Extended Color BASIC 1.1, and Disk BASIC 1.1 in the
+laboratory, then:
+
+1. Load `donkey-king.dsk` in **Drive 0**. Keep it read-only. Fresh power-on
+   and Run to `OK`, then enter `DIR` and `LOADM "DONKEY"` on separate lines.
+   The directory shows `DONKEY   BIN  2 B 9`; loading returns to `OK`.
+2. To exercise loading recovery, Pause partway through LOADM while Drive 0
+   is reading. **Save snapshot**, Fresh power-on, then **Restore snapshot**
+   and Run. The disk, controller, partially loaded RAM, and pending input
+   return together; loading must still reach `OK`.
+3. Connect and centre the right joystick, with fire released. Enter `EXEC`.
+   Select **Composite**: the initial calibration screen should be orange/red.
+   If it is blue, change **Swap colours**. The original instructions advise
+   resetting real hardware until this screen is red; the display option
+   changes the interpretation here without resetting the game.
+4. Press Space in the display. Let the publisher and title sequence finish;
+   it contains deliberate delays. At `NUMBER OF PLAYERS (1 OR 2)`, press `1`.
+   At `PRACTICE GAME (Y OR N)`, press `N` for the normal three lives. `Y`
+   instead selects twelve lives, as described in the original instructions.
+5. Choose **Normal** and enable **Sound**. The first barrel screen appears.
+   Move the right X slider to 5 or 58 to walk left or right; Centre
+   stops walking. Toggle **Hold fire** on and off for a jump. The Y slider
+   controls climbing when aligned with a ladder.
+6. Pause and Save during play. Move the controls or Fresh power-on, then
+   Restore and Run. The scene and joystick positions return, and play resumes.
+   Saving replaces the single earlier loading checkpoint.
+
+Unlimited can shorten the loader and title waits; Normal is required for
+host audio. Composite uses the same [two-dot approximation](../../components/devices/specifications/mc6847.md#ntsc-artifact-colours)
+as Brickaway. The game uses two bitmap buffers and changes the SAM display
+base as it draws. Rendering and checkpoint recovery must respect that base;
+reading a fixed `$0600` screen would show the wrong image.
+
+The [optional acceptance](../../../tests/site/coco-donkey-king.test.ts) takes
+`COCO_ROM`, `COCO_EXTENDED_ROM`, `COCO_DISK_ROM`, and `COCO_DONKEY_DISK`.
+It independently follows the disk allocation chain and checks every loaded
+byte against the pinned payload. It observes all 78 sector reads in order,
+including the chain's backward track seeks. A packed browser checkpoint
+halfway through a sector in the second granule must replace different mounted
+media and reproduce the complete loaded machine state after fresh power-on.
+
+On the first screen, eight updates with centred, left, and right input must
+produce the expected joystick measurements and player positions. Left/right
+move sixteen pixels; only the old and new player sprite regions may differ.
+A short fire press must raise the player sixteen pixels and return him to the
+platform without losing a life. Landing produces a 497-clock DAC pulse from
+the game's own instructions. A restored play checkpoint must reproduce CPU,
+RAM, devices, clocks, graphics, DAC edges, and 48 kHz audio, even when audio
+samples are collected in different batch sizes. The disk remains unchanged.
+
+These are observation points in this exact game image, not emulator hooks:
+
+| Address | Observation |
+| --- | --- |
+| `$322C` | Calibration-screen key wait |
+| `$3D61` | First screen's main loop, before its next update |
+| `$0069` | Player movement state: 0 standing, 4 jumping |
+| `$006B–$006C` | Player bitmap address, high byte first; starts at `$1705` |
+| `$015A–$015B` | Right joystick X/Y measurements returned by the ROM |
+| `$0190`, `$0192` | Practice selection and player count |
+| `$01A1` | Player one's spare lives; 2 while the first normal life is on screen |
+| `$61EE`, `$61F4` | Write then clear the DAC at `$FF20` for the landing pulse |
+
+[donkey-disk]: https://colorcomputerarchive.com/repo/Disks/Games/Donkey%20King%20%28Tom%20Mix%20Software%29.zip
+[donkey-instructions]: https://colorcomputerarchive.com/repo/Documents/Manuals/Games/Donkey%20King%20%28Tom%20Mix%20Software%29.jpg
+
 ## Using the laboratory
 
 The [CoCo laboratory](https://microcomputer.world/machines/color-computer/laboratory/)

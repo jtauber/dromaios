@@ -8,33 +8,8 @@ import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { cocoScreenText } from "../../site/interactive/coco-inspection.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/6809/coco-disk.js";
+import { cocoBinaryFile } from "../helpers/coco-disk.js";
 import { cocoDiskSize } from "../../src/machines/6809/coco/disk-controller.js";
-
-// Independent inspection of the exported file, never a shortcut for loading RAM.
-function spanFile(image: Uint8Array) {
-  const entry = (17 * 18 + 2) * 256, fat = (17 * 18 + 1) * 256;
-  assert.equal(Buffer.from(image.slice(entry, entry + 11)).toString("ascii"), "SPAN    BIN");
-  assert.deepEqual([...image.slice(entry + 11, entry + 13)], [2, 0], "machine language, binary");
-  const finalBytes = image[entry + 14]! * 256 + image[entry + 15]!;
-  assert.ok(finalBytes >= 1 && finalBytes <= 256);
-  const granules: number[] = [], sectors: number[] = [], bytes: number[] = [];
-  let granule = image[entry + 13]!;
-  for (;;) {
-    assert.ok(granule < 68 && !granules.includes(granule), "allocated, non-cyclic FAT chain");
-    granules.push(granule);
-    const next = image[fat + granule]!, last = next >= 0xc0;
-    const count = last ? next - 0xc0 : 9;
-    assert.ok(count >= 1 && count <= 9);
-    // Two nine-sector granules per track, omitting directory/FAT track 17.
-    const track = (granule >> 1) + (granule >= 34 ? 1 : 0), first = track * 18 + (granule % 2) * 9;
-    for (let i = 0; i < count; i++) {
-      const sector = first + i; sectors.push(sector);
-      bytes.push(...image.slice(sector * 256, sector * 256 + (last && i === count - 1 ? finalBytes : 256)));
-    }
-    if (last) return { granules, sectors, bytes, finalBytes };
-    granule = next;
-  }
-}
 
 const needsRoms = !(process.env.COCO_ROM && process.env.COCO_EXTENDED_ROM && process.env.COCO_DISK_ROM)
   && "Set COCO_ROM, COCO_EXTENDED_ROM and COCO_DISK_ROM for the SAVEM/LOADM/EXEC round trip.";
@@ -100,7 +75,7 @@ test("SAVEM spans three granules; exported LOADM restores all 5120 bytes and EXE
   assert.equal(writing.circuit.drq, false, "checkpoint holds a supplied DATA byte waiting for its deadline");
   assert.ok(writing.circuit.byte_index > 0 && writing.circuit.byte_index < 256);
   const saveSteps = untilPrompt(), written = session.snapshot(), exported = session.machine.disk.exportImage();
-  const file = spanFile(exported);
+  const file = cocoBinaryFile(exported, "SPAN    BIN");
   assert.equal(file.granules.length, 3); assert.equal(file.sectors.length, 21); assert.equal(file.finalBytes, 10);
   assert.deepEqual(file.bytes, [0, 0x14, 0, 0x50, 0, ...expected, 0xff, 0, 0, 0x62, 0]);
   assert.deepEqual([...transfers.keys()], file.sectors); assert.ok([...transfers.values()].every(count => count === 256));
