@@ -76,8 +76,8 @@ export function create6809MemoryView(panel: HTMLElement, register: MemoryRegiste
   return {
     controls,
     reset(): void { observation.reset(); },
-    refresh(read: (address: number) => number | undefined, pointers: Readonly<Record<MemoryRegister6809, number>>): void {
-      observation.refresh(read, pointers);
+    refresh(image: Int16Array, pointers: Readonly<Record<MemoryRegister6809, number>>): void {
+      observation.refreshImage(image, pointers);
       if (!initialized || follow.value === "dp") page = pointers.dp;
       initialized = true; render();
     },

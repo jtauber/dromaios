@@ -4,6 +4,26 @@ import { create6809MemoryObservation, stack6809Rows } from "../../site/interacti
 import { readCocoStorage } from "../../site/interactive/coco-inspection.js";
 import { create6809Coco } from "../../src/machines/generated/6809/coco.js";
 import { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
+import { captureMemory } from "../../site/interactive/memory-window.js";
+
+test("tools can share a captured image while holding independent pointers and change histories", () => {
+  const ram = new Uint8Array(0x10000), pointers = { s: 0x100, u: 0x200, dp: 0x30 };
+  const live = create6809MemoryObservation(), held = create6809MemoryObservation();
+  const first = captureMemory(address => ram[address]);
+  live.refreshImage(first, pointers); held.refreshImage(first, pointers);
+  ram[0x100] = 0x42; pointers.s = 0x101;
+  const second = captureMemory(address => ram[address]);
+  live.refreshImage(second, pointers);
+  assert.deepEqual(live.byte(0x100), { address: 0x100, value: 0x42, before: 0, changed: true });
+  assert.equal(held.byte(0x100).value, 0); assert.equal(held.pointer("s"), 0x100);
+  ram[0x100] = 0x43;
+  assert.equal(live.byte(0x100).value, 0x42, "later hardware changes cannot alter captured bytes");
+  held.refreshImage(second, pointers);
+  assert.deepEqual(held.byte(0x100), live.byte(0x100));
+  live.refreshImage(second, pointers);
+  assert.equal(live.byte(0x100).changed, false);
+  assert.equal(held.byte(0x100).changed, true, "refreshing one tool cannot clear another's highlights");
+});
 
 test("held 6809 observations own pointers and bytes; changes compare physical addresses across page moves", () => {
   const image = new Uint8Array(65536), pointers = { s: 0x200, u: 0xffff, dp: 0x30 };

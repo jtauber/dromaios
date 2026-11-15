@@ -1,6 +1,7 @@
 import type { Coco } from "../../src/machines/6809/coco/runtime.js";
 import { cocoDisplayStatus, cocoHex, readCocoStorage } from "./coco-inspection.js";
 import { createMemoryInspector } from "./memory-inspector.js";
+import { captureMemory } from "./memory-window.js";
 import { create6809MemoryView } from "./6809-memory-view.js";
 
 /** CoCo-specific observation tools; docking and machine execution remain outside this module. */
@@ -71,8 +72,12 @@ export function createCocoInspectors(root: HTMLElement, memoryMoved: () => void,
     reset(): void { resetters.forEach(reset => reset()); memory.reset(); pointerViews.forEach(tool => tool.view.reset()); },
     refresh(machine: Coco, shouldUpdate: (id: string) => boolean): void {
       for (const [panel, methods] of Object.entries(updates)) if (shouldUpdate(panel)) methods.forEach(update => update(machine));
-      if (shouldUpdate("memory")) memory.refresh(address => readCocoStorage(machine, address), machine.cpu.snapshot().pc);
-      for (const { id, view } of pointerViews) if (shouldUpdate(id)) view.refresh(address => readCocoStorage(machine, address), machine.cpu.snapshot());
+      const showMemory = shouldUpdate("memory"), pointers = pointerViews.filter(({ id }) => shouldUpdate(id));
+      if (!showMemory && pointers.length === 0) return;
+      // One passive address-space observation per refresh, retained independently by each tool.
+      const image = captureMemory(address => readCocoStorage(machine, address)), state = machine.cpu.snapshot();
+      if (showMemory) memory.refreshImage(image, state.pc);
+      for (const { view } of pointers) view.refresh(image, state);
     },
   };
 }

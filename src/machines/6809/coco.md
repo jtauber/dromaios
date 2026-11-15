@@ -744,6 +744,10 @@ different sample batch sizes. The supplied disk remains read-only. Set
 This verifies this program within the instruction-boundary timing model;
 it does not establish cycle-exact audio, raster timing, or DRAM refresh.
 
+Fahrfall and Brickaway also provide [repeatable laboratory performance workloads](../../../docs/machines/coco-performance.md).
+These measure host costs separately from emulated time and check that inspection
+and sound sampling preserve the same hardware state and pixels.
+
 [fahrfall-beta3]: https://colorcomputerarchive.com/repo/Disks/Games/Fahrfall%20(Beta%203)%20(John%20W.%20Linville).zip
 [fahrfall-gameplay]: https://fahrfall.blogspot.com/2014/07/gameplay-improvements.html
 

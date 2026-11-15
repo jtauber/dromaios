@@ -34,7 +34,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
   const policy = createInstructionDebugger(budget), observer = create6809DebugObserver(policy, catalogue);
   const writes = createRamWriteCapture(() => machine().ram);
   let watches: readonly CocoAddressStop[] = [], hit: CocoWriteHit | undefined;
-  const location = () => cocoDebugLocation(machine());
+  const location = (address?: number) => cocoDebugLocation(machine(), address);
   function validate(points: readonly CocoAddressStop[], maximum: number): readonly CocoAddressStop[] {
     if (points.length > 64 || points.some(point => !Number.isInteger(point.address) || point.address < 0 || point.address > maximum
       || typeof point.enabled !== "boolean") || new Set(points.map(point => point.address)).size !== points.length) {
@@ -82,11 +82,12 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
       const caller = location();
       try {
         const { record, write } = writes.capture(step);
-        observer.observe(record, caller, location());
+        const after = location(record.after.pc);
+        observer.observe(record, caller, after);
         if (write && policy.stop?.kind !== "error") {
           hit = { ...write, caller, record };
-          policy.watchpoint(location(), describeCocoWriteHit(hit));
-        } else if (policy.request === "step") policy.beforeStep(location());
+          policy.watchpoint(after, describeCocoWriteHit(hit));
+        } else if (policy.request === "step") policy.beforeStep(after);
         return record;
       } catch (cause) {
         hit = undefined; observer.reset(); policy.fail(location(), cause instanceof Error ? cause.message : String(cause));

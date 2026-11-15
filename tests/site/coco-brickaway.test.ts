@@ -14,6 +14,7 @@ import { createSpeakerSamples } from "../../site/interactive/speaker-samples.js"
 import { createCocoJoystickInput } from "../../site/interactive/coco-joystick-input.js";
 import { standardGamepad } from "../helpers/gamepad.js";
 import { tapeBlocks } from "../helpers/coco-tape.js";
+import { saveCocoPerformanceCheckpoint } from "../helpers/coco-software.js";
 
 const needsMedia = !(process.env.COCO_ROM && process.env.COCO_EXTENDED_ROM && process.env.COCO_BRICKAWAY_CAS)
   && "Set COCO_ROM, COCO_EXTENDED_ROM, and COCO_BRICKAWAY_CAS for the independent cassette game.";
@@ -72,6 +73,7 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   until(() => pc() === 0x2a0b, 1_000_000); // Paddle drawn; next ball update has not begun.
   assert.equal(word(0x1e18), 0);
   const playing = session.snapshot(); saved.save(playing);
+  saveCocoPerformanceCheckpoint("brickaway", playing);
   assert.deepEqual(renderCocoFrame(session.machine, "composite"), renderCocoFrame(session.machine),
     "the green opening scene keeps its direct colours");
   function frame(step = () => { session.step(); }): void {

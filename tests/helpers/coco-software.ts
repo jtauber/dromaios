@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import type { CocoSessionState } from "../../site/interactive/coco-session.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/6809/coco-disk.js";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
@@ -11,6 +13,14 @@ import type { CocoChord } from "../../site/interactive/coco-input.js";
 
 export const cocoSoftwareRoms = Boolean(process.env.COCO_ROM && process.env.COCO_EXTENDED_ROM && process.env.COCO_DISK_ROM);
 export const cocoHash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+
+/** Optional local benchmark fixtures include RAM and media; never commit these files. */
+export function saveCocoPerformanceCheckpoint(name: "fahrfall" | "brickaway", state: CocoSessionState): void {
+  const directory = process.env.COCO_PERFORMANCE_CHECKPOINTS;
+  if (!directory) return;
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(join(directory, `${name}.json`), JSON.stringify(state));
+}
 
 /** Real firmware and physical input, with bounded, passive observation of third-party software. */
 export async function cocoSoftware(memory: 32 | 64 = 32) {

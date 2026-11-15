@@ -35,6 +35,7 @@ import { createExecutionIntervalView } from "./execution-interval-view.js";
 import { createCocoDebugger } from "./coco-debugger.js";
 import { createCocoDebuggerView } from "./coco-debugger-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
+import { createRefreshCadence } from "./refresh-cadence.js";
 import { createWorkspace } from "./workspace/dock.js";
 import { mountWorkspaceControls } from "./workspace/controls.js";
 import { cocoDefaultLayout, cocoWorkspaceKey, migrateCocoWorkspace } from "./coco-workspace.js";
@@ -77,6 +78,9 @@ function mountCoco(root: HTMLElement): void {
   });
   const intervals = createExecutionIntervalView(root, () => session.machine.clock, "board ticks");
   let requested: readonly string[] = [];
+  // Readable live tools need fewer redraws than the game screen. Boundary work keeps its own cadence.
+  const screenCadence = createRefreshCadence(1000 / 60), inspectorCadence = createRefreshCadence(100);
+  let screenDue = true, inspectorsDue = true;
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")];
   const updates = createPanelUpdates(root, id => refreshPanels([id]), "dromaios:inspectors:coco:live");
   const guides: CocoRomGuides = JSON.parse(at("coco-rom-guides").textContent!);
@@ -176,12 +180,14 @@ function mountCoco(root: HTMLElement): void {
   }
 
   function shouldUpdate(id: string): boolean {
-    return requested.includes(id) || updates.shouldUpdate(id, execution.running)
+    return requested.includes(id) || (id === "screen" ? screenDue : inspectorsDue) && updates.shouldUpdate(id, execution.running)
       && panels.some(panel => panel.dataset.workspacePanel === id && panel.getClientRects().length > 0);
   }
   function refreshPanels(ids: readonly string[]): void { requested = ids; refresh(); requested = []; }
   function refresh(): void {
     const ready = session.ready && !selecting, running = execution.running;
+    const now = performance.now();
+    screenDue = screenCadence.due(now, running); inspectorsDue = inspectorCadence.due(now, running);
     run.disabled = !ready || running || execution.error !== undefined;
     pause.disabled = !running; step.disabled = !ready || running || execution.error !== undefined;
     reset.disabled = !ready || running; power.disabled = selecting || running;

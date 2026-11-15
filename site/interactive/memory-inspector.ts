@@ -99,21 +99,26 @@ export function createMemoryInspector(panel: HTMLElement, storageKey: string, mo
     const resized = height !== scroller.clientHeight; height = scroller.clientHeight;
     if (resized && height > 0) jump(address); else draw();
   }).observe(scroller);
+  // Captured images are immutable observations, shared by tools with independent histories.
+  function refreshImage(captured: Int16Array, pc: number, pointers: Readonly<Record<string, number>> = {}): void {
+    observed = { ...pointers, pc };
+    const first = !initialized;
+    previous = image; image = captured; changed.clear();
+    if (initialized) for (let i = 0; i < image.length; i++) {
+      if (image[i]! >= 0 && previous[i]! >= 0 && image[i] !== previous[i]) changed.add(i);
+    }
+    initialized = true;
+    const destination = target();
+    if (first || destination !== undefined && destination !== address) jump(destination ?? address); else draw();
+  }
   return {
     controls,
     get address() { return address; },
     browse(value: number): void { follow = "fixed"; modes.select(follow); jump(value); },
     reset(): void { initialized = false; changed.clear(); },
     refresh(read: (address: number) => number | undefined, pc: number, pointers: Readonly<Record<string, number>> = {}): void {
-      observed = { ...pointers, pc };
-      const first = !initialized;
-      previous = image; image = captureMemory(read, size); changed.clear();
-      if (initialized) for (let i = 0; i < image.length; i++) {
-        if (image[i]! >= 0 && previous[i]! >= 0 && image[i] !== previous[i]) changed.add(i);
-      }
-      initialized = true;
-      const destination = target();
-      if (first || destination !== undefined && destination !== address) jump(destination ?? address); else draw();
+      refreshImage(captureMemory(read, size), pc, pointers);
     },
+    refreshImage,
   };
 }

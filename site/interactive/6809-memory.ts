@@ -13,6 +13,12 @@ export function create6809MemoryObservation() {
     return { address, value: value < 0 ? undefined : value, before: before < 0 ? undefined : before,
       changed: value >= 0 && before >= 0 && value !== before };
   }
+  /** Retain an immutable observation; each held tool keeps its own previous image. */
+  function refreshImage(captured: Int16Array, state: Pointers6809): void {
+    previous = image; image = captured;
+    if (!initialized) previous = image;
+    pointers = { s: state.s, u: state.u, dp: state.dp }; initialized = true;
+  }
   return {
     byte,
     pointer: (register: MemoryRegister6809): number => pointers[register],
@@ -22,10 +28,9 @@ export function create6809MemoryObservation() {
     },
     reset(): void { initialized = false; previous = image; },
     refresh(read: (address: number) => number | undefined, state: Pointers6809): void {
-      previous = image; image = captureMemory(read);
-      if (!initialized) previous = image;
-      pointers = { s: state.s, u: state.u, dp: state.dp }; initialized = true;
+      refreshImage(captureMemory(read), state);
     },
+    refreshImage,
   };
 }
 

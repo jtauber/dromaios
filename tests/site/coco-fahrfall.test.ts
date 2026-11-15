@@ -6,7 +6,7 @@ import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { createSpeakerSamples } from "../../site/interactive/speaker-samples.js";
 import { createCocoJoystickInput } from "../../site/interactive/coco-joystick-input.js";
 import { standardGamepad } from "../helpers/gamepad.js";
-import { cocoSoftware, cocoSoftwareRoms, cocoHash } from "../helpers/coco-software.js";
+import { cocoSoftware, cocoSoftwareRoms, cocoHash, saveCocoPerformanceCheckpoint } from "../helpers/coco-software.js";
 
 const needsMedia = !(cocoSoftwareRoms && process.env.COCO_FAHRFALL_DISK)
   && "Set COCO_ROM, COCO_EXTENDED_ROM, COCO_DISK_ROM, and COCO_FAHRFALL_DISK for Fahrfall beta 3.";
@@ -44,6 +44,7 @@ test("Fahrfall boots, moves both ways, makes sound, and replays loading and fast
   controls.keyUp({ key: " " });
   until(() => session.machine.sam.clockMode() === 1, 100_000, 1);
   const play = session.snapshot();
+  saveCocoPerformanceCheckpoint("fahrfall", play);
   assert.notDeepEqual(frame(), titlePixels, "fire starts the game");
 
   // Observe completed drawing bursts, not private game variables or instruction addresses.
