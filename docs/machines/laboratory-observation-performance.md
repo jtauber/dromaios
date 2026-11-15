@@ -60,10 +60,10 @@ configuration, alternating configuration order:
 - Recording plus an active Run-to request for an address the workload never reaches.
 
 All configurations capture display output every 10,000 boundaries and at the
-end. Apple II configurations also sample speaker audio at 48 kHz. The XT has
-no browser audio output in this model. Checksums cover the complete final
+end. Both machines sample speaker audio at 48 kHz; the XT observer also retains
+PIT transitions inside CPU intervals. Checksums cover the complete final
 hardware, input and media state; the sequence of sampled frames; retained
-change history; and Apple II PCM bytes. Compare corresponding JSON rows across
+change history; and PCM bytes. Compare corresponding JSON rows across
 strategies as well as the automatic within-run equality checks.
 
 This measures native debugger/change-log work, not the entire browser laboratory.
@@ -74,6 +74,7 @@ laboratories. Timing is a comparison on one host, not an acceptance threshold.
 ## Measured pass: 2026-11-15
 
 Apple M5 Max, Node 24.20.0; median of three restored samples per configuration.
+This pass predates XT audio observation; its XT samples include no PCM work.
 
 | Workload | Recording: fresh → captured | Run-to: fresh → captured |
 | --- | --- | --- |
@@ -90,3 +91,10 @@ All 36 paired samples had identical state, clocks, sampled display output and
 retained histories. All Apple II pairs also had identical PCM bytes. Focused
 tests cover snapshot counts, Language Card remapping, segmented aliases, REP,
 interrupts, manual completion, host edits, reset, restore and partial failures.
+
+The subsequent [XT pacing and audio acceptance](../../src/machines/8088/pc-xt.md#speed-clock-measurements-and-the-speaker)
+repeated all twelve workload/configuration combinations with speaker observation.
+Their state, clocks, sampled frames and histories still matched the pre-audio
+results. All four Ultima V configurations also produced identical PCM. This
+follow-up checks behavior; concurrent validation work makes its timings unsuitable
+for a performance comparison.

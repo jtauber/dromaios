@@ -149,6 +149,10 @@ measure("ultima-v/cga", 500_000, mode => {
   if (mode === "machine") log.dispose();
   if (mode === "run-to") debug.runTo({ address: 0xfffff }); else debug.run();
   let cpuState = machine.cpu.snapshot();
+  const audio = createHash("sha256");
+  const sampler = createSpeakerSamples(machine.io.clock.hertz, 48_000, machine.io.clock.ticks, Number(machine.io.speakerLevel));
+  const unobserve = machine.io.observeSpeaker((ticks, level) => sampler.advance(ticks, Number(level)));
+  function drain(): void { audio.update(new Uint8Array(sampler.take().buffer)); }
   return {
     step() {
       if (mode === "machine") session.step();
@@ -159,12 +163,14 @@ measure("ultima-v/cga", 500_000, mode => {
         cpuState = record.after;
         watches.observe(record, debug.watchpoints, log.memoryWrites(record));
       }
+      sampler.advance(machine.io.clock.ticks, Number(machine.io.speakerLevel));
     },
-    output: () => renderXtGraphicsFrame(machine),
+    output() { drain(); return renderXtGraphicsFrame(machine); },
     result() {
+      drain();
       assert.deepEqual([0x215c3, 0x215c6, 0x215c7].map(address => machine.ram.read(address)), [13, 15, 16]);
-      return { state: session.snapshot(), ticks: machine.io.oscillatorTicks - startTicks, history: log.entries() };
+      return { state: session.snapshot(), ticks: machine.io.oscillatorTicks - startTicks, history: log.entries(), pcm: audio.digest("hex") };
     },
-    dispose() { debug.dispose(); log.dispose(); },
+    dispose() { unobserve(); debug.dispose(); log.dispose(); },
   };
 });

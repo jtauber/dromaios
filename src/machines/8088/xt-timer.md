@@ -56,7 +56,15 @@ before any clock or device changes. Zero advances do nothing.
 
 PB1 enables the modeled speaker signal: `speakerLevel` is PB1 AND OUT2.
 It exposes the control waveform, not audible output or the electrical speaker
-voltage. Port 43 is write-only; the machine's port map chooses the undriven-read
+voltage. `observeSpeaker()` reports each changed level with its oscillator tick,
+after the board connections settle. This includes PIT transitions inside a CPU
+interval and immediate PPI/control writes at the current tick. Attaching an
+observer reports no synthetic edge; its returned function detaches it. Observers
+are host tools, absent from snapshots. A restored board needs a new subscription.
+The laboratory's audio observer handles playback errors without interrupting
+the CPU; general observers must not throw or mutate the board.
+
+Port 43 is write-only; the machine's port map chooses the undriven-read
 response. Register addresses are canonical; aliases remain outside this slice.
 IRQ0 and IRQ1 belong to the timer and keyboard, so the host cannot override
 them through `setInterruptLine`. Other PIC inputs remain available.

@@ -3,6 +3,9 @@ import { romImages as egaRomImages } from "../../src/machines/generated/8088/pc-
 import { xtDisketteSize } from "../../src/machines/8088/pc-xt/io.js";
 import { xtOscillatorHz } from "../../src/machines/8088/pc-xt/clock.js";
 import { createExecutionController } from "./execution-controller.js";
+import { createExecutionSpeedControls } from "./execution-speed-controls.js";
+import { createExecutionIntervalView } from "./execution-interval-view.js";
+import { createMachineSound } from "./machine-sound-view.js";
 import { downloadDiskImage } from "./disk-download.js";
 import { readRomFile } from "./rom-file.js";
 import { romFileStorage } from "./rom-storage.js";
@@ -42,6 +45,10 @@ function mount(root: HTMLElement): void {
   const display = createXtScreen(root.querySelector("canvas")!, at("screen-text"), at("screen-notice"));
   const ega = root.dataset.xtLaboratory === "ega";
   const session = ega ? createXtEgaSession() : createXtSession();
+  const intervals = createExecutionIntervalView(root, () => session.machine.io.clock, "oscillator ticks");
+  const sound = createMachineSound(root, () => ({ clock: session.machine.io.clock, level: Number(session.machine.io.speakerLevel) }));
+  const observeSpeaker = () => session.machine.io.observeSpeaker((ticks, level) => sound.observeAt(ticks, Number(level)));
+  let unobserveSpeaker = observeSpeaker();
   const images = { ...romImages, ...egaRomImages };
   const checkpointKey = ega ? xtCheckpointKey + ":ega" : xtCheckpointKey;
   const debug = createXtDebugger(() => session.machine);
@@ -91,14 +98,18 @@ function mount(root: HTMLElement): void {
       const log = changeLog.current();
       const observed = log.recording ? observeBoundary() : undefined;
       const record = log.capture(() => debug.capture(() => session.step()), observed);
+      sound.observe();
       watchHistory.observe(record, debug.watchpoints, log.memoryWrites(record));
       return record;
     }, canStep: () => session.ready && !loading,
     pauseBeforeStep: () => debug.beforeStep(() => observeBoundary().caller),
-    onChange: refresh, batchSize: 8192,
+    onChange: refresh, batchSize: 8192, batchTimeMs: 8,
     schedule(callback, ms) { const id = window.setTimeout(callback, ms); return () => window.clearTimeout(id); },
   });
   execution.setDelay(1);
+  const speed = createExecutionSpeedControls(root, {
+    unit: "oscillator ticks", clock: () => session.machine.io.clock, setPacing: execution.setPacing, changed: refresh,
+  });
   const debugView = createXtDebuggerView(root, debug, {
     ramMaximum: session.machine.ram.size - 1, changed: refresh,
     memory: browseMemory,
@@ -137,6 +148,9 @@ function mount(root: HTMLElement): void {
 
   function refresh(requested?: string): void {
     const running = execution.running, ready = session.ready && !loading, runnable = ready && !execution.error;
+    speed.refresh(!ready);
+    sound.refresh({ running, normal: speed.normal, unavailable: !ready });
+    intervals.refresh({ running, unavailable: !ready, stop: execution.error ? "error" : debug.stop?.kind });
     button("run").disabled = button("step").disabled = !runnable || running;
     button("run-to").disabled = target.disabled = !runnable || running;
     button("pause").disabled = !running;
@@ -163,7 +177,8 @@ function mount(root: HTMLElement): void {
 
     const cpu = session.machine.cpu.snapshot(), seconds = session.machine.io.oscillatorTicks / xtOscillatorHz;
     status.textContent = [running ? "Running" : ready ? "Paused" : "Waiting for firmware",
-      `CS:IP ${hex(cpu.cs, 4)}:${hex(cpu.ip, 4)} · physical ${hex(cpu.pc, 5)}`, `${seconds.toFixed(2)} s on the XT`,
+      `CS:IP ${hex(cpu.cs, 4)}:${hex(cpu.ip, 4)} · physical ${hex(cpu.pc, 5)}`,
+      `${session.machine.io.oscillatorTicks.toLocaleString()} oscillator ticks · ${seconds.toFixed(2)} s on the XT`,
       session.keyboard.queuedBytes ? `${session.keyboard.queuedBytes} scan bytes queued` : "",
       session.keyboard.pasteRemaining ? `${session.keyboard.pasteRemaining} characters to paste` : ""].filter(Boolean).join(" · ");
     at("error").textContent = execution.error ?? "";
@@ -199,6 +214,7 @@ function mount(root: HTMLElement): void {
     refresh();
   }
   function resetTools(): void {
+    unobserveSpeaker(); unobserveSpeaker = observeSpeaker(); intervals.clearStep();
     execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset();
   }
   function run(): void { debug.run(); message.textContent = ""; execution.run(); screen.focus(); }
@@ -208,7 +224,7 @@ function mount(root: HTMLElement): void {
   }
   button("run").onclick = run;
   button("pause").onclick = () => { debug.pause(); execution.stop(); };
-  button("step").onclick = () => { debug.step(); execution.step(); };
+  button("step").onclick = () => { debug.step(); intervals.begin("step"); execution.step(); };
   button("reset").onclick = () => act(() => { session.resetCpu(); resetTools(); });
   button("power").onclick = () => act(() => powerOn("cold"));
   button("quick").onclick = () => act(() => powerOn("quick"));

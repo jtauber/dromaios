@@ -16,6 +16,7 @@ export class XtClock {
 
   snapshot(): XtClockSnapshot { return { ticks: this.#ticks }; }
   get ticks(): number { return this.#ticks; }
+  get hertz(): number { return xtOscillatorHz; }
   reset(): void { this.#ticks = 0; }
 
   /** Visit every PIT boundary and the final partial interval, preserving integer phase. */

@@ -46,9 +46,17 @@ export function createMachineSound(root: HTMLElement, machine: () => {
     refresh();
   });
   button.disabled = false;
+  function audible(): boolean { return enabled && running && normal && !unavailable && context?.state === "running"; }
+  function observeAt(ticks: number, level: number): void {
+    if (!audible()) return;
+    try { playback?.observe(ticks, level); }
+    catch (cause) { failed(cause); }
+  }
   return {
+    // Clocked peripherals can report transitions within an instruction's elapsed interval.
+    observeAt,
     observe(): void {
-      if (!enabled || !running || !normal || unavailable || context?.state !== "running") return;
+      if (!audible()) return;
       try { const current = machine(); playback?.observe(current.clock.ticks, current.level); }
       catch (cause) { failed(cause); }
     },

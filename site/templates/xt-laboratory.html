@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "execution-controls.html" import run_speed, clock_measurements, sound_controls %}
 {% block description %}Boot an IBM PC/XT into ROM BASIC or DOS, exchange floppy disks, and save your session.{% endblock %}
 {% block body_class %}laboratory-page{% endblock %}
 {% block head %}<script type="module" src="{{ calc_url(xt_lab_script) }}"></script>{% endblock %}
@@ -36,11 +37,16 @@
       <div class="basic-controls">{% for name, label in [('run','Run'),('pause','Pause'),('step','Step'),('break','Ctrl-Break'),('warm','Ctrl-Alt-Del'),('reset','Reset CPU'),('power','Fresh power-on')] %}
         <button type="button" data-{{ name }} disabled>{{ label }}</button>{% endfor %}
         <button type="button" data-quick disabled title="Start a fresh XT with the mounted disk and ask the BIOS to skip the long RAM test.">Quick boot</button></div>
+      {{ run_speed() }}
+      {{ sound_controls() }}
       <p class="basic-readout" data-execution>Paused</p>
+      {{ clock_measurements() }}
       <p class="basic-message" data-debugger-status></p>
       <p class="basic-message" data-error role="alert"></p>
       <p class="basic-message" data-message role="status"></p>
       <details><summary>Using the keyboard</summary><p class="lab-hint">At BASIC’s Ok prompt, type PRINT 2+3 and press Enter. You can paste several lines at once. Ctrl-Break interrupts a running BASIC program. Ctrl-Alt-Del sends the XT restart chord.</p></details>
+      <details><summary>Speed, clocks and sound</summary><p class="lab-hint">Normal follows the XT’s 14,318,180 Hz oscillator; Unlimited runs as fast as the browser allows. Mark clock measures elapsed ticks, including DMA and halted time. Step reports its interval separately. CPU reset preserves time; power-on and checkpoint restore clear the marker.</p>
+        <p class="lab-hint">Sound plays the PC speaker during Normal Run. Try BEEP or SOUND 440,9 at BASIC’s Ok prompt. Pause and Unlimited are silent; restoring a checkpoint resumes the saved timer phase with a fresh audio queue.</p></details>
     </section>
     <section class="lab-tool lab-tool-registers lab-panel-body lab-scroll" data-workspace-panel="registers" data-panel-title="Registers" data-panel-heading="Intel 8088 · Registers" data-panel-live="true">
       <div class="lab-registers"></div><div class="lab-flags"></div>

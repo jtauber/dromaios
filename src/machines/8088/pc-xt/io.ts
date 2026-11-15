@@ -68,6 +68,8 @@ export class XtIo implements MemoryConnection {
   readonly #diskette: IbmXtDiskette;
   #diskettePage: number;
   #disketteImage: XtDisketteImage | null;
+  readonly #speakerObservers = new Set<(ticks: number, level: boolean) => void>();
+  #observedSpeakerLevel = false;
 
   constructor(state?: XtIoSnapshot) {
     if (state !== undefined && (!state.pic || !state.ppi || !state.keyboard || !state.pit || !state.clock || !state.dma || !state.system || !state.diskette
@@ -120,6 +122,14 @@ export class XtIo implements MemoryConnection {
   get disketteWritable(): boolean { return this.#diskette.writable(); }
   get refreshOutput(): boolean { return this.#pit.output(1); }
   get oscillatorTicks(): number { return this.#clock.ticks; }
+  get clock(): Pick<XtClock, "ticks" | "hertz"> { return this.#clock; }
+
+  /** Observe settled speaker transitions, including PIT edges inside a CPU interval. */
+  observeSpeaker(observer: (ticks: number, level: boolean) => void): () => void {
+    if (!this.#speakerObservers.size) this.#observedSpeakerLevel = this.speakerLevel;
+    this.#speakerObservers.add(observer);
+    return () => { this.#speakerObservers.delete(observer); };
+  }
 
   /** A request raised by the CPU's own bus transfer misses that instruction's INTR sample. */
   runCpuBoundary<T>(execute: (intr: boolean) => T): T {
@@ -299,6 +309,13 @@ export class XtIo implements MemoryConnection {
     else if (refresh && !this.#refreshOutput) this.#refreshPending = true;
     this.#refreshOutput = refresh;
     this.#dma.setRequests(this.#refreshPending, false, this.#disketteImage !== null && this.#diskette.dreq(), false);
+    if (this.#speakerObservers.size) {
+      const level = this.speakerLevel;
+      if (level !== this.#observedSpeakerLevel) {
+        this.#observedSpeakerLevel = level;
+        for (const observer of this.#speakerObservers) observer(this.#clock.ticks, level);
+      }
+    }
   }
 }
 

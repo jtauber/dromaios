@@ -605,6 +605,54 @@ The first part of POST runs with video disabled. The address and emulated
 seconds in **Execution** show the board advancing. **Step** advances one timed
 CPU boundary.
 
+### Speed, clock measurements and the speaker
+
+**Normal** paces Run against the nominal **14,318,180 Hz** board oscillator.
+CPU CLK divides that frequency by three, while the PIT divides it by twelve.
+The display and devices advance only through the machine's timed execution
+path. Slow inspectors can make Run fall behind; resuming after a pause does
+not accumulate a backlog of host time. **Unlimited** removes the speed limit
+while retaining bounded batches so Pause and other controls remain responsive.
+
+**Mark clock** measures an interval in oscillator ticks. **Step** reports its
+completed interval separately, including any DMA grant or halted-time advance.
+These are elapsed board ticks, not a claim that the CPU executed that many
+clocks. CPU reset preserves the marker and elapsed time. Fresh power-on and
+checkpoint restoration replace the clock and clear inspector measurements;
+restoration still preserves the saved hardware time and timer phase.
+
+**Sound** enables the PC speaker during Normal Run. The
+[timer chapter](xt-timer.md#board-connections) defines the PB1/OUT2 signal.
+The observer samples every transition, including several PIT edges inside one
+instruction, and averages the held signal into audio samples. It reuses the
+Apple II and CoCo playback path, with bounded buffering, modest gain and DC
+removal. Pause, focus loss and Unlimited silence queued playback. Restoring a
+checkpoint starts a fresh playback buffer from the restored signal and phase;
+browser audio buffers and permission are not hardware snapshot state.
+This models the digital waveform, not the physical speaker's frequency response.
+
+With Drive A empty, use **Quick boot** to reach the original BASIC `Ok` prompt,
+enable Sound, select Normal and enter:
+
+```text
+SOUND 440,9:SOUND 880,9:PRINT 42
+```
+
+The selected BASIC plays two pitches an octave apart for about half a second
+each, prints `42` and returns to `Ok`. Its final tone can continue after the
+prompt appears; leave Run active until it finishes. `BEEP` exercises BASIC's
+standard beep. A longer `SOUND 440,91` is useful for pausing and saving a
+checkpoint mid-note, then restoring it and resuming.
+
+[Acceptance tests](../../../tests/site/xt-sound.test.ts) run the original ROM
+and keyboard path, check the pitches and duration, and compare the exact
+remaining speaker edges, 48 kHz samples and complete session state after
+restoring a mid-note checkpoint. [Pacing tests](../../../tests/site/xt-clock.test.ts)
+compare Normal, Unlimited and Step through native interrupt entry, halted
+time and DMA refresh. No host oscillator substitutes for the guest PIT.
+
+### Startup and saved sessions
+
 For a shorter startup, choose **Quick boot** in Execution. It starts fresh RAM
 and devices, keeps the mounted disk, and sets the BIOS warm-start word at
 `0040:0072` to `1234h` before running from the reset vector. The original
