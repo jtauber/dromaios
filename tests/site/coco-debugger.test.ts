@@ -4,7 +4,7 @@ import { create6809Coco64 } from "../../src/machines/generated/6809/coco64.js";
 import { create6809Coco } from "../../src/machines/generated/6809/coco.js";
 import { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
 import { stepCoco } from "../../src/machines/6809/coco/runtime.js";
-import { createCocoDebugger, cocoDebugLocation, decodeCocoAddressStops } from "../../site/interactive/coco-debugger.js";
+import { createCocoDebugger, cocoDebugLocation, decodeCocoAddressStops, observeCocoBoundary } from "../../site/interactive/coco-debugger.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
 import { previewCocoInstruction } from "../../site/interactive/coco-instruction-preview.js";
 import { catalogue6809 as catalogue, state6809 } from "./6809-inspection-fixture.js";
@@ -164,9 +164,13 @@ test("64 KiB watchpoints use physical RAM while instruction locations follow P1 
   const before = machine.snapshot(); const preview = previewCocoInstruction(machine, catalogue);
   assert.deepEqual(machine.snapshot(), before, "preview uses the banked map without writing live RAM");
   assert.ok(preview);
-  debug.run(); debug.capture(() => stepCoco(machine));
+  debug.run(); const record = debug.capture(() => stepCoco(machine));
   assert.equal(debug.hit?.address, 0x9234); assert.equal(debug.hit?.after, 42);
   assert.equal(machine.ram.read(0x1234), 0); assert.equal(debug.stop?.kind, "watchpoint");
   machine.sam.write(0x1f, 0);
   assert.deepEqual(cocoDebugLocation(machine, 0xa000), { address: 0xa000, space: "ram" });
+  machine.sam.write(0x14, 0); // P1=0: the same CPU PC now sees lower RAM.
+  const observed = observeCocoBoundary(machine, record.after);
+  assert.equal(observed.state, record.after);
+  assert.deepEqual(observed.caller, { address: 0x2003, space: "ram" }, "reused CPU state never reuses a stale address map");
 });

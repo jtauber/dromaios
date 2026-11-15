@@ -6,6 +6,7 @@ import { instructionCatalogue6809 } from "../../site/6809-instruction-catalogue.
 import { decode6809, disassemble6809Rows } from "../../site/interactive/6809-disassembly.js";
 import { code6809Rows } from "../../site/interactive/6809-code.js";
 import { testFlagCondition } from "../../site/interactive/instruction-shape.js";
+import { captured6809Shape } from "../../site/interactive/6809-encoding.js";
 import { catalogue6809 as catalogue, chapter6809, state6809 } from "./6809-inspection-fixture.js";
 
 const decode = (bytes: readonly number[], start = 0x2000) => decode6809(address => bytes[(address - start) & 0xffff], start, catalogue);
@@ -22,8 +23,23 @@ test("all 268 chapter entries, including every postbyte, match the CPU's actual 
       const row = decode(bytes), record = cpu.step(), label = `${info!.name} ${postbyte.toString(16)}`;
       assert.equal(row.bytes.length, record.instruction!.bytes.length, label);
       assert.equal(row.complete, record.outcome !== "unsupported", label);
+      assert.equal(captured6809Shape(record.instruction!.bytes, catalogue), row.complete ? row.shape : undefined, label);
     }
   }
+});
+
+test("captured effects reject missing bytes and unsupported selectors without reading presentation text", () => {
+  for (const bytes of [[], [0x10], [0x10, 0x10], [0xbd, 0x20], [0xa6, 0x89, 0], [0xa6, 0x87], [0x1f, 0x66]]) {
+    assert.equal(captured6809Shape(bytes, catalogue), undefined, bytes.toString());
+  }
+  const instructions = Object.fromEntries(Object.entries(catalogue.instructions).map(([opcode, info]) => [opcode, {
+    ...info!, get name(): string { throw new Error("Effects do not need assembly names"); },
+    get explanation(): string { throw new Error("Effects do not need prose"); },
+  }]));
+  const metadata = { ...catalogue, instructions };
+  assert.deepEqual(captured6809Shape([0x10, 0x3f], metadata)?.stack, { flow: "interrupt", register: "s" });
+  assert.deepEqual(captured6809Shape([0x35, 0x80], metadata)?.stack, { flow: "stack-return", register: "s" });
+  assert.deepEqual(captured6809Shape([0xad, 0xf1], metadata)?.stack, { flow: "call", register: "s" });
 });
 
 test("Motorola indexed spellings, independent postbyte legality, prefixes and signed offsets", () => {

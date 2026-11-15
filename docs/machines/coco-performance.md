@@ -40,6 +40,8 @@ preview and composite raster rendering every 5,000 boundaries. The latter
 interval is fixed guest work for comparison, not the browser's refresh policy.
 Every configuration must finish with identical complete hardware/input/media
 state and pixels; sound and inspection must also produce identical PCM bytes.
+Each JSON result includes state, frame and PCM checksums so runs from separate
+implementations can be compared as well.
 
 These are native costs. They exclude browser layout, canvas transfer, timer
 scheduling and audio-device playback. Run benchmarks without concurrent builds,
@@ -75,7 +77,7 @@ independent pointers, previous images and highlights. Held tools continue to
 show their own captured state. These display choices never skip CPU boundaries,
 debugger checks, physical input polling, sound edges or history collection.
 
-### Measured pass: 2026-11-15
+### Inspector refresh pass: 2026-11-15
 
 On an Apple M5 Max, in the in-app browser at 1280 × 720, two samples per game
 compared `2e6603a` with this pass. Normal speed, composite display, Sound and
@@ -101,3 +103,45 @@ observation instead of copying the CPU state again. The browser remains
 slower than the declared hardware rate in these fully instrumented workloads;
 this pass roughly halves host time, without claiming cycle accuracy or
 real-time performance on every host.
+
+### Debugger observation pass: 2026-11-15
+
+The laboratory now reuses the preceding execution record's detached CPU state
+for breakpoint checks, caller locations and change recording. Reset, power-on
+and machine replacement clear execution history, so the next boundary takes a
+fresh snapshot. Address mapping is still observed each time: reused CPU state
+must not retain an old SAM bank or cartridge mapping. A failed step still logs
+its completed effects from the actual machine state and stops execution.
+
+Call tracking selects chapter-derived effects directly from the captured opcode
+and postbyte. It shares that selection with disassembly, without formatting
+operands or descriptions on every executed instruction. Interrupt entry and
+waiting-frame tracking retain their existing behavior.
+
+The following native medians compare `5e24e2d` with this pass on the same
+Apple M5 Max and Node 24.20.0. Each configuration ran three restored samples of
+500,000 boundaries, with Node CPU profiling enabled on both implementations.
+
+| Observation | Fahrfall before | Fahrfall after | Brickaway before | Brickaway after |
+| --- | --- | --- | --- | --- |
+| Machine alone | 610.7 ms | 602.0 ms | 660.5 ms | 612.8 ms |
+| Debugger and RAM writes | 1,471.6 ms | 701.7 ms | 1,516.4 ms | 727.1 ms |
+| Also change recording | 1,794.8 ms | 830.5 ms | 1,880.0 ms | 876.1 ms |
+| Also sound sampling | 1,808.6 ms | 855.4 ms | 1,920.2 ms | 879.4 ms |
+| Also periodic inspection | 1,943.5 ms | 945.9 ms | 2,467.6 ms | 1,048.6 ms |
+
+All 30 before/after pairs matched complete hardware/input/media state, final
+pixels and board ticks exactly; all sound-enabled pairs also matched every PCM
+byte. Variation in the machine-only baseline is host noise: this pass changes
+observers, not machine execution. Debugger-enabled workloads took roughly half
+the host time. A focused test confirms that continuous observation adds no CPU
+snapshots beyond the execution record's own before/after copies.
+
+Repeating the browser protocol above with Fahrfall, Normal speed, Sound and all
+visible inspectors live took 14.33–14.72 seconds before and 7.73–7.79 seconds
+after, across two samples of each implementation. Every sample finished at PC
+`$4F43` after 2,000,000 boundaries and 12,946,104 board ticks; the visible register
+and memory results also agreed. This is close to the workload's declared
+7.23 seconds of guest time, while remaining a measurement of this host and
+layout. Reset and checkpoint restore were checked separately for fresh caller
+locations and change-log values.

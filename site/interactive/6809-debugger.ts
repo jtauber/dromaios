@@ -1,6 +1,6 @@
 import type { Catalogue6809 } from "./6809-catalogue.js";
 import type { Boundary6809 } from "./6809-instruction-preview.js";
-import { decode6809 } from "./6809-disassembly.js";
+import { captured6809Shape } from "./6809-encoding.js";
 import type { createInstructionDebugger, DebugLocation } from "./instruction-debugger.js";
 
 /** Fetched bytes select chapter-derived effects. Observations never reread code, stack memory, or devices. */
@@ -10,12 +10,12 @@ export function create6809DebugObserver(policy: ReturnType<typeof createInstruct
     reset(): void { waitingStack = undefined; },
     observe(record: Boundary6809, before: DebugLocation, after: DebugLocation): void {
       const instruction = record.instruction;
-      const decoded = instruction && decode6809(address => instruction.bytes[(address - instruction.address) & 0xffff], instruction.address, catalogue);
-      if (record.outcome === "unsupported" || instruction && !decoded?.complete) {
+      const shape = instruction && captured6809Shape(instruction.bytes, catalogue);
+      if (record.outcome === "unsupported" || instruction && !shape) {
         waitingStack = undefined; policy.fail(after, "Instruction effects are unavailable; caller tracking stopped."); return;
       }
       const entered = record.outcome === "accepted";
-      const stack = entered ? { flow: "interrupt" as const, register: "s" } : decoded?.shape?.stack;
+      const stack = entered ? { flow: "interrupt" as const, register: "s" } : shape?.stack;
       if (entered && record.before.waitMode === "cwai" && waitingStack === undefined) {
         policy.observeBoundary(); policy.loseTracking(after, "The waiting interrupt frame was not observed; its caller is unknown."); return;
       }
@@ -29,7 +29,7 @@ export function create6809DebugObserver(policy: ReturnType<typeof createInstruct
         : stacked ? (record.after[register] + writes) & 0xffff : record.before[register];
       policy.observe({ before, after, stackRegister: register, stackBefore, stackAfter: record.after[register], flow: stack?.flow,
         returnAddress: instruction ? (instruction.address + instruction.bytes.length) & 0xffff : record.before.pc,
-        resetsStack: decoded?.shape?.replacedStacks?.includes("s") ?? false });
+        resetsStack: shape?.replacedStacks?.includes("s") ?? false });
       if (entered) waitingStack = undefined;
     },
   };

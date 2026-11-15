@@ -11,7 +11,7 @@ import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
 import { decode6809 } from "./6809-disassembly.js";
 import { createCallStack } from "./call-stack-view.js";
 import { createDebuggerStepControls } from "./debugger-step-controls.js";
-import { cocoDebugLocation } from "./coco-debugger.js";
+import { cocoDebugLocation, observeCocoBoundary } from "./coco-debugger.js";
 import { romImages } from "../../src/machines/generated/6809/coco-disk.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
 import { createCocoRomAnnotations, observeCocoRoms, cocoWalkthroughAvailable } from "./coco-rom-guide.js";
@@ -122,16 +122,20 @@ function mountCoco(root: HTMLElement): void {
     browse: address => { code.browse(address); workspace.show("code"); },
   });
   const instruction = create6809InstructionView(at("coco-instruction"), browse);
+  function observeBoundary(): ReturnType<typeof observeCocoBoundary> {
+    // Every host reset/replacement calls changedMachine(), which clears execution records.
+    return observeCocoBoundary(session.machine, execution.records.at(-1)?.after);
+  }
   const execution = createExecutionController({
     step() {
-      const caller = cocoDebugLocation(session.machine), log = changeLog.current();
-      const record = log.capture(() => debug.capture(() => session.step()));
+      const observed = observeBoundary(), log = changeLog.current();
+      const record = log.capture(() => debug.capture(() => session.step(), observed.caller), observed);
       sound.observe();
-      watchHistory.observe(record, caller, debug.watchpoints, log.memoryWrites(record));
+      watchHistory.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record));
       return record;
     },
     canStep: () => session.ready && !selecting,
-    pauseBeforeStep: () => debug.beforeStep(),
+    pauseBeforeStep: () => debug.beforeStep(observeBoundary().caller),
     schedule(callback, delay) {
       const id = window.setTimeout(() => { joysticks.poll(); callback(); }, delay);
       return () => window.clearTimeout(id);

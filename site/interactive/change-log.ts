@@ -25,6 +25,12 @@ export interface ChangeEntry {
   readonly changes: readonly RecordedChange[];
 }
 
+/** The state and mapping at one boundary, captured before execution can change either. */
+export interface ChangeObservation<State> {
+  readonly state: State;
+  readonly caller: DebugLocation;
+}
+
 /** Prepare names, widths and groups once; per-instruction comparisons only inspect stored values. */
 export function createProcessorChanges(fields: StateFields, counters: readonly string[] = ["pc"]) {
   type Field = { name: string; fields: readonly Field[] } | { name: string; change: Pick<RecordedChange, "kind" | "target" | "width"> };
@@ -91,9 +97,10 @@ export function createChangeLog<State extends object, Record extends ChangeBound
       latest = undefined;
       append({ source: "user", sequence: ++sequence, instruction: undefined, outcome: "edited", changes: [memoryChange(change)] });
     },
-    capture(step: () => Record): Record {
+    capture(step: () => Record, observed?: ChangeObservation<State>): Record {
       sequence++;
-      const before = recording ? adapter.snapshot() : undefined, caller = before && adapter.location(before);
+      const before = recording ? observed?.state ?? adapter.snapshot() : undefined;
+      const caller = before && (observed?.caller ?? adapter.location(before));
       writes = [];
       let record: Record | undefined;
       try { return record = step(); }

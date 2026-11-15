@@ -3,6 +3,7 @@ import type { InstructionShape } from "./instruction-shape.js";
 import type { DisassemblyRow } from "./disassembly.js";
 import { disassemblyRows } from "./disassembly.js";
 import { checkUnsigned } from "../../src/components/validation.js";
+import { read6809Encoding } from "./6809-encoding.js";
 
 export const hex6809 = (value: number, width = 4): string => value.toString(16).toUpperCase().padStart(width, "0");
 const signed = (value: number, bits: number) => value < 2 ** (bits - 1) ? value : value - 2 ** bits;
@@ -45,16 +46,9 @@ export function decode6809(read: (address: number) => number | undefined, addres
   checkUnsigned("Disassembly address", address, 0xffff);
   const bytes: (number | undefined)[] = [];
   function fetch(): number | undefined { const byte = read((address + bytes.length) & 0xffff); bytes.push(byte); return byte; }
-  const first = fetch(); let opcode = first;
-  if (first !== undefined && catalogue.prefixes.includes(first)) {
-    const second = fetch(); opcode = second === undefined ? undefined : first * 256 + second;
-  }
-  const opcodeBytes = bytes.length, info = opcode === undefined ? undefined : catalogue.instructions[opcode];
+  const { opcodeBytes, info, shape } = read6809Encoding(fetch, catalogue);
   if (!info) return { address, opcodeBytes, bytes, complete: false,
     assembly: bytes.some(byte => byte === undefined) ? "Unavailable" : `.byte ${bytes.map(byte => `$${hex6809(byte!, 2)}`).join(", ")}` };
-  let shape: InstructionShape | undefined;
-  if (typeof info.shape === "number") shape = catalogue.shapes[info.shape];
-  else { const postbyte = fetch(); if (postbyte !== undefined) shape = catalogue.shapes[info.shape[postbyte]!]; }
   while (shape && bytes.length < shape.length) fetch();
   const complete = shape?.supported === true && bytes.every(byte => byte !== undefined);
   if (shape?.supported === false) return { address, opcodeBytes, bytes, info, shape, complete,

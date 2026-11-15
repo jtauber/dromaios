@@ -9,7 +9,7 @@ import { createCocoSession } from "../site/interactive/coco-session.js";
 import { compileCpuChapter } from "../src/components/cpus/semantics/literate/compile.js";
 import { instructionCatalogue6809 } from "../site/6809-instruction-catalogue.js";
 import { renderCocoFrame } from "../src/machines/6809/coco/runtime.js";
-import { createCocoDebugger, cocoDebugLocation } from "../site/interactive/coco-debugger.js";
+import { createCocoDebugger, observeCocoBoundary } from "../site/interactive/coco-debugger.js";
 import { createCocoChangeLog } from "../site/interactive/coco-change-log.js";
 import { createCocoWatchHistory } from "../site/interactive/coco-watch-history.js";
 import { readCocoStorage } from "../site/interactive/coco-inspection.js";
@@ -56,16 +56,18 @@ for (const workload of ["fahrfall", "brickaway"] as const) {
       const audio = createHash("sha256");
       const drain = () => { if (sampler) audio.update(new Uint8Array(sampler.take().buffer)); };
       debug.run();
+      let cpuState = session.machine.cpu.snapshot();
       let inspectionMs = 0;
       const start = performance.now();
       try {
         for (let i = 0; i < boundaries; i++) {
           if (mode === "machine") session.step();
           else {
-            assert.equal(debug.beforeStep(), false);
-            const caller = cocoDebugLocation(session.machine);
-            const record = log.capture(() => debug.capture(() => session.step()));
-            watches.observe(record, caller, debug.watchpoints, log.memoryWrites(record));
+            assert.equal(debug.beforeStep(observeCocoBoundary(session.machine, cpuState).caller), false);
+            const observed = observeCocoBoundary(session.machine, cpuState);
+            const record = log.capture(() => debug.capture(() => session.step(), observed.caller), observed);
+            cpuState = record.after;
+            watches.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record));
           }
           sampler?.advance(clock.ticks, session.machine.pias.soundLevel);
           if ((i + 1) % batchSize === 0) {
@@ -85,13 +87,14 @@ for (const workload of ["fahrfall", "brickaway"] as const) {
         const result = state + frame;
         expected ??= result;
         assert.equal(result, expected, `${workload}/${mode}: observations changed hardware or pixels`);
-        if (sampler) {
-          const pcm = audio.digest("hex"); expectedAudio ??= pcm;
+        const pcm = sampler ? audio.digest("hex") : undefined;
+        if (pcm !== undefined) {
+          expectedAudio ??= pcm;
           assert.equal(pcm, expectedAudio, `${workload}/${mode}: observations changed PCM samples`);
         }
         const samples = timings.get(mode) ?? []; samples.push(elapsedMs); timings.set(mode, samples);
         console.log(JSON.stringify({ workload, mode, repeat: repeat + 1, elapsedMs, inspectionMs,
-          ticks: clock.ticks - startTicks, state, frame }));
+          ticks: clock.ticks - startTicks, state, frame, pcm }));
       } finally { debug.dispose(); log.dispose(); }
     }
   }

@@ -5,8 +5,9 @@ import { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
 import { stepCoco } from "../../src/machines/6809/coco/runtime.js";
 import { createCocoChangeLog } from "../../site/interactive/coco-change-log.js";
 import { createCocoWatchHistory } from "../../site/interactive/coco-watch-history.js";
-import { createCocoDebugger, cocoDebugLocation } from "../../site/interactive/coco-debugger.js";
+import { createCocoDebugger, observeCocoBoundary } from "../../site/interactive/coco-debugger.js";
 import { catalogue6809, state6809 } from "./6809-inspection-fixture.js";
+import { createExecutionController } from "../../site/interactive/execution-controller.js";
 
 function fixture(bytes: readonly number[], capacity = 500) {
   const machine = create6809Coco({ firmware: null, extended: null });
@@ -14,9 +15,12 @@ function fixture(bytes: readonly number[], capacity = 500) {
   bytes.forEach((byte, index) => machine.ram.write(0x2000 + index, byte));
   const log = createCocoChangeLog(machine, capacity), history = createCocoWatchHistory(2);
   const debug = createCocoDebugger(() => machine, catalogue6809);
+  let previous: ReturnType<typeof stepCoco> | undefined;
   const step = () => {
-    const caller = cocoDebugLocation(machine), record = log.capture(() => debug.capture(() => stepCoco(machine)));
-    history.observe(record, caller, debug.watchpoints, log.memoryWrites(record)); return record;
+    const observed = observeCocoBoundary(machine, previous?.after);
+    const record = log.capture(() => debug.capture(() => stepCoco(machine), observed.caller), observed);
+    previous = record;
+    history.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record)); return record;
   };
   return { machine, log, history, debug, step };
 }
@@ -39,6 +43,70 @@ test("CoCo uses the shared change log for registers, flags, PC and ordered big-e
   assert.equal(entries.flatMap(entry => entry.changes).some(change => change.target === "D"), false, "A/B changes do not appear twice under their D alias");
   p.machine.ram.write(0x2003, 0x12); assert.deepEqual(entries[1]!.instruction!.bytes, [0xfd, 0x12, 0x10]);
   assert.deepEqual(p.log.memoryWrites(stored), [], "Only the latest completed boundary supplies highlights");
+});
+
+test("reused observations add no CPU copies and retain a complete log of partial execution failures", () => {
+  const p = fixture([0x12, 0xfd, 0x12, 0x10]); // NOP; STD $1210
+  const first = p.step(), observed = observeCocoBoundary(p.machine, first.after);
+  let snapshots = 0;
+  const snapshot = p.machine.cpu.snapshot.bind(p.machine.cpu);
+  p.machine.cpu.snapshot = () => { snapshots++; return snapshot(); };
+  assert.equal(p.debug.beforeStep(observed.caller), false);
+  const record = p.log.capture(() => p.debug.capture(() => stepCoco(p.machine), observed.caller), observed);
+  assert.equal(snapshots, 2, "only the CPU's before/after execution record needs copying");
+  assert.deepEqual(p.log.entries()[0]!.caller, observed.caller);
+  assert.equal(p.log.entries()[0]!.changes.find(change => change.target === "PC")?.before, first.after.pc);
+
+  const next = observeCocoBoundary(p.machine, record.after);
+  assert.throws(() => p.log.capture(() => p.debug.capture(() => {
+    p.machine.ram.write(0x2004, 0x4c); // INCA: commit CPU effects before a later host failure.
+    stepCoco(p.machine); p.machine.ram.write(0x1234, 0x56); throw new Error("after effects");
+  }, next.caller), next), /after effects/);
+  const failed = p.log.entries()[0]!;
+  assert.equal(failed.outcome, "interrupted"); assert.equal(failed.caller!.address, record.after.pc);
+  assert.ok(failed.changes.some(change => change.target === "A" && change.before === record.after.a && change.after === record.after.a + 1));
+  assert.ok(failed.changes.some(change => change.target === "RAM $1234" && change.before === 0 && change.after === 0x56));
+  assert.equal(p.debug.stop?.kind, "error");
+});
+
+test("clearing execution history after CPU reset and machine restoration starts a fresh observation", () => {
+  const empty = { firmware: null, extended: null };
+  let machine = create6809Coco(empty);
+  machine.cpu = new Cpu6809(machine.memory, state6809({ pc: 0x2000 }));
+  machine.ram.write(0x2000, 0x12); machine.ram.write(0x2001, 0x4c); machine.ram.write(0x2100, 0x4c);
+  let log = createCocoChangeLog(machine);
+  const debug = createCocoDebugger(() => machine, catalogue6809);
+  function observe(): ReturnType<typeof observeCocoBoundary> {
+    return observeCocoBoundary(machine, execution.records.at(-1)?.after);
+  }
+  const execution = createExecutionController({
+    step: () => {
+      const observed = observe();
+      return log.capture(() => debug.capture(() => stepCoco(machine), observed.caller), observed);
+    },
+    canStep: () => true, pauseBeforeStep: () => debug.beforeStep(observe().caller),
+    onChange() {}, schedule: () => () => {},
+  });
+  function changed(): void { execution.reset(); debug.reset(); log.dispose(); log = createCocoChangeLog(machine); }
+  execution.step(); const saved = machine.snapshot();
+  const oldRecord = execution.records[0]!;
+
+  // Supply a synthetic reset vector without requiring a copyrighted ROM in this test.
+  const read = machine.memory.read.bind(machine.memory);
+  machine.memory.read = address => address === 0xfffe ? 0x21 : address === 0xffff ? 0 : read(address);
+  machine.reset(); changed();
+  debug.setBreakpoints([{ address: 0x2100, enabled: true }]); debug.run();
+  assert.equal(debug.beforeStep(observe().caller), true);
+  assert.equal(debug.stop?.location.address, 0x2100);
+  debug.step(); execution.step();
+  assert.equal(log.entries()[0]!.caller!.address, 0x2100);
+  assert.deepEqual(oldRecord.after, saved.cpu, "earlier records remain detached from reset");
+
+  machine = create6809Coco(empty, saved); changed(); execution.step();
+  assert.equal(log.entries()[0]!.caller!.address, 0x2001);
+  assert.ok(log.entries()[0]!.changes.some(change => change.target === "A" && change.before === saved.cpu.a && change.after === saved.cpu.a + 1));
+  assert.deepEqual(execution.records[0]!.before, saved.cpu);
+  log.dispose(); debug.dispose();
 });
 
 test("disabled CoCo stops still retain bounded write history with Changes recording off", () => {

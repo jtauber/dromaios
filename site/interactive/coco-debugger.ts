@@ -24,6 +24,11 @@ export function cocoDebugLocation(machine: Coco, address = machine.cpu.snapshot(
     : machine.cartridge?.inserted() && address >= 0xc000 && address < 0xff00 ? "cartridge" : mapping.mapped(address) ? "rom" : "unavailable" };
 }
 
+/** Reuse a preceding boundary's CPU state, but observe the current SAM/cartridge mapping. */
+export function observeCocoBoundary(machine: Coco, state = machine.cpu.snapshot()) {
+  return { state, caller: cocoDebugLocation(machine, state.pc) };
+}
+
 /** Breakpoints use logical CPU addresses; write watchpoints use physical RAM, separate from saved machine state. */
 export function decodeCocoAddressStops(saved: string | null, maximum: number): readonly CocoAddressStop[] {
   return decodeInstructionBreakpoints(saved, [], maximum).map(({ address, enabled }) => ({ address, enabled }));
@@ -77,9 +82,8 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
       hit = undefined; policy.runTo(location(), address, space);
     },
     pause(detail?: string): void { policy.pause(location(), detail); },
-    beforeStep(): boolean { return policy.beforeStep(location()); },
-    capture(step: () => Boundary): Boundary {
-      const caller = location();
+    beforeStep(caller = location()): boolean { return policy.beforeStep(caller); },
+    capture(step: () => Boundary, caller = location()): Boundary {
       try {
         const { record, write } = writes.capture(step);
         const after = location(record.after.pc);
