@@ -1,3 +1,4 @@
+import { observe8088Boundary } from "./8088-debugger.js";
 import type { RamWrite } from "../../src/components/memory/ram.js";
 import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-cpu.js";
 import type { stepTimedXtCpu } from "../../src/machines/8088/pc-xt/interrupts.js";
@@ -66,6 +67,9 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
   const location = () => xtDebugLocation(machine().cpu.snapshot());
   let watches: readonly InstructionBreakpoint[] = [], hit: XtWriteHit | undefined;
   return {
+    get frames() { return policy.frames; },
+    get trackingNote() { return policy.trackingNote; },
+    get canStepOut() { return policy.canStepOut; },
     get breakpoints() { return policy.breakpoints; },
     get watchpoints() { return watches; },
     get stop() { return policy.stop; },
@@ -78,6 +82,8 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
     },
     run(): void { hit = undefined; policy.run(location()); },
     step(): void { hit = undefined; policy.step(location()); policy.beforeStep(location()); },
+    over(): void { hit = undefined; policy.overBoundary(location()); },
+    out(): void { hit = undefined; policy.out(location()); },
     runTo(target: Target, options?: RunToOptions): void {
       const point = validate([{ ...target, enabled: true }], 0xfffff, true)[0]!;
       hit = undefined; policy.runTo(location(), point.address, point.space, options);
@@ -89,7 +95,7 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
         const { record, write } = writes.capture(step);
         if (record.outcome === "unsupported") policy.fail(xtDebugLocation(record.after), "Unsupported instruction.");
         else {
-          policy.observeBoundary();
+          observe8088Boundary(policy, record);
           if (write) {
             hit = { ...write, caller: xtDebugLocation(record.before), record };
             policy.watchpoint(xtDebugLocation(record.after), describeXtWriteHit(hit));

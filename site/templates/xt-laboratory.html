@@ -34,7 +34,7 @@
       </div><div class="lab-display-footer"><p class="basic-readout" id="xt-input-help">Click the screen to type or paste. Enter submits a line.</p></div></div>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">
-      <div class="basic-controls">{% for name, label in [('run','Run'),('pause','Pause'),('step','Step'),('break','Ctrl-Break'),('warm','Ctrl-Alt-Del'),('reset','Reset CPU'),('power','Fresh power-on')] %}
+      <div class="basic-controls">{% for name, label in [('run','Run'),('pause','Pause'),('step','Step'),('machine-over','Step over'),('machine-out','Step out'),('break','Ctrl-Break'),('warm','Ctrl-Alt-Del'),('reset','Reset CPU'),('power','Fresh power-on')] %}
         <button type="button" data-{{ name }} disabled>{{ label }}</button>{% endfor %}
         <button type="button" data-quick disabled title="Start a fresh XT with the mounted disk and ask the BIOS to skip the long RAM test.">Quick boot</button></div>
       {{ run_speed() }}
@@ -44,8 +44,10 @@
       <p class="basic-message" data-debugger-status></p>
       <p class="basic-message" data-error role="alert"></p>
       <p class="basic-message" data-message role="status"></p>
+      <details><summary>Following calls</summary><p class="lab-hint">Step over runs through a near call, far call, or interrupt and stops at its matching return. On other instructions it advances one boundary. Step out returns from the innermost observed call or interrupt. Breakpoints and RAM watches still stop execution; each request has a two-million-boundary limit.</p>
+        <p class="lab-hint">Call stack shows observed CS:IP pairs and the caller’s SS:SP. Select an address to browse Disassembly. Reset and restore clear this history; changing the stack or returning elsewhere invalidates it.</p></details>
       <details><summary>Using the keyboard</summary><p class="lab-hint">At BASIC’s Ok prompt, type PRINT 2+3 and press Enter. You can paste several lines at once. Ctrl-Break interrupts a running BASIC program. Ctrl-Alt-Del sends the XT restart chord.</p></details>
-      <details><summary>Speed, clocks and sound</summary><p class="lab-hint">Normal follows the XT’s 14,318,180 Hz oscillator; Unlimited runs as fast as the browser allows. Mark clock measures elapsed ticks, including DMA and halted time. Step reports its interval separately. CPU reset preserves time; power-on and checkpoint restore clear the marker.</p>
+      <details><summary>Speed, clocks and sound</summary><p class="lab-hint">Normal follows the XT’s 14,318,180 Hz oscillator; Unlimited runs as fast as the browser allows. Mark clock measures elapsed ticks, including DMA and halted time. Step, Step over and Step out report their intervals separately. CPU reset preserves time; power-on and checkpoint restore clear the marker.</p>
         <p class="lab-hint">Sound plays the PC speaker during Normal Run. Try BEEP or SOUND 440,9 at BASIC’s Ok prompt. Pause and Unlimited are silent; restoring a checkpoint resumes the saved timer phase with a fresh audio queue.</p></details>
     </section>
     <section class="lab-tool lab-tool-registers lab-panel-body lab-scroll" data-workspace-panel="registers" data-panel-title="Registers" data-panel-heading="Intel 8088 · Registers" data-panel-live="true">
@@ -58,6 +60,9 @@
         <thead><tr><th aria-label="Execution"></th><th>Routine</th><th>CS:IP</th><th>Physical</th><th>Bytes</th><th>Instruction</th><th>Destination</th><th>BIOS note</th></tr></thead>
         <tbody></tbody>
       </table>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="calls" data-panel-title="Call stack" data-panel-live="true">
+      <p data-call-stack-status class="lab-hint"></p><div data-call-stack></div>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-title="Instruction" data-panel-live="true">
       <p class="basic-readout" data-instruction-location></p><pre class="lab-instruction-preview" data-instruction-preview></pre>

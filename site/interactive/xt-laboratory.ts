@@ -1,3 +1,5 @@
+import { createCallStack } from "./call-stack-view.js";
+import { createDebuggerStepControls } from "./debugger-step-controls.js";
 import { romImages } from "../../src/machines/generated/8088/pc-xt.js";
 import { romImages as egaRomImages } from "../../src/machines/generated/8088/pc-xt-ega.js";
 import { xtDisketteSize } from "../../src/machines/8088/pc-xt/io.js";
@@ -62,6 +64,12 @@ function mount(root: HTMLElement): void {
   const annotations = createXtRomAnnotations(guide);
   const showRegisters = createXtRegisterView(registers);
   const showCode = createXtCodeView(code, catalogue, annotations, () => refresh("code"));
+  const calls = createCallStack(root, {
+    stackName: "SP", stackWidth: 4, formatLocation: location => location.space.replace("CS:IP ", ""),
+    formatStack: frame => `SS:SP ${frame.stackRegister}:${hex(frame.stack, 4)}`,
+    label: location => session.ready ? annotations.reference.at(location.address)?.name : undefined,
+    browse: (_address, location) => { showCode.browse(location); workspace.show("code"); },
+  })!;
   const showInstruction = createXtInstructionView(instruction, browseMemory);
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
@@ -151,6 +159,7 @@ function mount(root: HTMLElement): void {
     speed.refresh(!ready);
     sound.refresh({ running, normal: speed.normal, unavailable: !ready });
     intervals.refresh({ running, unavailable: !ready, stop: execution.error ? "error" : debug.stop?.kind });
+    stepControls(!runnable || running, debug.canStepOut);
     button("run").disabled = button("step").disabled = !runnable || running;
     button("run-to").disabled = target.disabled = !runnable || running;
     button("pause").disabled = !running;
@@ -202,6 +211,10 @@ function mount(root: HTMLElement): void {
           sp: physical8088(cpu.ss, cpu.sp),
         });
       }
+      const callsPanel = root.querySelector<HTMLElement>('[data-workspace-panel="calls"]')!;
+      if (callsPanel.getClientRects().length && (requested === "calls" || updates.shouldUpdate("calls", running))) {
+        calls.refresh(debug.frames, debug.trackingNote, (address, captured) => captured ?? { address, space: "physical" });
+      }
       for (const [id, show] of [["log", changeLog.refresh], ["debugger", watchView.refresh]] as const) {
         if (root.querySelector<HTMLElement>(`[data-workspace-panel="${id}"]`)!.getClientRects().length
           && (requested === id || updates.shouldUpdate(id, running))) show();
@@ -225,6 +238,11 @@ function mount(root: HTMLElement): void {
   button("run").onclick = run;
   button("pause").onclick = () => { debug.pause(); execution.stop(); };
   button("step").onclick = () => { debug.step(); intervals.begin("step"); execution.step(); };
+  const stepControls = createDebuggerStepControls(root, {
+    over: () => { debug.over(); intervals.begin("over"); },
+    out: () => { debug.out(); intervals.begin("out"); },
+    run: () => { message.textContent = ""; execution.run(); }, error: text => { message.textContent = text; },
+  });
   button("reset").onclick = () => act(() => { session.resetCpu(); resetTools(); });
   button("power").onclick = () => act(() => powerOn("cold"));
   button("quick").onclick = () => act(() => powerOn("quick"));

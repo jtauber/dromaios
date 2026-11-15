@@ -13,6 +13,9 @@ import { migrateXtWorkspace, xtWorkspaceKey } from "../../site/interactive/xt-wo
 
 const bindings = { bios: null, basic: null, font: null };
 const point = (text: string, enabled = true) => ({ ...parseXtDebugAddress(text), enabled });
+function put(machine: ReturnType<typeof create8088PcXt>, address: number, bytes: readonly number[]): void {
+  bytes.forEach((byte, i) => machine.ram.write(address + i, byte));
+}
 function fixture(bytes: readonly number[], state: Partial<Cpu8088State> = {}, budget = 100) {
   let machine = create8088PcXt(bindings);
   machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000, ss: 0x1000, sp: 0x8000,
@@ -30,10 +33,112 @@ function fixture(bytes: readonly number[], state: Partial<Cpu8088State> = {}, bu
     replace(state = machine.snapshot()) { machine = create8088PcXt(bindings, state); execution.reset(); debug.reset(); },
     resetCpu() { machine.cpu.reset(); execution.reset(); debug.reset(); },
     run() { debug.run(); execution.run(); jobs.shift()!(); },
+    over() { debug.over(); execution.run(); jobs.shift()!(); },
+    out() { debug.out(); execution.run(); jobs.shift()!(); },
     runTo(text: string) { debug.runTo(parseXtDebugAddress(text)); execution.run(); jobs.shift()!(); },
     single() { debug.step(); execution.step(); },
   };
 }
+
+test("XT Step over and Step out follow nested near/far calls with exact logical returns", () => {
+  const p = fixture([0xe8, 0x0d, 0, 0x90]); // CALL 2010; NOP
+  put(p.machine, 0x2010, [0x9a, 0, 0x30, 0, 1, 0xc3]); // CALL 0100:3000; RET
+  put(p.machine, 0x4000, [0x40, 0xcb]); // INC AX; RETF
+  p.single(); p.single();
+  assert.deepEqual(p.debug.frames.map(f => [f.frameType, f.returnSpace, f.stack]),
+    [["near", "CS:IP 0000:2003", 0x8000], ["far", "CS:IP 0000:2015", 0x7ffe]]);
+  p.out(); assert.equal(p.debug.stop?.kind, "out"); assert.equal(p.machine.cpu.snapshot().ip, 0x2015);
+  assert.equal(p.debug.frames.length, 1); assert.equal(p.machine.cpu.snapshot().sp, 0x7ffe);
+  p.out(); assert.equal(p.machine.cpu.snapshot().ip, 0x2003); assert.equal(p.debug.canStepOut, false);
+  assert.equal(p.machine.cpu.snapshot().ax, 0x1235);
+  p.over(); assert.equal(p.machine.cpu.snapshot().ip, 0x2004); // Ordinary Step over advances once.
+  p.replace(); assert.equal(p.debug.frames.length, 0); assert.throws(() => p.debug.out(), /No observed caller/);
+});
+
+test("XT indirect calls, prefixes, and RET argument cleanup preserve observed frames", () => {
+  for (const far of [false, true]) {
+    const bytes = far ? [0x2e, 0xff, 0x1e, 0, 0x30] : [0xf0, 0xff, 0xd3]; // CS: CALL [3000] / LOCK CALL BX
+    const p = fixture(bytes, { bx: 0x4000 });
+    put(p.machine, 0x3000, [0, 0x30, 0, 1]);
+    put(p.machine, 0x4000, [0x40, far ? 0xca : 0xc2, 6, 0]);
+    p.over();
+    assert.equal(p.debug.stop?.kind, "over"); assert.equal(p.machine.cpu.snapshot().ip, 0x2000 + bytes.length);
+    assert.equal(p.machine.cpu.snapshot().sp, 0x8006); assert.equal(p.debug.frames.length, 0);
+    assert.equal(p.debug.trackingNote, undefined);
+  }
+});
+
+test("XT local stack frames can restore SP from BP, including across the 16-bit stack wrap", () => {
+  for (const sp of [0x8000, 8]) {
+    const p = fixture([0xe8, 0x0d, 0], { sp });
+    put(p.machine, 0x2010, [0x55, 0x8b, 0xec, 0x83, 0xec, 0x10, 0x40, 0x8b, 0xe5, 0x5d, 0xc3]);
+    p.over(); assert.equal(p.debug.stop?.kind, "over"); assert.equal(p.machine.cpu.snapshot().sp, sp);
+    assert.equal(p.debug.trackingNote, undefined); assert.equal(p.machine.cpu.snapshot().ax, 0x1235);
+  }
+});
+
+test("XT software interrupts nest inside calls and IRET does not finish the outer Step over", () => {
+  const p = fixture([0xe8, 0x0d, 0]);
+  put(p.machine, 0x2010, [0xcd, 0x20, 0x40, 0xc3]);
+  put(p.machine, 0x80, [0, 0x30, 0, 1]); put(p.machine, 0x4000, [0x43, 0xcf]);
+  p.single(); p.single();
+  assert.deepEqual(p.debug.frames.map(f => f.kind), ["call", "interrupt"]);
+  assert.equal(p.debug.frames[1]!.returnSpace, "CS:IP 0000:2012");
+  p.out(); assert.equal(p.machine.cpu.snapshot().ip, 0x2012); assert.equal(p.debug.frames.length, 1);
+  p.out(); assert.equal(p.machine.cpu.snapshot().ip, 0x2003); assert.equal(p.debug.frames.length, 0);
+  const q = fixture([0xe8, 0x0d, 0]);
+  put(q.machine, 0x2010, [0xcd, 0x20, 0x40, 0xc3]);
+  put(q.machine, 0x80, [0, 0x30, 0, 1]); put(q.machine, 0x4000, [0x43, 0xcf]);
+  q.over(); assert.equal(q.execution.steps, 6); assert.equal(q.machine.cpu.snapshot().ip, 0x2003);
+  assert.equal(q.debug.stop?.kind, "over"); assert.equal(q.debug.trackingNote, undefined);
+});
+
+test("XT Step over observes a pending trap before the call and resumes at the unexecuted call", () => {
+  const p = fixture([0xe8, 0x0d, 0], { trapPending: true });
+  put(p.machine, 4, [0, 0x30, 0, 0]); put(p.machine, 0x3000, [0xcf]);
+  put(p.machine, 0x2010, [0xc3]);
+  p.over(); assert.equal(p.execution.steps, 2); assert.equal(p.machine.cpu.snapshot().ip, 0x2000);
+  assert.equal(p.debug.stop?.kind, "over"); assert.equal(p.debug.frames.length, 0);
+  p.over(); assert.equal(p.execution.steps, 4); assert.equal(p.machine.cpu.snapshot().ip, 0x2003);
+});
+
+test("XT INTO and divide entry use the interrupt actually reported by the CPU", () => {
+  const p = fixture([0xce, 0x90]); p.over();
+  assert.equal(p.execution.steps, 1); assert.equal(p.debug.frames.length, 0);
+  for (const bytes of [[0xcc], [0xcd, 0x20], [0xce], [0xf6, 0xf3]]) {
+    const q = fixture(bytes, { flags: { ...p.machine.cpu.snapshot().flags, of: true } });
+    for (const vector of [0, 3, 4, 0x20]) put(q.machine, vector * 4, [0, 0x30, 0, 0]);
+    put(q.machine, 0x3000, [0xcf]);
+    q.over(); assert.equal(q.execution.steps, 2); assert.equal(q.debug.stop?.kind, "over");
+    assert.equal(q.machine.cpu.snapshot().ip, 0x2000 + bytes.length); assert.equal(q.debug.trackingNote, undefined);
+  }
+});
+
+test("XT caller tracking rejects a return through an alias and a replaced stack", () => {
+  const p = fixture([0x9a, 0, 0x30, 0, 0]); put(p.machine, 0x3000, [0xcb]);
+  p.single();
+  // Same physical byte 02005, but 0100:1005 is not the original return pair 0000:2005.
+  put(p.machine, 0x17ffc, [5, 0x10, 0, 1]);
+  p.out(); assert.equal(p.debug.stop?.kind, "tracking-lost"); assert.equal(p.debug.canStepOut, false);
+  assert.equal(p.machine.cpu.snapshot().pc, 0x2005);
+  for (const bytes of [[0xbc, 0, 0x70], [0x8e, 0xd0]]) { // MOV SP,7000 / MOV SS,AX
+    const q = fixture([0xe8, 0x0d, 0]); put(q.machine, 0x2010, bytes);
+    q.single(); q.out(); assert.equal(q.debug.stop?.kind, "tracking-lost");
+    assert.equal(q.debug.frames.length, 0);
+  }
+});
+
+test("XT breakpoints, watches and the budget take precedence during Step over/out", () => {
+  const p = fixture([0xe8, 0x0d, 0]); put(p.machine, 0x2010, [0xa2, 0, 4, 0xc3]);
+  p.debug.setBreakpoints([point("2010")]); p.over();
+  assert.equal(p.debug.stop?.kind, "breakpoint"); assert.equal(p.debug.canStepOut, true);
+  p.debug.setWatchpoints([point("400")]); p.out();
+  assert.equal(p.debug.stop?.kind, "watchpoint"); assert.equal(p.debug.canStepOut, true);
+  p.out(); assert.equal(p.debug.stop?.kind, "out"); assert.equal(p.debug.frames.length, 0);
+  const q = fixture([0xe8, 0x0d, 0], {}, 3); put(q.machine, 0x2010, [0xeb, 0xfe]); q.over();
+  assert.equal(q.debug.stop?.kind, "limit"); assert.equal(q.execution.steps, 3);
+  q.resetCpu(); assert.equal(q.debug.canStepOut, false);
+});
 
 test("XT breakpoint notation retains logical identity while physical addresses match all aliases", () => {
   assert.deepEqual(parseXtDebugAddress("ffff0"), { address: 0xffff0 });
@@ -203,4 +308,15 @@ test("XT version-3 layouts gain Debugger once, preserving hidden panels and exis
   assert.deepEqual(groups(next)[0], { ...old.root, panels: [...old.root.panels, "log"] });
   saved.set(xtWorkspaceKey, encodeWorkspaceState(old)); migrateXtWorkspace(storage);
   assert.equal(saved.get(xtWorkspaceKey), encodeWorkspaceState(old));
+});
+
+test("XT version-7 layouts gain Call stack beside Registers once without changing the active tab", () => {
+  const old = { root: { kind: "tabs", id: "mine", active: "memory", panels: ["registers", "memory"], collapsed: true } } as const;
+  const saved = new Map([["dromaios:workspace:xt:7", encodeWorkspaceState(old)]]);
+  const storage = { getItem: (key: string) => saved.get(key) ?? null, setItem: (key: string, text: string) => saved.set(key, text) };
+  migrateXtWorkspace(storage);
+  assert.deepEqual(decodeWorkspaceState(saved.get(xtWorkspaceKey)!, ["registers", "memory", "calls"]),
+    { root: { ...old.root, panels: [...old.root.panels, "calls"] } });
+  saved.set(xtWorkspaceKey, encodeWorkspaceState(old)); migrateXtWorkspace(storage);
+  assert.equal(saved.get(xtWorkspaceKey), encodeWorkspaceState(old), "a subsequently hidden Call stack stays hidden");
 });

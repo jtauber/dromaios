@@ -614,7 +614,8 @@ path. Slow inspectors can make Run fall behind; resuming after a pause does
 not accumulate a backlog of host time. **Unlimited** removes the speed limit
 while retaining bounded batches so Pause and other controls remain responsive.
 
-**Mark clock** measures an interval in oscillator ticks. **Step** reports its
+**Mark clock** measures an interval in oscillator ticks. **Step**, **Step over**
+and **Step out** report their
 completed interval separately, including any DMA grant or halted-time advance.
 These are elapsed board ticks, not a claim that the CPU executed that many
 clocks. CPU reset preserves the marker and elapsed time. Fresh power-on and
@@ -723,6 +724,42 @@ from a breakpoint there executes one more element before the next encounter.
 Breakpoints, watchpoints, Pause, and execution errors end that request early.
 An already-reached target stops immediately, and an unreachable target reports
 the limit. Halted or waiting boundaries also count toward it.
+
+**Step over** follows the actual next boundary. A near or far CALL runs to its
+matching RET/RETF; interrupt entry runs to its matching IRET. If a pending
+hardware interrupt or trap preempts a call, stepping stops when that handler
+returns to the still-unexecuted call. Other boundaries advance once. **Step out**
+returns from the innermost observed call or interrupt. Both commands use the
+shared debugger's breakpoint, watchpoint, cancellation and boundary-limit rules.
+
+**Call stack**, initially a tab beside Registers, shows observed caller, entry
+and return CS:IP pairs, with the caller's SS:SP. Address links browse that exact
+logical pair in Disassembly, even when another segment currently aliases it.
+Tracking checks the return kind, logical address and restored stack; `RET n`
+also accounts for the discarded arguments. Nested interrupts remain separate
+from calls. The observer uses captured instruction bytes and interrupt-frame
+writes, so tracking never rereads guest memory or devices.
+
+This is an observed history, not an unwinder. Reset, power-on and checkpoint
+restore clear it. Replacing SS, loading SP outside the active frame, a mismatched
+return, an execution error or the 128-frame limit invalidate earlier callers.
+Restoring SP within a frame to discard locals is supported. Hand-built frames,
+nonlocal returns and calls already active at restoration are not inferred;
+Step out becomes available after observing a new call or interrupt.
+
+The [debugger tests](../../../tests/site/xt-debugger.test.ts) cover direct and
+indirect near/far calls, prefixes, stack wrapping, local frames, argument cleanup,
+software interrupts, traps, faults, changed return addresses and early stops.
+The [original-software checks](../../../tests/site/xt-calls.test.ts) compare
+Step over, Step out and ordinary execution from the same checkpoint, including
+CPU, memory, devices, keyboard, disk, clocks and displayed pixels. With the
+three XT firmware paths set, they exercise BIOS calls, keyboard IRQs, BASIC
+calls and INT 10h while `PRINT 2+3` produces `5`. Set
+`XT_ULTIMA_DEBUGGER_CHECKPOINT` to the `ultima-v.json` emitted by the
+[CGA game acceptance](../../../tests/machines/8088/pc-xt/rom-ultima-v.test.ts)
+with `XT_ULTIMA_PERFORMANCE_CHECKPOINTS` to repeat the same checks on Ultima V's
+near calls, far graphics-driver calls and IRQs, then move the party Down to
+`(15,16)`.
 
 **RAM write watchpoints** select physical bytes in `00000–9FFFF`. An entry such
 as `0040:0017` selects physical `00417`, through any segment alias. A watch

@@ -6,28 +6,39 @@ const group = (id: string): TabGroup => ({ kind: "tabs", id: "xt-" + id, active:
 const area = (weight: number, node: LayoutNode) => ({ weight, node });
 const column = (id: string, ...items: Split["items"]): Split => ({ id, kind: "split", axis: "vertical", items });
 const tools = column("xt-inspectors", area(.31, group("registers")), area(.40, group("code")), area(.29, group("memory")));
-export const xtWorkspaceKey = "dromaios:workspace:xt:7";
+export const xtWorkspaceKey = "dromaios:workspace:xt:8";
 function addChanges(layout: WorkspaceLayout): WorkspaceLayout {
   const destination = panelGroup(layout, "code") ?? groups(layout)[0];
   if (!destination) return openPanel(layout, "log");
   return collapseGroup(activatePanel(movePanel(layout, "log", { group: destination.id, side: "tab" }), destination.active), destination.id, destination.collapsed);
 }
-export const xtDefaultLayout: WorkspaceLayout = addChanges({ root: { kind: "split", id: "xt-columns", axis: "horizontal", items: [
+function addCalls(layout: WorkspaceLayout): WorkspaceLayout {
+  const destination = panelGroup(layout, "registers");
+  if (!destination) return layout;
+  return collapseGroup(activatePanel(movePanel(layout, "calls", { group: destination.id, side: "tab" }), destination.active), destination.id, destination.collapsed);
+}
+export const xtDefaultLayout: WorkspaceLayout = addCalls(addChanges({ root: { kind: "split", id: "xt-columns", axis: "horizontal", items: [
   area(.42, column("xt-console", area(.50, group("screen")), area(.22, group("execution")), area(.28, group("instruction")))),
   area(.36, tools),
   area(.22, column("xt-session", area(.34, group("rom")), area(.18, group("drive")),
     area(.30, { ...group("debugger"), panels: ["debugger", "walkthrough"], active: "walkthrough" }), area(.18, group("snapshot")))),
-] } });
+] } }));
 
 /** Add new tools once per version, preserving existing tabs, hidden panels and relative sizes. */
 export function migrateXtWorkspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }): void {
   if (storage.getItem(xtWorkspaceKey) !== null) return;
+  const version7 = storage.getItem("dromaios:workspace:xt:7");
+  if (version7 !== null) {
+    const old = decodeWorkspaceState(version7, ["screen", "execution", "rom", "snapshot", "registers", "code", "memory", "debugger", "instruction", "walkthrough", "log", "drive"]);
+    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(addCalls(old)));
+    return;
+  }
   // Add the drive below Firmware when it is visible. Custom layouts that hid
   // Firmware can open Drive A from the Panels menu.
   function saveWithDrive(layout: WorkspaceLayout): void {
     const firmware = panelGroup(layout, "rom");
     const next = firmware ? movePanel(layout, "drive", { group: firmware.id, side: "below" }) : layout;
-    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(next));
+    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(addCalls(next)));
   }
   const version6 = storage.getItem("dromaios:workspace:xt:6");
   if (version6 !== null) {
