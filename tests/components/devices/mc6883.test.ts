@@ -2,6 +2,18 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Mc6883 } from "../../../src/components/devices/generated/mc6883.js";
 
+test("address-dependent speed decodes CPU addresses independently of RAM mapping and display selection", () => {
+  for (const control of [0, 0x0800, 0x4c06, 0xcc06]) {
+    const sam = new Mc6883({ control });
+    for (let address = 0; address <= 0xffff; address++) {
+      const slow = address < 0x8000 || address >= 0xff00 && address <= 0xff1f;
+      assert.equal(sam.slowAddress(address), slow);
+      for (const mode of [0, 1, 2, 3]) assert.equal(sam.cycleTicks(mode, address), mode === 0 || mode === 1 && slow ? 2 : 1);
+    }
+    assert.deepEqual(sam.snapshot(), { control });
+  }
+});
+
 test("SAM address pairs set and clear exactly one bit, independent of data", () => {
   for (const control of [0, 0xffff, 0xa55a]) for (let bit = 0; bit < 16; bit++) {
     for (const set of [0, 1]) for (const data of [0, 0xa5, 255]) {

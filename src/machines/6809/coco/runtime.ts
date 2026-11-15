@@ -2,7 +2,7 @@ import type { create6809Coco } from "../../generated/6809/coco.ts";
 import type { create6809Coco64 } from "../../generated/6809/coco64.ts";
 import type { create6809CocoDisk } from "../../generated/6809/coco-disk.ts";
 import { characterRows } from "../../../components/devices/mc6847-character-set.ts";
-import { advanceCocoSync, clocksUntilCocoSync } from "./timing.ts";
+import { advanceCocoSync, ticksUntilCocoSync } from "./timing.ts";
 import type { Cpu6809TimedStepRecord } from "../../../components/cpus/generated/6809-cpu.ts";
 import { cocoMemorySupported, cocoDisplayAddress } from "./memory.ts";
 
@@ -12,8 +12,9 @@ export type CocoSnapshot = ReturnType<Coco["snapshot"]>;
 
 /** One timed CPU boundary, or an idle interval ending at the next board event. */
 export function stepCoco(machine: Coco) {
-  requireExecutionProfile(machine);
+  requireMemoryProfile(machine);
   const start = machine.clock.ticks;
+  const rate = machine.sam.clockMode();
   const motor = machine.pias.cassetteMotor, output = machine.pias.cassetteOutput;
   const disk = machine.cartridge?.inserted() ? undefined : machine.disk;
   const halted = disk?.halted;
@@ -24,20 +25,25 @@ export function stepCoco(machine: Coco) {
       : cpuBoundary(machine.pias, machine.step, machine.interrupt);
   };
   const record = disk ? disk.cpuBoundary(execute) : execute();
+  // One board tick is a fast E period. Internal cycles present $FFFF; the CPU
+  // record supplies real bus transfers but not dummy reads or switch stretching.
+  let elapsedTicks = (record.clocks - record.accesses.length) * machine.sam.cycleTicks(rate, 0xffff);
+  for (const access of record.accesses) elapsedTicks += machine.sam.cycleTicks(rate, access.address);
+  machine.clock.advance(elapsedTicks);
   // Entering a wait pays the instruction cost first. Subsequent waiting boundaries
   // advance the board without inventing an instruction or repeating its CPU cost.
-  const idleClocks = record.outcome === "waiting" && record.clocks === 0
-    ? Math.min(clocksUntilCocoSync(machine), disk?.clocksUntilEvent() ?? Infinity) : 0;
-  machine.clock.advance(idleClocks);
+  const idleTicks = record.outcome === "waiting" && record.clocks === 0
+    ? Math.min(ticksUntilCocoSync(machine), disk?.ticksUntilEvent() ?? Infinity) : 0;
+  machine.clock.advance(idleTicks);
   machine.pias.cassette.advance(machine.clock.ticks - start, machine.clock.hertz!, motor, output);
-  disk?.advanceCpuClocks(machine.clock.ticks - start);
+  disk?.advanceBoardTicks(machine.clock.ticks - start);
   advanceCocoSync(machine, start);
   // A ROM Pak ties CART to Q. At each complete boundary, its selected edge
   // has occurred; PIA1 CB1 latches it until acknowledged. Q finishes high.
   if (machine.cartridge?.inserted() && machine.clock.ticks > start) {
     machine.pias.setCartridgeLine(false); machine.pias.setCartridgeLine(true);
   }
-  return { ...record, idleClocks };
+  return { ...record, idleTicks, elapsedTicks: machine.clock.ticks - start };
 }
 
 /** Cartridge HALT leaves CPU state unchanged; only board time advances. */
@@ -48,7 +54,7 @@ function haltedBoundary(machine: Coco): Cpu6809TimedStepRecord {
 
 /** Untimed arbitration for an isolated preview CPU; never advance the live board. */
 export function stepCocoCpu(machine: Pick<Coco, "cpu" | "pias" | "sam" | "ram">) {
-  requireExecutionProfile(machine);
+  requireMemoryProfile(machine);
   return cpuBoundary(machine.pias, () => machine.cpu.step(), source => machine.cpu.interrupt(source));
 }
 
@@ -61,11 +67,6 @@ function cpuBoundary<Instruction, Interrupt extends { readonly outcome: string }
     if (record.outcome !== "ignored") return record;
   }
   return step();
-}
-
-function requireExecutionProfile(machine: Pick<Coco, "sam" | "ram">): void {
-  requireMemoryProfile(machine);
-  if (machine.sam.clockMode() !== 0) throw new RangeError("Unsupported CoCo clock configuration: requires normal speed (SAM R=00).");
 }
 
 function requireMemoryProfile(machine: Pick<Coco, "sam" | "ram">): void {

@@ -144,7 +144,7 @@ test("Donkey King loads from disk on 32 KiB, walks and jumps with sound, and rep
     assert.equal(session.machine.ram.read(0x1a1), 2, "no life lost");
     assert.deepEqual(edges.map(edge => edge.address), [0xa981, 0x61ee, 0x61f4], "ROM joystick setup, then the game's landing pulse");
     assert.deepEqual(edges.map(edge => edge.level), [0.5, 50 / 63, 0.5]);
-    assert.equal(edges[2]!.ticks - edges[1]!.ticks, 497, "98 DECB/BNE iterations, then CLR $FF20");
+    assert.equal(edges[2]!.ticks - edges[1]!.ticks, 994, "98 DECB/BNE iterations, then CLR $FF20");
     assert.ok(audio.some(sample => sample > 0.1) && audio.some(sample => sample < -0.1));
     assert.ok(apex && standing);
     let changed = 0;

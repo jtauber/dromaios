@@ -8,7 +8,7 @@ import { CocoCartridge } from "../../src/machines/6809/coco/cartridge.js";
 import { CocoDiskController, cocoDiskSize } from "../../src/machines/6809/coco/disk-controller.js";
 
 interface StoredCocoState {
-  readonly version: 9;
+  readonly version: 10;
   readonly machine: "coco-32k" | "coco-64k";
   readonly savedAt: string;
   readonly state: CocoSessionState;
@@ -29,7 +29,7 @@ export function cocoSavedState(storage: () => {
       const value: unknown = JSON.parse(text);
       checkMachineSnapshot(value, ["version", "machine", "savedAt", "state"]);
       const saved = value as Omit<StoredCocoState, "version"> & { readonly version: number };
-      if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(saved.version) || !(saved.machine === "coco-32k" || saved.version === 9 && saved.machine === "coco-64k") || typeof saved.savedAt !== "string"
+      if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(saved.version) || !(saved.machine === "coco-32k" || saved.version >= 9 && saved.machine === "coco-64k") || typeof saved.savedAt !== "string"
         || !Number.isFinite(Date.parse(saved.savedAt))) throw new Error("Invalid CoCo snapshot format.");
       // Versions 1 and 2 had no clock: start their schedule at phase zero while
       // preserving PIA levels and flags until the next scheduled edges.
@@ -93,14 +93,26 @@ export function cocoSavedState(storage: () => {
       if (!Array.isArray(state.hardware?.ram) || state.hardware.ram.length !== (saved.machine === "coco-64k" ? 0x10000 : 0x8000)) {
         throw new Error("Saved CoCo RAM capacity does not match its profile.");
       }
+      if (saved.version < 10) {
+        // Older saves counted normal E periods. The fixed board clock now has
+        // two ticks per period; cassette and disk phases already use other units.
+        checkMachineSnapshot(state.hardware.clock, ["ticks"]);
+        checkUnsigned("Saved CoCo clock", state.hardware.clock.ticks, Math.floor(Number.MAX_SAFE_INTEGER / 2));
+        let remainingClocks = state.remainingClocks;
+        if (saved.version >= 4) {
+          checkUnsigned("Remaining keyboard clocks", remainingClocks, cocoKeyboardPhaseClocks(hertz / 2));
+          remainingClocks = Math.min(remainingClocks * 2, phaseClocks);
+        }
+        state = { ...state, remainingClocks, hardware: { ...state.hardware, clock: { ticks: state.hardware.clock.ticks * 2 } } };
+      }
       // The session validates every component, input phase, and ROM identity before installing it.
-      return { ...saved, version: 9, state };
+      return { ...saved, version: 10, state };
     },
     save(state: CocoSessionState): void {
       const tape = state.hardware.pias.cassette;
       const packed = { ...state, hardware: { ...state.hardware, cartridge: { ...state.hardware.cartridge, image: pack(state.hardware.cartridge.image) }, disk: { ...state.hardware.disk, image: pack(state.hardware.disk.image) }, pias: { ...state.hardware.pias,
         cassette: { ...tape, samples: pack(tape.samples) } } } };
-      storage().setItem(key, JSON.stringify({ version: 9, machine: state.hardware.ram.length === 0x10000 ? "coco-64k" : "coco-32k", savedAt: new Date().toISOString(), state: packed }));
+      storage().setItem(key, JSON.stringify({ version: 10, machine: state.hardware.ram.length === 0x10000 ? "coco-64k" : "coco-32k", savedAt: new Date().toISOString(), state: packed }));
     },
     forget(): void { storage().removeItem(key); },
   };

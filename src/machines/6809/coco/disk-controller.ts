@@ -6,7 +6,7 @@ import { checkMachineSnapshot } from "../../snapshot.ts";
 
 export const cocoDiskSize = 35 * 18 * 256;
 const ownedImages = new WeakSet<readonly number[]>();
-// CPU E = 3,579,545 / 4 Hz. Retain fractional microseconds without cumulative rounding.
+// Board ticks = 3,579,545 / 2 Hz. Retain fractional microseconds without cumulative rounding.
 const microsecondDenominator = 3_579_545;
 
 function ownImage(bytes: Uint8Array | readonly number[]): readonly number[] {
@@ -109,15 +109,15 @@ export class CocoDiskController implements ByteMemoryConnection {
     return pending;
   }
 
-  clocksUntilEvent(): number {
+  ticksUntilEvent(): number {
     const remaining = this.#circuit.remainingMicroseconds();
-    return remaining ? Math.ceil((remaining * microsecondDenominator - this.#microsecondPhase) / 4_000_000) : Infinity;
+    return remaining ? Math.ceil((remaining * microsecondDenominator - this.#microsecondPhase) / 2_000_000) : Infinity;
   }
 
   /** Retire every crossed byte/seek deadline, including unread bytes, independently of CPU polling. */
-  advanceCpuClocks(clocks: number): void {
-    checkUnsigned("CoCo disk elapsed CPU clocks", clocks, 0xffffff);
-    const numerator = clocks * 4_000_000 + this.#microsecondPhase;
+  advanceBoardTicks(ticks: number): void {
+    checkUnsigned("CoCo disk elapsed board ticks", ticks, 0xffffff);
+    const numerator = ticks * 2_000_000 + this.#microsecondPhase;
     let remaining = Math.floor(numerator / microsecondDenominator);
     this.#microsecondPhase = numerator % microsecondDenominator;
     while (remaining > 0) {

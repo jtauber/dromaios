@@ -21,7 +21,7 @@ through the lower CPU window with P1=1, but cannot replace CPU vectors.
 Video addresses physical RAM independently of P1 and TY and retain bit 15.
 
 M=00 and M=01 keep the earlier logical-RAM startup approximation. Their DRAM
-row/column aliases are not simulated. M=11 and fast CPU-clock modes remain
+row/column aliases are not simulated. M=11 remains
 unsupported; neither changing a latch nor restoring a checkpoint invents
 additional hardware. The machine snapshot's RAM length identifies capacity.
 
@@ -103,7 +103,7 @@ cpu 6809 {
 }
 
 reset { cpu }
-clock cpu 894886.25 Hz
+clock board 1.7897725 MHz
 ```
 
 [sam]: https://www.onasticksoftware.co.uk/dragon/sn74ls783.pdf

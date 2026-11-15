@@ -2,7 +2,7 @@ import { createExecutionIntervals, executionIntervalText } from "./execution-int
 import type { DebugStop } from "./instruction-debugger.js";
 
 /** Render measurements at host refresh boundaries, never in the CPU's instruction loop. */
-export function createExecutionIntervalView(root: HTMLElement, clock: () => { readonly ticks: number }) {
+export function createExecutionIntervalView(root: HTMLElement, clock: () => { readonly ticks: number }, unit = "CPU clocks") {
   const element = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-clock-${name}]`)!;
   const mark = element<HTMLButtonElement>("mark"), clear = element<HTMLButtonElement>("clear");
   const elapsed = element<HTMLElement>("elapsed"), interval = element<HTMLElement>("interval");
@@ -12,10 +12,10 @@ export function createExecutionIntervalView(root: HTMLElement, clock: () => { re
     const values = measurements.update(running, stop);
     mark.disabled = running || unavailable;
     clear.disabled = running || unavailable || values.marker === undefined;
-    elapsed.textContent = values.marker ? `Since marker: ${values.marker.clocks.toLocaleString()} CPU clocks` : "No clock marker.";
-    elapsed.title = values.marker ? `Marked at ${values.marker.at.toLocaleString()} CPU clocks` : "";
+    elapsed.textContent = values.marker ? `Since marker: ${values.marker.clocks.toLocaleString()} ${unit}` : "No clock marker.";
+    elapsed.title = values.marker ? `Marked at ${values.marker.at.toLocaleString()} ${unit}` : "";
     interval.hidden = values.interval === undefined;
-    interval.textContent = values.interval ? executionIntervalText(values.interval) : "";
+    interval.textContent = values.interval ? executionIntervalText(values.interval, unit) : "";
     for (const output of [elapsed, interval]) output.setAttribute("aria-live", running ? "off" : "polite");
   }
   mark.addEventListener("click", () => { if (!mark.disabled) { measurements.mark(); render(); } });

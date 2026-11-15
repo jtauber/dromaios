@@ -58,7 +58,7 @@ test("ordinary and waiting CPU boundaries move tape with the interval's starting
   [...Array(8).fill(0x12), 0x86, 0xc0, 0xb7, 0xff, 0x20, 0x13].forEach((byte, at) => machine.ram.write(at, byte));
   for (let i = 0; i < 8; i++) stepCoco(machine);
   const first = stepCoco(machine), write = stepCoco(machine), wait = stepCoco(machine), idle = stepCoco(machine);
-  assert.ok(first.clocks + write.clocks + wait.clocks + idle.idleClocks > 20);
+  assert.ok(first.clocks + write.clocks + wait.clocks + idle.idleTicks > 20);
   assert.deepEqual(io.cassette.samples(), Uint8Array.of(64, 192));
   const saved = machine.snapshot(); machine.reset(); assert.deepEqual(io.cassette.snapshot(), saved.pias.cassette);
   const copy = create6809Coco({ firmware: null, extended: null }, saved);

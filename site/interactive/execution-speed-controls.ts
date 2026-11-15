@@ -5,17 +5,18 @@ import type { ExecutionPacing } from "./execution-controller.js";
 export function createExecutionSpeedControls(root: HTMLElement, options: {
   readonly clock: () => { readonly ticks: number; readonly hertz: number | undefined };
   readonly setPacing: (pacing: ExecutionPacing | undefined) => void;
+  readonly unit?: string;
   readonly changed: () => void;
 }) {
   const hertz = options.clock().hertz;
-  if (hertz === undefined) throw new Error("The machine chapter must declare its CPU clock frequency.");
+  if (hertz === undefined) throw new Error("The machine chapter must declare its clock frequency.");
   const pacing = createClockPacing({ ticks: () => options.clock().ticks, hertz, now: () => performance.now() });
   const buttons = root.querySelectorAll<HTMLButtonElement>("[data-machine-speed]");
   let normal = true;
   options.setPacing(pacing);
   for (const button of buttons) {
     button.title = button.dataset.machineSpeed === "normal"
-      ? `Limit Run to ${hertz.toLocaleString()} CPU clocks per second; busy inspectors may make it slower.`
+      ? `Limit Run to ${hertz.toLocaleString()} ${options.unit ?? "CPU clocks"} per second; busy inspectors may make it slower.`
       : "Run as fast as the browser allows, yielding between batches.";
     button.addEventListener("click", () => {
       normal = button.dataset.machineSpeed === "normal";

@@ -47,8 +47,8 @@ test("controller time is partition-independent; polling cannot accelerate it or 
   const split = new CocoDiskController(disk.snapshot()), timer = disk.inspect().timer;
   for (let i = 0; i < 100; i++) { disk.read(8); disk.inspect(); disk.snapshot(); }
   assert.equal(disk.inspect().timer, timer);
-  disk.advanceCpuClocks(1_000);
-  for (const clocks of [1, 7, 53, 17, 922]) split.advanceCpuClocks(clocks);
+  disk.advanceBoardTicks(1_000);
+  for (const clocks of [1, 7, 53, 17, 922]) split.advanceBoardTicks(clocks);
   assert.deepEqual(split.snapshot(), disk.snapshot());
   assert.equal(disk.inspect().error, 4); assert.ok(disk.inspect().byte_index > 1);
   const before = disk.snapshot();
@@ -64,7 +64,7 @@ test("HALT advances board time without CPU accesses; an unread byte checkpoint r
   const before = machine.cpu.snapshot(), waiting = stepCoco(machine);
   assert.equal(waiting.outcome, "waiting"); assert.deepEqual(waiting.accesses, []);
   assert.deepEqual(machine.cpu.snapshot(), before); assert.equal(waiting.clocks, 0);
-  assert.equal(waiting.idleClocks, 29); assert.equal(machine.clock.ticks, 29);
+  assert.equal(waiting.idleTicks, 58); assert.equal(machine.clock.ticks, 58);
   for (let i = 0; i < 1_000 && !(machine.disk.inspect().byte_index === 63 && machine.disk.inspect().drq); i++) stepCoco(machine);
   const checkpoint = machine.snapshot();
   assert.equal(checkpoint.disk.circuit.byte_index, 63); assert.equal(checkpoint.disk.circuit.drq, true);
@@ -121,7 +121,7 @@ test("NMI assertion is offered once, ahead of IRQ, even if the CPU has not armed
   }
 });
 
-function diskEvent(disk: CocoDiskController): void { disk.advanceCpuClocks(disk.clocksUntilEvent()); }
+function diskEvent(disk: CocoDiskController): void { disk.advanceBoardTicks(disk.ticksUntilEvent()); }
 
 test("sector writes change the exact physical image bytes, preserve snapshots and export detached media", () => {
   const disk = new CocoDiskController(), original = new Uint8Array(cocoDiskSize).fill(0xcd);
@@ -154,8 +154,8 @@ test("a write checkpoint owns the edited prefix and pending DATA; underruns and 
   disk.write(0, 0x29); disk.write(8, 0xa0); diskEvent(disk); disk.write(11, 0x41); diskEvent(disk); diskEvent(disk);
   disk.write(11, 0x42); const held = disk.snapshot(), restored = new CocoDiskController(JSON.parse(JSON.stringify(held)));
   assert.equal(held.image![0], 0x41); assert.equal(held.image![1], 0xcc); assert.equal(held.circuit.data, 0x42);
-  disk.advanceCpuClocks(10_000);
-  for (const clocks of [1, 7, 83, 2000, 7909]) restored.advanceCpuClocks(clocks);
+  disk.advanceBoardTicks(20_000);
+  for (const clocks of [2, 14, 166, 4000, 15818]) restored.advanceBoardTicks(clocks);
   assert.deepEqual(restored.snapshot(), disk.snapshot()); assert.equal(disk.inspect().error, 4);
   const expected = new Uint8Array(cocoDiskSize).fill(0xcc); expected.fill(0, 2, 256); expected.set([0x41, 0x42]);
   assert.deepEqual(disk.exportImage(), expected); assert.equal(held.image![1], 0xcc);

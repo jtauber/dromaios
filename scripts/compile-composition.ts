@@ -116,11 +116,12 @@ export function compileComposition(machine: ComposedMachineDefinition | Componen
       fields.push('readonly clock: ReturnType<InstructionClock["snapshot"]>');
       snapshots.push("clock: clock.snapshot()");
       const advanceDevices = (machine.clock.devices ?? []).map(target => `  ${part(target)}.advanceCpuClocks(record.clocks);`);
+      const advanceClock = machine.clock.source === "cpu" ? ["  clock.advance(record.clocks);", ...advanceDevices] : [];
       body.push(`const clock = new InstructionClock(initialState?.clock${machine.clock.hertz === undefined ? "" : `, ${machine.clock.hertz}`});`,
         "const step = (): ReturnType<typeof cpu.stepTimed> => {",
-        "  const record = instance.cpu.stepTimed();", "  clock.advance(record.clocks);", ...advanceDevices, "  return record;", "};",
+        "  const record = instance.cpu.stepTimed();", ...advanceClock, "  return record;", "};",
         "const interrupt = (...args: Parameters<typeof cpu.interruptTimed>): ReturnType<typeof cpu.interruptTimed> => {",
-        "  const record = instance.cpu.interruptTimed(...args);", "  clock.advance(record.clocks);", ...advanceDevices, "  return record;", "};");
+        "  const record = instance.cpu.interruptTimed(...args);", ...advanceClock, "  return record;", "};");
       returned.push("clock", "step", "interrupt");
     }
     if (machine.reset !== undefined) {

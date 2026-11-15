@@ -22,19 +22,19 @@ test("version-7 disks migrate read-only; current write permission is mandatory a
   const [key, text] = [...local.values][0]!, legacy = JSON.parse(text);
   legacy.version = 7; delete legacy.state.hardware.cartridge; delete legacy.state.hardware.disk.circuit.writable;
   const old = JSON.stringify(legacy); local.setItem(key, old); const migrated = saved.read()!;
-  assert.equal(migrated.version, 9); assert.equal(migrated.state.hardware.disk.circuit.writable, false);
+  assert.equal(migrated.version, 10); assert.equal(migrated.state.hardware.disk.circuit.writable, false);
   session.machine.disk.writableCopy(); session.restore(migrated.state);
   assert.equal(session.machine.disk.inspect().writable, false); assert.equal(local.getItem(key), old);
   legacy.version = 8; local.setItem(key, JSON.stringify(legacy)); const before = session.snapshot();
   assert.throws(() => session.restore(saved.read()!.state)); assert.deepEqual(session.snapshot(), before);
   session.machine.disk.writableCopy(); session.machine.disk.write(0, 0x29); session.machine.disk.write(8, 0xa0);
-  session.machine.disk.advanceCpuClocks(session.machine.disk.clocksUntilEvent()); session.machine.disk.write(11, 0x42);
+  session.machine.disk.advanceBoardTicks(session.machine.disk.ticksUntilEvent()); session.machine.disk.write(11, 0x42);
   saved.save(session.snapshot()); const checkpoint = saved.read()!.state;
   assert.equal(checkpoint.hardware.disk.circuit.phase, 6); assert.equal(checkpoint.hardware.disk.circuit.drq, false);
   session.powerOn(); assert.equal(session.machine.disk.inspect().writable, true); assert.equal(session.machine.disk.inspect().phase, 0);
   session.mountDisk("replacement.dsk", new Uint8Array(cocoDiskSize)); session.restore(checkpoint);
   assert.deepEqual(session.snapshot(), checkpoint); assert.equal(session.diskName, "blank.dsk");
-  session.machine.disk.advanceCpuClocks(400); assert.equal(session.machine.disk.exportImage()[0], 0x42);
+  session.machine.disk.advanceBoardTicks(800); assert.equal(session.machine.disk.exportImage()[0], 0x42);
   session.powerOn(); assert.equal(session.machine.disk.exportImage()[0], 0x42); assert.equal(session.machine.disk.inspect().writable, true);
   session.configureRoms({ firmware: null, extended: null, dos: null }); assert.equal(session.machine.disk.inspect().writable, true);
   const packed = JSON.parse(local.getItem(key)!);
@@ -51,7 +51,7 @@ const needsRoms = !(process.env.COCO_ROM && process.env.COCO_EXTENDED_ROM && pro
 test("a version-7 checkpoint with an unread sector byte keeps that transfer when migrated", () => {
   const session = createCocoSession(), local = storage(), saved = cocoSavedState(() => local, session.machine.clock.hertz!);
   session.mountDisk("old.dsk", new Uint8Array(cocoDiskSize).fill(0x5a));
-  session.machine.disk.write(0, 0xa9); session.machine.disk.write(8, 0x80); session.machine.disk.advanceCpuClocks(60);
+  session.machine.disk.write(0, 0xa9); session.machine.disk.write(8, 0x80); session.machine.disk.advanceBoardTicks(120);
   const expected = session.snapshot(); assert.equal(expected.hardware.disk.circuit.drq, true);
   saved.save(expected); const [key, text] = [...local.values][0]!, legacy = JSON.parse(text);
   legacy.version = 7; delete legacy.state.hardware.cartridge; delete legacy.state.hardware.disk.circuit.writable; local.setItem(key, JSON.stringify(legacy));

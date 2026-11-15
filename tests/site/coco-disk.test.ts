@@ -30,12 +30,12 @@ test("Drive 0 survives power-on and packed checkpoints; replacement and failed r
   session.machine.ram.write(0x6000, 99); session.powerOn();
   assert.equal(session.diskName, "ANSWER.dsk"); assert.equal(session.machine.disk.snapshot().image![0], 0x31);
   assert.equal(session.machine.ram.read(0x6000), 0);
-  session.machine.disk.write(0, 0xa9); session.machine.disk.write(8, 0x80); session.machine.disk.advanceCpuClocks(60);
+  session.machine.disk.write(0, 0xa9); session.machine.disk.write(8, 0x80); session.machine.disk.advanceBoardTicks(120);
   const checkpoint = session.snapshot(); assert.equal(checkpoint.hardware.disk.circuit.drq, true);
   assert.throws(() => session.ejectDisk(), /Finish or abort/); assert.deepEqual(session.snapshot(), checkpoint);
   saved.save(checkpoint);
   const [key, text] = [...local.values][0]!, packed = JSON.parse(text);
-  assert.equal(typeof packed.state.hardware.disk.image, "string"); assert.equal(packed.version, 9);
+  assert.equal(typeof packed.state.hardware.disk.image, "string"); assert.equal(packed.version, 10);
   session.powerOn(); session.mountDisk("OTHER.dsk", new Uint8Array(161280));
   session.restore(saved.read()!.state); assert.deepEqual(session.snapshot(), checkpoint);
   for (const invalid of [null, "", 99]) {
@@ -61,7 +61,7 @@ test("version-6 checkpoints gain an empty cartridge, without rewriting the store
   const [key, text] = [...local.values][0]!, envelope = JSON.parse(text);
   delete envelope.state.hardware.cartridge; delete envelope.state.diskName; delete envelope.state.hardware.disk; delete envelope.state.hardware.dos; envelope.version = 6;
   const legacy = JSON.stringify(envelope); local.setItem(key, legacy);
-  const restored = saved.read()!; assert.equal(restored.version, 9);
+  const restored = saved.read()!; assert.equal(restored.version, 10);
   session.restore(restored.state); assert.deepEqual(session.snapshot(), expected); assert.equal(local.getItem(key), legacy);
   envelope.version = 7; local.setItem(key, JSON.stringify(envelope)); assert.throws(() => saved.read());
 });

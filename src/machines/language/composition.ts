@@ -44,7 +44,7 @@ export interface CompositionDefinition extends ComponentsDefinition {
   readonly unmappedPorts?: number;
   readonly reset?: readonly string[];
   readonly resetDevices?: readonly string[];
-  readonly clock?: { readonly source: "cpu"; readonly hertz?: number; readonly devices?: readonly string[] };
+  readonly clock?: { readonly source: "cpu" | "board"; readonly hertz?: number; readonly devices?: readonly string[] };
 }
 
 /** Read wiring as data; resolve forward references after all declarations and the CPU are known. */
@@ -64,6 +64,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
   let unmapped: number | undefined;
   let unmappedPorts: number | undefined;
   let hertz: number | undefined;
+  let clockSource: "cpu" | "board" = "cpu";
   const clockDevices: Token[] = [];
 
   function name(): Token {
@@ -138,7 +139,8 @@ export function compositionSyntax(syntax: MachineSyntax) {
           });
           break;
         case "clock":
-          expect("cpu");
+          if (current().text !== "cpu" && current().text !== "board") fail(current(), 'Expected "cpu" or "board"');
+          clockSource = take().text as "cpu" | "board";
           if (/^[\d.+$-]/.test(current().text)) {
             const amount = take();
             if (!/^\d+(?:\.\d+)?$/.test(amount.text)) fail(amount, "Expected a decimal clock frequency");
@@ -150,6 +152,8 @@ export function compositionSyntax(syntax: MachineSyntax) {
               fail(amount, "Clock frequency must be positive and at most 9007199254740991 Hz");
             }
           }
+          if (clockSource === "board" && hertz === undefined) fail(declaration, "A board clock requires a frequency");
+          if (clockSource === "board" && current().text === "{") fail(current(), "A board clock advances devices through its runtime");
           if (current().text === "{") block("clock devices", () => {
             const target = name();
             if (clockDevices.some(previous => previous.text === target.text)) fail(target, `Duplicate clock device ${target.text}`);
@@ -246,7 +250,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
     finish(cpu: CpuModel, requiredSize: number): CompositionDefinition {
       const definition = finishComponents();
       if (declarations.has("clock") && cpuModels[cpu].timedExecution !== "vectors") {
-        fail(declarations.get("clock")!, "clock cpu requires timed instructions and vector interrupts");
+        fail(declarations.get("clock")!, `clock ${clockSource} requires timed instructions and vector interrupts`);
       }
       for (const target of clockDevices) {
         const value = component(target);
@@ -303,7 +307,7 @@ export function compositionSyntax(syntax: MachineSyntax) {
       }
       return {
         ...definition, connection,
-        ...(declarations.has("clock") ? { clock: { source: "cpu" as const, ...(hertz === undefined ? {} : { hertz }),
+        ...(declarations.has("clock") ? { clock: { source: clockSource, ...(hertz === undefined ? {} : { hertz }),
           ...(clockDevices.length ? { devices: clockDevices.map(token => token.text) } : {}) } } : {}),
         ...(declarations.has("ports") ? { ports: ports.map(({ direction, port, component, address }) => ({ direction, port, component, address })) } : {}),
         ...(unmappedPorts === undefined ? {} : { unmappedPorts }),

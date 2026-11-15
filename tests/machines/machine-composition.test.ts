@@ -30,6 +30,10 @@ test("clock cpu requires a composed timed CPU and has one unambiguous declaratio
   }
   const unpaced = parseMachine(apple2.replace(" 1.023 MHz { disk }", ""));
   assert.ok("clock" in unpaced); assert.deepEqual(unpaced.clock, { source: "cpu" });
+  const board = parseMachine(apple2.replace("cpu 1.023 MHz { disk }", "board 1.7897725 MHz"));
+  assert.ok("clock" in board); assert.deepEqual(board.clock, { source: "board", hertz: 1_789_772.5 });
+  assert.throws(() => parseMachine(apple2.replace("cpu 1.023 MHz { disk }", "board")), /requires a frequency/);
+  assert.throws(() => parseMachine(apple2.replace("clock cpu", "clock board")), /advances devices through its runtime/);
   for (const frequency of ["0 Hz", "-1 Hz", "1e6 Hz", "0x10 Hz", "$10 Hz", "10h Hz", "1.0.2 MHz", "1", "1 GHz", "9007199254740992 Hz"]) {
     assert.throws(() => parseMachine(apple2.replace("1.023 MHz", frequency)), /frequency|unit/);
   }

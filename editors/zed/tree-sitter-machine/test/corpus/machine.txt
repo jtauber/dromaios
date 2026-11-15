@@ -1,13 +1,15 @@
 ==================
-CPU clock
+CPU and board clocks
 ==================
 clock cpu
 clock cpu 1.023 MHz
 clock cpu 1023 kHz
 clock cpu 1023000 Hz
+clock board 1.7897725 MHz
 ---
 (source_file
   (clock_declaration)
+  (clock_declaration (frequency) (frequency_unit))
   (clock_declaration (frequency) (frequency_unit))
   (clock_declaration (frequency) (frequency_unit))
   (clock_declaration (frequency) (frequency_unit)))

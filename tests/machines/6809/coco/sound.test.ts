@@ -71,8 +71,8 @@ test("a 6809 DAC loop produces clocked amplitudes independent of sampling batche
     return { edges, samples, state: machine.snapshot() };
   }
   const first = run(1);
-  assert.deepEqual(first.edges.slice(0, 5), [[14, 32 / 126], [21, 0.5], [31, 0], [38, 32 / 126], [45, 0.5]]);
-  assert.equal(first.state.clock.ticks, 2400); // 3*(LDA immediate 2 + STA extended 5) + BRA 3 per cycle.
+  assert.deepEqual(first.edges.slice(0, 5), [[28, 32 / 126], [42, 0.5], [62, 0], [76, 32 / 126], [90, 0.5]]);
+  assert.equal(first.state.clock.ticks, 4800); // 3*(LDA immediate 2 + STA extended 5) + BRA 3 per cycle.
   assert.deepEqual(run(83), first);
   const machine = create6809Coco({ firmware: null, extended: null }, start);
   for (let i = 0; i < 4; i++) stepCoco(machine);

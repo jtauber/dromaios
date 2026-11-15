@@ -176,7 +176,7 @@ the following criteria remain the guide when adding inspectors or timing.
 ### Hardware-time acceptance
 
 The [machine chapter](../../src/machines/6809/coco.md#clock-and-sync-schedule)
-now declares normal-speed NTSC timing on top of the 6809's instruction,
+now declares NTSC board timing and the SAM's slow, address-dependent, and fast rates on top of the 6809's instruction,
 interrupt, and variable-addressing costs. Its field-interrupt counter acceptance
 covers waiting and saved phase. Fixed instruction budgets and browser frames
 remain host scheduling choices, not hardware time. Complete DRAM contention,

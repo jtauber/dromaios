@@ -141,7 +141,7 @@ cpu 6809 {
 }
 
 reset { cpu }
-clock cpu 894886.25 Hz
+clock board 1.7897725 MHz
 ```
 
 `create6809CocoDisk` accepts three independently verified ROM bindings. Booting
@@ -160,7 +160,7 @@ consumes a pending NMI assertion before the PIA interrupt levels. HALT
 returns a waiting boundary with no instruction, accesses, or CPU state change;
 time advances to the next controller or video-sync event. CPU SYNC/CWAI also
 keep the controller clock running. No browser frame or status read advances
-the disk. The board converts the exact CPU rate to integral microseconds and
+the disk. The board converts the fixed board rate to integral microseconds and
 retains the fractional remainder. Events are observed at instruction boundaries;
 bus-cycle timing and rotational media encoding remain outside this profile.
 

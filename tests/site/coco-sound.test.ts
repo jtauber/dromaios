@@ -76,7 +76,7 @@ test("Color BASIC SOUND drives the DAC, returns to OK, and replays a mid-note ch
   const periods = peaks.slice(1).map((edge, i) => edge.ticks - peaks[i]!.ticks).sort((a, b) => a - b);
   // Four DAC phases: three 663-clock gaps and one 671-clock loop rollover.
   // The ROM's duration bookkeeping occasionally adds clocks; it is not a host oscillator.
-  assert.equal(periods[Math.floor(periods.length / 2)], 2660);
+  assert.equal(periods[Math.floor(periods.length / 2)], 5320);
   const duration = (all.at(-1)!.ticks - all[0]!.ticks) / session.machine.clock.hertz!;
   assert.ok(duration > 0.10 && duration < 0.14, `SOUND duration ${duration}`);
   assert.ok(first.samples.some(value => value > 0) && first.samples.some(value => value < 0));

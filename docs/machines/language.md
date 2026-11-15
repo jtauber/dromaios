@@ -351,6 +351,15 @@ An empty or omitted list connects no devices. A device failure preserves earlier
 effects and propagates; the host must stop rather than retry the boundary.
 CPU reset has no declared duration and adds no time.
 
+`clock board 1.7897725 MHz` provides the same counter and timed CPU entry
+points, but leaves time advancement to the machine runtime. A frequency is
+required and a device list is not allowed. Use this when CPU cycles have
+different durations: the [CoCo](../../src/machines/6809/coco.md#clock-and-sync-schedule)
+converts each instruction's cycles to fixed board ticks using the SAM's address
+decoder, then advances its devices. Raw `step()` and `interrupt()` calls return
+CPU cycle counts without advancing this clock. The runtime must account for
+each boundary exactly once; consumers use `clock.hertz` for physical durations.
+
 ## CPU state fields
 
 All fields listed for the selected CPU are required, including every flag.

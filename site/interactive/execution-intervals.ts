@@ -41,10 +41,10 @@ export function createExecutionIntervals(readClock: () => Clock) {
 }
 
 /** Keep completed steps distinct from a measured request stopped by another debugger event. */
-export function executionIntervalText(interval: ExecutionInterval): string {
+export function executionIntervalText(interval: ExecutionInterval, unit = "CPU clocks"): string {
   const labels = { step: "Step", over: "Step over", out: "Step out" };
   const complete = interval.stop === interval.action || interval.action === "over" && interval.stop === "step";
   const status = interval.stop === undefined ? "running" : complete ? "complete"
     : interval.stop === "error" ? "failed" : "stopped";
-  return `${labels[interval.action]}: ${interval.clocks.toLocaleString()} CPU clocks · ${status}`;
+  return `${labels[interval.action]}: ${interval.clocks.toLocaleString()} ${unit} · ${status}`;
 }

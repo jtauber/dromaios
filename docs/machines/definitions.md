@@ -187,6 +187,12 @@ Use them for clocked machine execution; calling `cpu.step()` directly bypasses
 the machine clock and connected devices. The [Apple II chapter](../../src/machines/6502/apple2.md#cpu-clocks)
 defines how its browser controls and saved experiments use this boundary.
 
+For a variable CPU rate, `clock board 1.7897725 MHz` instead returns a fixed
+timebase that the machine runtime advances. Its generated `step`/`interrupt`
+methods return timed CPU records without changing the counter. The
+[CoCo runtime](../../src/machines/6809/coco.md#clock-and-sync-schedule) converts
+those cycles into board ticks before delivering device events.
+
 Every component with an output callback requires a named binding in the factory argument.
 A machine with no outputs or external ROM images needs no bindings argument. For example:
 

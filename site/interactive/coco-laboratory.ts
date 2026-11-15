@@ -73,7 +73,7 @@ function mountCoco(root: HTMLElement): void {
   const saved = cocoSavedState(() => localStorage, session.machine.clock.hertz!);
   const sound = createMachineSound(root, () => ({ clock: session.machine.clock, level: session.machine.pias.soundLevel }));
   const joysticks = createCocoJoystickView(root, () => session.machine.pias, () => refreshPanels(["pias"]));
-  const intervals = createExecutionIntervalView(root, () => session.machine.clock);
+  const intervals = createExecutionIntervalView(root, () => session.machine.clock, "board ticks");
   let requested: readonly string[] = [];
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")];
   const updates = createPanelUpdates(root, id => refreshPanels([id]), "dromaios:inspectors:coco:live");
@@ -131,7 +131,7 @@ function mountCoco(root: HTMLElement): void {
   });
   execution.setDelay(1);
   const speed = createExecutionSpeedControls(root, {
-    clock: () => session.machine.clock, setPacing: execution.setPacing, changed: refresh,
+    unit: "board ticks", clock: () => session.machine.clock, setPacing: execution.setPacing, changed: refresh,
   });
   const cassette = createCocoCassetteView(root, () => session.machine.pias, {
     changed: () => refreshPanels(["pias"]),
@@ -203,7 +203,7 @@ function mountCoco(root: HTMLElement): void {
     save.disabled = !ready || running; restore.disabled = !ready || running || !hasSaved;
     forgetState.disabled = selecting || !hasSaved;
     at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${session.memorySize} KiB · ${execution.steps.toLocaleString()} steps`
-      + ` · ${session.machine.clock.ticks.toLocaleString()} CPU clocks`
+      + ` · ${session.machine.clock.ticks.toLocaleString()} board ticks`
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
     if (session.hasFirmware && !session.ready) at("machine-status").textContent = "Load Extended Color BASIC 1.1 to use Disk BASIC.";
     at("machine-error").textContent = execution.error ?? "";

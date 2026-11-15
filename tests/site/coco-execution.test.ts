@@ -30,19 +30,19 @@ test("Normal, Unlimited, and single steps deliver identical keyboard phases and 
       const pressed = input.snapshot().pressed;
       input.beforeStep();
       if (input.snapshot().pressed !== pressed) edges.push([machine.clock.ticks, !pressed]);
-      const record = stepCoco(machine); input.afterStep(record.clocks + record.idleClocks); return record;
+      const record = stepCoco(machine); input.afterStep(record.elapsedTicks); return record;
     }
     return { machine, input, step, edges };
   }
   const manual = example();
-  while (manual.machine.clock.ticks < 180_000) manual.step();
+  while (manual.machine.clock.ticks < 360_000) manual.step();
   assert.equal(manual.input.settled, true);
-  assert.deepEqual(manual.edges, [[0, true], [44_745, false], [89_493, true], [134_241, false]]);
+  assert.deepEqual(manual.edges, [[0, true], [89_490, false], [178_986, true], [268_482, false]]);
   for (const normal of [false, true]) for (const batchSize of [1, 7, 10_000]) {
     const p = example(), jobs: (() => void)[] = [];
     let time = 0;
     const execution = createExecutionController({
-      step: p.step, canStep: () => p.machine.clock.ticks < 180_000, onChange() {}, batchSize,
+      step: p.step, canStep: () => p.machine.clock.ticks < 360_000, onChange() {}, batchSize,
       schedule(callback) { jobs.push(callback); return () => {}; },
     });
     if (normal) execution.setPacing(createClockPacing({ ticks: () => p.machine.clock.ticks, hertz: p.machine.clock.hertz!, now: () => time }));
@@ -62,11 +62,11 @@ test("idle clocks advance keyboard phases and restore exactly during SYNC", () =
   input.send([["A"], ["A"]]);
   function advance(machine: typeof original, transport: typeof input) {
     transport.beforeStep(); const record = stepCoco(machine);
-    transport.afterStep(record.clocks + record.idleClocks); return record;
+    transport.afterStep(record.elapsedTicks); return record;
   }
   assert.equal(advance(original, input).clocks, 4);
-  assert.equal(advance(original, input).idleClocks, 49);
-  assert.equal(input.snapshot().remainingClocks, 44_692);
+  assert.equal(advance(original, input).idleTicks, 98);
+  assert.equal(input.snapshot().remainingClocks, 89_383);
   const restored = create6809Coco(empty, original.snapshot());
   const resumed = createCocoKeyboardTransport(restored.pias, restored.clock.hertz!, input.snapshot());
   for (let boundaries = 0; !input.settled; boundaries++) {
@@ -75,7 +75,7 @@ test("idle clocks advance keyboard phases and restore exactly during SYNC", () =
   }
   assert.deepEqual(resumed.snapshot(), input.snapshot()); assert.deepEqual(restored.snapshot(), original.snapshot());
   assert.equal(original.cpu.snapshot().pc, 0x201); assert.equal(original.cpu.snapshot().waitMode, "sync");
-  assert.ok(original.clock.ticks >= 178_980);
+  assert.ok(original.clock.ticks >= 357_956);
 });
 
 function measured(batchSize = 2, budget = 100, normal = false) {
@@ -114,16 +114,16 @@ test("CoCo markers and Step over/out measure nested calls across speeds and batc
   // Outer JSR 8 + LDB 2 + twice (JSR 8 + INC 6 + RTS 5 + DECB 2 + BNE 3) + RTS 5 = 63.
   for (const batch of [1, 2, 10_000]) for (const normal of [true, false]) {
     const p = measured(batch, 100, normal); p.intervals.mark(); p.start("over"); p.finish();
-    assert.deepEqual(p.result(), { marker: { at: 0, clocks: 63 }, interval: { action: "over", clocks: 63, stop: "over" } });
+    assert.deepEqual(p.result(), { marker: { at: 0, clocks: 126 }, interval: { action: "over", clocks: 126, stop: "over" } });
     assert.equal(p.machine.ram.read(0x10), 2);
-    assert.equal(executionIntervalText(p.result().interval!), "Step over: 63 CPU clocks · complete");
+    assert.equal(executionIntervalText(p.result().interval!, "board ticks"), "Step over: 126 board ticks · complete");
   }
   const p = measured(); p.intervals.mark();
-  p.start("step"); assert.equal(p.result().interval?.clocks, 8);
-  p.start("over"); p.finish(); assert.deepEqual(p.result().interval, { action: "over", clocks: 2, stop: "step" });
-  p.start("step"); p.start("out"); p.finish(); assert.equal(p.result().interval?.clocks, 11);
-  p.start("out"); p.finish(); assert.equal(p.result().interval?.clocks, 34);
-  assert.equal(p.result().marker?.clocks, 63);
+  p.start("step"); assert.equal(p.result().interval?.clocks, 16);
+  p.start("over"); p.finish(); assert.deepEqual(p.result().interval, { action: "over", clocks: 4, stop: "step" });
+  p.start("step"); p.start("out"); p.finish(); assert.equal(p.result().interval?.clocks, 22);
+  p.start("out"); p.finish(); assert.equal(p.result().interval?.clocks, 68);
+  assert.equal(p.result().marker?.clocks, 126);
   const before = p.result(); assert.throws(() => p.start("out"), /No observed caller/); assert.deepEqual(p.result(), before);
 });
 
@@ -134,9 +134,9 @@ test("CoCo interrupted measurements retain completed clocks without claiming com
     if (cause === "watchpoint") p.debug.setWatchpoints([{ address: 0x10, enabled: true }]);
     if (cause === "error") p.machine.ram.write(0x402, 0x01); // Unsupported after the INC.
     p.start("over"); p.finish();
-    const clocks = { breakpoint: 29, watchpoint: 24, limit: 10, error: 24 }[cause];
+    const clocks = { breakpoint: 58, watchpoint: 48, limit: 20, error: 48 }[cause];
     assert.deepEqual(p.result().interval, { action: "over", clocks, stop: cause });
-    assert.match(executionIntervalText(p.result().interval!), cause === "error" ? /failed$/ : /stopped$/);
+    assert.match(executionIntervalText(p.result().interval!, "board ticks"), cause === "error" ? /failed$/ : /stopped$/);
   }
 });
 

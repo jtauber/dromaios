@@ -26,7 +26,7 @@ test("Disk BASIC boots, lists and runs ANSWER through FF4B; mid-sector restore a
   function step() {
     input.beforeStep(); const start = machine.clock.ticks, record = stepCoco(machine);
     input.afterStep(machine.clock.ticks - start);
-    if (record.idleClocks) idle++;
+    if (record.idleTicks) idle++;
     if ("source" in record && record.source === "nmi") {
       nmis++;
       const disk = machine.disk.inspect();

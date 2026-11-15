@@ -73,8 +73,8 @@ P1 does not select another bank in this capacity. The native execution helper
 rejects M=1x and TY=1 before the next CPU boundary; those stored configurations
 are inspectable, but neither create extra RAM nor silently run through the
 normal map. Unsupported display modes do not stop ordinary CPU execution.
-SAM R must remain 00 for the normal-speed clock profile below; other stored
-clock selections stop execution before the next CPU boundary.
+SAM R selects slow, address-dependent, or fully fast CPU cycles as described
+in the clock profile below.
 
 ## External firmware and reset
 
@@ -106,7 +106,7 @@ cpu 6809 {
 
 reset { cpu }
 
-clock cpu 894886.25 Hz
+clock board 1.7897725 MHz
 ```
 
 `create6809Coco({ firmware: null, extended: null })` allocates inspectable hardware before
@@ -137,20 +137,31 @@ Explicit serial carrier and cartridge events reach PIA 1.
 
 ### Clock and sync schedule
 
-The NTSC board's 14.31818 MHz crystal supplies the VDG at one quarter of that
-rate, and the normal-speed SAM supplies the CPU E clock at one sixteenth:
-**894,886.25 Hz**. The [VDG chapter](../../components/devices/specifications/mc6847.md#ntsc-sync-periods)
-declares the line and field periods and the evidence for the 228-VDG-clock line.
-Four VDG clocks occupy one CPU clock: a line is **57 CPU clocks**, a field
-**14,934**, HS stays low for **4.125**, and FS for **1,824**.
+The NTSC board's 14.31818 MHz crystal supplies the VDG at crystal/4.
+The SAM supplies CPU E periods of crystal/16 (**894,886.25 Hz**) or
+crystal/8 (**1,789,772.5 Hz**). A fixed **board tick** is crystal/8, so a
+normal CPU cycle takes two ticks and a fast cycle one. The executable
+`clock board` declaration records this timebase; changing R does not change
+video, cassette, disk, keyboard, or audio time.
 
-Phase zero is an HS rising edge, 4.125 CPU clocks after the preceding FS rising
-edge. Both inputs start high. HS first falls at 52.875 and rises at 57; FS first
-falls at 13,105.875 and rises at 14,929.875. These are deterministic power-on
-phase conventions, not a claim about the crystal's phase on real power-up.
-Phase repeats exactly without rounding each line. There is no extra mutable
-phase counter: `clock.ticks` and the PIA input levels and flags in the snapshot
-are sufficient to continue an in-progress pulse.
+The [SAM chapter](../../components/devices/specifications/mc6883.md#inspection-and-the-selected-memory-profile)
+defines address-dependent selection: with R=01, transfers below `$8000` and
+to PIA0 (`$FF00–$FF1F`) are slow; other transfers and internal cycles are fast.
+R=00 makes all cycles slow; R=1x makes all cycles fast. The boundary's R value
+applies to the whole instruction or interrupt. Real recorded transfers get
+their address's period; the remaining cycles use `$FFFF`. This approximation
+omits dummy bus reads, clock-switch stretching, and sub-instruction phase
+alignment. Fully fast operation does not simulate lost video-memory slots or
+DRAM refresh; it must not be mistaken for faithful active-display rendering.
+
+The [VDG chapter](../../components/devices/specifications/mc6847.md#ntsc-sync-periods)
+declares the 228-VDG-clock line. In board ticks, a line is **114**, a field
+**29,868**, HS stays low for **8.25**, and FS for **3,648**. Phase zero is an
+HS rising edge, 8.25 ticks after the preceding FS rise. Both inputs start
+high. HS first falls at 105.75 and rises at 114; FS first falls at 26,211.75
+and rises at 29,859.75. These are deterministic emulator power-on conventions.
+Phase repeats without per-line rounding. `clock.ticks` and the saved PIA
+levels and flags suffice to restore an in-progress pulse.
 
 At a boundary, `stepCoco` offers current interrupt levels, completes one timed
 CPU instruction or interrupt entry, then delivers **every** sync edge crossed
@@ -161,18 +172,19 @@ sync edges in this model, so instruction-internal sampling and races are not
 cycle accurate. Interrupt acceptance occurs at the following boundary.
 
 Entering SYNC or CWAI pays its CPU cost once. A subsequent waiting boundary
-advances to the next sync edge, rounded up to a complete CPU clock, without
+advances to the next sync edge, rounded up to a complete board tick, without
 fetching an instruction. The returned record keeps `clocks` as CPU work and
-adds `idleClocks` for that waiting interval; their sum advances machine time.
+adds `idleTicks` for waiting and `elapsedTicks` for total board time.
+CPU cycle counts and board ticks are distinct units.
 Masked offers retain the CPU chapter's SYNC/CWAI distinction. Run continues
 through waiting boundaries, even with both PIA interrupts disabled. Pause and
 inspection advance no clocks. The generated factory's raw `step`/`interrupt`
-methods account CPU clocks only; machine execution must use `stepCoco` for
-board arbitration and sync delivery.
+methods return timed CPU records without advancing the board clock; machine
+execution must use `stepCoco` for rate accounting, arbitration and sync delivery.
 
 This schedule is independent of rendering, host timers, and batch sizes. Browser
-pacing uses this clock without changing its schedule. SAM fast modes, DRAM
-contention, and raster-beam rendering remain outside the profile.
+pacing uses this clock without changing its schedule. DRAM contention and
+raster-beam rendering remain outside the profile.
 
 `pias.setKey(key, pressed)` changes a physical switch. PIA 0 PB0–PB7 select
 columns and PA0–PA6 sense rows; PA7 is the selected joystick comparator,
@@ -281,7 +293,7 @@ rendered pixels, and replay a checkpoint taken during a conversion.
 The [executable cassette circuit](../../components/devices/specifications/coco-cassette.md)
 owns the DAC-to-recording and playback-to-comparator conversions. The concrete
 recorder retains samples and transport state; `stepCoco` advances it with the
-same CPU clock as video sync. The interval uses its starting motor and DAC
+same fixed board clock as video sync. The interval uses its starting motor and DAC
 levels, and the next boundary sees the resulting playback sample. Waiting CPU
 intervals also move an engaged recorder. Inspection, pause, browser audio,
 and wall-clock time do not advance it.
@@ -517,7 +529,7 @@ decodes PIA 1 PA7–PA2 as a six-bit DAC. PIA 0 CA2/CB2 select its path to the
 television, and PIA 1 CB2 enables that path. PIA 1 PB1 is an independent
 one-bit output. The board's `pias.soundLevel` observes the resolved pins without
 reading guest registers or acknowledging interrupts. All retained sound state
-already belongs to the PIAs; restoring them and the CPU clock restores the
+already belongs to the PIAs; restoring them and the board clock restores the
 guest's waveform generation. No new checkpoint fields are needed.
 
 In the laboratory's **Execution** panel, click **Sound**, select **Normal**,
@@ -651,10 +663,39 @@ the sector transfer and in graphics mode. Set `COCO_SEMIGRAPHICS_DISK` along
 with the three ROM paths to run it. The independent pixel tests above establish
 the decoding; this program checks that real software drives it correctly.
 
-Fahrfall beta 3 is another useful SG12 target, but its startup selects SAM
-R=01, the address-dependent fast clock. Execution currently stops there with
-the declared unsupported-clock error, before drawing; it is not accepted by
-this display milestone.
+### Fahrfall: SG12 and changing CPU speed
+
+John W. Linville's [Fahrfall beta 3][fahrfall-beta3] boots from its unmodified
+Disk BASIC image on the **32 KiB** configuration with the same three ROMs.
+The [author's account][fahrfall-gameplay] explains its SG12 display and
+vertical-sync scheduling. Its title uses SAM R=01; gameplay also selects
+R=11 during drawing bursts. These exercise clock selection beyond slow BASIC.
+
+1. Mount `fahrfall-beta3.dsk` in **Drive 0** and run `RUN "FAHRFALL"`.
+   Wait for the **PRESS BUTTON** title screen.
+2. In **Joysticks**, connect the **left** joystick, centre its axes, and select
+   **Hold fire** to begin, then release it. Move the horizontal axis left or
+   right to steer Fahrve between the rising platforms. The right joystick does
+   not start this build.
+3. Enable **Sound** to hear the title and gameplay audio. Use **Normal** speed
+   for the declared physical rate; Unlimited intentionally runs faster.
+4. Pause and save a checkpoint during loading or play. Fresh power-on followed
+   by Restore reinstates the mounted disk, controller transfer, joystick,
+   SAM rate, video RAM, and sound-producing program. Resume with Run.
+
+The [acceptance test](../../../tests/site/coco-fahrfall.test.ts) pins the disk's
+SHA-256, boots through Disk BASIC, and checks visible movement in both
+directions at matching display updates. It restores during a sector read and
+inside a fully fast drawing burst. Continuation must reproduce CPU, RAM,
+devices, board ticks, raster, DAC transitions, and 48 kHz audio samples across
+different sample batch sizes. The supplied disk remains read-only. Set
+`COCO_FAHRFALL_DISK` and the three ROM variables to run it.
+
+This verifies this program within the instruction-boundary timing model;
+it does not establish cycle-exact audio, raster timing, or DRAM refresh.
+
+[fahrfall-beta3]: https://colorcomputerarchive.com/repo/Disks/Games/Fahrfall%20(Beta%203)%20(John%20W.%20Linville).zip
+[fahrfall-gameplay]: https://fahrfall.blogspot.com/2014/07/gameplay-improvements.html
 
 ## Disk BASIC in the laboratory
 
@@ -1104,7 +1145,7 @@ command prompt, comparing exact machine state after replay. The same disk on
 32 KiB must stop at the unsupported all-RAM switch instead of inventing storage.
 [Map tests](../../../tests/machines/6809/coco/memory64.test.ts) separately check
 P1 banking, protected ROM writes, I/O and vectors, video access to upper RAM,
-and capacity validation. DRAM row/column aliases and fast-clock modes remain
+and capacity validation. DRAM row/column aliases remain
 outside the declared model.
 
 [program-paks]: https://colorcomputerarchive.com/repo/Cartridges/
@@ -1146,17 +1187,17 @@ before another. **Reset CPU** preserves RAM and devices; the host also cancels q
 input and releases keyboard switches. **Fresh power-on** constructs new hardware,
 clears RAM and input, and retains the installed ROMs and mounted media.
 
-**Normal**, selected on page load, limits Run to the chapter's 894,886.25 CPU
-clocks per second; busy inspectors or a slow browser may make it slower.
+**Normal**, selected on page load, limits Run to the chapter's 1,789,772.5 board
+ticks per second; busy inspectors or a slow browser may make it slower.
 **Unlimited** removes that limit. Both yield after at most 10,000 boundaries
 or an 8 ms host-time slice. Switching speed leaves the machine, debugger
 request, and input queue intact. Pausing, resuming, restoring, and switching
 speed discard accumulated host-time budgets; a delayed callback retains at
 most 16 ms of work. Time spent paused never becomes a catch-up burst.
 
-Execution shows elapsed CPU clocks, including waiting intervals. **Mark clock**
+Execution shows elapsed board ticks, including waiting intervals. **Mark clock**
 sets an independent reference while paused; **Clear marker** removes it. Step,
-Step over, and Step out each measure their own elapsed clocks. A breakpoint,
+Step over, and Step out each measure their own elapsed ticks. A breakpoint,
 watchpoint, Pause, boundary limit, or execution error reports a stopped or
 failed interval rather than completion. Errors include clocks from earlier
 completed boundaries, not an invented duration for a failed instruction.
@@ -1174,7 +1215,7 @@ Browser key repeat is ignored.
 
 The host holds each queued chord for at least **50 ms of emulated time**, then
 releases it for another 50 ms before the next chord. Each phase uses the declared
-clock frequency, rounded up to 44,745 CPU clocks. The transition occurs before
+clock frequency, rounded up to 89,489 board ticks. The transition occurs before
 the next CPU boundary after that duration; an instruction or wait can extend
 it slightly. The next phase receives its own full duration. Ordinary execution,
 interrupt entry, and idle waits all consume the saved `remainingClocks` budget;
@@ -2096,13 +2137,13 @@ previous stop report is cleared.
 
 `snapshot()` owns copies of CPU and RAM state, both PIAs' latches and edge
 history, pressed keys, joystick positions/connections/buttons, cassette media
-and transport, the SAM control word, elapsed CPU clocks (including idle
+and transport, the SAM control word, elapsed board ticks (including idle
 intervals), and both ROM identities (or explicit absence). The stateless VDG contributes an empty snapshot. Restoring
 requires matching verified media in both sockets; it does not reapply power-on or CPU reset.
 Taking a snapshot or rendering a frame must neither acknowledge a pending
 interrupt nor release a held key. The browser adds the disk cartridge and its
 third ROM identity, controller state, mounted image, and filename. Browser
-checkpoints use version 9 and identify either the 32 or 64 KiB machine. Versions
+checkpoints use version 10 and identify either the 32 or 64 KiB machine. Versions
 1 and 2 predate the clock: migration starts the schedule at zero and preserves
 old PIA levels and pending flags until the next edge. Version 1 also acquires
 an empty extension socket. Versions 1–3 used a 12,000-boundary keyboard phase:
@@ -2115,12 +2156,16 @@ cassette recorder, preserving their former high PA0 input. Versions 1–6 acquir
 an idle disk cartridge with no image, filename, or Disk BASIC ROM. Version 7
 disks acquire explicit read-only permission; a missing permission in a current
 checkpoint is rejected. Versions 1–8 retain the 32 KiB capacity and acquire
-an empty ROM Pak socket. Current browser checkpoints pack tape samples, disk
+an empty ROM Pak socket. Versions 1–9 counted normal E periods; migration
+doubles elapsed ticks and version-4–9 keyboard remainders, capped to the new
+50 ms phase. Overflow
+is rejected. Cassette sample fractions and disk microsecond fractions keep
+their units. Current browser checkpoints pack tape samples, disk
 bytes, and cartridge ROM bytes as base64; native disk and cartridge snapshots
 share immutable byte arrays. The declared capacity must match the RAM length.
 Missing clock, joystick, cassette, disk, cartridge, or input fields in current
 checkpoints are rejected. Reading an older checkpoint does not overwrite it;
-saving writes version 9. Storage errors preserve the previous checkpoint.
+saving writes version 10. Storage errors preserve the previous checkpoint.
 
 The [laboratory execution tests](../../../tests/site/coco-execution.test.ts)
 compare Normal, Unlimited, and single stepping with queued repeated keys;
@@ -2141,7 +2186,7 @@ for internal text, selects the SAM page at 0400, and writes
 back to SYNC. The handler reads FF02, increments 0400, and returns with RTI.
 A second run substitutes CWAI #EF for SYNC.
 
-Before the first FS falling edge, the character stays 40. At clock 13,106 the
+Before the first FS falling edge, the character stays 40. At board tick 26,212 the
 PIA requests IRQ. The next boundary enters the handler, which acknowledges the
 request and changes the character to 41 (inverse `A`). Subsequent fields advance
 the character once each. CWAI reuses its saved stack frame and pays four entry

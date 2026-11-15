@@ -9,7 +9,7 @@ const queueLimit = 1024;
 /** A host typing convention: hold and release each chord for at least 50 ms of machine time. */
 export function cocoKeyboardPhaseClocks(hertz: number): number {
   if (!Number.isFinite(hertz) || hertz <= 0 || hertz > Number.MAX_SAFE_INTEGER) {
-    throw new RangeError("Keyboard delivery requires a positive CPU clock frequency.");
+    throw new RangeError("Keyboard delivery requires a positive board clock frequency.");
   }
   return Math.ceil(hertz / 20);
 }

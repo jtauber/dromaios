@@ -52,7 +52,7 @@ test("packed checkpoints restore RAM capacity and cartridge bytes; malformed rep
   session.machine.sam.write(0x1d, 0); session.machine.sam.write(0x15, 0);
   const state = session.snapshot(); saved.save(state);
   const [key, text] = [...values][0]!, envelope = JSON.parse(text);
-  assert.equal(envelope.version, 9); assert.equal(envelope.machine, "coco-64k");
+  assert.equal(envelope.version, 10); assert.equal(envelope.machine, "coco-64k");
   assert.equal(typeof envelope.state.hardware.cartridge.image, "string");
   session.configureMemory(32); assert.equal(session.memorySize, 32); assert.equal(session.cartridgeName, "test.ccc");
   session.ejectCartridge(); session.restore(saved.read()!.state);
