@@ -10,7 +10,7 @@ these versions for the CoCo 2B. This is a firmware upgrade on the selected
 CoCo 1 hardware profile, not a claim about its original factory configuration.
 
 The native machine boots the supplied ROM, scans physical keyboard switches,
-and produces text, semigraphics-4, and all eight standard bitmap graphics modes.
+and produces text, semigraphics-4/8/12/24, and all eight standard bitmap graphics modes.
 Its [reference audit](../../../docs/machines/coco.md) records comparisons with dromaios-coco; this implementation runs entirely on
 Dromaios components. No ROM traps, injected BASIC tokens, browser callbacks,
 or reference-emulator devices are needed.
@@ -592,8 +592,22 @@ Inverse characters include their blank margins; semigraphics blocks use all
 eight colours independently of CSS. The font bitmap and palette-index contract
 are linked from the VDG chapter. Unsupported SAM/VDG combinations report an
 error before reading screen data. These include V=111 DMA, external
-characters/SG6, extended semigraphics, and mismatched bitmap settings. Graphics
-can wrap through physical $7FFF to $0000 without visiting CPU I/O or ROM.
+characters/SG6, odd SAM modes with internal text, and mismatched bitmap settings.
+Graphics can wrap through physical $7FFF to $0000 without visiting CPU I/O or ROM.
+
+Keeping A/G=0 and INT/EXT=0 while selecting SAM V=010, 100, or 110 gives
+**SG8, SG12, or SG24**. These extend the same two-block-per-scan-line decoding
+to 64 × 64, 64 × 96, or 64 × 192 coloured blocks. The
+[VDG chapter](../../components/devices/specifications/mc6847.md#extended-semigraphics)
+explains the byte encoding and mixed character slices. The renderer reads
+2,048, 3,072, or 6,144 bytes respectively, once per byte, from the SAM's
+selected physical page. It retains the VDG's twelve-line character phase
+even when the SAM advances sooner. The
+[video tests](../../../tests/machines/6809/coco/video.test.ts) independently
+check every raster pixel, both CSS values, unequal upper/lower block bits,
+normal and inverse text, and wrapping in both RAM profiles. Accessible screen
+text is empty for these modes: slices of several glyphs cannot be represented
+faithfully as a row of whole characters.
 
 The native renderer defaults to direct colours. Its optional `composite` and
 `composite-reversed` interpretations use the VDG chapter's artifact-mode and
@@ -611,6 +625,36 @@ The board's sync schedule runs independently. The pair approximation, fixed
 RGB palette, and scanline overlay are presentation choices. Full analogue
 composite decoding, CRT simulation, dynamic RAM refresh, and instruction-internal
 cycle accuracy remain outside the model.
+
+### Try an original SG24 sketcher
+
+Robert Gault's [Semigraphics-24 Sketcher][sg24-sketcher] includes a BASIC
+loader, machine-language editor, and Saturn picture. Use the **32 KiB**
+configuration with Color BASIC 1.3, Extended Color BASIC 1.1, and Disk BASIC
+1.1. Mount the archive's `semi24.dsk` in Drive 0; the disk can remain
+read-only for this example.
+
+1. Enter `RUN "S24"`. After the title, choose **3 — Load graphics**.
+2. Answer `D` for disk, `Y` for ready, and `N` for a directory listing.
+   Enter `SATURN` without an extension.
+3. Back at the menu, choose **1 — Start graphics**. The screen footer shows
+   **SG24 · 64 × 192 · 8 colours + black**, with physical display start `$0E00`.
+4. Arrow keys move the cursor. `?` shows help on a second SG24 page at `$2600`;
+   `@` returns to the menu. The help describes colours, drawing, and text entry.
+5. Save a laboratory checkpoint before moving the cursor. Fresh power-on and
+   Restore return to the same picture, program, display page, and mounted disk.
+
+The [software acceptance](../../../tests/site/coco-semigraphics.test.ts) pins
+the original disk's SHA-256, loads all 6,144 Saturn bytes through Disk BASIC,
+verifies their destination, moves the cursor, and replays checkpoints during
+the sector transfer and in graphics mode. Set `COCO_SEMIGRAPHICS_DISK` along
+with the three ROM paths to run it. The independent pixel tests above establish
+the decoding; this program checks that real software drives it correctly.
+
+Fahrfall beta 3 is another useful SG12 target, but its startup selects SAM
+R=01, the address-dependent fast clock. Execution currently stops there with
+the declared unsupported-clock error, before drawing; it is not accepted by
+this display milestone.
 
 ## Disk BASIC in the laboratory
 
@@ -1302,8 +1346,8 @@ watch modes retain their existing semantics in the same shared presentation.
 
 The screen footer and SAM / video panel show the selected resolution, colour
 count, CSS, and start address. The SAM panel also exposes GM beside V, making
-the two chips' separate responsibilities visible. Broader ROM annotations,
-extended semigraphics, and raster-position rendering remain subsequent work.
+the two chips' separate responsibilities visible. Broader ROM annotations
+and raster-position rendering remain subsequent work.
 
 ## Following Color BASIC
 
@@ -2167,3 +2211,5 @@ and explicit release without firmware.
 [extended-unravelled]: https://colorcomputerarchive.com/repo/Documents/Books/Unravelled%20Series/extended-basic-unravelled.pdf
 [disk-reference]: https://colorcomputerarchive.com/repo/Documents/Manuals/Hardware/Color%20Computer%20Disk%20System%20-%20Quick%20Reference%20Guide%20%28Tandy%29.pdf
 [disk-unravelled]: https://colorcomputerarchive.com/repo/Documents/Books/Unravelled%20Series/disk-basic-unravelled.pdf
+
+[sg24-sketcher]: https://colorcomputerarchive.com/repo/Disks/Applications/Semigraphics-24%20%28Robert%20Gault%29.zip

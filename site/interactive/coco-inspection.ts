@@ -30,7 +30,7 @@ export function readCocoStorage(machine: Coco, address: number): number | undefi
   return undefined;
 }
 
-/** Accessible text alongside bitmap video, using the same SAM-selected physical page. */
+/** Whole characters only: extended semigraphics can display slices of different glyphs. */
 export function cocoScreenText(machine: Coco): string {
   if (!cocoMemorySupported(machine) || machine.sam.videoMode() !== 0 || !machine.vdg.internalText(machine.pias.videoPins)) return "";
   return Array.from({ length: 16 }, (_, row) => Array.from({ length: 32 }, (_, column) => {
@@ -44,7 +44,9 @@ export function cocoScreenText(machine: Coco): string {
 export function cocoDisplayStatus(machine: Coco): string {
   try {
     const mode = cocoDisplayMode(machine);
-    const format = mode.kind === "text" ? "Text / SG4" : `${mode.width} × ${mode.height} · ${2 ** mode.bitsPerPixel} colours`;
+    const format = mode.kind === "text" ? "Text / SG4"
+      : mode.kind === "semigraphics" ? `SG${mode.height / 8} · 64 × ${mode.height} · 8 colours + black`
+      : `${mode.width} × ${mode.height} · ${2 ** mode.bitsPerPixel} colours`;
     const css = (machine.pias.videoPins >> 3) & 1;
     return `${format} · CSS ${css} · $${cocoHex(machine.sam.displayStart())}`;
   } catch (cause) { return cause instanceof Error ? cause.message : String(cause); }

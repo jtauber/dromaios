@@ -252,7 +252,7 @@ existing generated 6809. The [native executable chapter](src/machines/6809/coco.
 now owns a clocked 32 or 64 KiB model with Extended and Disk BASIC, cassette,
 ROM cartridges, sound, joysticks, and independently produced software acceptance.
 The laboratory combines shared debugger tools with device inspection and saved
-sessions. Extended semigraphics, physical DRAM aliasing, fast-clock modes, and
+sessions. Physical DRAM aliasing, fast-clock modes, and
 additional peripheral hardware remain separate fidelity milestones.
 
 The **IBM PC/XT** runs the generated 8088 and uses **dromaios-pc** as its

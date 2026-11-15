@@ -73,6 +73,9 @@ function requireMemoryProfile(machine: Pick<Coco, "sam" | "ram">): void {
 }
 
 export type CocoDisplayMode = { readonly kind: "text" } | {
+  readonly kind: "semigraphics";
+  readonly height: number;
+} | {
   readonly kind: "bitmap";
   readonly width: number;
   readonly height: number;
@@ -84,7 +87,10 @@ export function cocoDisplayMode(machine: Coco): CocoDisplayMode {
   requireMemoryProfile(machine);
   const { sam, vdg } = machine, pins = machine.pias.videoPins;
   if (vdg.alphaMode(pins)) {
-    if (sam.videoMode() === 0 && vdg.internalText(pins)) return { kind: "text" };
+    if (sam.displayBytesPerRow() === 32 && vdg.internalText(pins)) {
+      return sam.videoMode() === 0 ? { kind: "text" }
+        : { kind: "semigraphics", height: 192 / sam.displayLinesPerRow() };
+    }
   } else {
     const width = vdg.graphicsWidth(pins), height = vdg.graphicsHeight(pins), bitsPerPixel = vdg.graphicsBitsPerPixel(pins);
     if (sam.displayBytesPerRow() === width * bitsPerPixel / 8 && sam.displayLinesPerRow() === 192 / height) {
@@ -100,21 +106,25 @@ export type CocoVideoSignal = "direct" | "composite" | "composite-reversed";
 /** Capture the active raster from physical RAM; never perform CPU-bus or PIA reads. */
 export function renderCocoFrame(machine: Coco, signal: CocoVideoSignal = "direct"): Uint8Array {
   const mode = cocoDisplayMode(machine), pixels = new Uint8Array(256 * 192);
-  if (mode.kind === "text") renderText(machine, pixels);
-  else renderBitmap(machine, mode, pixels, signal);
+  if (mode.kind === "bitmap") renderBitmap(machine, mode, pixels, signal);
+  else renderAlpha(machine, pixels);
   return pixels;
 }
 
-function renderText(machine: Coco, pixels: Uint8Array): void {
-  const { ram, vdg } = machine, pins = machine.pias.videoPins;
-  for (let row = 0; row < 16; row++) for (let column = 0; column < 32; column++) {
+function renderAlpha(machine: Coco, pixels: Uint8Array): void {
+  const { ram, sam, vdg } = machine, pins = machine.pias.videoPins;
+  const linesPerRow = sam.displayLinesPerRow();
+  for (let row = 0; row < 192 / linesPerRow; row++) for (let column = 0; column < 32; column++) {
     const byte = ram.read(cocoDisplayAddress(machine, row, column));
     const semigraphics = vdg.semigraphics(byte), glyph = vdg.glyph(byte);
     const foreground = vdg.foreground(byte, pins), background = vdg.background(byte, pins);
-    for (let line = 0; line < 12; line++) {
-      const dots = semigraphics ? vdg.semigraphicsPixels(byte, line)
-        : vdg.textPixels(byte, characterRows[glyph * 12 + line]!);
-      const start = (row * 12 + line) * 256 + column * 8;
+    for (let line = 0; line < linesPerRow; line++) {
+      const y = row * linesPerRow + line;
+      // SAM row changes do not restart the VDG's twelve-line character scan.
+      const characterRow = y % 12;
+      const dots = semigraphics ? vdg.semigraphicsPixels(byte, characterRow)
+        : vdg.textPixels(byte, characterRows[glyph * 12 + characterRow]!);
+      const start = y * 256 + column * 8;
       for (let x = 0; x < 8; x++) pixels[start + x] = dots & (0x80 >> x) ? foreground : background;
     }
   }

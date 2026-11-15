@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create6809Coco } from "../../../../src/machines/generated/6809/coco.js";
+import { create6809Coco64 } from "../../../../src/machines/generated/6809/coco64.js";
 import { cocoDisplayMode, renderCocoFrame, stepCoco } from "../../../../src/machines/6809/coco/runtime.js";
 import type { Coco } from "../../../../src/machines/6809/coco/runtime.js";
 import { cocoDisplayStatus, cocoScreenText } from "../../../../site/interactive/coco-inspection.js";
@@ -19,6 +20,50 @@ function configure(machine: Coco, v: number, pins: number, page = 0): void {
   machine.pias.write(0x23, 4); machine.pias.write(0x22, pins);
 }
 const storedByte = (address: number): number => (address * 73 ^ (address >>> 5)) & 255;
+
+test("SG8/12/24 preserve VDG character phase, mixed text, colours and physical RAM wrapping", () => {
+  // Tandy's mode table and Motorola's B glyph; neither oracle calls the device views.
+  const b = [0, 0, 0, 0x3c, 0x12, 0x12, 0x1c, 0x12, 0x12, 0x3c, 0, 0];
+  const byteAt = (address: number) => address % 32 < 2 ? 2 + address % 32 * 64 : 0x80 | storedByte(address);
+  for (const [v, repeats, height] of [[2, 3, 64], [4, 2, 96], [6, 1, 192]] as const) {
+    for (const memory of [32, 64]) for (const css of [0, 1]) for (const page of [2, 0x3f, 0x7f]) {
+      const machine = memory === 32 ? create6809Coco({ firmware: null, extended: null })
+        : create6809Coco64({ firmware: null, extended: null, dos: null });
+      configure(machine, v, css * 8, page);
+      if (memory === 64) {
+        machine.sam.write(29, 0); // M=10: 64K DRAM.
+        machine.sam.write(21, 0); // P1 must not redirect physical video reads.
+        if (page === 0x7f) machine.sam.write(31, 0); // Nor may TY's all-RAM map.
+      }
+      for (let i = 0; i < machine.ram.size; i++) machine.ram.write(i, byteAt(i));
+      machine.pias.write(3, 5); machine.pias.setFieldSync(false);
+      const before = machine.snapshot(), reads: number[] = [], read = machine.ram.read.bind(machine.ram);
+      machine.ram.read = address => { reads.push(address); return read(address); };
+      machine.memory.read = machine.memory.write = () => { throw new Error("Video must not use the CPU bus"); };
+      assert.deepEqual(cocoDisplayMode(machine), { kind: "semigraphics", height });
+      assert.equal(cocoDisplayStatus(machine), `SG${height / 8} · 64 × ${height} · 8 colours + black · CSS ${css} · $${(page * 512).toString(16).toUpperCase().padStart(4, "0")}`);
+      assert.equal(cocoScreenText(machine), "", "character slices are not whole accessible characters");
+      const expected = new Uint8Array(256 * 192);
+      for (let y = 0; y < 192; y++) for (let x = 0; x < 256; x++) {
+        const address = (page * 512 + Math.floor(y / repeats) * 32 + Math.floor(x / 8)) % machine.ram.size;
+        const byte = byteAt(address);
+        if (byte >= 128) {
+          const blockBit = (y % 12 < 6 ? 3 : 1) - Math.floor(x % 8 / 4);
+          expected[y * 256 + x] = byte & (1 << blockBit) ? (byte >> 4) & 7 : 8;
+        } else {
+          const lit = Boolean(b[y % 12]! & (0x80 >> (x % 8))) !== (byte >= 64);
+          expected[y * 256 + x] = lit ? css ? 7 : 0 : css ? 10 : 9;
+        }
+      }
+      const frame = renderCocoFrame(machine);
+      assert.deepEqual(frame, expected, `SG${height / 8}, ${memory}K, CSS=${css}, F=${page}`);
+      assert.deepEqual(reads, Array.from({ length: height * 32 }, (_, i) => (page * 512 + i) % machine.ram.size));
+      assert.deepEqual(renderCocoFrame(machine, "composite"), frame);
+      assert.deepEqual(renderCocoFrame(machine, "composite-reversed"), frame);
+      assert.deepEqual(machine.snapshot(), before); assert.equal(machine.pias.irq, true);
+    }
+  }
+});
 
 test("all eight CoCo bitmap formats render complete independent rasters in both palettes and across RAM wrapping", () => {
   modes.forEach(({ width, height, bits, v }, gm) => {
@@ -54,8 +99,8 @@ test("unsupported SAM/VDG pairings and INT/EXT high reject before reading RAM", 
   for (const graphics of [false, true]) for (let gm = 0; gm < 8; gm++) for (let v = 0; v < 8; v++) {
     const machine = create6809Coco({ firmware: null, extended: null }); configure(machine, v, (graphics ? 0x80 : 0) + gm * 16);
     machine.ram.read = () => { throw new Error("Unsupported display must not read RAM"); };
-    const supported = graphics ? v === modes[gm]!.v : v === 0 && gm % 2 === 0;
-    if (supported) assert.equal(cocoDisplayMode(machine).kind, graphics ? "bitmap" : "text");
+    const supported = graphics ? v === modes[gm]!.v : v % 2 === 0 && gm % 2 === 0;
+    if (supported) assert.equal(cocoDisplayMode(machine).kind, graphics ? "bitmap" : v === 0 ? "text" : "semigraphics");
     else {
       assert.throws(() => renderCocoFrame(machine), /Unsupported CoCo display/);
       assert.match(cocoDisplayStatus(machine), /Unsupported CoCo display/);
