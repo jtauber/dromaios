@@ -124,6 +124,12 @@ export class XtIo implements MemoryConnection {
   get oscillatorTicks(): number { return this.#clock.ticks; }
   get clock(): Pick<XtClock, "ticks" | "hertz"> { return this.#clock; }
 
+  /** Detached interrupt inspection; no port read, acknowledge, or disk-image copy. */
+  interruptState() {
+    return { pic: this.#pic.snapshot(), vector: this.#pic.irq() ? this.#pic.vector() : null,
+      intrRaisedDuringCpu: this.#intrRaisedDuringCpu, nmiPending: this.nmiPending };
+  }
+
   /** Observe settled speaker transitions, including PIT edges inside a CPU interval. */
   observeSpeaker(observer: (ticks: number, level: boolean) => void): () => void {
     if (!this.#speakerObservers.size) this.#observedSpeakerLevel = this.speakerLevel;

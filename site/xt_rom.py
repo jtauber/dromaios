@@ -48,8 +48,22 @@ def ultima_walkthrough(source):
 
 def xt_annotations(source, catalogue):
     storage = catalogue["storage"]
-    return validate_rom_annotations(_guide_record(source, "XT chapter"), catalogue["romImages"]["bios"],
+    record = _guide_record(source, "XT chapter")
+    io = record.pop("io", None)
+    if (not isinstance(io, dict) or set(io) != {"ports", "irqs"} or not isinstance(io["ports"], list)
+            or not isinstance(io["irqs"], list) or len(io["irqs"]) != 8
+            or not all(isinstance(name, str) and name.strip() for name in io["irqs"])):
+        raise ValueError("XT I/O labels need ports and eight IRQ sources.")
+    previous = -1
+    for port in io["ports"]:
+        if (not isinstance(port, dict) or set(port) not in ({"address", "input"}, {"address", "output"}, {"address", "input", "output"})
+                or not all(isinstance(value, str) and value.strip() for value in port.values())
+                or not re.fullmatch(r"[0-9A-F]{4}", port["address"]) or int(port["address"], 16) <= previous):
+            raise ValueError("XT port labels need unique ordered 16-bit addresses and input/output names.")
+        previous = int(port["address"], 16)
+    validated = validate_rom_annotations(record, catalogue["romImages"]["bios"],
                                     rom_ranges=[(r["start"], r["start"] + r["size"] - 1) for r in storage if r["component"] == "bios"],
                                     ram_end=next(r["size"] for r in storage if r["component"] == "ram"),
                                     hardware_ranges=[], instruction_bytes=32, address_digits=5,
                                     execution_address=lambda text, physical: _physical_address(text) == physical)
+    return {**validated, "io": io}

@@ -101,8 +101,8 @@ test("XT layouts gain the inspectors once while preserving existing tabs and hid
   const map = new Map([["dromaios:workspace:xt:1", encodeWorkspaceState(old)]]);
   const storage = { getItem: (key: string) => map.get(key) ?? null, setItem: (key: string, text: string) => map.set(key, text) };
   migrateXtWorkspace(storage);
-  const restored = decodeWorkspaceState(map.get(xtWorkspaceKey)!, ["screen", "snapshot", "registers", "code", "memory", "debugger", "instruction", "walkthrough", "log", "calls"]);
-  assert.deepEqual(groups(restored).map(g => g.panels), [["screen", "snapshot"], ["debugger", "walkthrough"], ["registers", "calls"], ["instruction"], ["code", "log"], ["memory"]]);
+  const restored = decodeWorkspaceState(map.get(xtWorkspaceKey)!, ["screen", "snapshot", "registers", "code", "memory", "debugger", "instruction", "walkthrough", "log", "calls", "pic", "ports"]);
+  assert.deepEqual(groups(restored).map(g => g.panels), [["screen", "snapshot"], ["debugger", "walkthrough"], ["registers", "calls", "pic"], ["instruction"], ["code", "log", "ports"], ["memory"]]);
   assert.deepEqual(groups(restored)[0], old.root);
   map.set(xtWorkspaceKey, encodeWorkspaceState(old)); migrateXtWorkspace(storage);
   assert.equal(map.get(xtWorkspaceKey), encodeWorkspaceState(old));

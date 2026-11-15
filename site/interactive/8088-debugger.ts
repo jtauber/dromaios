@@ -1,3 +1,4 @@
+import { opcode8088Index } from "./8088-encoding.js";
 import type { stepTimedXtCpu } from "../../src/machines/8088/pc-xt/interrupts.js";
 import { logical8088, physical8088, xtHex as hex } from "./8088-disassembly.js";
 import type { createInstructionDebugger, StackFlow } from "./instruction-debugger.js";
@@ -9,8 +10,7 @@ const location = (cs: number, ip: number) => ({ address: physical8088(cs, ip), s
  * Near calls save IP; far calls save CS:IP; interrupt entry saves FLAGS as well. */
 export function observe8088Boundary(policy: ReturnType<typeof createInstructionDebugger>, record: Boundary): void {
   const { before, after, instruction } = record, bytes = instruction?.bytes ?? [];
-  let index = 0;
-  while ([0x26, 0x2e, 0x36, 0x3e, 0xf0, 0xf2, 0xf3].includes(bytes[index]!)) index++;
+  const index = opcode8088Index(bytes);
   const opcode = bytes[index], modRM = bytes[index + 1] ?? 0, group = modRM >>> 3 & 7;
   let flow: StackFlow | undefined, frameType: string | undefined, discard = 0;
   let returnLocation;

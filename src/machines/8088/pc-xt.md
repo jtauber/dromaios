@@ -778,6 +778,53 @@ Check a RAM watch after restoration to verify that it follows the restored
 hardware. Panel updates and navigation use observed state and perform no guest
 bus or port accesses.
 
+### Port trace and interrupt inspection
+
+**Port trace**, a tab beside Disassembly, retains up to 500 captured events.
+Enable **Record** before stepping or running. Each IN/OUT byte retains its
+16-bit port, value, originating CS:IP and instruction bytes. Word transfers
+retain both bytes in their original order, including a port-number wrap.
+The trace also records the CPU's acknowledged vector, completed interrupt entry
+and IRET destination. INTA is the model's single atomic acknowledgement record;
+it does not claim to show the hardware's two separate bus cycles.
+
+Newest events appear first. Sequence numbers preserve transfer order within
+a boundary; times are oscillator ticks at the end of that complete CPU/board
+boundary, including DMA and device advancement. They are not per-access bus
+timestamps. **Ports** and **Interrupts** filter the retained view without
+changing recording. Address links browse the captured logical CS:IP, using
+the fetched bytes for the trace's instruction description even if RAM changes.
+**Live** controls repainting independently of **Record**. Clear, CPU reset,
+power-on, restore and successful ROM replacement discard inspector history;
+recording preferences remain in effect. Failed boundaries may leave partial
+device effects that are outside this completed-boundary trace.
+
+**8259A PIC**, beside Registers and Call stack, shows live input levels, IRR
+pending requests, IMR masks, ISR in-service bits, vector base and initialization
+phase. Its selected row comes from the controller's own priority resolver.
+The accompanying CPU flags and recognition delays explain why an asserted INT
+need not be accepted at the next boundary. Board sample delay identifies an
+IRQ raised by the CPU's own bus transfer. NMI and an owed trap are shown
+separately; neither passes through this PIC. The compact `interruptState()`
+view takes a detached controller snapshot without reading ports, acknowledging
+requests, copying disk media or advancing the clock.
+
+The chapter's **A keypress through IRQ1** walkthrough follows a lowercase `a`
+from the acknowledged vector `09` to the BIOS handler. The handler reads scan
+code `1E` at port `60`, clears the receiver with port `61` bit 7, translates the
+key into `1E61` in the BIOS keyboard ring, writes EOI `20` to port `20`, then
+executes IRET. Clearing the receiver, completing PIC service and restoring CPU
+state are three distinct actions. A release produces scan code `9E` and may
+queue another request. The guide's labels below describe these checked ROM
+addresses and this machine's port and IRQ wiring.
+
+The [inspection checks](../../../tests/site/xt-io.test.ts) cover bounded history,
+word I/O, software/NMI/trap records, prefixed IRET and detached PIC observation
+with a masked or pending key. With the three XT firmware paths set, they boot
+the original BIOS/BASIC, follow all five IRQ1 checkpoints, check the scan code,
+PIC transitions and BIOS buffer, then compare the entire resulting machine
+with ordinary execution and a replay from a checkpoint taken during the handler.
+
 ### Changes and watched RAM history
 
 **Changes** uses the shared laboratory log. Each retained event identifies its
@@ -864,6 +911,22 @@ a return instruction before establishing a working RAM stack.
 ```json
 {
   "sha256": "2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2",
+  "io": {
+    "ports": [
+      {"address": "0020", "input": "8259A · selected IRR/ISR", "output": "8259A · command / EOI"},
+      {"address": "0021", "input": "8259A · interrupt mask", "output": "8259A · initialization / mask"},
+      {"address": "0040", "input": "8253 · channel 0 count", "output": "8253 · channel 0 reload"},
+      {"address": "0041", "input": "8253 · channel 1 count", "output": "8253 · channel 1 reload"},
+      {"address": "0042", "input": "8253 · channel 2 count", "output": "8253 · channel 2 reload"},
+      {"address": "0043", "output": "8253 · control"},
+      {"address": "0060", "input": "8255A · keyboard data"},
+      {"address": "0061", "input": "8255A · port B", "output": "8255A · keyboard / speaker control"},
+      {"address": "0062", "input": "8255A · port C"},
+      {"address": "0063", "output": "8255A · control"},
+      {"address": "00A0", "output": "XT · NMI mask"}
+    ],
+    "irqs": ["PIT channel 0", "XT keyboard", "Expansion", "Expansion", "Expansion", "Expansion", "Diskette", "Expansion"]
+  },
   "regions": [
     {"start": "FE000", "end": "FFFFF", "name": "IBM XT BIOS · 11/08/82"}
   ],
@@ -874,7 +937,8 @@ a return instruction before establishing a working RAM stack.
     {"address": "FE0AD", "name": "ERR01", "description": "HLT on an early processor or BIOS-checksum failure."},
     {"address": "FE0AE", "name": "C10", "description": "Disable NMI and video, initialize board ports, and prepare the BIOS checksum."},
     {"address": "FF8F2", "name": "ROS_CHECKSUM", "description": "Add the 8,192 bytes starting at DS:BX into AL. OR AL,AL sets ZF from the checksum before RET."},
-    {"address": "FE0D7", "name": "C11", "description": "Check the BIOS checksum result and continue to DMA/timer initialization when ZF is set."}
+    {"address": "FE0D7", "name": "C11", "description": "Check the BIOS checksum result and continue to DMA/timer initialization when ZF is set."},
+    {"address": "FE987", "name": "KEYBOARD_IRQ", "description": "Our label for the BIOS IRQ1 entry. Read the scan code, clear the receiver, translate the key, send EOI and return through IRET."}
   ],
   "labels": [
     {"address": "00417", "name": "KB_FLAG", "scope": "workspace", "description": "0040:0017. Keyboard shift and toggle flags, maintained by the BIOS IRQ1 routine."},
@@ -888,6 +952,10 @@ a return instruction before establishing a working RAM stack.
     {"address": "FE016", "name": "C1", "scope": "rom", "description": "ROM word D7 E0 used as the return address for the first checksum. SS:SP points here before the jump."}
   ],
   "notes": [
+    {"address": "FE994", "bytes": "E4 60", "text": "Read the keyboard scan byte at port 60. A read alone does not clear the receiver or the PIC in-service bit."},
+    {"address": "FE99D", "bytes": "E6 61", "text": "Set port B bit 7 to clear the keyboard receiver and lower its IRQ1 line. The PIC remains in service until EOI."},
+    {"address": "FEA5C", "bytes": "E6 20", "text": "Send non-specific EOI (AL=20) to the PIC. This clears its highest-priority in-service bit; it does not return from the handler."},
+    {"address": "FEA66", "bytes": "CF", "text": "IRET restores IP, CS and FLAGS from the interrupt frame. The PIC has already received EOI."},
     {"address": "FFFF0", "bytes": "EA 5B E0 00 F0", "text": "RESET_VECTOR selects CS=F000 and IP=E05B. The physical destination is FE05B."},
     {"address": "FE05B", "bytes": "FA", "text": "Disable maskable interrupts before testing the CPU and initializing board devices."},
     {"address": "FE05C", "bytes": "B4 D5", "text": "Prepare AH=D5 so SAHF sets SF, ZF, AF, PF, and CF."},
@@ -938,6 +1006,26 @@ a return instruction before establishing a working RAM stack.
       {"title": "Checksum passed", "address": "FE0D7", "execution": "F000:E0D7", "routine": "C11",
        "prepare": "Continue from RET. This checkpoint is immediate if you already stepped it.",
        "observe": "SP is E018. JNE tests ZF=0 and is not taken. Step reaches E0D9, ready for the DMA and timer tests. This completes the initial walkthrough."}
+    ]
+  }, {
+    "id": "keyboard-irq", "title": "A keypress through IRQ1",
+    "setup": "Quick boot to BASIC’s Ok prompt, then Pause. Open Port trace and enable Record. Open 8259A PIC and Call stack. Select the first checkpoint, choose Run to checkpoint, click the screen and press a lowercase a. Key release is a separate scan byte and may produce another IRQ1 later.",
+    "steps": [
+      {"title": "IRQ1 entered", "address": "FE987", "execution": "F000:E987", "routine": "KEYBOARD_IRQ",
+       "prepare": "With Record enabled, run to this checkpoint and press a in the screen. Ignore earlier timer events in the trace.",
+       "observe": "INTA supplies vector 09, followed by INTR entry at F000:E987. IRQ1 is in service; its original pending request has been acknowledged. IF is clear. Call stack records the interrupted CS:IP and return pair."},
+      {"title": "Read the scan code", "address": "FE994", "execution": "F000:E994", "routine": "KEYBOARD_IRQ",
+       "prepare": "Run through the handler prologue and its near call. Step the IN instruction at this checkpoint.",
+       "observe": "Port trace records IN 0060 with value 1E for the a make code (9E is its release). AL holds the captured byte. IRQ1 remains in service and reading the port has not cleared the keyboard receiver."},
+      {"title": "Clear the receiver", "address": "FE99D", "execution": "F000:E99D", "routine": "KEYBOARD_IRQ",
+       "prepare": "Run through the read of port 61 and the setting of bit 7, then Step this OUT.",
+       "observe": "OUT 0061 raises bit 7 and lowers the receiver’s IRQ1 level. The PIC’s in-service bit stays set. The next OUT restores port B. A separately queued release may later raise the line again."},
+      {"title": "Tell the PIC service is complete", "address": "FEA5C", "execution": "F000:EA5C", "routine": "KEYBOARD_IRQ",
+       "prepare": "Run through scan-code translation. For an unshifted a, the BIOS has stored the word 1E61 in its keyboard ring and advanced BUFFER_TAIL. Step the OUT at this checkpoint.",
+       "observe": "OUT 0020 writes 20, clearing the IRQ1 in-service bit. This is EOI, not a CPU return. The observed interrupt frame remains in Call stack."},
+      {"title": "Return to the interrupted code", "address": "FEA66", "execution": "F000:EA66", "routine": "KEYBOARD_IRQ",
+       "prepare": "Run through the register restoration, then Step IRET.",
+       "observe": "The IRET trace links to the restored CS:IP. The observed interrupt frame disappears from Call stack and FLAGS are restored. Continue running to let BASIC consume and echo the key."}
     ]
   }]
 }

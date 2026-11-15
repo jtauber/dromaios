@@ -315,8 +315,19 @@ test("XT version-7 layouts gain Call stack beside Registers once without changin
   const saved = new Map([["dromaios:workspace:xt:7", encodeWorkspaceState(old)]]);
   const storage = { getItem: (key: string) => saved.get(key) ?? null, setItem: (key: string, text: string) => saved.set(key, text) };
   migrateXtWorkspace(storage);
-  assert.deepEqual(decodeWorkspaceState(saved.get(xtWorkspaceKey)!, ["registers", "memory", "calls"]),
-    { root: { ...old.root, panels: [...old.root.panels, "calls"] } });
+  assert.deepEqual(decodeWorkspaceState(saved.get(xtWorkspaceKey)!, ["registers", "memory", "calls", "pic"]),
+    { root: { ...old.root, panels: [...old.root.panels, "calls", "pic"] } });
   saved.set(xtWorkspaceKey, encodeWorkspaceState(old)); migrateXtWorkspace(storage);
   assert.equal(saved.get(xtWorkspaceKey), encodeWorkspaceState(old), "a subsequently hidden Call stack stays hidden");
+});
+
+test("XT version-8 layouts add PIC and Port trace while keeping a hidden Call stack hidden", () => {
+  const old = { root: { kind: "tabs", id: "mine", active: "code", panels: ["registers", "code"], collapsed: true } } as const;
+  const saved = new Map([["dromaios:workspace:xt:8", encodeWorkspaceState(old)]]);
+  const storage = { getItem: (key: string) => saved.get(key) ?? null, setItem: (key: string, text: string) => saved.set(key, text) };
+  migrateXtWorkspace(storage);
+  assert.deepEqual(decodeWorkspaceState(saved.get(xtWorkspaceKey)!, ["registers", "code", "pic", "ports"]),
+    { root: { ...old.root, panels: [...old.root.panels, "pic", "ports"] } });
+  saved.set(xtWorkspaceKey, encodeWorkspaceState(old)); migrateXtWorkspace(storage);
+  assert.equal(saved.get(xtWorkspaceKey), encodeWorkspaceState(old));
 });

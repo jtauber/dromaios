@@ -1,23 +1,27 @@
 import { decodeWorkspaceState, encodeWorkspaceState } from "./workspace/state.js";
-import { activatePanel, collapseGroup, groups, movePanel, normalizeSplit, openPanel, panelGroup } from "./workspace/layout.js";
+import { activatePanel, closePanel, collapseGroup, groups, movePanel, normalizeSplit, openPanel, panelGroup } from "./workspace/layout.js";
 import type { LayoutNode, Split, TabGroup, WorkspaceLayout } from "./workspace/layout.js";
 
 const group = (id: string): TabGroup => ({ kind: "tabs", id: "xt-" + id, active: id, panels: [id], collapsed: false });
 const area = (weight: number, node: LayoutNode) => ({ weight, node });
 const column = (id: string, ...items: Split["items"]): Split => ({ id, kind: "split", axis: "vertical", items });
 const tools = column("xt-inspectors", area(.31, group("registers")), area(.40, group("code")), area(.29, group("memory")));
-export const xtWorkspaceKey = "dromaios:workspace:xt:8";
+export const xtWorkspaceKey = "dromaios:workspace:xt:9";
 function addChanges(layout: WorkspaceLayout): WorkspaceLayout {
   const destination = panelGroup(layout, "code") ?? groups(layout)[0];
   if (!destination) return openPanel(layout, "log");
   return collapseGroup(activatePanel(movePanel(layout, "log", { group: destination.id, side: "tab" }), destination.active), destination.id, destination.collapsed);
 }
-function addCalls(layout: WorkspaceLayout): WorkspaceLayout {
-  const destination = panelGroup(layout, "registers");
-  if (!destination) return layout;
-  return collapseGroup(activatePanel(movePanel(layout, "calls", { group: destination.id, side: "tab" }), destination.active), destination.id, destination.collapsed);
+function addInterruptTools(layout: WorkspaceLayout): WorkspaceLayout {
+  // Keep a hidden Registers/Disassembly group hidden; the new tools remain available in Panels.
+  for (const [panel, beside] of [["calls", "registers"], ["pic", "registers"], ["ports", "code"]] as const) {
+    if (panelGroup(layout, panel)) continue;
+    const destination = panelGroup(layout, beside);
+    if (destination) layout = collapseGroup(activatePanel(movePanel(layout, panel, { group: destination.id, side: "tab" }), destination.active), destination.id, destination.collapsed);
+  }
+  return layout;
 }
-export const xtDefaultLayout: WorkspaceLayout = addCalls(addChanges({ root: { kind: "split", id: "xt-columns", axis: "horizontal", items: [
+export const xtDefaultLayout: WorkspaceLayout = addInterruptTools(addChanges({ root: { kind: "split", id: "xt-columns", axis: "horizontal", items: [
   area(.42, column("xt-console", area(.50, group("screen")), area(.22, group("execution")), area(.28, group("instruction")))),
   area(.36, tools),
   area(.22, column("xt-session", area(.34, group("rom")), area(.18, group("drive")),
@@ -27,10 +31,18 @@ export const xtDefaultLayout: WorkspaceLayout = addCalls(addChanges({ root: { ki
 /** Add new tools once per version, preserving existing tabs, hidden panels and relative sizes. */
 export function migrateXtWorkspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }): void {
   if (storage.getItem(xtWorkspaceKey) !== null) return;
+  const version8 = storage.getItem("dromaios:workspace:xt:8");
+  if (version8 !== null) {
+    const old = decodeWorkspaceState(version8, ["screen", "execution", "rom", "snapshot", "registers", "code", "memory", "debugger", "instruction", "walkthrough", "log", "drive", "calls"]);
+    // Call stack already existed in this version; preserve a deliberate choice to hide it.
+    const withTools = addInterruptTools(old);
+    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(panelGroup(old, "calls") ? withTools : closePanel(withTools, "calls")));
+    return;
+  }
   const version7 = storage.getItem("dromaios:workspace:xt:7");
   if (version7 !== null) {
     const old = decodeWorkspaceState(version7, ["screen", "execution", "rom", "snapshot", "registers", "code", "memory", "debugger", "instruction", "walkthrough", "log", "drive"]);
-    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(addCalls(old)));
+    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(addInterruptTools(old)));
     return;
   }
   // Add the drive below Firmware when it is visible. Custom layouts that hid
@@ -38,7 +50,7 @@ export function migrateXtWorkspace(storage: { getItem(key: string): string | nul
   function saveWithDrive(layout: WorkspaceLayout): void {
     const firmware = panelGroup(layout, "rom");
     const next = firmware ? movePanel(layout, "drive", { group: firmware.id, side: "below" }) : layout;
-    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(addCalls(next)));
+    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(addInterruptTools(next)));
   }
   const version6 = storage.getItem("dromaios:workspace:xt:6");
   if (version6 !== null) {

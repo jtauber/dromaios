@@ -159,7 +159,7 @@ test("version-5 XT layouts gain Changes while preserving active tabs, collapse s
   const storage = { getItem: (key: string) => map.get(key) ?? null, setItem: (key: string, text: string) => map.set(key, text) };
   migrateXtWorkspace(storage);
   const saved = map.get(xtWorkspaceKey)!;
-  assert.deepEqual(groups(decodeWorkspaceState(saved, ["code", "memory", "log"])), [{ ...old.root, panels: ["code", "memory", "log"] }]);
+  assert.deepEqual(groups(decodeWorkspaceState(saved, ["code", "memory", "log", "ports"])), [{ ...old.root, panels: ["code", "memory", "log", "ports"] }]);
   migrateXtWorkspace(storage); assert.equal(map.get(xtWorkspaceKey), saved);
 });
 

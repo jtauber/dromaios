@@ -1,3 +1,6 @@
+import { createXtIoTrace } from "./xt-io-trace.js";
+import { createXtIoView } from "./xt-io-view.js";
+import type { XtIoLabels } from "./xt-io-view.js";
 import { createCallStack } from "./call-stack-view.js";
 import { createDebuggerStepControls } from "./debugger-step-controls.js";
 import { romImages } from "../../src/machines/generated/8088/pc-xt.js";
@@ -59,7 +62,7 @@ function mount(root: HTMLElement): void {
   const instruction = root.querySelector<HTMLElement>('[data-workspace-panel="instruction"]')!;
   const memoryPanel = root.querySelector<HTMLElement>('[data-workspace-panel="memory"]')!;
   const catalogue: XtCatalogue = JSON.parse(at("xt-catalogue").textContent!);
-  const guide: RomGuide = JSON.parse(at("xt-rom-guide").textContent!);
+  const guide: RomGuide & { readonly io: XtIoLabels } = JSON.parse(at("xt-rom-guide").textContent!);
   const ultima: RomWalkthrough = JSON.parse(at("ultima-walkthrough").textContent!);
   const annotations = createXtRomAnnotations(guide);
   const showRegisters = createXtRegisterView(registers);
@@ -70,6 +73,9 @@ function mount(root: HTMLElement): void {
     label: location => session.ready ? annotations.reference.at(location.address)?.name : undefined,
     browse: (_address, location) => { showCode.browse(location); workspace.show("code"); },
   })!;
+  const portTrace = createXtIoTrace();
+  const ioView = createXtIoView(root, portTrace, catalogue.cpu, guide.io,
+    location => { showCode.browse(location); workspace.show("code"); });
   const showInstruction = createXtInstructionView(instruction, browseMemory);
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
@@ -106,6 +112,7 @@ function mount(root: HTMLElement): void {
       const log = changeLog.current();
       const observed = log.recording ? observeBoundary() : undefined;
       const record = log.capture(() => debug.capture(() => session.step()), observed);
+      portTrace.observe(record, session.machine.io.clock.ticks);
       sound.observe();
       watchHistory.observe(record, debug.watchpoints, log.memoryWrites(record));
       return record;
@@ -215,7 +222,8 @@ function mount(root: HTMLElement): void {
       if (callsPanel.getClientRects().length && (requested === "calls" || updates.shouldUpdate("calls", running))) {
         calls.refresh(debug.frames, debug.trackingNote, (address, captured) => captured ?? { address, space: "physical" });
       }
-      for (const [id, show] of [["log", changeLog.refresh], ["debugger", watchView.refresh]] as const) {
+      for (const [id, show] of [["log", changeLog.refresh], ["debugger", watchView.refresh], ["ports", ioView.refreshTrace],
+        ["pic", () => ioView.refreshPic(session.machine.io.interruptState(), cpu)]] as const) {
         if (root.querySelector<HTMLElement>(`[data-workspace-panel="${id}"]`)!.getClientRects().length
           && (requested === id || updates.shouldUpdate(id, running))) show();
       }
@@ -228,7 +236,7 @@ function mount(root: HTMLElement): void {
   }
   function resetTools(): void {
     unobserveSpeaker(); unobserveSpeaker = observeSpeaker(); intervals.clearStep();
-    execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset();
+    execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset(); ioView.reset();
   }
   function run(): void { debug.run(); message.textContent = ""; execution.run(); screen.focus(); }
   function powerOn(start: "cold" | "quick"): void {

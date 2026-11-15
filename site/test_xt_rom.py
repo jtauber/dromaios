@@ -37,6 +37,22 @@ class XtRomTests(unittest.TestCase):
         self.assertEqual(steps[0]["execution"], "FFFF:0000")
         self.assertEqual(steps[-1]["address"], "FE0D7")
 
+    def test_chapter_owns_port_labels_irq_sources_and_keyboard_stops(self):
+        self.assertEqual(self.record["io"]["irqs"][1], "XT keyboard")
+        self.assertEqual(self.record["io"]["ports"][0]["address"], "0020")
+        steps = self.record["walkthroughs"][1]["steps"]
+        self.assertEqual([s["execution"] for s in steps],
+                         ["F000:E987", "F000:E994", "F000:E99D", "F000:EA5C", "F000:EA66"])
+        for mutate in [lambda r: r["io"]["irqs"].pop(),
+                       lambda r: r["io"]["ports"][0].update(address="10000"),
+                       lambda r: r["io"]["ports"][1].update(address="0020"),
+                       lambda r: r["io"]["ports"][0].update(input=""),
+                       lambda r: r["io"].update(unknown=True)]:
+            record = copy.deepcopy(self.record)
+            mutate(record)
+            with self.assertRaises(ValueError):
+                xt_annotations("```json\n" + json.dumps(record) + "\n```", self.catalogue)
+
     def test_rejects_stale_identity_outside_addresses_bad_references_and_inconsistent_segments(self):
         mutations = [
             lambda r: r.update(sha256="0" * 64),

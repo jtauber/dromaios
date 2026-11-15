@@ -20,3 +20,8 @@
 .xt-motor.is-on::before { background: #ffae55; border-color: #ffc888; }
 .xt-drive small { color: var(--muted); }
 .xt-drive [data-disk-message]:empty { display: none; }
+
+.xt-pic-table { width: 100%; border-collapse: collapse; font: 11px/1.5 var(--mono); }
+.xt-pic-table th, .xt-pic-table td { padding: .35rem .3rem; text-align: left; border-bottom: 1px solid #263750; }
+.xt-pic-table th { font-weight: 500; }
+.xt-pic-table .xt-irq-selected { background: #253d53; color: #d2ecff; }

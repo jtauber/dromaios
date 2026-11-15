@@ -64,6 +64,27 @@
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="calls" data-panel-title="Call stack" data-panel-live="true">
       <p data-call-stack-status class="lab-hint"></p><div data-call-stack></div>
     </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="ports" data-panel-title="Port trace" data-panel-live="true">
+      <div class="basic-controls">
+        <label><input type="checkbox" data-io-recording> Record</label>
+        <button type="button" data-io-clear>Clear trace</button>
+        <label><input type="checkbox" data-io-ports checked> Ports</label>
+        <label><input type="checkbox" data-io-interrupts checked> Interrupts</label>
+      </div>
+      <p class="lab-hint" data-io-status></p>
+      <div data-io-entries></div>
+      <details><summary>Reading the trace</summary><p class="lab-hint">Newest first. IN and OUT show each captured byte transfer; INTA shows the acknowledged vector. Entry and IRET link to their destinations. Times are oscillator ticks at the end of the complete CPU/board boundary, not individual bus-cycle timings. Record is independent of Live updates.</p>
+        <p class="lab-hint">Reset and restore clear this history. Only completed boundaries are recorded; an execution error may leave partial effects outside the trace.</p></details>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="pic" data-panel-title="8259A PIC" data-panel-live="true">
+      <p class="basic-readout" data-pic-summary></p>
+      <table class="xt-pic-table" aria-label="8259A interrupt state">
+        <thead><tr><th>Line</th><th>Source</th><th>Vector</th><th title="Current electrical input level">Level</th><th title="IRR: latched request">Pending</th><th title="IMR: 1 blocks delivery">Masked</th><th title="ISR: acknowledged, awaiting EOI">In service</th></tr></thead>
+        <tbody data-pic-lines></tbody>
+      </table>
+      <p class="lab-hint" data-pic-cpu></p>
+      <details><summary>Requests and service</summary><p class="lab-hint">Pending requests survive masking. The highlighted row is the controller’s selected request; CPU IF and recognition delays still govern acceptance. Acknowledge moves a request into service. The BIOS clears the keyboard receiver through port 61, then sends EOI to port 20; IRET separately restores CPU state.</p></details>
+    </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-title="Instruction" data-panel-live="true">
       <p class="basic-readout" data-instruction-location></p><pre class="lab-instruction-preview" data-instruction-preview></pre>
       <details><summary>From the CPU specification</summary><p class="lab-hint" data-instruction-explanation></p></details>
