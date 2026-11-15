@@ -137,8 +137,8 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
       const hit = apple2Watchpoint(watches, record, catalogue.instructions, changes);
       if (hit) debuggerState.watchpoint(after, describeApple2Watchpoint(hit, record.instruction.address));
     },
-    pauseBeforeStep(softwareBreakpoint?: (at: DebugLocation) => string | undefined): boolean {
-      return debuggerState.beforeStep(location, softwareBreakpoint);
+    pauseBeforeStep(softwareBreakpoint?: (at: DebugLocation) => string | undefined, current = location): boolean {
+      return debuggerState.beforeStep(current, softwareBreakpoint);
     },
     refresh(records: readonly Apple2TraceEntry[], available: boolean, running: boolean): void {
       for (const control of [routine, address, toRoutine, toAddress, step, resume]) {

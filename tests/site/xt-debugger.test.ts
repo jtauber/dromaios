@@ -4,7 +4,7 @@ import { create8088PcXt } from "../../src/machines/generated/8088/pc-xt.js";
 import { stepTimedXtCpu } from "../../src/machines/8088/pc-xt/interrupts.js";
 import { Cpu8088 } from "../../src/components/cpus/generated/8088-cpu.js";
 import type { Cpu8088State } from "../../src/components/cpus/generated/8088-cpu.js";
-import { createXtDebugger, decodeXtBreakpoints, formatXtDebugAddress, parseXtDebugAddress, xtDebugLocation } from "../../site/interactive/xt-debugger.js";
+import { createXtDebugger, decodeXtBreakpoints, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation } from "../../site/interactive/xt-debugger.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
 import { debuggerStatus } from "../../site/interactive/debugger-status.js";
 import { decodeWorkspaceState, encodeWorkspaceState } from "../../site/interactive/workspace/state.js";
@@ -20,10 +20,15 @@ function fixture(bytes: readonly number[], state: Partial<Cpu8088State> = {}, bu
   bytes.forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
   const debug = createXtDebugger(() => machine, budget), jobs: (() => void)[] = [];
   const step = () => debug.capture(() => stepTimedXtCpu(machine).record);
-  const execution = createExecutionController({ step, canStep: () => true, pauseBeforeStep: debug.beforeStep,
+  function observe(): ReturnType<typeof observeXtBoundary> {
+    return observeXtBoundary(machine, execution.records.at(-1)?.after);
+  }
+  const execution = createExecutionController({ step, canStep: () => true,
+    pauseBeforeStep: () => debug.beforeStep(() => observe().caller),
     onChange() {}, batchSize: 10000, schedule(callback) { jobs.push(callback); return () => {}; } });
   return { get machine() { return machine; }, debug, execution, jobs, step,
-    replace() { machine = create8088PcXt(bindings, machine.snapshot()); execution.reset(); debug.reset(); },
+    replace(state = machine.snapshot()) { machine = create8088PcXt(bindings, state); execution.reset(); debug.reset(); },
+    resetCpu() { machine.cpu.reset(); execution.reset(); debug.reset(); },
     run() { debug.run(); execution.run(); jobs.shift()!(); },
     runTo(text: string) { debug.runTo(parseXtDebugAddress(text)); execution.run(); jobs.shift()!(); },
     single() { debug.step(); execution.step(); },
@@ -38,6 +43,16 @@ test("XT breakpoint notation retains logical identity while physical addresses m
   for (const text of ["100000", "10000:0", "0:10000", ":0", "0:", "1:2:3", "nope"]) assert.throws(() => parseXtDebugAddress(text));
   const p = fixture([0x90]);
   assert.equal(formatXtDebugAddress(xtDebugLocation(p.machine.cpu.snapshot())), "CS:IP 0000:2000 · physical $02000");
+});
+
+test("XT CPU reset and restoring an earlier checkpoint discard captured instruction locations", () => {
+  const p = fixture([0x90, 0x90]), saved = p.machine.snapshot();
+  p.runTo("2001"); assert.equal(p.execution.steps, 1);
+  p.replace(saved); p.runTo("2000");
+  assert.equal(p.execution.steps, 0); assert.equal(p.debug.stop?.location.address, 0x2000);
+  p.single(); assert.equal(p.execution.steps, 1);
+  p.resetCpu(); p.runTo("FFFF0");
+  assert.equal(p.execution.steps, 0); assert.equal(p.debug.stop?.location.address, 0xffff0);
 });
 
 test("XT breakpoints stop before the boundary, Continue crosses once, and Step crosses a newly added stop", () => {

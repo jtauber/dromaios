@@ -20,7 +20,7 @@ import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
 import { createXtScreen } from "./xt-screen.js";
 import { decodeXtCheckpoint, encodeXtCheckpoint, xtCheckpointKey } from "./xt-checkpoint.js";
-import { createXtDebugger, formatXtDebugAddress, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
+import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
 import { createXtDebuggerView } from "./xt-debugger-view.js";
 import { previewXtInstruction } from "./xt-instruction-preview.js";
 import { createXtInstructionView } from "./xt-instruction-view.js";
@@ -82,14 +82,19 @@ function mount(root: HTMLElement): void {
   const diskFile = at<HTMLInputElement>("disk-file"), diskName = at("disk-name"), motor = at("disk-motor");
   const diskMessage = at("disk-message");
   let loading = true, readingDisk = false, writableCopy = false, saved = false, lastDraw = -Infinity;
+  function observeBoundary(): ReturnType<typeof observeXtBoundary> {
+    // CPU reset, power-on and checkpoint restore clear the records through resetTools().
+    return observeXtBoundary(session.machine, execution.records.at(-1)?.after);
+  }
   const execution = createExecutionController({
     step() {
       const log = changeLog.current();
-      const record = log.capture(() => debug.capture(() => session.step()));
+      const observed = log.recording ? observeBoundary() : undefined;
+      const record = log.capture(() => debug.capture(() => session.step()), observed);
       watchHistory.observe(record, debug.watchpoints, log.memoryWrites(record));
       return record;
     }, canStep: () => session.ready && !loading,
-    pauseBeforeStep: debug.beforeStep,
+    pauseBeforeStep: () => debug.beforeStep(() => observeBoundary().caller),
     onChange: refresh, batchSize: 8192,
     schedule(callback, ms) { const id = window.setTimeout(callback, ms); return () => window.clearTimeout(id); },
   });

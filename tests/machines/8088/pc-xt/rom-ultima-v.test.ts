@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { create8088PcXt, romImages } from "../../../../src/machines/generated/8088/pc-xt.js";
 import { RomImage } from "../../../../src/machines/rom-image.js";
@@ -8,6 +9,7 @@ import { renderXtGraphicsFrame } from "../../../../src/machines/8088/pc-xt/video
 import { ultimaVParty } from "./ultima-v-party.js";
 import { dosTransfer } from "./dos-transfer.js";
 import { runInput, scanCodes } from "./rom-console.js";
+import { XtKeyboard } from "../../../../site/interactive/xt-keyboard.js";
 
 const { XT_BIOS_ROM, XT_BASIC_ROM, XT_ULTIMA_PROGRAM, XT_ULTIMA_PLAYER } = process.env;
 const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -38,7 +40,7 @@ function journeyOnward(firmware: Firmware, program: Uint8Array, player: Uint8Arr
     for (let y = 8; y < 30; y++) names.update(frame.pixels.subarray(y * 320 + 192, y * 320 + 314));
     return names.digest("hex") === "12be222dca4713f658204384521405c4fef3cb6685c4c1e9e18bf97f5206d85e";
   } });
-  return { party: ultimaVParty(machine, loaded.base), loaded: loaded.bytes };
+  return { machine, party: ultimaVParty(machine, loaded.base), loaded: loaded.bytes };
 }
 
 test("Ultima V saves in Britannia and resumes from the exported Player disk on a fresh XT", {
@@ -53,8 +55,15 @@ test("Ultima V saves in Britannia and resumes from the exported Player disk on a
     bios: await RomImage.verify(readFileSync(XT_BIOS_ROM!), romImages.bios, digest),
     basic: await RomImage.verify(readFileSync(XT_BASIC_ROM!), romImages.basic, digest), font: null,
   };
-  const { party } = journeyOnward(firmware, program, player);
+  const { machine, party } = journeyOnward(firmware, program, player);
   assert.deepEqual(party.position(), [13, 15, 15]);
+  const directory = process.env.XT_ULTIMA_PERFORMANCE_CHECKPOINTS;
+  if (directory) {
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, "ultima-v.json"), JSON.stringify({
+      hardware: machine.snapshot(), keyboard: new XtKeyboard().snapshot(), diskName: "ULTIMA-PLAYER.IMG",
+    }));
+  }
   party.move(0x50, 13, 15, 16);
   party.leaveHut();
   party.move(0x4d, 0, 46, 62);

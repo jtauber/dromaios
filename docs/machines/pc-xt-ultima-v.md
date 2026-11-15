@@ -8,6 +8,10 @@ walk into Britannia, save to a writable Player disk, and continue from the
 exported disk after a fresh boot. The pinned [dromaios-pc reference][reference]
 runs the same executable with EGA.
 
+The [native debugger comparison](laboratory-observation-performance.md) uses the
+verified CGA hut checkpoint to measure observation costs while moving the party,
+checking identical state, sampled display output and retained change history.
+
 ## Media
 
 Use the 1988 DOS edition for the IBM PC, from the top-level game directory. The

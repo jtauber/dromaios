@@ -4,14 +4,77 @@ import { Cpu6502 } from "../../src/components/cpus/generated/6502-cpu.js";
 import { create6502Apple2 } from "../../src/machines/generated/6502/apple2.js";
 import { createApple2ChangeLog } from "../../site/interactive/apple2-change-log.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
+import { observeApple2Boundary } from "../../site/interactive/apple2-debugger.js";
+import { editApple2Register } from "../../site/interactive/apple2-register-edit.js";
 
 function example(bytes: readonly number[], capacity = 500) {
   const machine = create6502Apple2({ firmware: null });
   machine.cpu = new Cpu6502(machine.memory, { ...machine.cpu.snapshot(), pc: 0x200 });
   bytes.forEach((byte, index) => machine.ram.write(0x200 + index, byte));
   const log = createApple2ChangeLog(machine, capacity);
-  return { machine, log, step: () => log.capture(() => machine.cpu.step()) };
+  let previous: ReturnType<typeof machine.cpu.step> | undefined;
+  return { machine, log, step() {
+    const observed = observeApple2Boundary(machine, previous?.after);
+    return previous = log.capture(() => machine.cpu.step(), observed);
+  } };
 }
+
+test("reused Apple II state adds no observer snapshots and preserves partial failure effects", () => {
+  const p = example([0xea, 0xa9, 0x55, 0x20, 0, 3]); // NOP; LDA #55; JSR 0300
+  p.step();
+  const snapshot = p.machine.cpu.snapshot.bind(p.machine.cpu);
+  let copies = 0;
+  p.machine.cpu.snapshot = () => { copies++; return snapshot(); };
+  const record = p.step();
+  assert.equal(copies, 2, "only the execution record's before/after copies");
+  assert.equal(p.log.entries()[0]!.caller!.address, 0x201);
+  const observed = observeApple2Boundary(p.machine, record.after);
+  assert.throws(() => p.log.capture(() => { p.machine.cpu.step(); throw new Error("After JSR"); }, observed), /After JSR/);
+  const entry = p.log.entries()[0]!;
+  assert.equal(entry.caller!.address, 0x203); assert.equal(entry.outcome, "interrupted");
+  assert.ok(entry.changes.some(change => change.target === "PC" && change.before === 0x203 && change.after === 0x300));
+  assert.equal(entry.changes.filter(change => change.kind === "memory").length, 2);
+});
+
+test("captured Apple II PC is interpreted using the current Language Card bank", () => {
+  const p = example([0x4c, 0, 0xd0]);
+  const record = p.step();
+  assert.deepEqual(observeApple2Boundary(p.machine, record.after).caller, { address: 0xd000, space: "rom" });
+  p.machine.language.read(0); // Read bank 2 RAM.
+  const bank2 = observeApple2Boundary(p.machine, record.after);
+  assert.equal(bank2.state, record.after);
+  assert.deepEqual(bank2.caller, { address: 0xd000, space: "lc-bank2" });
+  p.machine.language.read(8); // Same logical PC, now bank 1 RAM.
+  assert.deepEqual(observeApple2Boundary(p.machine, record.after).caller, { address: 0xd000, space: "lc-bank1" });
+});
+
+test("clearing trace after Apple II edits, reset and restore prevents stale caller state", () => {
+  const bindings = { firmware: null };
+  const p = example([0xea, 0xea]);
+  let machine = p.machine, log = p.log;
+  machine.ram.write(0x300, 0xe8); // INX
+  function observe(): ReturnType<typeof observeApple2Boundary> {
+    return observeApple2Boundary(machine, execution.records.at(-1)?.after);
+  }
+  const execution = createExecutionController({
+    step: () => log.capture(() => machine.cpu.step(), observe()),
+    canStep: () => true, onChange() {}, schedule: () => () => {},
+  });
+  function changed(): void { execution.reset(); log.dispose(); log = createApple2ChangeLog(machine); }
+  execution.step(); const saved = machine.snapshot(), old = execution.records[0]!;
+  editApple2Register(machine, "pc", "0300"); changed(); execution.step();
+  assert.equal(log.entries()[0]!.caller!.address, 0x300);
+  assert.equal(log.entries()[0]!.changes.find(change => change.target === "X")!.after, 1);
+  const read = machine.memory.read.bind(machine.memory);
+  machine.memory.read = address => address === 0xfffc ? 0 : address === 0xfffd ? 3 : read(address);
+  machine.cpu.reset(); changed(); execution.step();
+  assert.equal(log.entries()[0]!.caller!.address, 0x300);
+  machine = create6502Apple2(bindings, saved); changed(); execution.step();
+  assert.equal(log.entries()[0]!.caller!.address, 0x201);
+  assert.deepEqual(execution.records[0]!.before, saved.cpu);
+  assert.deepEqual(old.after, saved.cpu);
+  log.dispose();
+});
 
 test("the change log attributes register, cleared/set flag, PC and memory changes to captured instructions", () => {
   const { machine, log, step } = example([0xa9, 0x80, 0x8d, 0x00, 0x04, 0xee, 0x00, 0x04, 0xa9, 0x00]);

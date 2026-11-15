@@ -263,6 +263,10 @@ speed.
 
 ## Laboratory performance workload
 
+The [native debugger comparison](../machines/laboratory-observation-performance.md)
+also uses these checkpoints to measure captured-state reuse and verify state,
+sampled display output, audio and retained history.
+
 [The browser benchmark](../../scripts/benchmark-apple2-laboratory.ts) exercises
 the real laboratory controls, scheduling, observers and rendering. It restores
 two checkpoints from the acceptance run:

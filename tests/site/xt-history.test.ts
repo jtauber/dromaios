@@ -8,7 +8,7 @@ import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/8088/pc-xt.js";
 import { createXtSession, stepXtSessionCpu } from "../../site/interactive/xt-session.js";
 import { createXtChangeLog, createXtWatchHistory, xtHistoryAssembly } from "../../site/interactive/xt-history.js";
-import { createXtDebugger, xtLogicalLocation } from "../../site/interactive/xt-debugger.js";
+import { createXtDebugger, observeXtBoundary, xtLogicalLocation } from "../../site/interactive/xt-debugger.js";
 import { decodeWorkspaceState, encodeWorkspaceState } from "../../site/interactive/workspace/state.js";
 import { groups } from "../../site/interactive/workspace/layout.js";
 import { migrateXtWorkspace, xtWorkspaceKey } from "../../site/interactive/xt-workspace.js";
@@ -21,12 +21,36 @@ function fixture(bytes: readonly number[], state: Partial<Cpu8088State> = {}, ca
     ax: 0x1234, ...state }, { ports: machine.ports });
   bytes.forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
   const log = createXtChangeLog(machine, catalogue.storage, capacity), history = createXtWatchHistory(2), debug = createXtDebugger(() => machine);
+  let previous: ReturnType<typeof stepXtSessionCpu> | undefined;
   const step = () => {
-    const record = log.capture(() => debug.capture(() => stepXtSessionCpu(machine, session.keyboard)));
+    const observed = log.recording ? observeXtBoundary(machine, previous?.after) : undefined;
+    const record = log.capture(() => debug.capture(() => stepXtSessionCpu(machine, session.keyboard)), observed);
+    previous = record;
     history.observe(record, debug.watchpoints, log.memoryWrites(record)); return record;
   };
   return { session, machine, log, history, debug, step };
 }
+
+test("captured XT state adds no observer snapshots, including manual completion and partial failures", () => {
+  const p = fixture([0x90, 0x40, 0xe8, 0xfb, 0x0f]); // NOP; INC AX; CALL 3000
+  p.step(); p.debug.step();
+  const snapshot = p.machine.cpu.snapshot.bind(p.machine.cpu);
+  let copies = 0;
+  p.machine.cpu.snapshot = () => { copies++; return snapshot(); };
+  const record = p.step();
+  assert.equal(copies, 2, "only the execution record's before/after copies");
+  assert.equal(p.debug.stop?.kind, "step"); assert.equal(p.debug.stop?.location.address, 0x2002);
+  assert.equal(p.log.entries()[0]!.caller!.address, 0x2001);
+  const observed = observeXtBoundary(p.machine, record.after);
+  assert.throws(() => p.log.capture(() => p.debug.capture(() => {
+    stepXtSessionCpu(p.machine, p.session.keyboard); throw new Error("After CALL");
+  }), observed), /After CALL/);
+  assert.equal(p.log.entries()[0]!.caller!.address, 0x2002);
+  assert.equal(p.log.entries()[0]!.outcome, "interrupted");
+  assert.ok(p.log.entries()[0]!.changes.some(change => change.target === "IP" && change.after === 0x3000));
+  assert.equal(p.log.entries()[0]!.changes.filter(change => change.kind === "memory").length, 2);
+  assert.equal(p.debug.stop?.kind, "error");
+});
 
 test("XT change logs retain register, flag and logical-PC changes and little-endian stores across segment wrap", () => {
   const p = fixture([0xb8, 0xff, 0xff, 0x40, 0xa3, 0xff, 0xff], { ds: 0x1000 });

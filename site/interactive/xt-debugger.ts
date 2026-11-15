@@ -21,6 +21,11 @@ export function xtDebugLocation(state: Pick<Cpu8088Snapshot, "cs" | "ip" | "pc">
   return { address: state.pc, space: "CS:IP " + logical8088(state.cs, state.ip) };
 }
 
+/** Physical and logical locations come from the same captured CPU boundary. */
+export function observeXtBoundary(machine: XtMachine, state = machine.cpu.snapshot()) {
+  return { state, caller: xtDebugLocation(state) };
+}
+
 export function parseXtDebugAddress(text: string): Target {
   const address = parseXtAddress(text), parts = text.split(":");
   return parts.length === 1 ? { address }
@@ -78,17 +83,17 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
       hit = undefined; policy.runTo(location(), point.address, point.space, options);
     },
     pause(detail?: string): void { policy.pause(location(), detail); },
-    beforeStep(): boolean { return policy.beforeStep(location); },
+    beforeStep(current: DebugLocation | (() => DebugLocation) = location): boolean { return policy.beforeStep(current); },
     capture(step: () => Boundary): Boundary {
       try {
         const { record, write } = writes.capture(step);
-        if (record.outcome === "unsupported") policy.fail(location(), "Unsupported instruction.");
+        if (record.outcome === "unsupported") policy.fail(xtDebugLocation(record.after), "Unsupported instruction.");
         else {
           policy.observeBoundary();
           if (write) {
             hit = { ...write, caller: xtDebugLocation(record.before), record };
             policy.watchpoint(xtDebugLocation(record.after), describeXtWriteHit(hit));
-          } else if (policy.request === "step") policy.beforeStep(location());
+          } else if (policy.request === "step") policy.beforeStep(xtDebugLocation(record.after));
         }
         return record;
       } catch (cause) {

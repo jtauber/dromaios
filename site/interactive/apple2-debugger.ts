@@ -12,6 +12,11 @@ export function apple2DebugLocation(machine: Machine, address = machine.cpu.snap
   return { address, space };
 }
 
+/** Reuse captured CPU state while observing the current Language Card mapping. */
+export function observeApple2Boundary(machine: Machine, state = machine.cpu.snapshot()) {
+  return { state, caller: apple2DebugLocation(machine, state.pc) };
+}
+
 /** Completed records supply all call tracking; never decode arbitrary stack bytes as callers. */
 export function apple2DebugStep(record: Cpu6502StepRecord, before: DebugLocation, after: DebugLocation, catalogue: InstructionCatalogue): DebugStep {
   const info = catalogue[record.instruction.bytes[0]!];

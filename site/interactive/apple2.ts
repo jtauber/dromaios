@@ -28,7 +28,8 @@ import { createApplesoftEventsView } from "./apple2-applesoft-events-view.js";
 import { createApple2ChangeLogView } from "./apple2-change-log-view.js";
 import { createApple2Explorer } from "./apple2-explorer-view.js";
 import { createPanelUpdates } from "./panel-updates.js";
-import { apple2DebugLocation } from "./apple2-debugger.js";
+import { observeApple2Boundary } from "./apple2-debugger.js";
+import type { Cpu6502Snapshot } from "../../src/components/cpus/generated/6502-cpu.js";
 import { createApple2SavedStateView } from "./apple2-saved-state-view.js";
 import { prepareApple2SavedState } from "./apple2-saved-state.js";
 import type { Apple2SavedState } from "./apple2-saved-state.js";
@@ -122,12 +123,16 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
   });
   const changeLog = createApple2ChangeLogView(root, () => session.machine);
   const inputTarget = keyboard ?? screen;
+  function observeBoundary(state: Cpu6502Snapshot | undefined = execution.records.at(-1)?.record.after): ReturnType<typeof observeApple2Boundary> {
+    // Host edits, reset and replacement clear these records through resetExecutionHistory().
+    return observeApple2Boundary(session.machine, state);
+  }
   const execution = createExecutionController({
     step: () => {
-      const before = apple2DebugLocation(session.machine), romMapped = !session.machine.language.ramRead();
+      const observed = observeBoundary(), before = observed.caller, romMapped = !session.machine.language.ramRead();
       const perform = () => explorer.captureDiskStep(before, () => session.step());
       const log = changeLog?.current();
-      const record = log ? log.capture(perform) : perform();
+      const record = log ? log.capture(perform, observed) : perform();
       if (record.outcome !== "executed") throw new Error(`Processor stopped: ${record.outcome}.`);
       sound.observe();
       basicHistory?.observe(session.machine, before);
@@ -139,7 +144,7 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
       inspection.observe(session.machine, changes);
       screenInspector?.observe(record, before, writes);
       // Complete manual stepping before its single refresh, preserving sample-based highlights.
-      if (!execution.running) pauseBeforeStep();
+      if (!execution.running) pauseBeforeStep(record.after);
       return { record, romMapped };
     },
     canStep: () => session.hasFirmware && !selecting,
@@ -211,8 +216,8 @@ export function mountApple2(root: HTMLElement, showPanel: (id: string) => void =
     clock: () => session.machine.clock, setPacing: execution.setPacing, changed: refresh,
   });
 
-  function pauseBeforeStep(): boolean {
-    return explorer.pauseBeforeStep(basicBreakpoints.active ? basicBreakpoints.match : undefined);
+  function pauseBeforeStep(state?: Cpu6502Snapshot): boolean {
+    return explorer.pauseBeforeStep(basicBreakpoints.active ? basicBreakpoints.match : undefined, () => observeBoundary(state).caller);
   }
 
   function resetExecutionHistory(): void {
