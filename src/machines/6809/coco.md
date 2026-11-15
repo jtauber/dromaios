@@ -240,10 +240,55 @@ physical inputs. Fresh power-on starts with disconnected joysticks again.
 In the laboratory, open **Joysticks**, beside **PIAs / keyboard**. Each port has
 a **Connected** switch, X/Y sliders, **Centre**, and **Hold fire**. Sliders retain
 their positions; Centre sets both to 32. Hold fire keeps the switch pressed
-until toggled off, disconnected, or focus leaves the window. These controls work
+until toggled off, disconnected, execution pauses, or focus leaves the window. These controls work
 while paused or running, without adding keyboard characters. Checkpoints restore
 the displayed controls from their physical state, including a held button.
 Release fire before typing: its shared keyboard row can interfere with input.
+
+### Keyboard and gamepad control
+
+Choose **Keyboard** or **Gamepad**, then the **Right** or **Left** port. This
+connects and centres that port; its sliders become readouts. The other port
+remains independently adjustable. **Sliders** returns to manual control.
+These choices apply to this visit and are separate from hardware checkpoints.
+
+With **Keyboard**, Run and click the screen. Hold arrow keys to move and
+Space to fire. Released axes centre at 32; opposing directions cancel. These
+five keys go directly to the joystick switches rather than BASIC's keyboard
+queue. Other typing, paste, and Ctrl/Alt/Meta shortcuts keep their usual
+path. Changing input source clears queued typing. In Sliders or Gamepad mode,
+arrows and Space retain their ordinary CoCo keyboard meaning.
+
+With **Gamepad**, connect a controller and press a button to make it visible to
+the browser. The first available standard controller is selected; the picker
+can choose another. Run, click the screen, then centre the stick and release
+fire and the D-pad to enable it. The browser's
+[standard mapping](https://www.w3.org/TR/gamepad/#remapping) assigns the left
+stick to X/Y, the D-pad to digital directions, and the bottom face button to
+fire. A 15% centre dead zone suppresses drift; the remaining analogue range
+scales to 0–63. The D-pad overrides only its own axis. Controllers without a
+standard mapping are listed as unsupported; the laboratory does not guess
+their layout. Browser-denied or unavailable access leaves keyboard and sliders
+usable. Controller reports are sampled before host execution batches, never
+once per CPU instruction, and do not advance emulated time.
+
+Leaving the screen releases live axes and fire. Pause, debugger stops, and
+window focus loss also release both fire latches; manual slider positions stay
+put. Resuming requires fresh key presses or a neutral gamepad report first,
+so auto-repeat and a held controller cannot silently resume movement.
+Unplugging, switching ports, or replacing a controller releases the old input.
+Restoring a checkpoint returns to **Sliders** and discards held host keys and
+controller ownership, preserving the exact saved joystick connections,
+positions, and buttons. Select live control again to take over. Reset or fresh
+hardware likewise returns to Sliders. These are host safety rules, not changes
+to the joystick circuit or CPU reset contract.
+
+The [host input checks](../../../tests/site/coco-joystick-input.test.ts) cover
+direction combinations, dead zones, source/port switches, release, disconnect,
+neutral rearming, and exact restoration. The Fahrfall and Brickaway acceptances
+below send keyboard events and standard controller reports through this same
+input adapter; the games still read the native PIAs and perform their own
+joystick conversion.
 
 ### Check BASIC's readings
 
@@ -465,13 +510,16 @@ Use Color BASIC 1.3 and Extended Color BASIC 1.1. In the laboratory:
 3. In **Joysticks**, connect the right joystick, centre it, and release fire.
    Enter `EXEC`. The tunnel screen appears and asks for the right joystick
    button. Choose **Normal** and enable **Sound** before starting play.
-4. Toggle **Hold fire** on and off. After the opening sound, the ball travels
-   down the court. Move both right-joystick sliders to steer the paddle.
+4. Select **Keyboard** or **Gamepad**, with port **Right**, and click the screen.
+   Press and release Space or the bottom gamepad face button to start. After
+   the opening sound, the ball travels down the court. Use both axes to steer
+   the paddle. Sliders and Hold fire remain an alternative for inspection.
    The first brick hit raises the score to `00100`, removes one brick,
    changes the colour set, and sounds a short burst.
 5. Pause during play and Save again, replacing the loading checkpoint. Move
    the sliders or power on afresh, then Restore. The paddle, ball, score,
-   joystick positions, and tape return to the saved state. Run resumes play.
+   joystick positions, and tape return to the saved state. Select Keyboard or
+   Gamepad again, then Run and click the screen to resume live control.
 
 The browser stores one checkpoint. A long tape makes it several megabytes;
 insufficient browser storage reports a failed save and preserves the previous
@@ -673,19 +721,21 @@ R=11 during drawing bursts. These exercise clock selection beyond slow BASIC.
 
 1. Mount `fahrfall-beta3.dsk` in **Drive 0** and run `RUN "FAHRFALL"`.
    Wait for the **PRESS BUTTON** title screen.
-2. In **Joysticks**, connect the **left** joystick, centre its axes, and select
-   **Hold fire** to begin, then release it. Move the horizontal axis left or
-   right to steer Fahrve between the rising platforms. The right joystick does
-   not start this build.
+2. In **Joysticks**, choose **Keyboard** or **Gamepad** and port **Left**.
+   Click the screen, then press and release Space or the bottom face button
+   to begin. Move left or right to steer Fahrve between the rising platforms.
+   The right joystick does not start this build. Sliders and Hold fire also work.
 3. Enable **Sound** to hear the title and gameplay audio. Use **Normal** speed
    for the declared physical rate; Unlimited intentionally runs faster.
 4. Pause and save a checkpoint during loading or play. Fresh power-on followed
    by Restore reinstates the mounted disk, controller transfer, joystick,
-   SAM rate, video RAM, and sound-producing program. Resume with Run.
+   SAM rate, video RAM, and sound-producing program. Select live control again,
+   resume with Run, and click the screen.
 
 The [acceptance test](../../../tests/site/coco-fahrfall.test.ts) pins the disk's
 SHA-256, boots through Disk BASIC, and checks visible movement in both
-directions at matching display updates. It restores during a sector read and
+directions at matching display updates through keyboard and gamepad input.
+Both must produce the same frames. It restores during a sector read and
 inside a fully fast drawing burst. Continuation must reproduce CPU, RAM,
 devices, board ticks, raster, DAC transitions, and 48 kHz audio samples across
 different sample batch sizes. The supplied disk remains read-only. Set
@@ -1211,7 +1261,8 @@ Backspace sends the CoCo's left arrow, Home sends Clear, and Escape or Ctrl-C
 sends Break. Paste accepts one ASCII line, with an optional trailing newline.
 Unsupported characters and multiline pastes are rejected before anything is
 queued. Text becomes physical keyboard chords, including Shift where needed.
-Browser key repeat is ignored.
+Browser key repeat is ignored. Keyboard joystick mode intercepts arrows and
+Space as described [above](#keyboard-and-gamepad-control).
 
 The host holds each queued chord for at least **50 ms of emulated time**, then
 releases it for another 50 ms before the next chord. Each phase uses the declared

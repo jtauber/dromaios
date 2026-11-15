@@ -72,7 +72,9 @@ function mountCoco(root: HTMLElement): void {
   let session = createCocoSession(null, null, null, memorySize), selecting = true, hasSaved = false;
   const saved = cocoSavedState(() => localStorage, session.machine.clock.hertz!);
   const sound = createMachineSound(root, () => ({ clock: session.machine.clock, level: session.machine.pias.soundLevel }));
-  const joysticks = createCocoJoystickView(root, () => session.machine.pias, () => refreshPanels(["pias"]));
+  const joysticks = createCocoJoystickView(root, () => session.machine.pias, {
+    changed: () => refreshPanels(["pias"]), releaseKeyboard: () => session.releaseInput(),
+  });
   const intervals = createExecutionIntervalView(root, () => session.machine.clock, "board ticks");
   let requested: readonly string[] = [];
   const panels = [...root.querySelectorAll<HTMLElement>("[data-workspace-panel]")];
@@ -126,7 +128,10 @@ function mountCoco(root: HTMLElement): void {
     },
     canStep: () => session.ready && !selecting,
     pauseBeforeStep: () => debug.beforeStep(),
-    schedule(callback, delay) { const id = window.setTimeout(callback, delay); return () => window.clearTimeout(id); },
+    schedule(callback, delay) {
+      const id = window.setTimeout(() => { joysticks.poll(); callback(); }, delay);
+      return () => window.clearTimeout(id);
+    },
     onChange: refresh, batchSize: 10_000, batchTimeMs: 8,
   });
   execution.setDelay(1);
@@ -183,7 +188,7 @@ function mountCoco(root: HTMLElement): void {
     targetButton.disabled = targetInput.disabled = !ready || running || execution.error !== undefined;
     speed.refresh(selecting);
     sound.refresh({ running, normal: speed.normal, unavailable: selecting });
-    joysticks.refresh(selecting);
+    joysticks.refresh(selecting, running);
     cassette.refresh(selecting, running);
     disk.refresh(selecting, running);
     cartridge.refresh(selecting, running);
@@ -232,6 +237,7 @@ function mountCoco(root: HTMLElement): void {
     refresh();
   }
   function changedMachine(): void {
+    joysticks.reset();
     intervals.clearStep(); changeLog.reset(); watchHistory.reset(); execution.reset(); debug.reset(); inspectors.reset(); }
   function installRom(id: RomSlot, verified: RomFile): void {
     const firmware = id === "firmware" ? verified : roms.firmware;
@@ -297,6 +303,7 @@ function mountCoco(root: HTMLElement): void {
   power.addEventListener("click", () => action(() => { session.powerOn(); changedMachine(); }));
   screen.addEventListener("keydown", event => {
     try {
+      if (joysticks.keyDown(event)) { event.preventDefault(); return; }
       const keys = cocoScreenKey(event); if (!keys) return;
       event.preventDefault();
       if (!event.repeat) session.send([keys]);
@@ -304,6 +311,7 @@ function mountCoco(root: HTMLElement): void {
     } catch (cause) { message.textContent = cause instanceof Error ? cause.message : String(cause); }
     if (!execution.running) refresh();
   });
+  screen.addEventListener("keyup", event => { if (joysticks.keyUp(event)) event.preventDefault(); });
   screen.addEventListener("paste", event => {
     event.preventDefault(); action(() => session.send(cocoTextInput(event.clipboardData?.getData("text/plain") ?? "")));
   });
@@ -313,7 +321,7 @@ function mountCoco(root: HTMLElement): void {
   function releaseFocus(): void {
     const hadInput = session.pendingInput > 0;
     if (execution.running) debug.pause();
-    execution.stop(); session.releaseInput(); session.machine.pias.releaseJoystickButtons();
+    execution.stop(); session.releaseInput(); joysticks.release();
     if (hadInput) message.textContent = "Paused after focus left the window; queued keys were released.";
     refresh();
   }

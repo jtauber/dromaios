@@ -11,6 +11,8 @@ import { cocoSavedState } from "../../site/interactive/coco-saved-state.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { cocoScreenText } from "../../site/interactive/coco-inspection.js";
 import { createSpeakerSamples } from "../../site/interactive/speaker-samples.js";
+import { createCocoJoystickInput } from "../../site/interactive/coco-joystick-input.js";
+import { standardGamepad } from "../helpers/gamepad.js";
 import { tapeBlocks } from "../helpers/coco-tape.js";
 
 const needsMedia = !(process.env.COCO_ROM && process.env.COCO_EXTENDED_ROM && process.env.COCO_BRICKAWAY_CAS)
@@ -34,6 +36,7 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   assert.equal(payload.length, 11_017);
   assert.equal(hash(payload), "00c86d64f8eca97ffff1d465e594e6aa2eb8eda157b9232e4b332ff596396833");
   const session = createCocoSession(firmware, extended), storage = new Map<string, string>();
+  const controls = createCocoJoystickInput(() => session.machine.pias);
   const saved = cocoSavedState(() => ({ getItem: key => storage.get(key) ?? null,
     setItem: (key, value) => { storage.set(key, value); }, removeItem: key => { storage.delete(key); } }), session.machine.clock.hertz!);
   function run(count: number): void { for (let i = 0; i < count; i++) session.step(); }
@@ -61,11 +64,11 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   session.powerOn(); session.machine.pias.cassette.eject(); session.restore(saved.read()!.state); run(remaining);
   assert.deepEqual(session.snapshot(), loaded); // Includes RAM, tape, sub-sample phase, clock and pending input.
 
-  session.machine.pias.connectJoystick("right", true); session.machine.pias.setJoystickPosition("right", 32, 32);
+  controls.select("gamepad", "right"); controls.chooseGamepad(0); controls.setActive(true); controls.poll([standardGamepad()]);
   line("EXEC"); until(() => pc() === 0x2559, 1_000_000); // The game's right-fire polling loop.
   assert.deepEqual(cocoDisplayMode(session.machine), { kind: "bitmap", width: 256, height: 192, bitsPerPixel: 1 });
   assert.equal(session.machine.ram.read(0x1e24), 5);
-  session.machine.pias.setJoystickButton("right", true); run(1000); session.machine.pias.setJoystickButton("right", false);
+  controls.poll([standardGamepad([0, 0], [0])]); run(1000); controls.poll([standardGamepad()]);
   until(() => pc() === 0x2a0b, 1_000_000); // Paddle drawn; next ball update has not begun.
   assert.equal(word(0x1e18), 0);
   const playing = session.snapshot(); saved.save(playing);
@@ -78,7 +81,11 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   }
   const frames: { raster: Uint8Array; address: number }[] = [];
   for (const [x, y, address] of [[5, 5, 0x0a22], [58, 5, 0x0a39], [58, 58, 0x17d9]] as const) {
-    session.restore(saved.read()!.state); session.machine.pias.setJoystickPosition("right", x, y); frame();
+    session.restore(saved.read()!.state); controls.reset();
+    const restored = session.snapshot(); controls.poll([standardGamepad([1, 1], [0])]);
+    assert.deepEqual(session.snapshot(), restored, "restoration hands ownership back to the saved controls");
+    controls.select("gamepad", "right"); controls.setActive(true); controls.poll([standardGamepad()]);
+    controls.poll([standardGamepad([x === 5 ? -0.875 : 0.875, y === 5 ? -0.875 : 0.875])]); frame();
     assert.deepEqual(ramBytes(0x15a, 2), Uint8Array.of(x, y), "the ROM measures the physical joystick");
     assert.equal(word(0x1e22), address, "game chooses the paddle's video RAM address");
     frames.push({ raster: renderCocoFrame(session.machine), address });

@@ -61,6 +61,19 @@
       <a href="{{ calc_url(coco_url) }}#play-3-d-brickaway" target="_blank" rel="noopener">Play 3-D Brickaway ↗</a>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="joysticks" data-panel-title="Joysticks">
+      <div class="basic-controls coco-joystick-controls" role="group" aria-label="Joystick input source">
+        <button type="button" data-joystick-source="sliders" aria-pressed="true">Sliders</button>
+        <button type="button" data-joystick-source="keyboard" aria-pressed="false">Keyboard</button>
+        <button type="button" data-joystick-source="gamepad" aria-pressed="false">Gamepad</button>
+      </div>
+      <div class="basic-controls coco-joystick-controls" role="group" aria-label="Controlled joystick port">
+        <span>Port</span><button type="button" data-joystick-port="right" aria-pressed="true" disabled>Right</button>
+        <button type="button" data-joystick-port="left" aria-pressed="false" disabled>Left</button>
+      </div>
+      <label class="coco-gamepad-picker" data-joystick-gamepad-controls hidden>Gamepad
+        <select data-joystick-gamepad aria-label="Gamepad"><option value="">Choose gamepad</option></select>
+      </label>
+      <p class="lab-hint" data-joystick-status role="status"></p>
       {% for port, label, horizontal, vertical in [('right', 'Right', 0, 1), ('left', 'Left', 2, 3)] %}
       <fieldset class="coco-joystick" data-joystick="{{ port }}">
         <legend>{{ label }} joystick</legend>
@@ -72,7 +85,7 @@
         <p class="lab-hint">JOYSTK({{ horizontal }}) · X / JOYSTK({{ vertical }}) · Y</p>
       </fieldset>
       {% endfor %}
-      <p class="lab-hint">Positions stay where you leave them. Hold fire toggles the button until released; leaving the window releases both buttons. Read JOYSTK(0) first to refresh all four readings.</p>
+      <p class="lab-hint">Live control connects the selected port. Pause or leaving the screen releases live controls; leaving the window also releases both fire buttons. Restore returns to sliders with the saved positions. Read JOYSTK(0) first to refresh all four readings.</p>
       <a href="{{ calc_url(coco_url) }}#move-a-dot-with-a-joystick" target="_blank" rel="noopener">Try the moving-dot example ↗</a>
     </section>
     <section class="lab-tool lab-tool-screen" data-workspace-panel="screen" data-panel-title="Screen" data-panel-heading="TRS-80 Color Computer" data-panel-detail="NTSC · 6809" data-panel-live="true">
