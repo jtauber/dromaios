@@ -59,6 +59,10 @@ export function createXtDiskFilesView(root: HTMLElement, activity: ReturnType<ty
   choice.onchange = () => { selected = choice.value; details(); };
   at("disk-files-refresh").onclick = () => { image = undefined; changed(); };
   return {
+    select(name: string): void {
+      const entry = volume?.entries.find(entry => entry.name === name);
+      if (entry) { selected = key(entry.offset, entry.name); choice.value = selected; details(); }
+    },
     reset(): void { image = undefined; volume = undefined; selected = ""; revision = -1; output.replaceChildren(); transfers.replaceChildren(); choice.replaceChildren(); at("disk-files-warnings").textContent = ""; },
     refresh(io: XtIo, running: boolean): void {
       if (panel.hidden) return;

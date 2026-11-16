@@ -71,7 +71,8 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
   let watches: readonly InstructionBreakpoint[] = [], hit: XtWriteHit | undefined;
   let events: readonly XtEventStop[] = [], activeEvents: readonly XtEventStop[] = [], eventHit: XtEventHit | undefined;
   let targetEvent: XtEventCondition | undefined;
-  function clearHit(): void { hit = undefined; eventHit = undefined; targetEvent = undefined; }
+  let eventCondition: (() => boolean) | undefined;
+  function clearHit(): void { hit = undefined; eventHit = undefined; targetEvent = undefined; eventCondition = undefined; }
   return {
     get eventStops() { return events; },
     get eventHit() { return eventHit; },
@@ -99,9 +100,9 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
       const point = validate([{ ...target, enabled: true }], 0xfffff, true)[0]!;
       clearHit(); policy.runTo(location(), point.address, point.space, options);
     },
-    runToEvent(condition: XtEventCondition): void {
+    runToEvent(condition: XtEventCondition, when?: () => boolean): void {
       const target = validateXtEventStops([{ ...condition, enabled: true }])[0]!;
-      clearHit(); targetEvent = target;
+      clearHit(); targetEvent = target; eventCondition = when;
       policy.stepUntil(location(), () => undefined); // Retain the shared instruction budget.
     },
     pause(detail?: string): void { policy.pause(location(), detail); },
@@ -116,7 +117,8 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
             hit = { ...write, caller: xtDebugLocation(record.before), record };
             policy.watchpoint(xtDebugLocation(record.after), describeXtWriteHit(hit));
           } else if (activeEvents.length || targetEvent) {
-            const event = xtIoTransfers(record).find(event => targetEvent && matchesXtEvent(targetEvent, event) || activeEvents.some(point => matchesXtEvent(point, event)));
+            const event = xtIoTransfers(record).find(event => targetEvent && matchesXtEvent(targetEvent, event) && (eventCondition?.() ?? true)
+              || activeEvents.some(point => matchesXtEvent(point, event)));
             if (event) {
               eventHit = { caller: xtDebugLocation(record.before), event };
               policy.event(xtDebugLocation(record.after), `${describeXtEvent(xtEventCondition(event))} ${event.kind === "dma" ? "before the CPU boundary at" : "from"} ${formatXtDebugAddress(eventHit.caller)}. Stopped after the complete CPU/board boundary.`);

@@ -63,6 +63,23 @@ class XtRomTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 xt_annotations("```json\n" + json.dumps(record) + "\n```", self.catalogue)
 
+    def test_hello_checkpoints_validate_load_layout_guards_and_inspector_links(self):
+        steps = self.record["walkthroughs"][3]["steps"]
+        self.assertEqual(len(steps), 8)
+        self.assertEqual(steps[0]["event"], {"kind": "dma", "address": 0xb5cf})
+        self.assertEqual(steps[2]["execution"], "022F:62F4")
+        self.assertEqual(steps[-1]["expect"]["screen"]["lastLine"], "A>")
+        self.assertTrue(all(step["file"] == "HELLO.COM" for step in steps))
+        for extra in [{"file": "OTHER.COM"}, {"expect": {}},
+                      {"expect": {"bytes": {"address": "9FFFF", "value": "00 00"}}},
+                      {"expect": {"bytes": {"address": "0C6B0", "value": "BA"}, "registers": {"ax": "10000"}}},
+                      {"expect": {"bytes": {"address": "0C6B0", "value": "BA"}, "screen": {"contains": "Hello"}}},
+                      {"execution": "022F:0000"}]:
+            record = copy.deepcopy(self.record)
+            record["walkthroughs"][3]["steps"][1].update(extra)
+            with self.assertRaises(ValueError):
+                xt_annotations("```json\n" + json.dumps(record) + "\n```", self.catalogue)
+
     def test_rejects_stale_identity_outside_addresses_bad_references_and_inconsistent_segments(self):
         mutations = [
             lambda r: r.update(sha256="0" * 64),

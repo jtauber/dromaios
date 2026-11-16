@@ -46,8 +46,29 @@ def ultima_walkthrough(source):
     return tour
 
 
+def _dos_observation(expect, ram_end):
+    if not isinstance(expect, dict) or not {"bytes"} <= set(expect) <= {"bytes", "registers", "screen"}:
+        return False
+    signature = expect["bytes"]
+    if (not isinstance(signature, dict) or set(signature) != {"address", "value"}
+            or not isinstance(signature["address"], str) or not re.fullmatch(r"[0-9A-F]{5}", signature["address"])
+            or not isinstance(signature["value"], str) or not re.fullmatch(r"[0-9A-F]{2}( [0-9A-F]{2}){0,63}", signature["value"])
+            or int(signature["address"], 16) + len(signature["value"].split()) > ram_end):
+        return False
+    registers = expect.get("registers", {})
+    if (not isinstance(registers, dict) or not set(registers) <= {"ax", "cx", "dx", "ds", "es", "ss", "sp"}
+            or not all(isinstance(v, str) and re.fullmatch(r"[0-9A-F]{4}", v) for v in registers.values())):
+        return False
+    if "screen" not in expect:
+        return True
+    screen = expect["screen"]
+    return (isinstance(screen, dict) and set(screen) == {"contains", "lastLine"}
+            and all(isinstance(v, str) and v.strip() and v.isascii() for v in screen.values()))
+
+
 def xt_annotations(source, catalogue):
     storage = catalogue["storage"]
+    ram_end = next(r["size"] for r in storage if r["component"] == "ram")
     record = _guide_record(source, "XT chapter")
     io = record.pop("io", None)
     if (not isinstance(io, dict) or set(io) != {"ports", "irqs"} or not isinstance(io["ports"], list)
@@ -66,7 +87,18 @@ def xt_annotations(source, catalogue):
     extras = []
     for tour in record["walkthroughs"]:
         for step in tour["steps"]:
-            extra = {key: step.pop(key) for key in ("event", "memory") if key in step}
+            extra = {key: step.pop(key) for key in ("event", "memory", "expect", "file") if key in step}
+            if tour["id"] == "hello-com":
+                if (set(step) != {"title", "address", "execution", "prepare", "observe"}
+                        or not all(isinstance(v, str) and v.strip() for v in step.values())
+                        or not re.fullmatch(r"[0-9A-F]{5}", step["address"])
+                        or _physical_address(step["execution"]) != int(step["address"], 16)
+                        or not (int(step["address"], 16) < ram_end or 0xfe000 <= int(step["address"], 16) <= 0xfffff)
+                        or extra.get("file") != "HELLO.COM" or "memory" not in extra
+                        or not _dos_observation(extra.get("expect"), ram_end)):
+                    raise ValueError("HELLO.COM checkpoints need checked code locations, memory, file links and DOS observations.")
+            elif "expect" in extra or "file" in extra:
+                raise ValueError("DOS observations belong to the HELLO.COM walkthrough.")
             if "memory" in extra and (not isinstance(extra["memory"], str) or not re.fullmatch(r"[0-9A-F]{5}", extra["memory"])
                                        or int(extra["memory"], 16) >= next(r["size"] for r in storage if r["component"] == "ram")):
                 raise ValueError("XT checkpoint memory must identify conventional RAM.")
@@ -81,6 +113,11 @@ def xt_annotations(source, catalogue):
                 if not valid:
                     raise ValueError("XT walkthrough events require an exact DMA address or port and byte.")
             extras.append((step, extra))
+    software = [tour for tour in record["walkthroughs"] if tour["id"] == "hello-com"]
+    if len(software) > 1 or any(set(tour) != {"id", "title", "setup", "steps"} or not tour["steps"]
+                               or not all(isinstance(tour[k], str) and tour[k].strip() for k in ("title", "setup")) for tour in software):
+        raise ValueError("The HELLO.COM walkthrough needs a unique introduction and checkpoints.")
+    record["walkthroughs"] = [tour for tour in record["walkthroughs"] if tour not in software]
     validated = validate_rom_annotations(record, catalogue["romImages"]["bios"],
                                     rom_ranges=[(r["start"], r["start"] + r["size"] - 1) for r in storage if r["component"] == "bios"],
                                     ram_end=next(r["size"] for r in storage if r["component"] == "ram"),
@@ -88,4 +125,5 @@ def xt_annotations(source, catalogue):
                                     execution_address=lambda text, physical: _physical_address(text) == physical)
     for step, extra in extras:
         step.update(extra)
+    validated["walkthroughs"].extend(software)
     return {**validated, "io": io}

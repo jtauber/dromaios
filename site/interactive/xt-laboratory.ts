@@ -41,6 +41,7 @@ import { createRomWalkthrough } from "./rom-walkthrough-view.js";
 import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
 import { createXtRomAnnotations, xtCheckpointPosition } from "./xt-rom-guide.js";
 import { matchesUltimaObservation, ultimaPartyLocation } from "./xt-ultima-v.js";
+import { matchesXtDosObservation } from "./xt-dos-observation.js";
 import type { XtCheckpoint } from "./xt-rom-guide.js";
 import { describeXtEvent, matchesXtEvent } from "./xt-event-stops.js";
 import { createXtChangeLog, createXtWatchHistory, xtHistoryAssembly, xtStorageLabel } from "./xt-history.js";
@@ -153,27 +154,33 @@ function mount(root: HTMLElement): void {
   });
   function browseMemory(address: number): void { memory.browse(address); workspace.show("memory"); }
   function guestCondition({ expect }: XtCheckpoint) {
-    return expect && (() => matchesUltimaObservation(expect, session.machine.cpu.snapshot(), session.machine.ram));
+    return expect && (() => "bytes" in expect ? matchesXtDosObservation(expect, session.machine)
+      : matchesUltimaObservation(expect, session.machine.cpu.snapshot(), session.machine.ram));
   }
   function runTo(text: string, step?: XtCheckpoint): void {
     if (!session.ready || loading || execution.running || execution.error) return;
     const when = step && guestCondition(step);
     // Loading the EGA tiles alone exceeds the ordinary two-million-boundary limit.
-    if (step?.event) debug.runToEvent(step.event);
+    if (step?.event) debug.runToEvent(step.event, when);
     else debug.runTo(parseXtDebugAddress(text), when ? { limit: 10_000_000, when } : undefined);
     message.textContent = ""; execution.run();
   }
   const walkthrough = createRomWalkthrough(root, { routines: guide.routines, walkthroughs: [...guide.walkthroughs, ultima] }, {
+    available: tour => tour.id !== "hello-com" || !ega,
     runTo: (text, step) => act(() => runTo(text, step)),
     browse: (address, step) => { showCode.browse({ address, space: "CS:IP " + step.execution }); workspace.show("code"); },
-    inspect: ({ expect, memory: address }: XtCheckpoint) => address ? [
+    inspect: ({ expect, memory: address, file }: XtCheckpoint) => file ? [
+      { label: "Files · " + file, show: () => { workspace.show("dma"); diskMode("files"); diskFiles.select(file); } },
+      { label: "Inspect memory", show: () => browseMemory(parseInt(address!, 16)) },
+      { label: "Instruction", show: () => workspace.show("instruction") },
+    ] : address ? [
       { label: "Inspect sector buffer", show: () => browseMemory(parseInt(address, 16)) },
       { label: "DMA / diskette", show: () => workspace.show("dma") },
       { label: "Port trace", show: () => workspace.show("ports") },
     ] : expect && "party" in expect ? [{ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) }] : [],
     description: (step: XtCheckpoint) => step.event ? describeXtEvent(step.event) : step.execution ?? step.address,
     position: (step: XtCheckpoint, location, available, running) => step.event && available
-      ? `${running ? "Running to" : debug.eventHit && matchesXtEvent(step.event, debug.eventHit.event) ? "At checkpoint" : "Selected checkpoint"} ${describeXtEvent(step.event)}.`
+      ? `${running ? "Running to" : debug.eventHit && matchesXtEvent(step.event, debug.eventHit.event) && (guestCondition(step)?.() ?? true) ? "At checkpoint" : "Selected checkpoint"} ${describeXtEvent(step.event)}.`
       : xtCheckpointPosition(step, location, available, running, guestCondition(step)),
     reference: address => {
       const entry = annotations.reference.at(address)!;

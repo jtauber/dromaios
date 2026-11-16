@@ -40,6 +40,20 @@ function fixture(bytes: readonly number[], state: Partial<Cpu8088State> = {}, bu
   };
 }
 
+test("guarded event targets wait for matching guest state and leave persistent stops independent", () => {
+  const p = fixture([0xe6, 0x80, 0x40, 0xe6, 0x80]); // OUT 80,AL; INC AX; OUT 80,AL
+  const condition = { kind: "output", port: 0x80 } as const;
+  p.debug.runToEvent(condition, () => p.machine.cpu.snapshot().ax === 0x1235);
+  while (!p.debug.beforeStep()) p.step();
+  assert.equal(p.machine.cpu.snapshot().ip, 0x2005); assert.equal(p.debug.stop?.kind, "event");
+  p.replace();
+  put(p.machine, 0x2005, [0xe6, 0x80]);
+  p.debug.setEventStops([{ ...condition, enabled: true }]);
+  p.debug.runToEvent(condition, () => false);
+  p.step(); assert.equal(p.debug.stop?.kind, "event");
+  p.debug.dispose();
+});
+
 test("XT Step over and Step out follow nested near/far calls with exact logical returns", () => {
   const p = fixture([0xe8, 0x0d, 0, 0x90]); // CALL 2010; NOP
   put(p.machine, 0x2010, [0x9a, 0, 0x30, 0, 1, 0xc3]); // CALL 0100:3000; RET

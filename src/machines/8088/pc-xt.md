@@ -381,6 +381,46 @@ The acceptance test issues one more `DIR` after the program exits. The
 interpreter must list volume `DROMAIOS`, its two files and 360,448 bytes free.
 Both disks stay write-protected for these commands.
 
+### Following HELLO.COM from disk to execution
+
+In the laboratory's **Walkthrough** panel, choose **HELLO.COM: from disk to
+execution**. Start at the DOS prompt with the data disk mounted, select the
+first checkpoint, choose **Run to checkpoint**, then type `HELLO.COM` and
+Enter in the screen. Disable unrelated debugger stops. **Browse code** opens
+Disassembly at the selected instruction; the other links open **Files**,
+**Memory**, and **Instruction**. Disk activity recording must be enabled to
+retain the transfer links, but recording is not required for stopping.
+
+This is an audited path through the MS-DOS 3.30 image identified above on the
+CGA XT. The loader addresses and RAM allocations are observations of that
+configuration, not DOS interface guarantees. Other DOS versions, resident
+programs, or the EGA configuration may use different addresses. Byte and
+register guards prevent a matching address alone from claiming success.
+Selecting a stop never rewinds the machine; restore a snapshot or repeat
+the command when returning to an earlier stage.
+
+| Named stop | What crosses the boundary |
+| --- | --- |
+| HELLO.COM sector in DOS's buffer | DMA2 finishes image sector 14 into `$0B3D0–0B5CF`. The file uses its first 47 bytes. |
+| DOS copies the file into the program area | `MOVSB` and `REP MOVSW` copy those bytes to `$0C6B0–0C6DE`. |
+| DOS hands control to HELLO.COM | The loader's `RETF` selects `0C5B:0100` from its prepared stack. |
+| First program instruction | Execution starts after the 256-byte Program Segment Prefix. |
+| Ask DOS to print the message | `INT 21h`, `AH=09h`, reads the dollar-terminated string at `DS:DX`. |
+| The print call has returned | The message is visible and execution resumes at `0C5B:0107`. |
+| Return control to DOS | `INT 21h`, `AX=4C00h`, terminates with status zero. |
+| Back at the DOS prompt | The command interpreter polls for input beneath the message and a new `A>`. |
+
+The **Files** inspector connects the directory entry, cluster 3 and image
+offset `$01C00` to the DMA destination. That destination is DOS's sector buffer,
+**not** the final program address. The second stop exposes the CPU copy that
+bridges them: one byte followed by 23 words. The other 465 bytes of the
+512-byte sector are not part of `HELLO.COM`. Save a snapshot at the first stop
+to repeat the loader, print, and termination path. The optional
+[walkthrough acceptance](../../../tests/site/xt-hello-com.test.ts) also saves
+halfway through the sector and verifies identical state after replay, checks
+all 47 copied bytes, compares the printed message, and rejects a return into
+the message bytes after termination.
+
 ### Saving a DOS file across a fresh boot
 
 At the `A>` prompt, wait for **Motor off**. Choose **Insert writable copy…**
@@ -1266,6 +1306,61 @@ a return instruction before establishing a working RAM stack.
        "memory": "07C00",
        "prepare": "Run to the far jump, then Step.",
        "observe": "CS:IP becomes 0000:7C00. The disk code now runs from the buffer you inspected."}
+    ]
+  }, {
+    "id": "hello-com",
+    "title": "HELLO.COM: from disk to execution",
+    "setup": "Use the CGA XT, the audited MS-DOS 3.30 system disk, and the original DROMAIOS data disk. Boot DOS, accept date/time, and wait for A>. These addresses describe that clean DOS configuration, not an arbitrary DOS version or EGA layout. Code/register guards reject mismatching state; unrelated debugger stops can interrupt the tour. This guide follows actual CPU and DMA execution without modifying guest RAM.",
+    "steps": [
+      {"title": "HELLO.COM sector in DOS’s buffer", "address": "FEF3A", "execution": "F000:EF3A",
+       "memory": "0B3D0",
+       "file": "HELLO.COM",
+       "expect": {"bytes": {"address": "0B3D0", "value": "BA 0C 01 B4 09 CD 21 B8 00 4C CD 21"}},
+       "event": {"kind": "dma", "address": 46543},
+       "prepare": "At the DOS A> prompt, wait for the motor to stop, insert the DROMAIOS data disk, select this stop and choose Run to checkpoint. Click the screen and type HELLO.COM then Enter. Keep disk activity Record enabled.",
+       "observe": "DMA2 has delivered sector 14 (C0/H1/R6), image +$01C00–01DFF, to $0B3D0–0B5CF. Files links the 47 HELLO.COM bytes at +$01C00 to RAM $0B3D0. The other 465 bytes are sector slack. DOS has not yet copied these bytes to the program’s execution address."},
+      {"title": "DOS copies the file into the program area", "address": "07539", "execution": "022F:5249",
+       "memory": "0C6B0",
+       "file": "HELLO.COM",
+       "expect": {"bytes": {"address": "07539", "value": "A4 F3 A5"}, "registers": {"ds": "0B3C", "es": "0C6B", "cx": "0017"}},
+       "prepare": "Continue through the BIOS result and the return to DOS. Browse code and open Instruction.",
+       "observe": "MOVSB copies the first byte from DS:SI = 0B3C:0010 to ES:DI = 0C6B:0000, physical $0C6B0. REP MOVSW at the next instruction copies 23 words. Together they copy all 47 file bytes. This CPU copy is distinct from the preceding DMA transfer."},
+      {"title": "DOS hands control to HELLO.COM", "address": "085E4", "execution": "022F:62F4",
+       "memory": "0C6B0",
+       "file": "HELLO.COM",
+       "expect": {"bytes": {"address": "0C6B0", "value": "BA 0C 01 B4 09 CD 21 B8 00 4C CD 21"}, "registers": {"ds": "0C5B", "es": "0C5B", "ss": "0C5B", "sp": "FFFA"}},
+       "prepare": "Run past the copy and the loader’s register setup. Inspect the loaded code, then Step the RETF to enter the program.",
+       "observe": "DOS’s RETF pops IP=0100 and CS=0C5B from SS:SP = 0C5B:FFFA. The 47 bytes now occupy $0C6B0–0C6DE. The first 256 bytes of segment 0C5B form the Program Segment Prefix (PSP); the file begins after it. RETF enters the program: it is not returning from HELLO.COM."},
+      {"title": "First program instruction", "address": "0C6B0", "execution": "0C5B:0100",
+       "memory": "0C6B0",
+       "file": "HELLO.COM",
+       "expect": {"bytes": {"address": "0C6B0", "value": "BA 0C 01 B4 09 CD 21 B8 00 4C CD 21"}, "registers": {"ds": "0C5B", "es": "0C5B", "ss": "0C5B", "sp": "FFFE"}},
+       "prepare": "Run to the entry, or select it immediately after stepping the loader’s RETF. This stop does not execute the first instruction.",
+       "observe": "CS=DS=ES=SS=0C5B and SP=FFFE. MOV DX,010C selects the message immediately after the twelve code bytes. Browse code to see the five instructions; the bytes following them are text, not more instructions."},
+      {"title": "Ask DOS to print the message", "address": "0C6B5", "execution": "0C5B:0105",
+       "memory": "0C6BC",
+       "file": "HELLO.COM",
+       "expect": {"bytes": {"address": "0C6B0", "value": "BA 0C 01 B4 09 CD 21 B8 00 4C CD 21"}, "registers": {"ax": "0900", "ds": "0C5B", "dx": "010C"}},
+       "prepare": "Run through MOV DX,010C and MOV AH,09. Inspect the message in Memory and the INT 21 instruction before stepping into DOS.",
+       "observe": "AX=0900 and DS:DX=0C5B:010C identify DOS service 09 and the dollar-terminated string at physical $0C6BC. The final $24 byte is the dollar delimiter. DOS prints through its console driver; the program does not write CGA RAM directly."},
+      {"title": "The print call has returned", "address": "0C6B7", "execution": "0C5B:0107",
+       "memory": "0C6BC",
+       "file": "HELLO.COM",
+       "expect": {"bytes": {"address": "0C6B0", "value": "BA 0C 01 B4 09 CD 21 B8 00 4C CD 21"}},
+       "prepare": "Continue through DOS and BIOS screen output. The selected address is the instruction after INT 21.",
+       "observe": "The screen contains Hello from HELLO.COM on drive A. followed by a line break. The dollar delimiter was not printed. DOS has returned to the program; MOV AX,4C00 is next."},
+      {"title": "Return control to DOS", "address": "0C6BA", "execution": "0C5B:010A",
+       "memory": "0C6B0",
+       "file": "HELLO.COM",
+       "expect": {"bytes": {"address": "0C6B0", "value": "BA 0C 01 B4 09 CD 21 B8 00 4C CD 21"}, "registers": {"ax": "4C00"}},
+       "prepare": "Run through MOV AX,4C00, then inspect or Step the second INT 21.",
+       "observe": "AX=4C00 requests process termination with status zero. This service returns control to the parent command interpreter; it does not return to offset 010C in the terminated program."},
+      {"title": "Back at the DOS prompt", "address": "070F3", "execution": "022F:4E03",
+       "memory": "0C6B0",
+       "file": "HELLO.COM",
+       "expect": {"bytes": {"address": "0C6B0", "value": "BA 0C 01 B4 09 CD 21 B8 00 4C CD 21"}, "screen": {"contains": "Hello from HELLO.COM on drive A.", "lastLine": "A>"}},
+       "prepare": "Continue through process termination and the command interpreter. The stop requires the message and the new A> prompt to be visible.",
+       "observe": "DOS is polling for another command. The last nonblank screen line is A>, beneath the HELLO.COM message. The old program bytes may still be in RAM, but that does not mean the program is still running. Type another command or restore a saved transfer checkpoint and repeat the walkthrough."}
     ]
   }]
 }
