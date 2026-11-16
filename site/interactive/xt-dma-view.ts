@@ -1,3 +1,4 @@
+import { xtDisketteCommand, xtDisketteResult } from "./xt-diskette-decode.js";
 import type { XtIo } from "../../src/machines/8088/pc-xt/io.js";
 import { xtHex as hex } from "./8088-disassembly.js";
 import { memoryLink } from "./memory-link.js";
@@ -15,14 +16,14 @@ export function createXtDmaView(root: HTMLElement, browse: (address: number) => 
       at("dma-signals").textContent = `DREQ2 ${+dreq} · masked ${+Boolean(dma.mask & 4)} · terminal count ${+Boolean(dma.terminal & 4)}`
         + ` · controller disabled ${+Boolean(dma.command & 4)} · next register byte ${dma.high_byte ? "high" : "low"}`;
       const phases = ["Idle", "Receiving command", "Result", "Searching for sector", "Transferring data"];
-      at("fdc-command").textContent = `${phases[fdc.phase]} · command $${hex(fdc.command, 2)} · MSR $${hex(status, 2)} · DOR $${hex(fdc.dor, 2)}`;
+      at("fdc-command").textContent = `${phases[fdc.phase]} · ${xtDisketteCommand(fdc.command)} $${hex(fdc.command, 2)} · MSR $${hex(status, 2)} · DOR $${hex(fdc.dor, 2)}`;
       const [select, c, h, r, n] = fdc.parameters;
       at("fdc-position").textContent = `Physical cylinder ${fdc.cylinder} · command C/H/R/N ${c}/${h}/${r}/${n} · byte ${fdc.byte_offset}/512`
         + ` · next byte in ${fdc.byte_us} µs`;
       at("fdc-signals").textContent = `Media ${fdc.media ? (fdc.writable ? "writable" : "read-only") : "absent"} · motor ${fdc.dor & 16 ? "on" : "off"}`
         + ` · head ${select! >> 2 & 1} · seek ${fdc.seek_busy ? "busy" : "idle"} · IRQ6 ${+irq} · parameters ${fdc.received}/${fdc.expected}`;
       at("fdc-result").textContent = fdc.result_left
-        ? `Unread result: ${fdc.results.slice(fdc.result_index, fdc.result_index + fdc.result_left).map(byte => hex(byte, 2)).join(" ")}`
+        ? `Unread result: ${fdc.results.slice(fdc.result_index, fdc.result_index + fdc.result_left).map(byte => hex(byte, 2)).join(" ")} · ${xtDisketteResult(fdc.result_index + fdc.result_left === 7 ? fdc.command : undefined, fdc.results.slice(0, fdc.result_index + fdc.result_left))}`
         : "No unread result bytes.";
     },
   };

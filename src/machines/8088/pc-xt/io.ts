@@ -33,6 +33,13 @@ type XtDmaTransfer = XtDisketteTransfer | {
   readonly channel: 0; readonly address: number; readonly value?: undefined; readonly oscillatorTicks: number;
 };
 
+export interface XtDisketteAccess {
+  readonly kind: "read" | "write" | "control";
+  readonly value: number;
+  readonly before: IbmXtDisketteSnapshot;
+  readonly after: IbmXtDisketteSnapshot;
+}
+
 export interface XtIoSnapshot {
   readonly pic: I8259aSnapshot;
   readonly intrRaisedDuringCpu: boolean;
@@ -81,6 +88,7 @@ export class XtIo implements MemoryConnection {
   readonly #diskette: IbmXtDiskette;
   #diskettePage: number;
   #disketteImage: XtDisketteImage | null;
+  readonly #disketteObservers = new Set<(access: XtDisketteAccess) => void>();
   readonly #speakerObservers = new Set<(ticks: number, level: boolean) => void>();
   #observedSpeakerLevel = false;
 
@@ -150,6 +158,20 @@ export class XtIo implements MemoryConnection {
     return () => { this.#speakerObservers.delete(observer); };
   }
 
+  /** Observe controller data/control transfers without issuing additional guest reads. */
+  observeDiskette(observer: (access: XtDisketteAccess) => void): () => void {
+    this.#disketteObservers.add(observer);
+    return () => { this.#disketteObservers.delete(observer); };
+  }
+
+  #disketteAccess<T>(kind: XtDisketteAccess["kind"], value: number, transfer: () => T): T {
+    if (!this.#disketteObservers.size) return transfer();
+    const before = this.#diskette.snapshot(), result = transfer(), after = this.#diskette.snapshot();
+    const access = { kind, value: typeof result === "number" ? result : value, before, after };
+    for (const observer of this.#disketteObservers) observer(access);
+    return result;
+  }
+
   /** A request raised by the CPU's own bus transfer misses that instruction's INTR sample. */
   runCpuBoundary<T>(execute: (intr: boolean) => T): T {
     const before = this.irq;
@@ -175,7 +197,8 @@ export class XtIo implements MemoryConnection {
     if (address === 0x20 || address === 0x21) return this.#pic.read(address - 0x20);
     if (address >= 0x40 && address <= 0x43) return this.#pit.read(address - 0x40);
     if (address >= 0x60 && address <= 0x63) return this.#ppi.read(address - 0x60);
-    if (address === 0xf4 || address === 0xf5) return this.#diskette.read(address - 0xf2);
+    if (address === 0xf4) return this.#diskette.read(2);
+    if (address === 0xf5) return this.#disketteAccess("read", 0, () => this.#diskette.read(3));
     return "bus-error";
   }
 
@@ -188,7 +211,7 @@ export class XtIo implements MemoryConnection {
     else if (address >= 0x60 && address <= 0x63) this.#ppi.write(address - 0x60, value);
     else if (address === 0x81) this.#diskettePage = value & 0x0f;
     else if (address === 0xa0) this.#system.write(0, value);
-    else if (address === 0xf2 || address === 0xf5) this.#diskette.write(address - 0xf2, value);
+    else if (address === 0xf2 || address === 0xf5) this.#disketteAccess(address === 0xf2 ? "control" : "write", value, () => this.#diskette.write(address - 0xf2, value));
     else return "bus-error";
     this.#updateWiring();
   }

@@ -87,6 +87,16 @@
       <details><summary>Requests and service</summary><p class="lab-hint">Pending requests survive masking. The highlighted row is the controller’s selected request; CPU IF and recognition delays still govern acceptance. Acknowledge moves a request into service. The BIOS clears the keyboard receiver through port 61, then sends EOI to port 20; IRET separately restores CPU state.</p></details>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="dma" data-panel-title="DMA / diskette" data-panel-live="true">
+      <div class="basic-controls" role="group" aria-label="Disk inspection view">
+        <button type="button" data-disk-inspection="activity" aria-pressed="true">Activity</button>
+        <button type="button" data-disk-inspection="registers" aria-pressed="false">Registers</button>
+      </div>
+      <div data-disk-activity>
+        <div class="basic-controls"><label><input type="checkbox" data-disk-recording checked> Record disk activity</label><button type="button" data-disk-clear>Clear activity</button></div>
+        <p class="lab-hint" data-disk-activity-status></p><div data-disk-operations></div>
+        <details><summary>Reading sector activity</summary><p class="lab-hint">Newest commands first. Byte spans link to RAM; image offsets use the mounted 360 KiB geometry. TC ends DMA; the controller result and IRQ6 entry are separate observations. A normal result may name the next sector ID. Continued entries begin after recording starts or a checkpoint is restored, so their byte totals cover only the observed suffix. Reset, restore and media exchange clear this history. Live affects drawing; Record controls capture independently of Port trace.</p></details>
+      </div>
+      <div data-disk-registers hidden>
       <h2>8237A channel 2</h2>
       <p class="basic-readout" data-dma-address></p>
       <p class="basic-readout" data-dma-count></p>
@@ -97,6 +107,7 @@
       <p class="lab-hint" data-fdc-signals></p>
       <p class="basic-readout" data-fdc-result></p>
       <details><summary>Following a sector read</summary><p class="lab-hint">Choose the BIOS sector read walkthrough. Channel 2's address points to the next RAM byte. Its count is bytes remaining minus one; FFFF after terminal count is the wrapped counter. DMA “write” means a write to memory. Completion raises IRQ6; reading the controller's result, sending PIC EOI, and returning from the BIOS are separate events. Inspection never consumes a status or result register.</p></details>
+      </div>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-title="Instruction" data-panel-live="true">
       <p class="basic-readout" data-instruction-location></p><pre class="lab-instruction-preview" data-instruction-preview></pre>

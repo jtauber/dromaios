@@ -784,7 +784,35 @@ bus or port accesses.
 
 ### DMA and diskette inspection
 
-**DMA / diskette**, initially beside Drive A, shows channel 2's current and
+**DMA / diskette**, initially beside Drive A, opens with **Activity**: a bounded
+history of the most recent 64 controller commands, independent of Port trace.
+Each command shows its name, parameters, issuing CS:IP, observed byte count and
+decoded result. Read and write commands group contiguous DMA grants by disk
+sector, showing C/H/R, raw image offset, RAM range and terminal count. RAM and
+code links open the corresponding inspectors. A DMA address wrap splits the RAM
+spans even within a single sector. Each command retains at most 128 spans;
+discarded commands and spans are counted explicitly.
+
+The decoder names the commands and status flags implemented by this controller
+profile; other status bits remain visible in hexadecimal. Controller result
+availability, software consuming the result, and IRQ6 entry are separate
+observations. A normal result can contain the *next* sector ID, rather than the
+last sector transferred. Seek and recalibrate are marked **issued** when their
+parameters have been accepted; a later Sense Interrupt result reports their
+completion. CPU-boundary tick values include device advancement; they are not
+individual bus timestamps.
+
+**Record disk activity** controls capture; **Live** controls drawing. Pausing
+capture interrupts the current observation. Re-enabling it, clearing activity,
+or restoring a checkpoint starts a **continued** entry when the controller is
+busy. That entry counts only subsequent observed bytes, never reconstructing
+earlier transfers. Reset, restore and media exchange clear the history; it is
+an inspection aid, not part of the hardware checkpoint. An uncaptured controller
+access also ends continuity. The board observer snapshots only controller
+data/control accesses while enabled; status polling does not allocate history
+or consume device state.
+
+The **Registers** view shows channel 2's current and
 base address/count, page register, mode, mask, request and terminal-count latch.
 RAM links open Memory. The controller view shows command phase, C/H/R/N,
 physical cylinder, byte position and delay, motor, IRQ6 and unread result bytes.
@@ -815,6 +843,17 @@ trace events, CPU, RAM, devices, display phase and oscillator time. Tracing,
 inspection and stopping must not change the completed machine state. The test
 uses a small original test disk and the separately supplied, unmodified BIOS;
 the browser walkthrough also accepts the local DOS disk.
+
+The [sector-history checks](../../../tests/site/xt-disk-activity.test.ts) cover
+multi-sector grouping, DMA address wrap, incomplete observations and protected
+writes. The [DOS acceptance](../../../tests/site/xt-disk-activity-dos.test.ts)
+boots the supplied DOS 3.30 disk, then uses the original FAT12 data fixture.
+`TYPE README.TXT` must produce its known text and move its first data sector
+(image offset `$01800`, C0/H1/R4) into the displayed RAM range. A checkpoint after
+byte 256 must reproduce the remaining sector spans, result, IRQ6 and complete
+machine state, also matching execution without the observer. Attempting
+`ECHO HELLO>SAVE.TXT` on the read-only disk must reach DOS's write-protect error,
+with zero write DMA bytes, decoded ST1 write protection and unchanged media.
 
 ### Port trace and interrupt inspection
 

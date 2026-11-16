@@ -1,3 +1,5 @@
+import { createXtDiskActivity } from "./xt-disk-activity.js";
+import { createXtDiskActivityView } from "./xt-disk-activity-view.js";
 import { decodeStoredXtCheckpoint, encodeStoredXtCheckpoint } from "./xt-checkpoint-storage.js";
 import { createXtDmaView } from "./xt-dma-view.js";
 import { createXtIoTrace } from "./xt-io-trace.js";
@@ -80,6 +82,9 @@ function mount(root: HTMLElement): void {
   const ioView = createXtIoView(root, portTrace, catalogue.cpu, guide.io,
     location => { showCode.browse(location); workspace.show("code"); },
     condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }), browseMemory);
+  const diskActivity = createXtDiskActivity(() => session.machine.io);
+  const diskActivityView = createXtDiskActivityView(root, diskActivity, browseMemory,
+    location => { showCode.browse(location); workspace.show("code"); }, () => refresh("dma"));
   const dmaView = createXtDmaView(root, browseMemory);
   const showInstruction = createXtInstructionView(instruction, browseMemory);
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
@@ -117,7 +122,7 @@ function mount(root: HTMLElement): void {
     step() {
       const log = changeLog.current();
       const observed = log.recording ? observeBoundary() : undefined;
-      const record = log.capture(() => debug.capture(() => session.step()), observed);
+      const record = log.capture(() => debug.capture(() => diskActivity.capture(() => session.step())), observed);
       portTrace.observe(record, session.machine.io.clock.ticks);
       sound.observe();
       watchHistory.observe(record, debug.watchpoints, log.memoryWrites(record));
@@ -238,7 +243,7 @@ function mount(root: HTMLElement): void {
       }
       for (const [id, show] of [["log", changeLog.refresh], ["debugger", watchView.refresh], ["ports", ioView.refreshTrace],
         ["pic", () => ioView.refreshPic(session.machine.io.interruptState(), cpu)],
-        ["dma", () => dmaView.refresh(session.machine.io.disketteState())]] as const) {
+        ["dma", () => { dmaView.refresh(session.machine.io.disketteState()); diskActivityView.refresh(); }]] as const) {
         if (root.querySelector<HTMLElement>(`[data-workspace-panel="${id}"]`)!.getClientRects().length
           && (requested === id || updates.shouldUpdate(id, running))) show();
       }
@@ -251,7 +256,7 @@ function mount(root: HTMLElement): void {
   }
   function resetTools(): void {
     unobserveSpeaker(); unobserveSpeaker = observeSpeaker(); intervals.clearStep();
-    execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset(); ioView.reset();
+    execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset(); ioView.reset(); diskActivity.reset();
   }
   function run(): void { debug.run(); message.textContent = ""; execution.run(); screen.focus(); }
   function powerOn(start: "cold" | "quick"): void {
@@ -324,11 +329,11 @@ function mount(root: HTMLElement): void {
     readingDisk = true; diskMessage.textContent = ""; refresh();
     try {
       if (file.size !== xtDisketteSize) throw new Error("Choose a raw 360 KiB disk image (368,640 bytes).");
-      session.insertDisk(file.name, new Uint8Array(await file.arrayBuffer()), { writable: writableCopy });
+      session.insertDisk(file.name, new Uint8Array(await file.arrayBuffer()), { writable: writableCopy }); diskActivity.reset();
     } catch (cause) { diskMessage.textContent = cause instanceof Error ? cause.message : String(cause); }
     finally { diskFile.value = ""; readingDisk = false; refresh(); }
   };
-  button("disk-eject").onclick = () => act(() => { session.ejectDisk(); diskMessage.textContent = ""; });
+  button("disk-eject").onclick = () => act(() => { session.ejectDisk(); diskActivity.reset(); diskMessage.textContent = ""; });
   button("disk-export").onclick = () => act(() => {
     if (!session.diskName || session.machine.io.disketteMotorOn) return;
     const filename = downloadDiskImage(session.diskName, ".img", session.machine.io.exportDiskette());

@@ -29,3 +29,4 @@
 .xt-event-fields:not([hidden]) { display: flex; flex-wrap: wrap; gap: 5px; }
 .xt-event-fields input { width: 8ch; }
 [data-io-entries] .lab-device-event > button { margin-top: 5px; padding: 3px 6px; font-size: 11px; }
+[data-disk-activity] .basic-controls label { display: inline-flex; align-items: center; gap: 6px; }
