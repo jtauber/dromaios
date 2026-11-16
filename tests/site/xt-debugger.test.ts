@@ -331,3 +331,80 @@ test("XT version-8 layouts add PIC and Port trace while keeping a hidden Call st
   saved.set(xtWorkspaceKey, encodeWorkspaceState(old)); migrateXtWorkspace(storage);
   assert.equal(saved.get(xtWorkspaceKey), encodeWorkspaceState(old));
 });
+
+test("XT event stops inspect both bytes of word I/O and stop after the completed boundary, even without recording", () => {
+  const p = fixture([0xef, 0xed, 0xeb, 0xfc], { dx: 0xffff }); // OUT DX,AX; IN AX,DX; loop
+  p.debug.setEventStops([{ kind: "output", port: 0, value: 0x12, enabled: true }]);
+  p.run();
+  assert.equal(p.execution.steps, 1); assert.equal(p.debug.stop?.kind, "event");
+  assert.equal(p.machine.cpu.snapshot().ip, 0x2001);
+  assert.deepEqual(p.debug.eventHit, { caller: { address: 0x2000, space: "CS:IP 0000:2000" }, event: { kind: "output", port: 0, value: 0x12 } });
+  assert.equal(p.execution.records.at(-1)!.accesses.filter(a => a.kind === "output").length, 2);
+  p.debug.setEventStops([{ kind: "input", port: 0xffff, enabled: true }]); p.single();
+  assert.equal(p.debug.stop?.kind, "event"); assert.equal(p.machine.cpu.snapshot().ip, 0x2002);
+  assert.match(debuggerStatus(p.debug.stop, p.debug.request, false), /Event stop.*IN \$FFFF/);
+  p.debug.setEventStops([{ kind: "output", port: 0xffff, value: 0x13, enabled: true }, { kind: "input", port: 0xffff, enabled: false }]);
+  p.runTo("2002"); // Immediate target; changing conditions does not replay the previous IN.
+  assert.equal(p.debug.eventHit, undefined); assert.equal(p.debug.stop?.kind, "target");
+  p.debug.setEventStops([{ kind: "input", port: 0xffff, enabled: true }]); p.run();
+  assert.equal(p.execution.steps, 5); assert.equal(p.debug.stop?.kind, "event");
+});
+
+test("event stops interrupt Step over/out and resume without repeating the captured event", () => {
+  const p = fixture([0xe8, 0x0d, 0]); put(p.machine, 0x2010, [0xe6, 0x80, 0xc3]);
+  p.debug.setEventStops([{ kind: "output", port: 0x80, enabled: true }]); p.over();
+  assert.equal(p.debug.stop?.kind, "event"); assert.equal(p.machine.cpu.snapshot().ip, 0x2012);
+  assert.equal(p.debug.frames.length, 1); p.out();
+  assert.equal(p.debug.stop?.kind, "out"); assert.equal(p.debug.eventHit, undefined);
+  p.replace(); p.machine.cpu = new Cpu8088(p.machine.memory, { ...p.machine.cpu.snapshot(), ip: 0x2000 }, { ports: p.machine.ports });
+  p.single(); p.out(); assert.equal(p.debug.stop?.kind, "event");
+});
+
+test("IRQ event stops follow complete entry, preserve RAM-watch precedence, and ignore masked requests", () => {
+  const p = fixture([0x90, 0xeb, 0xfd]);
+  for (const [port, value] of [[0x20, 0x13], [0x21, 8], [0x21, 9], [0x21, 0xff], [0x63, 0x99], [0x61, 0x4c]]) p.machine.io.write(port!, value!);
+  put(p.machine, 0x24, [0, 0x30, 0, 0]); put(p.machine, 0x3000, [0xcf]);
+  p.machine.cpu = new Cpu8088(p.machine.memory, { ...p.machine.cpu.snapshot(), flags: { ...p.machine.cpu.snapshot().flags, if: true } }, { ports: p.machine.ports });
+  p.machine.io.offerScanCode(0x1e);
+  p.debug.setEventStops([{ kind: "interrupt", source: "intr", vector: 9, enabled: true }]);
+  p.runTo("2001"); assert.equal(p.debug.stop?.kind, "target"); assert.equal(p.debug.eventHit, undefined);
+  p.machine.io.write(0x21, 0xfd); const saved = p.machine.snapshot();
+  p.run(); assert.equal(p.debug.stop?.kind, "event"); assert.equal(p.machine.cpu.snapshot().sp, 0x7ffa);
+  assert.equal(p.machine.cpu.snapshot().ip, 0x3000); assert.equal(p.debug.frames.length, 1);
+  assert.equal(p.machine.io.interruptState().pic.isr, 2);
+  p.debug.setEventStops([{ kind: "iret", enabled: true }]); p.single();
+  assert.equal(p.debug.stop?.kind, "event"); assert.equal(p.debug.frames.length, 0);
+  const returned = p.machine.snapshot(); p.replace(saved);
+  assert.deepEqual(p.debug.eventStops, [{ kind: "iret", enabled: true }]); assert.equal(p.debug.eventHit, undefined);
+  p.run(); assert.deepEqual(p.machine.snapshot(), returned);
+  p.replace(saved); p.debug.setEventStops([{ kind: "interrupt", enabled: true }]); p.debug.setWatchpoints([point("17FFE")]); p.run();
+  assert.equal(p.debug.stop?.kind, "watchpoint"); assert.equal(p.debug.eventHit, undefined);
+});
+
+test("failed port boundaries never create an event hit, and reset retains event preferences", () => {
+  const p = fixture([0xef], { dx: 0x80 }); let outputs = 0;
+  p.machine.cpu = new Cpu8088(p.machine.memory, p.machine.cpu.snapshot(), { ports: {
+    readPort: () => 0, writePort() { if (++outputs === 2) throw new Error("Second byte failed"); },
+  } });
+  const conditions = [{ kind: "output" as const, port: 0x80, enabled: true }];
+  p.debug.setEventStops(conditions); p.single();
+  assert.equal(outputs, 2); assert.equal(p.debug.stop?.kind, "error"); assert.equal(p.debug.eventHit, undefined);
+  p.resetCpu(); assert.equal(p.debug.stop, undefined); assert.deepEqual(p.debug.eventStops, conditions);
+});
+
+test("PIT IRQ0 event stops wake a halted XT and replay identically from a waiting checkpoint", () => {
+  const p = fixture([0xfb, 0xf4, 0xeb, 0xfd]); // STI; HLT; loop
+  for (const [port, value] of [[0x20, 0x13], [0x21, 8], [0x21, 9], [0x21, 0xfe], [0x43, 0x10], [0x40, 200]]) p.machine.io.write(port!, value!);
+  put(p.machine, 0x20, [0, 0x30, 0, 0]); put(p.machine, 0x3000, [0xb0, 0x20, 0xe6, 0x20, 0xcf]);
+  p.single(); p.single(); const waiting = p.machine.snapshot();
+  assert.equal(p.machine.cpu.snapshot().halted, true);
+  p.debug.setEventStops([{ kind: "interrupt", source: "intr", vector: 8, enabled: true }]);
+  p.run(); assert.equal(p.debug.stop?.kind, "event"); assert.equal(p.machine.cpu.snapshot().halted, false);
+  assert.equal(p.machine.io.interruptState().pic.isr, 1); const entered = p.machine.snapshot(), hit = p.debug.eventHit;
+  p.replace(waiting); p.run(); assert.deepEqual(p.machine.snapshot(), entered); assert.deepEqual(p.debug.eventHit, hit);
+  p.debug.setEventStops([{ kind: "output", port: 0x20, value: 0x20, enabled: true }]);
+  p.run(); assert.equal(p.machine.io.interruptState().pic.isr, 0); assert.equal(p.debug.frames.length, 1);
+  p.debug.setEventStops([{ kind: "iret", enabled: true }]); p.run();
+  assert.equal(p.debug.stop?.kind, "event"); assert.equal(p.machine.cpu.snapshot().ip, 0x2002);
+  assert.equal(p.debug.frames.length, 0);
+});

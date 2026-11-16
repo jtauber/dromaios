@@ -1,8 +1,14 @@
-import { decode8088, physical8088 } from "./8088-disassembly.js";
+import type { DebugLocation } from "./instruction-debugger.js";
+import { decode8088, logical8088, physical8088 } from "./8088-disassembly.js";
 import type { Catalogue8088, Row8088 } from "./8088-disassembly.js";
 import type { FetchedInstruction } from "../../src/components/cpus/execution-records.js";
 import type { XtMachine } from "./xt-session.js";
 import { parseMemoryAddress } from "./memory-window.js";
+
+/** Physical bytes identify aliases; the exact logical pair identifies one execution location. */
+export function xtDebugLocation(state: { readonly cs: number; readonly ip: number; readonly pc: number }): DebugLocation {
+  return { address: state.pc, space: "CS:IP " + logical8088(state.cs, state.ip) };
+}
 
 export interface XtBoundary {
   readonly before: { readonly cs: number; readonly ip: number };

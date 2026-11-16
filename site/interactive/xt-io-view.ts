@@ -1,3 +1,5 @@
+import { describeXtEvent, xtEventCondition } from "./xt-event-stops.js";
+import type { XtEventCondition } from "./xt-event-stops.js";
 import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-cpu.js";
 import type { XtIo } from "../../src/machines/8088/pc-xt/io.js";
 import type { Catalogue8088 } from "./8088-disassembly.js";
@@ -14,7 +16,7 @@ export interface XtIoLabels {
 
 /** Present captured transfers and detached state. This view has no guest bus connection. */
 export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof createXtIoTrace>, cpu: Catalogue8088,
-  labels: XtIoLabels, browse: (location: DebugLocation) => void) {
+  labels: XtIoLabels, browse: (location: DebugLocation) => void, stopOn: (condition: XtEventCondition) => void) {
   const at = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const record = at<HTMLInputElement>("io-recording"), ports = at<HTMLInputElement>("io-ports"), interrupts = at<HTMLInputElement>("io-interrupts");
   const portLabels = new Map(labels.ports.map(port => [parseInt(port.address, 16), port]));
@@ -48,7 +50,12 @@ export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof creat
       }
       const assembly = entry.bytes.length ? xtHistoryAssembly(cpu, entry.caller, entry.bytes) : "External CPU boundary";
       detail.textContent = `#${entry.sequence} · ${entry.ticks.toLocaleString()} ticks at boundary end · ${assembly}`;
-      row.append(heading, detail); output.append(row);
+      const stop = document.createElement("button"), condition = xtEventCondition(transfer);
+      stop.type = "button"; stop.textContent = "Stop on this event";
+      stop.title = `Add ${describeXtEvent(condition)}; stops after a complete boundary.`;
+      stop.setAttribute("aria-label", `Stop on this event: ${describeXtEvent(condition)}`);
+      stop.onclick = () => stopOn(condition);
+      row.append(heading, detail, stop); output.append(row);
     }
     if (!entries.length) output.textContent = "No captured events match these filters. Enable Record, then Step or Run.";
   }

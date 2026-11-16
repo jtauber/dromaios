@@ -1,25 +1,29 @@
+import { xtIoTransfers } from "./xt-io-events.js";
+import type { XtIoTransfer } from "./xt-io-events.js";
+import { validateXtEventStops, matchesXtEvent, describeXtEvent, xtEventCondition } from "./xt-event-stops.js";
+import type { XtEventStop } from "./xt-event-stops.js";
 import { observe8088Boundary } from "./8088-debugger.js";
 import type { RamWrite } from "../../src/components/memory/ram.js";
-import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-cpu.js";
 import type { stepTimedXtCpu } from "../../src/machines/8088/pc-xt/interrupts.js";
 import { logical8088, physical8088, xtHex as hex } from "./8088-disassembly.js";
 import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instruction-debugger.js";
 import type { DebugLocation, InstructionBreakpoint, RunToOptions } from "./instruction-debugger.js";
 import { parseMemoryAddress } from "./memory-window.js";
 import { createRamWriteCapture } from "./ram-write-capture.js";
-import { parseXtAddress } from "./xt-inspection.js";
+import { parseXtAddress, xtDebugLocation } from "./xt-inspection.js";
 import type { XtMachine } from "./xt-session.js";
+
+export { xtDebugLocation } from "./xt-inspection.js";
 
 type Boundary = ReturnType<typeof stepTimedXtCpu>["record"];
 type Target = Pick<InstructionBreakpoint, "address" | "space">;
+export interface XtEventHit {
+  readonly caller: DebugLocation;
+  readonly event: XtIoTransfer;
+}
 export interface XtWriteHit extends RamWrite {
   readonly caller: DebugLocation;
   readonly record: Boundary;
-}
-
-/** Physical bytes identify aliases; the exact logical pair identifies one execution location. */
-export function xtDebugLocation(state: Pick<Cpu8088Snapshot, "cs" | "ip" | "pc">): DebugLocation {
-  return { address: state.pc, space: "CS:IP " + logical8088(state.cs, state.ip) };
 }
 
 /** Physical and logical locations come from the same captured CPU boundary. */
@@ -66,7 +70,14 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
   const policy = createInstructionDebugger(budget), writes = createRamWriteCapture(() => machine().ram);
   const location = () => xtDebugLocation(machine().cpu.snapshot());
   let watches: readonly InstructionBreakpoint[] = [], hit: XtWriteHit | undefined;
+  let events: readonly XtEventStop[] = [], activeEvents: readonly XtEventStop[] = [], eventHit: XtEventHit | undefined;
+  function clearHit(): void { hit = undefined; eventHit = undefined; }
   return {
+    get eventStops() { return events; },
+    get eventHit() { return eventHit; },
+    setEventStops(points: readonly XtEventStop[]): void {
+      events = validateXtEventStops(points); activeEvents = events.filter(point => point.enabled);
+    },
     get frames() { return policy.frames; },
     get trackingNote() { return policy.trackingNote; },
     get canStepOut() { return policy.canStepOut; },
@@ -80,13 +91,13 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
       watches = validate(points, machine().ram.size - 1);
       writes.watch(watches.filter(point => point.enabled).map(point => point.address));
     },
-    run(): void { hit = undefined; policy.run(location()); },
-    step(): void { hit = undefined; policy.step(location()); policy.beforeStep(location()); },
-    over(): void { hit = undefined; policy.overBoundary(location()); },
-    out(): void { hit = undefined; policy.out(location()); },
+    run(): void { clearHit(); policy.run(location()); },
+    step(): void { clearHit(); policy.step(location()); policy.beforeStep(location()); },
+    over(): void { clearHit(); policy.overBoundary(location()); },
+    out(): void { clearHit(); policy.out(location()); },
     runTo(target: Target, options?: RunToOptions): void {
       const point = validate([{ ...target, enabled: true }], 0xfffff, true)[0]!;
-      hit = undefined; policy.runTo(location(), point.address, point.space, options);
+      clearHit(); policy.runTo(location(), point.address, point.space, options);
     },
     pause(detail?: string): void { policy.pause(location(), detail); },
     beforeStep(current: DebugLocation | (() => DebugLocation) = location): boolean { return policy.beforeStep(current); },
@@ -99,15 +110,22 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
           if (write) {
             hit = { ...write, caller: xtDebugLocation(record.before), record };
             policy.watchpoint(xtDebugLocation(record.after), describeXtWriteHit(hit));
-          } else if (policy.request === "step") policy.beforeStep(xtDebugLocation(record.after));
+          } else if (activeEvents.length) {
+            const event = xtIoTransfers(record).find(event => activeEvents.some(point => matchesXtEvent(point, event)));
+            if (event) {
+              eventHit = { caller: xtDebugLocation(record.before), event };
+              policy.event(xtDebugLocation(record.after), `${describeXtEvent(xtEventCondition(event))} from ${formatXtDebugAddress(eventHit.caller)}. Stopped after the complete CPU/board boundary.`);
+            }
+          }
+          if (policy.request === "step") policy.beforeStep(xtDebugLocation(record.after));
         }
         return record;
       } catch (cause) {
-        hit = undefined; policy.fail(location(), cause instanceof Error ? cause.message : String(cause));
+        clearHit(); policy.fail(location(), cause instanceof Error ? cause.message : String(cause));
         throw cause;
       }
     },
-    reset(): void { policy.reset(); hit = undefined; writes.reconnect(); },
+    reset(): void { policy.reset(); clearHit(); writes.reconnect(); },
     dispose: writes.dispose,
   };
 }

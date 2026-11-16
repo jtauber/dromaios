@@ -1,13 +1,11 @@
 import type { stepXtSessionCpu } from "./xt-session.js";
 import type { DebugLocation } from "./instruction-debugger.js";
-import { xtDebugLocation } from "./xt-debugger.js";
-import { opcode8088Index } from "./8088-encoding.js";
+import { xtDebugLocation } from "./xt-inspection.js";
+import { xtIoTransfers } from "./xt-io-events.js";
+import type { XtIoTransfer } from "./xt-io-events.js";
+export type { XtIoTransfer } from "./xt-io-events.js";
 
 type Boundary = ReturnType<typeof stepXtSessionCpu>;
-export type XtIoTransfer = { readonly kind: "input" | "output"; readonly port: number; readonly value: number }
-  | { readonly kind: "acknowledge"; readonly value: number }
-  | { readonly kind: "interrupt"; readonly source: string; readonly vector: number; readonly target: DebugLocation }
-  | { readonly kind: "iret"; readonly target: DebugLocation };
 export interface XtIoEntry {
   readonly sequence: number;
   /** End of the completed CPU/board boundary, not a bus-cycle timestamp. */
@@ -32,15 +30,7 @@ export function createXtIoTrace(capacity = 500) {
     clear(): void { entries.length = 0; cursor = 0; total = 0; },
     observe(record: Boundary, ticks: number): void {
       if (!recording || record.outcome !== "executed" && record.outcome !== "accepted") return;
-      const transfers: XtIoTransfer[] = [];
-      for (const access of record.accesses) {
-        if (access.kind === "input" || access.kind === "output") transfers.push({ kind: access.kind, port: access.port, value: access.value });
-        else if (access.kind === "acknowledge") transfers.push({ kind: access.kind, value: access.value });
-      }
-      const interrupt = record.outcome === "accepted" ? record : "interrupt" in record ? record.interrupt : undefined;
-      if (interrupt) transfers.push({ kind: "interrupt", source: interrupt.source, vector: interrupt.vector, target: xtDebugLocation(record.after) });
-      const bytes = record.instruction?.bytes ?? [];
-      if (bytes[opcode8088Index(bytes)] === 0xcf) transfers.push({ kind: "iret", target: xtDebugLocation(record.after) });
+      const transfers = xtIoTransfers(record), bytes = record.instruction?.bytes ?? [];
       if (!transfers.length) return;
       const caller = xtDebugLocation(record.before), capturedBytes = [...bytes];
       for (const transfer of transfers) {

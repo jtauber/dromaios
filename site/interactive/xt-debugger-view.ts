@@ -1,3 +1,4 @@
+import { createXtEventStopsView } from "./xt-event-stops-view.js";
 import { createBreakpointView } from "./breakpoint-view.js";
 import { createDebuggerStatus } from "./debugger-status-view.js";
 import { decodeXtBreakpoints, formatXtDebugAddress, parseXtDebugAddress } from "./xt-debugger.js";
@@ -19,6 +20,9 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
     kind: "breakpoint", key: "dromaios:debugger:xt:breakpoints", maximum: 0xfffff,
     parseAddress: parseXtDebugAddress, formatAddress: formatXtDebugAddress, decode: decodeXtBreakpoints,
     values: () => debug.breakpoints, set: debug.setBreakpoints, changed: options.changed,
+  });
+  const eventStops = createXtEventStopsView(root, {
+    values: () => debug.eventStops, set: debug.setEventStops, changed: options.changed,
   });
   const labels = options.labels.filter(label => label.scope === "workspace").flatMap(label =>
     Array.from({ length: label.bytes ?? 1 }, (_, byte) => ({ address: parseInt(label.address, 16) + byte,
@@ -46,6 +50,7 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
   const memory = root.querySelector<HTMLButtonElement>("[data-watchpoint-memory]")!;
   memory.onclick = () => { if (debug.hit) options.memory(debug.hit.address); };
   return {
+    addEventStop: eventStops.add,
     refresh(running: boolean): void {
       memory.hidden = !debug.hit;
       status.refresh(debug.stop, debug.request, running);

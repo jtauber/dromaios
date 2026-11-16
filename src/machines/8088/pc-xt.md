@@ -825,6 +825,54 @@ the original BIOS/BASIC, follow all five IRQ1 checkpoints, check the scan code,
 PIC transitions and BIOS buffer, then compare the entire resulting machine
 with ordinary execution and a replay from a checkpoint taken during the handler.
 
+### Stopping on I/O and interrupt events
+
+The Debugger's **I/O and interrupt stops** match captured events independently
+of Port trace recording or Live updates. Choose **Port read** or **Port write**,
+enter a 16-bit hexadecimal port, and optionally match a byte value. Word I/O
+checks both transfers in their original order, including `FFFF` wrapping to
+`0000`. The whole instruction completes before execution pauses; the reported
+caller is the instruction that performed the transfer, while current CS:IP
+identifies the next boundary.
+
+**Interrupt entry** accepts an optional source and vector. For the BIOS's
+initialized PIC, INTR vector `09` follows keyboard IRQ1 and vector `08` follows
+timer IRQ0. These conditions match accepted entry, not a pending request or
+an assertion of the PIC output. CPU masking and recognition delays still apply.
+Software interrupts, NMI, owed traps and divide errors retain their distinct
+sources. **IRET** stops after any completed return from interrupt; it does not
+select a particular caller or handler.
+
+Each trace row offers **Stop on this event**. A port row creates an exact
+port/direction/value condition; an entry creates an exact source/vector condition.
+INTA selects the corresponding completed INTR entry, and IRET selects any IRET.
+Adding an existing condition enables it again. The action opens Debugger for
+review; it neither resumes execution nor retroactively matches the retained row.
+Clear the optional value or vector when adding a broader condition manually.
+
+These conditions use the shared stopping policy during Run, Step, Step over,
+Step out and Run to address. The first matching event in transfer order stops
+after the complete CPU/board boundary. An ordinary address breakpoint still
+stops before execution; a RAM write watch takes precedence if both kinds match
+within the same boundary. Continue starts with the following boundary, so it
+does not report the old event again. A failed boundary reports its execution
+error, not a successful event stop, even if some bus effects already occurred.
+
+Up to 64 distinct conditions can be enabled, disabled or removed. They are
+browser preferences, shared by the CGA and EGA laboratories, and survive CPU
+reset, power-on and checkpoint restoration. A restore discards the old stop,
+trace and call history while retaining the conditions for the restored hardware.
+Restoring a checkpoint does not restore an earlier set of debugger preferences.
+
+To follow a key without knowing its handler address, add INTR vector `09`, run
+from BASIC's prompt and press `a`. Then follow `IN 0060 = 1E`, `OUT 0020 = 20`
+and IRET. For the timer, use INTR vector `08`, observe the BIOS tick count at
+`0046C`, then follow EOI and IRET. The [event checks](../../../tests/site/xt-debugger.test.ts)
+include a halted CPU waking through the PIT, complete word transfers,
+continuation and stop precedence. The original-firmware inspection checks also
+follow both BIOS handlers and reproduce their exact state and event hits after
+restoring checkpoints inside them, with trace recording disabled.
+
 ### Changes and watched RAM history
 
 **Changes** uses the shared laboratory log. Each retained event identifies its

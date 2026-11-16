@@ -17,7 +17,7 @@ export interface DebugStep {
   readonly resetsStack: boolean;
 }
 export interface DebugStop {
-  readonly kind: "breakpoint" | "watchpoint" | "step" | "over" | "out" | "target" | "limit" | "pause" | "error" | "tracking-lost";
+  readonly kind: "breakpoint" | "watchpoint" | "event" | "step" | "over" | "out" | "target" | "limit" | "pause" | "error" | "tracking-lost";
   readonly location: DebugLocation;
   readonly detail?: string;
 }
@@ -96,6 +96,7 @@ export function createInstructionDebugger(budget = 2_000_000) {
     },
     pause(location: DebugLocation, detail?: string): void { finish("pause", location, detail); },
     watchpoint(location: DebugLocation, detail: string): void { finish("watchpoint", location, detail); },
+    event(location: DebugLocation, detail: string): void { finish("event", location, detail); },
     fail(location: DebugLocation, detail: string): void { frames.length = 0; trackingNote = "Execution failed; earlier callers are no longer tracked."; finish("error", location, detail); },
     reset(): void { frames.length = 0; trackingNote = undefined; plan = undefined; stop = undefined; skip = undefined; completed = false; },
     beforeStep(current: DebugLocation | (() => DebugLocation), softwareBreakpoint?: (at: DebugLocation) => string | undefined): boolean {

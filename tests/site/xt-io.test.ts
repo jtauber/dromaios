@@ -1,3 +1,4 @@
+import type { XtEventCondition } from "../../site/interactive/xt-event-stops.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -138,5 +139,48 @@ test("a real keypress follows the chapter's IRQ1 stops through IN, receiver clea
   for (let i = 0; i < remaining; i++) step();
   assert.deepEqual(session.snapshot(), end);
   assert.deepEqual(trace.entries().map(({ sequence, ...event }) => event), history);
+  // Repeat using hardware-event conditions, without BIOS-address stops or trace recording.
+  session.restore(start); debug.reset(); trace.clear(); trace.recording = false; count = 0;
+  function stopOn(condition: XtEventCondition): void {
+    debug.setEventStops([{ ...condition, enabled: true }]); debug.run();
+    for (let i = 0; i < 300_000; i++) {
+      if (debug.beforeStep()) { assert.equal(debug.stop?.kind, "event"); return; }
+      step();
+    }
+    assert.fail(`Event was not reached: ${JSON.stringify(condition)}`);
+  }
+  stopOn({ kind: "interrupt", source: "intr", vector: 9 });
+  assert.equal(session.machine.cpu.snapshot().ip, 0xe987);
+  const keyboardFrame = debug.frames.at(-1)!;
+  stopOn({ kind: "input", port: 0x60, value: 0x1e });
+  assert.equal(session.machine.cpu.snapshot().ip, 0xe996);
+  const keyCheckpoint = session.snapshot(), keyCount = count;
+  stopOn({ kind: "output", port: 0x20, value: 0x20 });
+  assert.equal(session.machine.io.interruptState().pic.isr & 2, 0);
+  stopOn({ kind: "iret" });
+  assert.equal(session.machine.cpu.snapshot().pc, keyboardFrame.returnAddress);
+  const keyEnd = session.snapshot(), keyHit = debug.eventHit, keyRemaining = count - keyCount;
+  session.restore(keyCheckpoint); debug.reset();
+  assert.deepEqual(debug.eventStops, [{ kind: "iret", enabled: true }]);
+  debug.run();
+  for (let i = 0; i < keyRemaining; i++) { assert.equal(debug.beforeStep(), false); step(); }
+  assert.equal(debug.beforeStep(), true); assert.deepEqual(debug.eventHit, keyHit); assert.deepEqual(session.snapshot(), keyEnd);
+
+  stopOn({ kind: "interrupt", source: "intr", vector: 8 });
+  assert.equal(session.machine.cpu.snapshot().ip, 0xfea5); assert.equal(session.machine.io.interruptState().pic.isr & 1, 1);
+  const timerCheckpoint = session.snapshot(), timerCount = count, timerFrame = debug.frames.at(-1)!;
+  const bdaTicks = () => [0x46c, 0x46d, 0x46e, 0x46f].reduce((value, address, byte) => value + session.machine.ram.read(address) * 2 ** (byte * 8), 0);
+  const ticks = bdaTicks();
+  stopOn({ kind: "output", port: 0x20, value: 0x20 });
+  assert.equal(bdaTicks(), ticks + 1); assert.equal(session.machine.io.interruptState().pic.isr & 1, 0);
+  stopOn({ kind: "iret" });
+  assert.equal(session.machine.cpu.snapshot().pc, timerFrame.returnAddress);
+  const timerEnd = session.snapshot(), timerHit = debug.eventHit, timerRemaining = count - timerCount;
+  const replayCount = count;
+  session.restore(timerCheckpoint); debug.reset();
+  stopOn({ kind: "output", port: 0x20, value: 0x20 }); stopOn({ kind: "iret" });
+  assert.equal(count - replayCount, timerRemaining);
+  assert.deepEqual(debug.eventHit, timerHit); assert.deepEqual(session.snapshot(), timerEnd);
+  assert.deepEqual(trace.entries(), [], "Event stops work with recording off");
   debug.dispose();
 });

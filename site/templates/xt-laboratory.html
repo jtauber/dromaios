@@ -112,6 +112,19 @@
         <form class="basic-controls"><input name="address" aria-label="RAM watchpoint address" placeholder="00417 or 0040:0017" spellcheck="false" maxlength="32"><button type="submit">Add watchpoint</button></form>
         <div data-stop-rows></div><p class="basic-message" data-stop-status role="status"></p>
       </div>
+      <div data-xt-event-stops>
+        <h2>I/O and interrupt stops<span data-event-count></span></h2>
+        <form class="basic-controls" data-event-form>
+          <label>Event <select data-event-kind aria-label="Event kind"><option value="input">Port read</option><option value="output">Port write</option><option value="interrupt">Interrupt entry</option><option value="iret">IRET</option></select></label>
+          <span class="xt-event-fields" data-event-port-fields><label>Port <input data-event-port aria-label="Event port" placeholder="0060" spellcheck="false" maxlength="8"></label>
+            <label>Value <input data-event-value aria-label="Event value" placeholder="Any byte" spellcheck="false" maxlength="6"></label></span>
+          <span class="xt-event-fields" data-event-interrupt-fields hidden><label>Source <select data-event-source aria-label="Interrupt source"><option value="">Any source</option></select></label>
+            <label>Vector <input data-event-vector aria-label="Interrupt vector" placeholder="Any vector" spellcheck="false" maxlength="6"></label></span>
+          <button type="submit">Add event stop</button>
+        </form>
+        <div data-event-rows></div><p class="basic-message" data-event-status role="status"></p>
+        <p class="lab-hint">Numbers are hexadecimal. Stops apply after the complete instruction or interrupt entry, independently of trace recording and Live updates. Conditions survive reset and checkpoint restore. IRET matches any return from interrupt.</p>
+      </div>
       <div class="basic-controls" data-bios-byte-controls><label>BIOS data byte <select data-bios-byte aria-label="BIOS data byte"></select></label>
         <button type="button" data-bios-byte-memory>Browse</button><button type="button" data-bios-byte-watch>Watch byte</button></div>
       <p class="lab-hint" data-bios-byte-description></p>
@@ -132,7 +145,7 @@
       <div class="basic-controls"><button type="button" data-walkthrough-run disabled>Run to checkpoint</button><button type="button" data-walkthrough-browse>Browse code</button><button type="button" data-walkthrough-reference>Routine reference</button></div>
       <p data-walkthrough-position class="lab-hint" role="status"></p>
       <h3>What to observe</h3><p data-walkthrough-observe></p>
-      <p class="lab-hint">Selecting a checkpoint only changes the guide. Run pauses when the checkpoint matches. Breakpoints, write watchpoints and the execution limit can stop it earlier.</p>
+      <p class="lab-hint">Selecting a checkpoint only changes the guide. Run pauses when the checkpoint matches. Breakpoints, write watchpoints, event stops and the execution limit can stop it earlier.</p>
       <p class="basic-readout" data-walkthrough-stop-status></p>
       <p class="basic-readout" data-walkthrough-reference-text></p>
       <p><a href="{{ calc_url(xt_url) }}#following-reset-and-early-post" target="_blank" rel="noopener">Read the BIOS guide ↗</a></p>

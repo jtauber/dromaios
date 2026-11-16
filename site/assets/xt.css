@@ -25,3 +25,7 @@
 .xt-pic-table th, .xt-pic-table td { padding: .35rem .3rem; text-align: left; border-bottom: 1px solid #263750; }
 .xt-pic-table th { font-weight: 500; }
 .xt-pic-table .xt-irq-selected { background: #253d53; color: #d2ecff; }
+
+.xt-event-fields:not([hidden]) { display: flex; flex-wrap: wrap; gap: 5px; }
+.xt-event-fields input { width: 8ch; }
+[data-io-entries] .lab-device-event > button { margin-top: 5px; padding: 3px 6px; font-size: 11px; }

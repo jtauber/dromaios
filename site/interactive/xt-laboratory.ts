@@ -75,7 +75,8 @@ function mount(root: HTMLElement): void {
   })!;
   const portTrace = createXtIoTrace();
   const ioView = createXtIoView(root, portTrace, catalogue.cpu, guide.io,
-    location => { showCode.browse(location); workspace.show("code"); });
+    location => { showCode.browse(location); workspace.show("code"); },
+    condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }));
   const showInstruction = createXtInstructionView(instruction, browseMemory);
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,

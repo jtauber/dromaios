@@ -7,7 +7,7 @@ export function debuggerStatus(stop: DebugStop | undefined, request: string | un
   format: (location: DebugLocation) => string = formatLocation): string {
   if (!stop && running && request === "until") return "Stepping…";
   if (!stop) return running && request ? `Running · ${request === "target" ? "to address" : `step ${request}`}…` : "";
-  const reasons = { breakpoint: "Breakpoint", watchpoint: "Watchpoint", step: "Step complete", over: "Step over complete", out: "Step out complete",
+  const reasons = { breakpoint: "Breakpoint", watchpoint: "Watchpoint", event: "Event stop", step: "Step complete", over: "Step over complete", out: "Step out complete",
     target: "Run-to address reached", limit: "Execution limit reached; destination not reached", pause: "Paused",
     error: "Execution error", "tracking-lost": "Caller tracking lost" };
   return `${reasons[stop.kind]} at ${format(stop.location)}.${stop.detail ? ` ${stop.detail}` : ""}`;
