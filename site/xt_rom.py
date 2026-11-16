@@ -61,9 +61,31 @@ def xt_annotations(source, catalogue):
                 or not re.fullmatch(r"[0-9A-F]{4}", port["address"]) or int(port["address"], 16) <= previous):
             raise ValueError("XT port labels need unique ordered 16-bit addresses and input/output names.")
         previous = int(port["address"], 16)
+    # Event checkpoints retain a documented ROM location for explanation and browsing.
+    # Validate machine-specific conditions here; the common guide still validates all ROM references.
+    extras = []
+    for tour in record["walkthroughs"]:
+        for step in tour["steps"]:
+            extra = {key: step.pop(key) for key in ("event", "memory") if key in step}
+            if "memory" in extra and (not isinstance(extra["memory"], str) or not re.fullmatch(r"[0-9A-F]{5}", extra["memory"])
+                                       or int(extra["memory"], 16) >= next(r["size"] for r in storage if r["component"] == "ram")):
+                raise ValueError("XT checkpoint memory must identify conventional RAM.")
+            if "event" in extra:
+                event = extra["event"]
+                valid = isinstance(event, dict) and (
+                    set(event) == {"kind", "address"} and event["kind"] == "dma"
+                    and type(event["address"]) is int and 0 <= event["address"] <= 0xfffff
+                    or set(event) == {"kind", "port", "value"} and event["kind"] in ("input", "output")
+                    and type(event["port"]) is int and 0 <= event["port"] <= 0xffff
+                    and type(event["value"]) is int and 0 <= event["value"] <= 255)
+                if not valid:
+                    raise ValueError("XT walkthrough events require an exact DMA address or port and byte.")
+            extras.append((step, extra))
     validated = validate_rom_annotations(record, catalogue["romImages"]["bios"],
                                     rom_ranges=[(r["start"], r["start"] + r["size"] - 1) for r in storage if r["component"] == "bios"],
                                     ram_end=next(r["size"] for r in storage if r["component"] == "ram"),
                                     hardware_ranges=[], instruction_bytes=32, address_digits=5,
                                     execution_address=lambda text, physical: _physical_address(text) == physical)
+    for step, extra in extras:
+        step.update(extra)
     return {**validated, "io": io}

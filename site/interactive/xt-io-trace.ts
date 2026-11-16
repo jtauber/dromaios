@@ -16,7 +16,7 @@ export interface XtIoEntry {
 }
 
 /** A bounded history of recorded transfers. Recording and rendering never execute device reads. */
-export function createXtIoTrace(capacity = 500) {
+export function createXtIoTrace(capacity = 1024) {
   if (!Number.isSafeInteger(capacity) || capacity < 1) throw new RangeError("Trace capacity must be positive.");
   const entries: XtIoEntry[] = [];
   let cursor = 0, total = 0, recording = false;

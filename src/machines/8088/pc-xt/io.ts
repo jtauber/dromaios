@@ -20,6 +20,19 @@ import { checkUnsigned } from "../../../components/validation.ts";
 
 export { xtDisketteSize } from "./diskette-image.ts";
 
+export interface XtDisketteTransfer {
+  readonly channel: 2;
+  readonly address: number;
+  readonly value: number;
+  readonly direction: "disk-to-memory" | "memory-to-disk";
+  readonly offset: number;
+  readonly terminal: boolean;
+  readonly oscillatorTicks: number;
+}
+type XtDmaTransfer = XtDisketteTransfer | {
+  readonly channel: 0; readonly address: number; readonly value?: undefined; readonly oscillatorTicks: number;
+};
+
 export interface XtIoSnapshot {
   readonly pic: I8259aSnapshot;
   readonly intrRaisedDuringCpu: boolean;
@@ -239,19 +252,26 @@ export class XtIo implements MemoryConnection {
     return grant && { address: grant.address, oscillatorTicks: grant.oscillatorTicks };
   }
 
+  /** Detached controller registers, without copying media or consuming status/result ports. */
+  disketteState() {
+    return { dma: this.#dma.snapshot(), page: this.#diskettePage, diskette: this.#diskette.snapshot(),
+      status: this.#diskette.status(), dreq: this.#diskette.dreq(), irq: this.#diskette.irq() };
+  }
+
   /** Grant one single-mode transfer. Refresh has priority over the diskette adapter. */
-  serviceDma(memory?: ByteMemoryConnection) {
+  serviceDma(memory?: ByteMemoryConnection): XtDmaTransfer | undefined {
     const request = this.#dma.pending();
     if (!request) return undefined;
     const refresh = request === 1;
     const oscillatorTicks = refresh ? 12 : 15; // Four CPU clocks for refresh, five for a peripheral.
     if (!Number.isSafeInteger(this.#clock.ticks + oscillatorTicks)) throw new RangeError("XT elapsed time exceeds its exact range.");
     let address = this.#dma.transferAddress();
-    let value: number | undefined;
+    let transfer: XtDmaTransfer;
     if (refresh) {
       if (!this.#dma.transferReady() || !this.#dma.readTransfer()) {
         throw new RangeError("XT refresh supports only channel-0 single reads.");
       }
+      transfer = { channel: 0, address, oscillatorTicks };
     } else {
       const writing = this.#diskette.writing();
       const directionMatches = writing ? this.#dma.readTransfer() : this.#dma.writeTransfer();
@@ -260,6 +280,7 @@ export class XtIo implements MemoryConnection {
       }
       address |= this.#diskettePage << 16;
       const offset = this.#diskette.mediaOffset(), terminal = this.#dma.terminalTransfer();
+      let value: number;
       if (writing) {
         value = memory.read(address);
         this.#disketteImage.write(offset, value, terminal);
@@ -267,12 +288,13 @@ export class XtIo implements MemoryConnection {
         value = this.#disketteImage.read(offset);
         memory.write(address, value);
       }
+      transfer = { channel: 2, address, value, direction: writing ? "memory-to-disk" : "disk-to-memory", offset, terminal, oscillatorTicks };
       this.#diskette.acknowledgeByte(terminal);
     }
     this.#dma.completeTransfer();
     this.#updateWiring(refresh);
     this.#advance(oscillatorTicks, refresh);
-    return { channel: refresh ? 0 : 2, address, value, oscillatorTicks };
+    return transfer;
   }
 
   #advance(ticks: number, refreshAcknowledged: boolean): void {

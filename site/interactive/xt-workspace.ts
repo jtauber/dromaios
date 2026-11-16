@@ -6,11 +6,15 @@ const group = (id: string): TabGroup => ({ kind: "tabs", id: "xt-" + id, active:
 const area = (weight: number, node: LayoutNode) => ({ weight, node });
 const column = (id: string, ...items: Split["items"]): Split => ({ id, kind: "split", axis: "vertical", items });
 const tools = column("xt-inspectors", area(.31, group("registers")), area(.40, group("code")), area(.29, group("memory")));
-export const xtWorkspaceKey = "dromaios:workspace:xt:9";
+export const xtWorkspaceKey = "dromaios:workspace:xt:10";
 function addChanges(layout: WorkspaceLayout): WorkspaceLayout {
   const destination = panelGroup(layout, "code") ?? groups(layout)[0];
   if (!destination) return openPanel(layout, "log");
   return collapseGroup(activatePanel(movePanel(layout, "log", { group: destination.id, side: "tab" }), destination.active), destination.id, destination.collapsed);
+}
+function addDmaTool(layout: WorkspaceLayout): WorkspaceLayout {
+  const destination = panelGroup(layout, "drive");
+  return destination ? collapseGroup(activatePanel(movePanel(layout, "dma", { group: destination.id, side: "tab" }), destination.active), destination.id, destination.collapsed) : layout;
 }
 function addInterruptTools(layout: WorkspaceLayout): WorkspaceLayout {
   // Keep a hidden Registers/Disassembly group hidden; the new tools remain available in Panels.
@@ -19,7 +23,7 @@ function addInterruptTools(layout: WorkspaceLayout): WorkspaceLayout {
     const destination = panelGroup(layout, beside);
     if (destination) layout = collapseGroup(activatePanel(movePanel(layout, panel, { group: destination.id, side: "tab" }), destination.active), destination.id, destination.collapsed);
   }
-  return layout;
+  return addDmaTool(layout);
 }
 export const xtDefaultLayout: WorkspaceLayout = addInterruptTools(addChanges({ root: { kind: "split", id: "xt-columns", axis: "horizontal", items: [
   area(.42, column("xt-console", area(.50, group("screen")), area(.22, group("execution")), area(.28, group("instruction")))),
@@ -31,6 +35,12 @@ export const xtDefaultLayout: WorkspaceLayout = addInterruptTools(addChanges({ r
 /** Add new tools once per version, preserving existing tabs, hidden panels and relative sizes. */
 export function migrateXtWorkspace(storage: { getItem(key: string): string | null; setItem(key: string, value: string): void }): void {
   if (storage.getItem(xtWorkspaceKey) !== null) return;
+  const version9 = storage.getItem("dromaios:workspace:xt:9");
+  if (version9 !== null) {
+    const old = decodeWorkspaceState(version9, ["screen", "execution", "rom", "snapshot", "registers", "code", "memory", "debugger", "instruction", "walkthrough", "log", "drive", "calls", "pic", "ports"]);
+    storage.setItem(xtWorkspaceKey, encodeWorkspaceState(addDmaTool(old)));
+    return;
+  }
   const version8 = storage.getItem("dromaios:workspace:xt:8");
   if (version8 !== null) {
     const old = decodeWorkspaceState(version8, ["screen", "execution", "rom", "snapshot", "registers", "code", "memory", "debugger", "instruction", "walkthrough", "log", "drive", "calls"]);

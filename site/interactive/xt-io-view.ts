@@ -16,9 +16,10 @@ export interface XtIoLabels {
 
 /** Present captured transfers and detached state. This view has no guest bus connection. */
 export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof createXtIoTrace>, cpu: Catalogue8088,
-  labels: XtIoLabels, browse: (location: DebugLocation) => void, stopOn: (condition: XtEventCondition) => void) {
+  labels: XtIoLabels, browse: (location: DebugLocation) => void, stopOn: (condition: XtEventCondition) => void, browseMemory: (address: number) => void) {
   const at = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const record = at<HTMLInputElement>("io-recording"), ports = at<HTMLInputElement>("io-ports"), interrupts = at<HTMLInputElement>("io-interrupts");
+  const dma = at<HTMLInputElement>("io-dma");
   const portLabels = new Map(labels.ports.map(port => [parseInt(port.address, 16), port]));
   let lastTrace: string | undefined;
   function code(location: DebugLocation, prefix = ""): HTMLButtonElement {
@@ -28,10 +29,10 @@ export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof creat
     return link;
   }
   function refreshTrace(): void {
-    const key = `${trace.captured}:${trace.recording}:${ports.checked}:${interrupts.checked}`;
+    const key = `${trace.captured}:${trace.recording}:${ports.checked}:${interrupts.checked}:${dma.checked}`;
     if (key === lastTrace) return;
     lastTrace = key;
-    const entries = trace.entries().filter(({ transfer }) => "port" in transfer ? ports.checked : interrupts.checked);
+    const entries = trace.entries().filter(({ transfer }) => transfer.kind === "dma" ? dma.checked : "port" in transfer ? ports.checked : interrupts.checked);
     at("io-status").textContent = `${trace.recording ? "Recording" : "Recording paused"} · ${entries.length} shown · ${trace.capacity} events retained at most`
       + (trace.discarded ? ` · ${trace.discarded.toLocaleString()} older discarded` : "");
     const output = at("io-entries"); output.replaceChildren();
@@ -39,17 +40,26 @@ export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof creat
       const row = document.createElement("div"), heading = document.createElement("div"), detail = document.createElement("div");
       row.className = "lab-device-event"; heading.className = "lab-device-transfer"; detail.className = "lab-hint";
       const transfer = entry.transfer;
-      heading.append(code(entry.caller), "  ");
+      if (transfer.kind === "dma") {
+        const ram = memoryLink(transfer.address, () => browseMemory(transfer.address), `RAM $${hex(transfer.address, 5)}`);
+        const disk = `disk +$${hex(transfer.offset, 5)}`;
+        heading.append("DMA2 · ");
+        if (transfer.direction === "disk-to-memory") heading.append(disk, " → ", ram);
+        else heading.append(ram, " → ", disk);
+        heading.append(` · $${hex(transfer.value, 2)}${transfer.terminal ? " · terminal count" : ""}`);
+      } else heading.append(code(entry.caller), "  ");
       if ("port" in transfer) {
         const label = portLabels.get(transfer.port)?.[transfer.kind];
         heading.append(`${transfer.kind === "input" ? "IN" : "OUT"} $${hex(transfer.port, 4)} · $${hex(transfer.value, 2)}${label ? ` · ${label}` : ""}`);
       } else if (transfer.kind === "acknowledge") heading.append(`INTA · vector $${hex(transfer.value, 2)}`);
-      else {
+      else if (transfer.kind !== "dma") {
         heading.append(transfer.kind === "iret" ? "IRET → " : `${transfer.source.toUpperCase()} · vector $${hex(transfer.vector, 2)} → `,
           code(transfer.target));
       }
       const assembly = entry.bytes.length ? xtHistoryAssembly(cpu, entry.caller, entry.bytes) : "External CPU boundary";
-      detail.textContent = `#${entry.sequence} · ${entry.ticks.toLocaleString()} ticks at boundary end · ${assembly}`;
+      detail.append(`#${entry.sequence} · ${entry.ticks.toLocaleString()} ticks at boundary end · `);
+      if (transfer.kind === "dma") detail.append("DMA precedes CPU at ", code(entry.caller));
+      else detail.append(assembly);
       const stop = document.createElement("button"), condition = xtEventCondition(transfer);
       stop.type = "button"; stop.textContent = "Stop on this event";
       stop.title = `Add ${describeXtEvent(condition)}; stops after a complete boundary.`;
@@ -60,7 +70,7 @@ export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof creat
     if (!entries.length) output.textContent = "No captured events match these filters. Enable Record, then Step or Run.";
   }
   record.addEventListener("change", () => { trace.recording = record.checked; refreshTrace(); });
-  for (const control of [ports, interrupts]) control.addEventListener("change", refreshTrace);
+  for (const control of [ports, interrupts, dma]) control.addEventListener("change", refreshTrace);
   at("io-clear").addEventListener("click", () => { trace.clear(); lastTrace = undefined; refreshTrace(); });
   return {
     refreshTrace,

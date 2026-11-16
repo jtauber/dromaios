@@ -669,7 +669,11 @@ write-protected. Use **Insert writable copy…** and **Export disk image** to
 **Eject** leaves the drive empty. **Fresh power-on** clears RAM and resets the
 controller while leaving the current disk in the drive.
 
-To resume later, pause and choose **Save snapshot**. On a later visit, choose
+To resume later, pause and choose **Save snapshot**. The browser compresses the
+checkpoint before storing it so RAM and a mounted disk do not crowd out other
+laboratories’ saves. Older plain JSON checkpoints remain readable. Wait for
+“XT checkpoint saved in this browser”; a failed save leaves the previous
+checkpoint intact and reports the failure in Session. On a later visit, choose
 **Restore snapshot** with the same three ROMs loaded. The checkpoint restores
 the CPU, RAM, screen, board devices, and pending keyboard input. It also
 restores the saved disk's name, contents, and write permission, even if you have since ejected it
@@ -778,9 +782,43 @@ Check a RAM watch after restoration to verify that it follows the restored
 hardware. Panel updates and navigation use observed state and perform no guest
 bus or port accesses.
 
+### DMA and diskette inspection
+
+**DMA / diskette**, initially beside Drive A, shows channel 2's current and
+base address/count, page register, mode, mask, request and terminal-count latch.
+RAM links open Memory. The controller view shows command phase, C/H/R/N,
+physical cylinder, byte position and delay, motor, IRQ6 and unread result bytes.
+These are detached observations: displaying them does not read the status port
+(which would clear DMA terminal counts), drain a result or copy the disk image.
+
+**Port trace** retains each channel-2 grant before its associated CPU boundary:
+RAM address, byte, direction, image offset and terminal-count indication.
+It omits channel-0 refresh. A DMA row links to RAM; its CS:IP is the CPU's next
+boundary, not an instruction that performed the store. Changes marks DMA stores
+explicitly, and RAM-watch history separates them from CPU writes. Recording is
+optional and independent of DMA event stops. A **DMA channel 2** stop can match
+any byte or one physical RAM address; **Stop on this event** uses the trace's
+exact address. These stops apply in either transfer direction.
+
+The **BIOS sector read through DMA2** walkthrough follows the first boot-sector
+read, stopping after byte 256, at terminal count, in IRQ6 and at the INT 13h
+return. Event checkpoints use their declared condition; the displayed ROM
+reference is only an explanation and browsing location. Their execution budget
+and cancellation rules are the same as other temporary debugger requests.
+The result is returned by **RETF 2**, preserving the BIOS's carry result while
+discarding the saved FLAGS. The IRQ6 handler separately uses **IRET**.
+
+The [laboratory checks](../../../tests/site/xt-dma.test.ts) require the first
+256 RAM bytes and pending controller state at the halfway snapshot, then replay
+the remaining 256 grants, IRQ6, result reads and BIOS return with identical
+trace events, CPU, RAM, devices, display phase and oscillator time. Tracing,
+inspection and stopping must not change the completed machine state. The test
+uses a small original test disk and the separately supplied, unmodified BIOS;
+the browser walkthrough also accepts the local DOS disk.
+
 ### Port trace and interrupt inspection
 
-**Port trace**, a tab beside Disassembly, retains up to 500 captured events.
+**Port trace**, a tab beside Disassembly, retains up to 1,024 captured events.
 Enable **Record** before stepping or running. Each IN/OUT byte retains its
 16-bit port, value, originating CS:IP and instruction bytes. Word transfers
 retain both bytes in their original order, including a port-number wrap.
@@ -791,7 +829,7 @@ it does not claim to show the hardware's two separate bus cycles.
 Newest events appear first. Sequence numbers preserve transfer order within
 a boundary; times are oscillator ticks at the end of that complete CPU/board
 boundary, including DMA and device advancement. They are not per-access bus
-timestamps. **Ports** and **Interrupts** filter the retained view without
+timestamps. **Ports**, **Interrupts** and **DMA2** filter the retained view without
 changing recording. Address links browse the captured logical CS:IP, using
 the fetched bytes for the trace's instruction description even if RAM changes.
 **Live** controls repainting independently of **Record**. Clear, CPU reset,
@@ -827,7 +865,7 @@ with ordinary execution and a replay from a checkpoint taken during the handler.
 
 ### Stopping on I/O and interrupt events
 
-The Debugger's **I/O and interrupt stops** match captured events independently
+The Debugger's **I/O, DMA and interrupt stops** match captured events independently
 of Port trace recording or Live updates. Choose **Port read** or **Port write**,
 enter a 16-bit hexadecimal port, and optionally match a byte value. Word I/O
 checks both transfers in their original order, including `FFFF` wrapping to
@@ -961,6 +999,12 @@ a return instruction before establishing a working RAM stack.
   "sha256": "2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2",
   "io": {
     "ports": [
+      {"address": "0004", "input": "8237A · channel 2 current address", "output": "8237A · channel 2 base/current address"},
+      {"address": "0005", "input": "8237A · channel 2 current count", "output": "8237A · channel 2 base/current count"},
+      {"address": "0008", "input": "8237A · status (clears terminal counts)", "output": "8237A · command"},
+      {"address": "000A", "output": "8237A · single-channel mask"},
+      {"address": "000B", "output": "8237A · mode"},
+      {"address": "000C", "output": "8237A · clear byte selector"},
       {"address": "0020", "input": "8259A · selected IRR/ISR", "output": "8259A · command / EOI"},
       {"address": "0021", "input": "8259A · interrupt mask", "output": "8259A · initialization / mask"},
       {"address": "0040", "input": "8253 · channel 0 count", "output": "8253 · channel 0 reload"},
@@ -971,7 +1015,11 @@ a return instruction before establishing a working RAM stack.
       {"address": "0061", "input": "8255A · port B", "output": "8255A · keyboard / speaker control"},
       {"address": "0062", "input": "8255A · port C"},
       {"address": "0063", "output": "8255A · control"},
-      {"address": "00A0", "output": "XT · NMI mask"}
+      {"address": "0081", "output": "DMA channel 2 · address page"},
+      {"address": "00A0", "output": "XT · NMI mask"},
+      {"address": "03F2", "output": "Diskette · motor / reset / DMA and IRQ enable"},
+      {"address": "03F4", "input": "Diskette · main status"},
+      {"address": "03F5", "input": "Diskette · result byte", "output": "Diskette · command / parameter byte"}
     ],
     "irqs": ["PIT channel 0", "XT keyboard", "Expansion", "Expansion", "Expansion", "Expansion", "Diskette", "Expansion"]
   },
@@ -979,6 +1027,8 @@ a return instruction before establishing a working RAM stack.
     {"start": "FE000", "end": "FFFFF", "name": "IBM XT BIOS · 11/08/82"}
   ],
   "routines": [
+    {"address": "FEC59", "name": "DISKETTE_IO", "description": "BIOS INT 13h entry. Program DMA and the controller, wait for IRQ6, collect results and return AH/CF. RETF 2 discards the saved FLAGS while preserving the result flags."},
+    {"address": "FEF57", "name": "DISKETTE_IRQ", "description": "BIOS IRQ6 entry. Set bit 7 of 0040:003E, send PIC EOI and IRET to the waiting diskette routine."},
     {"address": "FFFF0", "name": "RESET_VECTOR", "description": "Hardware entry at FFFF:0000. Its far jump selects the BIOS code segment and RESET offset."},
     {"address": "FE05B", "name": "RESET", "description": "Start of the 8088 flag, branch, and register tests. Maskable interrupts are disabled first."},
     {"address": "FE08C", "name": "C8", "description": "Pass the current AX pattern through DS, BX, ES, CX, SS, DX, SP, BP, SI, and DI."},
@@ -989,6 +1039,9 @@ a return instruction before establishing a working RAM stack.
     {"address": "FE987", "name": "KEYBOARD_IRQ", "description": "Our label for the BIOS IRQ1 entry. Read the scan code, clear the receiver, translate the key, send EOI and return through IRET."}
   ],
   "labels": [
+    {"address": "0043E", "name": "SEEK_STATUS", "scope": "workspace", "description": "Bit 7 records the BIOS IRQ6 completion flag; low bits record recalibrated drives."},
+    {"address": "00441", "name": "DISKETTE_STATUS", "scope": "workspace", "description": "BIOS diskette status returned in AH."},
+    {"address": "00442", "name": "NEC_STATUS", "scope": "workspace", "description": "Seven controller result bytes copied by the BIOS: ST0, ST1, ST2, C, H, R and N."},
     {"address": "00417", "name": "KB_FLAG", "scope": "workspace", "description": "0040:0017. Keyboard shift and toggle flags, maintained by the BIOS IRQ1 routine."},
     {"address": "00418", "name": "KB_FLAG_1", "scope": "workspace", "description": "0040:0018. Secondary keyboard status, including held toggle keys and the suspend state."},
     {"address": "0041A", "name": "BUFFER_HEAD", "scope": "workspace", "bytes": 2, "description": "0040:001A. Little-endian offset of the next keyboard entry to read, relative to segment 0040."},
@@ -1000,6 +1053,14 @@ a return instruction before establishing a working RAM stack.
     {"address": "FE016", "name": "C1", "scope": "rom", "description": "ROM word D7 E0 used as the return address for the first checksum. SS:SP points here before the jump."}
   ],
   "notes": [
+    {"address": "FE718", "bytes": "CD 13", "text": "Boot requests one sector with AX=0201, CX=0001, DX=0000 and ES:BX=0000:7C00. The BIOS programs DMA channel 2; the CPU does not copy the sector."},
+    {"address": "FEE68", "bytes": "EE", "text": "Send AL to the controller data port in DX. For Read Data, the first byte is E6; the BIOS then supplies eight parameters."},
+    {"address": "FEF3A", "bytes": "F6 06 3E 00 80", "text": "Poll the BIOS completion flag in 0040:003E. DMA moves bytes while this loop waits; IRQ6 sets bit 7."},
+    {"address": "FEF57", "bytes": "FB", "text": "Begin the diskette IRQ handler by enabling interrupts. The BIOS will set the completion flag and send EOI."},
+    {"address": "FEF68", "bytes": "CF", "text": "Return from IRQ6 to the diskette wait. This is not the return from INT 13h: the BIOS must still read the controller results."},
+    {"address": "FEC82", "bytes": "CA 02 00", "text": "Return from INT 13h using RETF 2, discarding saved FLAGS so the caller sees the carry result computed by the BIOS."},
+    {"address": "FE71A", "bytes": "59", "text": "INT 13h has returned to the bootstrap caller. On success AH=00 and CF=0; restore CX before testing carry and jumping to the loaded sector."},
+    {"address": "FE721", "bytes": "EA 00 7C 00 00", "text": "Transfer execution to the sector at physical 07C00. Firmware has loaded these 512 bytes through DMA channel 2."},
     {"address": "FE994", "bytes": "E4 60", "text": "Read the keyboard scan byte at port 60. A read alone does not clear the receiver or the PIC in-service bit."},
     {"address": "FE99D", "bytes": "E6 61", "text": "Set port B bit 7 to clear the keyboard receiver and lower its IRQ1 line. The PIC remains in service until EOI."},
     {"address": "FEA5C", "bytes": "E6 20", "text": "Send non-specific EOI (AL=20) to the PIC. This clears its highest-priority in-service bit; it does not return from the handler."},
@@ -1074,6 +1135,44 @@ a return instruction before establishing a working RAM stack.
       {"title": "Return to the interrupted code", "address": "FEA66", "execution": "F000:EA66", "routine": "KEYBOARD_IRQ",
        "prepare": "Run through the register restoration, then Step IRET.",
        "observe": "The IRET trace links to the restored CS:IP. The observed interrupt frame disappears from Call stack and FLAGS are restored. Continue running to let BASIC consume and echo the key."}
+    ]
+  }, {
+    "id": "bios-sector-read",
+    "title": "BIOS sector read through DMA2",
+    "setup": "Use the CGA XT and a bootable 360 KiB disk, such as MS-DOS 3.30. This walkthrough follows the first bootstrap read without changing BIOS code or RAM. Event stops and address stops share the debugger; unrelated breakpoints can interrupt the walkthrough.",
+    "steps": [
+      {"title": "Request the boot sector", "address": "FE718", "execution": "F000:E718", "routine": "DISKETTE_IO",
+       "memory": "07C00",
+       "prepare": "Insert a bootable 360 KiB disk. In Debugger, add breakpoint F000:E718, then choose Quick boot. It pauses at this call; disable the breakpoint before continuing the walkthrough. Disable unrelated stops.",
+       "observe": "AX=0201 requests one sector. CX=0001 selects C0/H0/R1, DL=00 selects drive A and ES:BX=0000:7C00 selects the buffer. Enable Record in Port trace now."},
+      {"title": "Send Read Data", "address": "FEE68", "execution": "F000:EE68", "routine": "DISKETTE_IO",
+       "memory": "07C00", "event": {"kind": "output", "port": 1013, "value": 230},
+       "prepare": "Run to the completed OUT of E6 to port 03F5.",
+       "observe": "The BIOS has programmed DMA2 address 7C00, count 01FF, page 00 and mode 46 (stored mode 44 without channel bits). Eight controller parameters follow."},
+      {"title": "Half a sector in RAM", "address": "FEF3A", "execution": "F000:EF3A", "routine": "DISKETTE_IO",
+       "memory": "07C00", "event": {"kind": "dma", "address": 31999},
+       "prepare": "Run to the DMA2 transfer at physical 07CFF. Save snapshot here to replay the remaining half.",
+       "observe": "256 bytes occupy 07C00–07CFF. The next address is 7D00, count 00FF and controller byte offset 256. The mounted image and its transfer delay are part of the checkpoint."},
+      {"title": "Terminal count raises IRQ6", "address": "FEF57", "execution": "F000:EF57", "routine": "DISKETTE_IRQ",
+       "memory": "07C00", "event": {"kind": "dma", "address": 32255},
+       "prepare": "Continue to the last byte at 07DFF.",
+       "observe": "512 bytes have arrived. Address is 7E00 and count has wrapped to FFFF; channel 2 is masked and terminal count is set. The controller offers seven result bytes and raises IRQ6. INTA and entry may already share this boundary."},
+      {"title": "Enter the IRQ6 handler", "address": "FEF57", "execution": "F000:EF57", "routine": "DISKETTE_IRQ",
+       "memory": "07C00",
+       "prepare": "Run to the IRQ6 entry; it may already be the current PC.",
+       "observe": "The PIC has acknowledged vector 0E and set IRQ6 in service. The CPU saved its wait-loop return address; the handler has not yet set the BIOS completion flag."},
+      {"title": "Return from IRQ6", "address": "FEF68", "execution": "F000:EF68", "routine": "DISKETTE_IRQ",
+       "memory": "07C00",
+       "prepare": "Run through setting the completion flag and sending EOI. Step IRET if you want to inspect its destination.",
+       "observe": "The PIC in-service bit is clear. IRET returns to the wait loop; the controller result is still waiting to be drained. This is distinct from the INT 13h return."},
+      {"title": "Return to the boot caller", "address": "FE71A", "execution": "F000:E71A", "routine": "DISKETTE_IO",
+       "memory": "07C00",
+       "prepare": "Run through the seven result reads and the BIOS return.",
+       "observe": "AH=00 and CF=0 indicate success. The complete sector is in 07C00–07DFF, the controller is idle, and IRQ6 is clear. INT 13h returned with RETF 2, preserving its result flags. Restore the halfway snapshot and repeat to obtain the same bytes and boundary."},
+      {"title": "Hand execution to the sector", "address": "FE721", "execution": "F000:E721", "routine": "DISKETTE_IO",
+       "memory": "07C00",
+       "prepare": "Run to the far jump, then Step.",
+       "observe": "CS:IP becomes 0000:7C00. The disk code now runs from the buffer you inspected."}
     ]
   }]
 }

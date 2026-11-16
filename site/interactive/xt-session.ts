@@ -1,6 +1,7 @@
 import { create8088PcXt } from "../../src/machines/generated/8088/pc-xt.js";
 import { create8088PcXtEga } from "../../src/machines/generated/8088/pc-xt-ega.js";
 import { stepTimedXtCpu, type XtCpuBoard } from "../../src/machines/8088/pc-xt/interrupts.js";
+import type { XtDisketteTransfer } from "../../src/machines/8088/pc-xt/io.js";
 import type { RomImage } from "../../src/machines/rom-image.js";
 import { checkMachineSnapshot } from "../../src/machines/snapshot.js";
 import { XtKeyboard } from "./xt-keyboard.js";
@@ -16,12 +17,14 @@ export interface XtSessionState {
   readonly diskName: string | null;
 }
 
+export type XtBoundary = ReturnType<typeof stepTimedXtCpu>["record"] & { readonly dma?: XtDisketteTransfer };
+
 /** Keyboard delivery and timed arbitration are identical for live execution and a private preview. */
-export function stepXtSessionCpu(machine: XtCpuBoard & Pick<XtMachine, "ram">, keyboard: XtKeyboard) {
+export function stepXtSessionCpu(machine: XtCpuBoard & Pick<XtMachine, "ram">, keyboard: XtKeyboard): XtBoundary {
   keyboard.beforeStep(byte => machine.io.offerScanCode(byte), () => Boolean(machine.ram.read(0x417) & 0x40));
   const result = stepTimedXtCpu(machine);
   keyboard.afterStep(result.oscillatorTicks, machine.io.keyboardSelfTesting);
-  return result.record;
+  return result.dma?.channel === 2 ? { ...result.record, dma: result.dma } : result.record;
 }
 
 function checkDiskName(name: unknown): asserts name is string {

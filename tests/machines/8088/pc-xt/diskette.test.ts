@@ -89,7 +89,7 @@ test("XT channel 2 writes to the latched page, wraps within it and honors the BI
   assert.equal(io.serviceDma(memory)?.channel, 0); assert.equal(memory.read(0x3fffe), 0);
   ports.writePort(0x0a, 4); // Mask further refresh for this explicit grant sequence.
   for (const [address, value] of [[0x3fffe, 0xa6], [0x3ffff, 0x3b], [0x30000, 0x75]] as const) {
-    assert.deepEqual(io.serviceDma(memory), { channel: 2, address, value, oscillatorTicks: 15 });
+    assert.deepEqual(io.serviceDma(memory), { channel: 2, address, value, oscillatorTicks: 15, direction: "disk-to-memory", offset: address === 0x3fffe ? 512 : address === 0x3ffff ? 513 : 514, terminal: address === 0x30000 });
     assert.equal(memory.read(address), value);
     io.advanceOscillatorTicks(470);
   }
@@ -117,7 +117,7 @@ test("XT disk writes require a channel-2 memory read and pad only the final sect
   const pending = io.snapshot();
   assert.throws(() => io.serviceDma(memory), /direction/); assert.deepEqual(io.snapshot(), pending);
   ports.writePort(11, 0x4a);
-  assert.deepEqual(io.serviceDma(memory), { channel: 2, address: 0x3ffff, value: 0x71, oscillatorTicks: 15 });
+  assert.deepEqual(io.serviceDma(memory), { channel: 2, address: 0x3ffff, value: 0x71, oscillatorTicks: 15, direction: "memory-to-disk", offset: 512, terminal: false });
   const partial = io.snapshot();
   assert.deepEqual(partial.disketteImage!.slice(512, 515), [0x71, 0xee, 0xee]);
   const ejected = new XtIo(partial);
@@ -127,7 +127,7 @@ test("XT disk writes require a channel-2 memory read and pad only the final sect
   assert.equal(ejected.snapshot().disketteImage![512], 0xee);
 
   io.advanceOscillatorTicks(470);
-  assert.deepEqual(io.serviceDma(memory), { channel: 2, address: 0x30000, value: 0x42, oscillatorTicks: 15 });
+  assert.deepEqual(io.serviceDma(memory), { channel: 2, address: 0x30000, value: 0x42, oscillatorTicks: 15, direction: "memory-to-disk", offset: 513, terminal: true });
   assert.equal(io.serviceDma(memory), undefined);
   assert.deepEqual(Array.from({ length: 7 }, () => ports.readPort(0x3f5)), [0, 0, 0, 0, 0, 3, 2]);
   const expected = disk.slice(); expected.set([0x71, 0x42], 512); expected.fill(0, 514, 1024);

@@ -32,7 +32,16 @@ export function xtStorageLabel(write: XtStorageWrite): string {
 export function createXtChangeLog(machine: XtMachine, regions: readonly XtStorageRegion[], capacity = 500) {
   return createChangeLog({
     state: cpu8088StateDescription, counters: ["cs", "ip"], snapshot: () => machine.cpu.snapshot(),
-    location: xtDebugLocation, event: xtBoundaryEvent, memoryLabel: xtStorageLabel,
+    location: xtDebugLocation, event: xtBoundaryEvent,
+    memoryLabel(write, record: Boundary | undefined, firstWrite) {
+      const dma = record?.dma;
+      if (firstWrite && dma?.direction === "disk-to-memory") {
+        const window = regions.find(region => region.component === write.storage && dma.address >= region.start && dma.address < region.start + region.size);
+        const base = regions.find(region => region.component === write.storage && region.offset === 0);
+        if (window && base && write.address === base.start + window.offset + dma.address - window.start) return `DMA2 · ${xtStorageLabel(write)}`;
+      }
+      return xtStorageLabel(write);
+    },
     observeWrites(listener: (write: XtStorageWrite) => void) {
       const storageConnections = [["ram", machine.ram], ...("video" in machine ? [["video", machine.video] as const] : [])] as const;
       const detach = storageConnections.map(([storage, connection]) => {
@@ -51,8 +60,12 @@ export function createXtWatchHistory(capacity = 256) {
     observe(record: Boundary, watches: readonly MemoryRange[], writes: readonly XtStorageWrite[]): void {
       if (record.outcome !== "executed" && record.outcome !== "accepted") return;
       const event = xtBoundaryEvent(record);
+      // The DMA store precedes every CPU store; keep its attribution out of the instruction's writes.
+      const dmaWrite = record.dma?.direction === "disk-to-memory" && writes[0]?.storage === "ram" && writes[0].address === record.dma.address ? writes[0] : undefined;
+      if (dmaWrite) history.observe(() => ({ caller: xtDebugLocation(record.before), bytes: [], event: "DMA2 before CPU boundary" }), watches,
+        [{ address: dmaWrite.address, value: dmaWrite.after, kind: "write", storage: dmaWrite }]);
       history.observe(() => ({ caller: xtDebugLocation(record.before), bytes: record.instruction?.bytes ?? [], ...(event && { event: `${event} · ${record.outcome}` }) }), watches,
-        writes.filter(write => write.storage === "ram").map(storage => ({ address: storage.address, value: storage.after, kind: "write" as const, storage })));
+        writes.filter(write => write !== dmaWrite && write.storage === "ram").map(storage => ({ address: storage.address, value: storage.after, kind: "write" as const, storage })));
     },
   };
 }

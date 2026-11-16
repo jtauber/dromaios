@@ -1,10 +1,10 @@
 import { xtIoTransfers } from "./xt-io-events.js";
 import type { XtIoTransfer } from "./xt-io-events.js";
 import { validateXtEventStops, matchesXtEvent, describeXtEvent, xtEventCondition } from "./xt-event-stops.js";
-import type { XtEventStop } from "./xt-event-stops.js";
+import type { XtEventCondition, XtEventStop } from "./xt-event-stops.js";
 import { observe8088Boundary } from "./8088-debugger.js";
 import type { RamWrite } from "../../src/components/memory/ram.js";
-import type { stepTimedXtCpu } from "../../src/machines/8088/pc-xt/interrupts.js";
+import type { XtBoundary as Boundary } from "./xt-session.js";
 import { logical8088, physical8088, xtHex as hex } from "./8088-disassembly.js";
 import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instruction-debugger.js";
 import type { DebugLocation, InstructionBreakpoint, RunToOptions } from "./instruction-debugger.js";
@@ -15,7 +15,6 @@ import type { XtMachine } from "./xt-session.js";
 
 export { xtDebugLocation } from "./xt-inspection.js";
 
-type Boundary = ReturnType<typeof stepTimedXtCpu>["record"];
 type Target = Pick<InstructionBreakpoint, "address" | "space">;
 export interface XtEventHit {
   readonly caller: DebugLocation;
@@ -71,7 +70,8 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
   const location = () => xtDebugLocation(machine().cpu.snapshot());
   let watches: readonly InstructionBreakpoint[] = [], hit: XtWriteHit | undefined;
   let events: readonly XtEventStop[] = [], activeEvents: readonly XtEventStop[] = [], eventHit: XtEventHit | undefined;
-  function clearHit(): void { hit = undefined; eventHit = undefined; }
+  let targetEvent: XtEventCondition | undefined;
+  function clearHit(): void { hit = undefined; eventHit = undefined; targetEvent = undefined; }
   return {
     get eventStops() { return events; },
     get eventHit() { return eventHit; },
@@ -99,6 +99,11 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
       const point = validate([{ ...target, enabled: true }], 0xfffff, true)[0]!;
       clearHit(); policy.runTo(location(), point.address, point.space, options);
     },
+    runToEvent(condition: XtEventCondition): void {
+      const target = validateXtEventStops([{ ...condition, enabled: true }])[0]!;
+      clearHit(); targetEvent = target;
+      policy.stepUntil(location(), () => undefined); // Retain the shared instruction budget.
+    },
     pause(detail?: string): void { policy.pause(location(), detail); },
     beforeStep(current: DebugLocation | (() => DebugLocation) = location): boolean { return policy.beforeStep(current); },
     capture(step: () => Boundary): Boundary {
@@ -110,11 +115,11 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
           if (write) {
             hit = { ...write, caller: xtDebugLocation(record.before), record };
             policy.watchpoint(xtDebugLocation(record.after), describeXtWriteHit(hit));
-          } else if (activeEvents.length) {
-            const event = xtIoTransfers(record).find(event => activeEvents.some(point => matchesXtEvent(point, event)));
+          } else if (activeEvents.length || targetEvent) {
+            const event = xtIoTransfers(record).find(event => targetEvent && matchesXtEvent(targetEvent, event) || activeEvents.some(point => matchesXtEvent(point, event)));
             if (event) {
               eventHit = { caller: xtDebugLocation(record.before), event };
-              policy.event(xtDebugLocation(record.after), `${describeXtEvent(xtEventCondition(event))} from ${formatXtDebugAddress(eventHit.caller)}. Stopped after the complete CPU/board boundary.`);
+              policy.event(xtDebugLocation(record.after), `${describeXtEvent(xtEventCondition(event))} ${event.kind === "dma" ? "before the CPU boundary at" : "from"} ${formatXtDebugAddress(eventHit.caller)}. Stopped after the complete CPU/board boundary.`);
             }
           }
           if (policy.request === "step") policy.beforeStep(xtDebugLocation(record.after));
@@ -131,6 +136,8 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
 }
 
 export function describeXtWriteHit(hit: XtWriteHit): string {
+  const dma = hit.record.dma;
+  if (dma?.direction === "disk-to-memory" && dma.address === hit.address) return `DMA2 wrote RAM $${hex(hit.address, 5)}: $${hex(hit.before, 2)} → $${hex(hit.after, 2)} from disk offset $${hex(dma.offset, 5)}. Stopped after the complete CPU/board boundary.`;
   const source = hit.record.instruction ? "Instruction" : "source" in hit.record ? hit.record.source.toUpperCase() + " entry" : "CPU boundary";
   return `${source} at ${formatXtDebugAddress(hit.caller)} wrote RAM $${hex(hit.address, 5)}: $${hex(hit.before, 2)} → $${hex(hit.after, 2)}. Stopped after the complete CPU boundary.`;
 }

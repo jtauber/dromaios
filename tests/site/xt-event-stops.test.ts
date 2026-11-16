@@ -10,6 +10,7 @@ test("trace conditions retain exact port/value or source/vector; INTA selects en
     { kind: "input", port: 0x60, value: 0 }, { kind: "output", port: 0xffff, value: 0xff },
     ...["intr", "nmi", "software", "trap", "divide-error"].map(source => ({ kind: "interrupt", source, vector: 9, target })),
     { kind: "iret", target },
+    { kind: "dma", channel: 2, address: 0xfffff, value: 0, offset: 511, terminal: true, direction: "disk-to-memory", oscillatorTicks: 15 },
   ] as XtIoTransfer[]) {
     const condition = xtEventCondition(event);
     assert.equal(matchesXtEvent(condition, event), true);
@@ -33,6 +34,7 @@ test("event preferences validate bounds, reject malformed/duplicate input, and d
   assert.deepEqual(decodeXtEventStops(JSON.stringify(points)), points);
   const copy = validateXtEventStops(points); assert.notEqual(copy[0], points[0]);
   for (const value of [null, {}, [null], [{ kind: "iret" }], [{ kind: "oops", enabled: true }],
+    [{ kind: "dma", address: 0x100000, enabled: true }], [{ kind: "dma", address: "3000", enabled: true }],
     [{ kind: "input", port: -1, enabled: true }], [{ kind: "output", port: 0x10000, enabled: true }],
     [{ kind: "input", port: 1.5, enabled: true }], [{ kind: "input", port: "60", enabled: true }],
     [{ kind: "input", port: 0x60, value: 0x100, enabled: true }], [{ kind: "interrupt", vector: -1, enabled: true }],

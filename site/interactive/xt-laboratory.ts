@@ -1,3 +1,5 @@
+import { decodeStoredXtCheckpoint, encodeStoredXtCheckpoint } from "./xt-checkpoint-storage.js";
+import { createXtDmaView } from "./xt-dma-view.js";
 import { createXtIoTrace } from "./xt-io-trace.js";
 import { createXtIoView } from "./xt-io-view.js";
 import type { XtIoLabels } from "./xt-io-view.js";
@@ -27,7 +29,7 @@ import { createXtEgaSession, createXtSession } from "./xt-session.js";
 import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
 import { createXtScreen } from "./xt-screen.js";
-import { decodeXtCheckpoint, encodeXtCheckpoint, xtCheckpointKey } from "./xt-checkpoint.js";
+import { xtCheckpointKey } from "./xt-checkpoint.js";
 import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
 import { createXtDebuggerView } from "./xt-debugger-view.js";
 import { previewXtInstruction } from "./xt-instruction-preview.js";
@@ -36,7 +38,8 @@ import { createRomWalkthrough } from "./rom-walkthrough-view.js";
 import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
 import { createXtRomAnnotations, xtCheckpointPosition } from "./xt-rom-guide.js";
 import { matchesUltimaObservation, ultimaPartyLocation } from "./xt-ultima-v.js";
-import type { XtCheckpoint } from "./xt-ultima-v.js";
+import type { XtCheckpoint } from "./xt-rom-guide.js";
+import { describeXtEvent, matchesXtEvent } from "./xt-event-stops.js";
 import { createXtChangeLog, createXtWatchHistory, xtHistoryAssembly, xtStorageLabel } from "./xt-history.js";
 import { createChangeLogView } from "./change-log-view.js";
 import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
@@ -76,7 +79,8 @@ function mount(root: HTMLElement): void {
   const portTrace = createXtIoTrace();
   const ioView = createXtIoView(root, portTrace, catalogue.cpu, guide.io,
     location => { showCode.browse(location); workspace.show("code"); },
-    condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }));
+    condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }), browseMemory);
+  const dmaView = createXtDmaView(root, browseMemory);
   const showInstruction = createXtInstructionView(instruction, browseMemory);
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
@@ -103,6 +107,7 @@ function mount(root: HTMLElement): void {
   });
   const diskFile = at<HTMLInputElement>("disk-file"), diskName = at("disk-name"), motor = at("disk-motor");
   const diskMessage = at("disk-message");
+  let checkpointBusy = false;
   let loading = true, readingDisk = false, writableCopy = false, saved = false, lastDraw = -Infinity;
   function observeBoundary(): ReturnType<typeof observeXtBoundary> {
     // CPU reset, power-on and checkpoint restore clear the records through resetTools().
@@ -140,15 +145,22 @@ function mount(root: HTMLElement): void {
     if (!session.ready || loading || execution.running || execution.error) return;
     const when = step && guestCondition(step);
     // Loading the EGA tiles alone exceeds the ordinary two-million-boundary limit.
-    debug.runTo(parseXtDebugAddress(text), when ? { limit: 10_000_000, when } : undefined);
+    if (step?.event) debug.runToEvent(step.event);
+    else debug.runTo(parseXtDebugAddress(text), when ? { limit: 10_000_000, when } : undefined);
     message.textContent = ""; execution.run();
   }
   const walkthrough = createRomWalkthrough(root, { routines: guide.routines, walkthroughs: [...guide.walkthroughs, ultima] }, {
     runTo: (text, step) => act(() => runTo(text, step)),
     browse: (address, step) => { showCode.browse({ address, space: "CS:IP " + step.execution }); workspace.show("code"); },
-    inspect: ({ expect }: XtCheckpoint) => expect && "party" in expect
-      ? [{ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) }] : [],
-    position: (step, location, available, running) => xtCheckpointPosition(step, location, available, running, guestCondition(step)),
+    inspect: ({ expect, memory: address }: XtCheckpoint) => address ? [
+      { label: "Inspect sector buffer", show: () => browseMemory(parseInt(address, 16)) },
+      { label: "DMA / diskette", show: () => workspace.show("dma") },
+      { label: "Port trace", show: () => workspace.show("ports") },
+    ] : expect && "party" in expect ? [{ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) }] : [],
+    description: (step: XtCheckpoint) => step.event ? describeXtEvent(step.event) : step.execution ?? step.address,
+    position: (step: XtCheckpoint, location, available, running) => step.event && available
+      ? `${running ? "Running to" : debug.eventHit && matchesXtEvent(step.event, debug.eventHit.event) ? "At checkpoint" : "Selected checkpoint"} ${describeXtEvent(step.event)}.`
+      : xtCheckpointPosition(step, location, available, running, guestCondition(step)),
     reference: address => {
       const entry = annotations.reference.at(address)!;
       at("walkthrough-reference-text").textContent = `${entry.name} · ${entry.description}`;
@@ -163,7 +175,8 @@ function mount(root: HTMLElement): void {
   target.oninput = () => target.setCustomValidity("");
 
   function refresh(requested?: string): void {
-    const running = execution.running, ready = session.ready && !loading, runnable = ready && !execution.error;
+    const unavailable = loading || checkpointBusy;
+    const running = execution.running, ready = session.ready && !unavailable, runnable = ready && !execution.error;
     speed.refresh(!ready);
     sound.refresh({ running, normal: speed.normal, unavailable: !ready });
     intervals.refresh({ running, unavailable: !ready, stop: execution.error ? "error" : debug.stop?.kind });
@@ -175,25 +188,25 @@ function mount(root: HTMLElement): void {
     button("break").disabled = button("warm").disabled = !runnable;
     button("save").disabled = !ready || running || readingDisk;
     button("restore").disabled = !ready || running || readingDisk || !saved;
-    button("remove").disabled = loading || running || !saved;
-    for (const slot of slots) { slot.load.disabled = loading || readingDisk || running; slot.forget.disabled = loading || running || !slot.remembered; }
+    button("remove").disabled = unavailable || running || !saved;
+    for (const slot of slots) { slot.load.disabled = unavailable || readingDisk || running; slot.forget.disabled = unavailable || running || !slot.remembered; }
 
-    button("disk-insert").disabled = button("disk-writable").disabled = loading || readingDisk;
-    button("disk-eject").disabled = loading || readingDisk || session.diskName === null;
+    button("disk-insert").disabled = button("disk-writable").disabled = unavailable || readingDisk;
+    button("disk-eject").disabled = unavailable || readingDisk || session.diskName === null;
     const name = session.diskName ?? "Empty";
     if (diskName.textContent !== name) { diskName.textContent = name; diskName.title = name; }
     const protection = at("disk-protection"), mode = session.machine.io.disketteWritable ? "Writable" : "Write-protected";
     protection.hidden = session.diskName === null;
     if (protection.textContent !== mode) protection.textContent = mode;
     const motorOn = session.machine.io.disketteMotorOn;
-    button("disk-export").disabled = loading || readingDisk || session.diskName === null || motorOn;
+    button("disk-export").disabled = unavailable || readingDisk || session.diskName === null || motorOn;
     if (motorOn !== motor.classList.contains("is-on")) {
       motor.classList.toggle("is-on", motorOn);
       motor.textContent = motorOn ? "Motor on" : "Motor off";
     }
 
     const cpu = session.machine.cpu.snapshot(), seconds = session.machine.io.oscillatorTicks / xtOscillatorHz;
-    status.textContent = [running ? "Running" : ready ? "Paused" : "Waiting for firmware",
+    status.textContent = [checkpointBusy ? "Saving or restoring checkpoint" : running ? "Running" : ready ? "Paused" : "Waiting for firmware",
       `CS:IP ${hex(cpu.cs, 4)}:${hex(cpu.ip, 4)} · physical ${hex(cpu.pc, 5)}`,
       `${session.machine.io.oscillatorTicks.toLocaleString()} oscillator ticks · ${seconds.toFixed(2)} s on the XT`,
       session.keyboard.queuedBytes ? `${session.keyboard.queuedBytes} scan bytes queued` : "",
@@ -224,7 +237,8 @@ function mount(root: HTMLElement): void {
         calls.refresh(debug.frames, debug.trackingNote, (address, captured) => captured ?? { address, space: "physical" });
       }
       for (const [id, show] of [["log", changeLog.refresh], ["debugger", watchView.refresh], ["ports", ioView.refreshTrace],
-        ["pic", () => ioView.refreshPic(session.machine.io.interruptState(), cpu)]] as const) {
+        ["pic", () => ioView.refreshPic(session.machine.io.interruptState(), cpu)],
+        ["dma", () => dmaView.refresh(session.machine.io.disketteState())]] as const) {
         if (root.querySelector<HTMLElement>(`[data-workspace-panel="${id}"]`)!.getClientRects().length
           && (requested === id || updates.shouldUpdate(id, running))) show();
       }
@@ -266,7 +280,7 @@ function mount(root: HTMLElement): void {
   });
   screen.addEventListener("keyup", event => { session.keyboard.up(event.code); });
   screen.addEventListener("paste", event => {
-    if (!session.ready || loading) return;
+    if (!session.ready || loading || checkpointBusy) return;
     event.preventDefault(); act(() => session.keyboard.paste(event.clipboardData?.getData("text/plain") ?? ""));
   });
   screen.addEventListener("blur", () => session.keyboard.releaseHeld());
@@ -279,15 +293,24 @@ function mount(root: HTMLElement): void {
   window.addEventListener("pagehide", leaveWindow);
   document.addEventListener("visibilitychange", () => { if (document.hidden) leaveWindow(); });
 
-  button("save").onclick = () => act(() => {
-    localStorage.setItem(checkpointKey, encodeXtCheckpoint(session.snapshot()));
+  async function checkpointAction(action: "Save" | "Restore", perform: () => Promise<void>): Promise<void> {
+    act(() => { checkpointBusy = true; at("saved").textContent = `${action} in progress…`; });
+    try { await perform(); }
+    catch (cause) {
+      at("saved").textContent = `${action} failed. ${saved ? "The previous saved checkpoint is still available." : "No checkpoint was saved."}`;
+      message.textContent = cause instanceof Error ? cause.message : String(cause);
+    } finally { checkpointBusy = false; refresh(); }
+  }
+  button("save").onclick = () => void checkpointAction("Save", async () => {
+    const text = await encodeStoredXtCheckpoint(session.snapshot());
+    localStorage.setItem(checkpointKey, text);
     saved = true; at("saved").textContent = "XT checkpoint saved in this browser.";
   });
-  button("restore").onclick = () => act(() => {
+  button("restore").onclick = () => void checkpointAction("Restore", async () => {
     const value = localStorage.getItem(checkpointKey);
     if (value === null) throw new Error("No saved XT checkpoint.");
-    session.restore(decodeXtCheckpoint(value, ega)); diskMessage.textContent = ""; resetTools();
-    message.textContent = "Session restored and paused.";
+    session.restore(await decodeStoredXtCheckpoint(value, ega)); diskMessage.textContent = ""; resetTools();
+    message.textContent = "Session restored and paused."; at("saved").textContent = "XT checkpoint restored.";
   });
   button("remove").onclick = () => act(() => {
     localStorage.removeItem(checkpointKey); saved = false; at("saved").textContent = "No checkpoint saved.";

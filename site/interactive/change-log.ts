@@ -65,7 +65,7 @@ export function createChangeLog<State extends object, Record extends ChangeBound
   readonly location: (state: State) => DebugLocation;
   readonly event: (record: Record) => string | undefined;
   readonly observeWrites: (listener: (write: Write) => void) => () => void;
-  readonly memoryLabel: (write: Write) => string;
+  readonly memoryLabel: (write: Write, record?: Record, firstWrite?: boolean) => string;
 }, capacity = 500) {
   if (!Number.isSafeInteger(capacity) || capacity < 1) throw new RangeError("Change log capacity must be a positive integer.");
   const entries: ChangeEntry[] = [];
@@ -74,7 +74,7 @@ export function createChangeLog<State extends object, Record extends ChangeBound
   let writes: Write[] | undefined;
   let latest: { record: Record | undefined; writes: readonly Write[]; changes: readonly Write[] } | undefined;
   const detach = adapter.observeWrites(write => { if (writes) writes.push({ ...write }); });
-  const memoryChange = (write: Write): RecordedChange => ({ kind: "memory", target: adapter.memoryLabel(write), before: write.before, after: write.after, width: 2 });
+  const memoryChange = (write: Write, record?: Record, firstWrite = false): RecordedChange => ({ kind: "memory", target: adapter.memoryLabel(write, record, firstWrite), before: write.before, after: write.after, width: 2 });
   function append(entry: ChangeEntry): void { entries[cursor] = entry; cursor = (cursor + 1) % capacity; captured++; }
   function clear(): void { entries.length = 0; cursor = sequence = captured = 0; }
   return {
@@ -105,6 +105,7 @@ export function createChangeLog<State extends object, Record extends ChangeBound
       let record: Record | undefined;
       try { return record = step(); }
       finally {
+        const firstWrite = writes[0];
         const changes = writes.filter(write => write.before !== write.after);
         latest = { record, writes, changes }; writes = undefined;
         // Retain completed effects even when a host exception prevents a complete record.
@@ -112,7 +113,7 @@ export function createChangeLog<State extends object, Record extends ChangeBound
           const instruction = record ? record.instruction : { address: caller!.address, bytes: [] };
           append({ source: "cpu", sequence, caller, instruction: instruction ? { address: instruction.address, bytes: [...instruction.bytes] } : undefined,
             event: record && adapter.event(record), outcome: record?.outcome ?? "interrupted",
-            changes: [...processorChanges(before, record?.after ?? adapter.snapshot()), ...changes.map(memoryChange)] });
+            changes: [...processorChanges(before, record?.after ?? adapter.snapshot()), ...changes.map(write => memoryChange(write, record, write === firstWrite))] });
         }
       }
     },

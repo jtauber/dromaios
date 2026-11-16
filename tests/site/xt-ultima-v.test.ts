@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { createXtSession } from "../../site/interactive/xt-session.js";
 import { matchesUltimaObservation } from "../../site/interactive/xt-ultima-v.js";
-import type { XtCheckpoint } from "../../site/interactive/xt-ultima-v.js";
+import type { XtCheckpoint } from "../../site/interactive/xt-rom-guide.js";
 import { xtCheckpointPosition } from "../../site/interactive/xt-rom-guide.js";
 
 const guide = readFileSync("docs/machines/pc-xt-ultima-v.md", "utf8");

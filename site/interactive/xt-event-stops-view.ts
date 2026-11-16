@@ -11,6 +11,7 @@ export function createXtEventStopsView(root: HTMLElement, options: {
   const at = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-event-${name}]`)!;
   const form = at<HTMLFormElement>("form"), kind = at<HTMLSelectElement>("kind"), source = at<HTMLSelectElement>("source");
   const port = at<HTMLInputElement>("port"), value = at<HTMLInputElement>("value"), vector = at<HTMLInputElement>("vector");
+  const address = at<HTMLInputElement>("address");
   const status = at("status"), output = at("rows"), key = "dromaios:debugger:xt:events:1";
   for (const name of xtInterruptSources) source.add(new Option(name.toUpperCase(), name));
   try { options.set(decodeXtEventStops(localStorage.getItem(key))); }
@@ -45,6 +46,7 @@ export function createXtEventStopsView(root: HTMLElement, options: {
   }
   function fields(): void {
     const isPort = kind.value === "input" || kind.value === "output";
+    at("dma-fields").hidden = kind.value !== "dma"; address.disabled = kind.value !== "dma";
     at("port-fields").hidden = !isPort; port.disabled = value.disabled = !isPort;
     at("interrupt-fields").hidden = kind.value !== "interrupt"; source.disabled = vector.disabled = kind.value !== "interrupt";
   }
@@ -53,6 +55,7 @@ export function createXtEventStopsView(root: HTMLElement, options: {
     event.preventDefault();
     try {
       if (kind.value === "iret") add({ kind: "iret" });
+      else if (kind.value === "dma") add({ kind: "dma", ...(address.value.trim() && { address: parseMemoryAddress(address.value, 0xfffff) }) });
       else if (kind.value === "interrupt") add({ kind: "interrupt",
         ...(source.value && { source: xtInterruptSources.find(name => name === source.value)! }),
         ...(vector.value.trim() && { vector: parseMemoryAddress(vector.value, 0xff) }) });

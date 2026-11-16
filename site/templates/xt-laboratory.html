@@ -70,10 +70,11 @@
         <button type="button" data-io-clear>Clear trace</button>
         <label><input type="checkbox" data-io-ports checked> Ports</label>
         <label><input type="checkbox" data-io-interrupts checked> Interrupts</label>
+        <label><input type="checkbox" data-io-dma checked> DMA2</label>
       </div>
       <p class="lab-hint" data-io-status></p>
       <div data-io-entries></div>
-      <details><summary>Reading the trace</summary><p class="lab-hint">Newest first. IN and OUT show each captured byte transfer; INTA shows the acknowledged vector. Entry and IRET link to their destinations. Times are oscillator ticks at the end of the complete CPU/board boundary, not individual bus-cycle timings. Record is independent of Live updates.</p>
+      <details><summary>Reading the trace</summary><p class="lab-hint">Newest first. IN and OUT show each captured byte transfer; INTA shows the acknowledged vector. Entry and IRET link to their destinations. DMA2 links each transferred byte to RAM and names its disk-image offset. DMA runs before the CPU boundary, not as an instruction store; refresh grants are omitted. Times are oscillator ticks at the end of the complete CPU/board boundary, not individual bus-cycle timings. Record is independent of Live updates.</p>
         <p class="lab-hint">Reset and restore clear this history. Only completed boundaries are recorded; an execution error may leave partial effects outside the trace.</p></details>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="pic" data-panel-title="8259A PIC" data-panel-live="true">
@@ -84,6 +85,18 @@
       </table>
       <p class="lab-hint" data-pic-cpu></p>
       <details><summary>Requests and service</summary><p class="lab-hint">Pending requests survive masking. The highlighted row is the controller’s selected request; CPU IF and recognition delays still govern acceptance. Acknowledge moves a request into service. The BIOS clears the keyboard receiver through port 61, then sends EOI to port 20; IRET separately restores CPU state.</p></details>
+    </section>
+    <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="dma" data-panel-title="DMA / diskette" data-panel-live="true">
+      <h2>8237A channel 2</h2>
+      <p class="basic-readout" data-dma-address></p>
+      <p class="basic-readout" data-dma-count></p>
+      <p class="lab-hint" data-dma-signals></p>
+      <h2>Diskette controller</h2>
+      <p class="basic-readout" data-fdc-command></p>
+      <p class="basic-readout" data-fdc-position></p>
+      <p class="lab-hint" data-fdc-signals></p>
+      <p class="basic-readout" data-fdc-result></p>
+      <details><summary>Following a sector read</summary><p class="lab-hint">Choose the BIOS sector read walkthrough. Channel 2's address points to the next RAM byte. Its count is bytes remaining minus one; FFFF after terminal count is the wrapped counter. DMA “write” means a write to memory. Completion raises IRQ6; reading the controller's result, sending PIC EOI, and returning from the BIOS are separate events. Inspection never consumes a status or result register.</p></details>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="instruction" data-panel-title="Instruction" data-panel-live="true">
       <p class="basic-readout" data-instruction-location></p><pre class="lab-instruction-preview" data-instruction-preview></pre>
@@ -113,17 +126,18 @@
         <div data-stop-rows></div><p class="basic-message" data-stop-status role="status"></p>
       </div>
       <div data-xt-event-stops>
-        <h2>I/O and interrupt stops<span data-event-count></span></h2>
+        <h2>I/O, DMA and interrupt stops<span data-event-count></span></h2>
         <form class="basic-controls" data-event-form>
-          <label>Event <select data-event-kind aria-label="Event kind"><option value="input">Port read</option><option value="output">Port write</option><option value="interrupt">Interrupt entry</option><option value="iret">IRET</option></select></label>
+          <label>Event <select data-event-kind aria-label="Event kind"><option value="input">Port read</option><option value="output">Port write</option><option value="interrupt">Interrupt entry</option><option value="iret">IRET</option><option value="dma">DMA channel 2</option></select></label>
           <span class="xt-event-fields" data-event-port-fields><label>Port <input data-event-port aria-label="Event port" placeholder="0060" spellcheck="false" maxlength="8"></label>
             <label>Value <input data-event-value aria-label="Event value" placeholder="Any byte" spellcheck="false" maxlength="6"></label></span>
           <span class="xt-event-fields" data-event-interrupt-fields hidden><label>Source <select data-event-source aria-label="Interrupt source"><option value="">Any source</option></select></label>
             <label>Vector <input data-event-vector aria-label="Interrupt vector" placeholder="Any vector" spellcheck="false" maxlength="6"></label></span>
+          <span class="xt-event-fields" data-event-dma-fields hidden><label>RAM address <input data-event-address aria-label="DMA event address" placeholder="Any address" spellcheck="false" maxlength="8"></label></span>
           <button type="submit">Add event stop</button>
         </form>
         <div data-event-rows></div><p class="basic-message" data-event-status role="status"></p>
-        <p class="lab-hint">Numbers are hexadecimal. Stops apply after the complete instruction or interrupt entry, independently of trace recording and Live updates. Conditions survive reset and checkpoint restore. IRET matches any return from interrupt.</p>
+        <p class="lab-hint">Numbers are hexadecimal. Stops apply after the complete CPU/board boundary, independently of trace recording and Live updates. Conditions survive reset and checkpoint restore. IRET matches any return from interrupt.</p>
       </div>
       <div class="basic-controls" data-bios-byte-controls><label>BIOS data byte <select data-bios-byte aria-label="BIOS data byte"></select></label>
         <button type="button" data-bios-byte-memory>Browse</button><button type="button" data-bios-byte-watch>Watch byte</button></div>

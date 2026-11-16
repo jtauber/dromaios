@@ -158,7 +158,7 @@ test("XT browser checkpoint restores the saved disk and pending DMA byte over di
   session.restore(decodeXtCheckpoint(JSON.stringify(old)));
   assert.equal(session.machine.io.disketteWritable, false);
   assert.equal(session.diskName, "data.img"); assert.equal(session.machine.io.disketteMotorOn, true);
-  assert.deepEqual(session.machine.io.serviceDma(session.machine.memory), { channel: 2, address: 0x3001, value: 0x42, oscillatorTicks: 15 });
+  assert.deepEqual(session.machine.io.serviceDma(session.machine.memory), { channel: 2, address: 0x3001, value: 0x42, oscillatorTicks: 15, direction: "disk-to-memory", offset: 1, terminal: true });
   assert.equal(session.machine.ram.read(0x3000), 0x41); assert.equal(session.machine.ram.read(0x3001), 0x42);
   session.powerOn(); assert.deepEqual(session.machine.io.snapshot().disketteImage, saved.hardware.io.disketteImage);
 });
@@ -197,7 +197,22 @@ test("version-6 XT workspaces gain Drive A below Firmware once and keep their ex
   const storage = { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, text: string) => items.set(key, text) };
   migrateXtWorkspace(storage);
   const saved = items.get(xtWorkspaceKey)!;
-  const [old, drive] = groups(decodeWorkspaceState(saved, ["rom", "snapshot", "drive"]));
-  assert.deepEqual(old, firmware); assert.deepEqual(drive?.panels, ["drive"]);
+  const [old, drive] = groups(decodeWorkspaceState(saved, ["rom", "snapshot", "drive", "dma"]));
+  assert.deepEqual(old, firmware); assert.deepEqual(drive?.panels, ["drive", "dma"]);
   migrateXtWorkspace(storage); assert.equal(items.get(xtWorkspaceKey), saved);
+});
+
+
+test("version-9 layouts add DMA beside Drive A once, preserving hidden tools and the active collapsed tab", () => {
+  const old = { kind: "tabs", id: "custom", active: "snapshot", panels: ["drive", "snapshot"], collapsed: true } as const;
+  const values = new Map([["dromaios:workspace:xt:9", encodeWorkspaceState({ root: old })]]);
+  const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value) };
+  migrateXtWorkspace(storage);
+  const saved = values.get(xtWorkspaceKey)!;
+  assert.deepEqual(decodeWorkspaceState(saved, ["drive", "snapshot", "dma"]), { root: { ...old, panels: ["drive", "snapshot", "dma"] } });
+  migrateXtWorkspace(storage); assert.equal(values.get(xtWorkspaceKey), saved);
+  values.delete(xtWorkspaceKey);
+  values.set("dromaios:workspace:xt:9", encodeWorkspaceState({ root: { ...old, panels: ["snapshot"] } }));
+  migrateXtWorkspace(storage);
+  assert.deepEqual(decodeWorkspaceState(values.get(xtWorkspaceKey)!, ["snapshot"]), { root: { ...old, panels: ["snapshot"] } });
 });

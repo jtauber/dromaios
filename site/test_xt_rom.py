@@ -39,17 +39,27 @@ class XtRomTests(unittest.TestCase):
 
     def test_chapter_owns_port_labels_irq_sources_and_keyboard_stops(self):
         self.assertEqual(self.record["io"]["irqs"][1], "XT keyboard")
-        self.assertEqual(self.record["io"]["ports"][0]["address"], "0020")
+        self.assertEqual(self.record["io"]["ports"][0]["address"], "0004")
         steps = self.record["walkthroughs"][1]["steps"]
         self.assertEqual([s["execution"] for s in steps],
                          ["F000:E987", "F000:E994", "F000:E99D", "F000:EA5C", "F000:EA66"])
         for mutate in [lambda r: r["io"]["irqs"].pop(),
                        lambda r: r["io"]["ports"][0].update(address="10000"),
-                       lambda r: r["io"]["ports"][1].update(address="0020"),
+                       lambda r: r["io"]["ports"][1].update(address="0004"),
                        lambda r: r["io"]["ports"][0].update(input=""),
                        lambda r: r["io"].update(unknown=True)]:
             record = copy.deepcopy(self.record)
             mutate(record)
+            with self.assertRaises(ValueError):
+                xt_annotations("```json\n" + json.dumps(record) + "\n```", self.catalogue)
+
+    def test_dma_walkthrough_conditions_and_ram_links(self):
+        steps = self.record["walkthroughs"][2]["steps"]
+        self.assertEqual([s["event"]["address"] for s in steps if s.get("event", {}).get("kind") == "dma"], [0x7cff, 0x7dff])
+        for extra in [{"event": {"kind": "dma", "address": -1}}, {"event": {"kind": "dma", "address": True}},
+                      {"event": {"kind": "output", "port": 0x3f5, "value": 256}}, {"memory": "FFFFF"}]:
+            record = copy.deepcopy(self.record)
+            record["walkthroughs"][2]["steps"][2].update(extra)
             with self.assertRaises(ValueError):
                 xt_annotations("```json\n" + json.dumps(record) + "\n```", self.catalogue)
 

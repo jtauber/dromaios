@@ -12,6 +12,7 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   }[];
   readonly available?: (tour: RomWalkthrough) => boolean;
   readonly position?: typeof romCheckpointPosition;
+  readonly description?: (step: RomCheckpoint) => string;
 }) {
   const panel = root.querySelector<HTMLElement>("[data-rom-walkthrough]");
   if (!panel) return undefined;
@@ -26,6 +27,7 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   reference.parentElement!.after(inspections);
   let inspectionControls: { button: HTMLButtonElement; available?: () => boolean }[] = [];
   let available = false, running = false, location: DebugLocation | undefined;
+  const description = (step: RomCheckpoint) => actions.description?.(step) ?? step.execution ?? "$" + step.address;
   const selected = () => guide.walkthroughs[choice.selectedIndex]!;
   const checkpoint = () => selected().steps[checkpoints.selectedIndex]!;
   for (const tour of guide.walkthroughs) choice.add(new Option(tour.title, tour.id));
@@ -53,7 +55,7 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
     }
     inspections.hidden = !inspectionControls.length;
     if (referenceText) referenceText.textContent = "";
-    element("heading").textContent = `${checkpoints.selectedIndex + 1}. ${step.title} · ${step.execution ?? "$" + step.address}`;
+    element("heading").textContent = `${checkpoints.selectedIndex + 1}. ${step.title} · ${description(step)}`;
     element("prepare").textContent = step.prepare; element("observe").textContent = step.observe;
     previous.disabled = checkpoints.selectedIndex === 0; next.disabled = checkpoints.selectedIndex === selected().steps.length - 1;
     showPosition();
@@ -61,7 +63,7 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   function showTour(): void {
     element("setup").textContent = selected().setup;
     checkpoints.replaceChildren();
-    selected().steps.forEach((step, index) => checkpoints.add(new Option(`${index + 1}. ${step.title} · ${step.execution ?? "$" + step.address}`, String(index))));
+    selected().steps.forEach((step, index) => checkpoints.add(new Option(`${index + 1}. ${step.title} · ${description(step)}`, String(index))));
     showCheckpoint();
   }
   choice.addEventListener("change", showTour); checkpoints.addEventListener("change", showCheckpoint);

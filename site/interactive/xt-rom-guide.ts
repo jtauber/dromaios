@@ -1,3 +1,5 @@
+import type { XtEventCondition } from "./xt-event-stops.js";
+import type { UltimaObservation } from "./xt-ultima-v.js";
 import { physical8088 } from "./8088-disassembly.js";
 import type { Row8088 } from "./8088-disassembly.js";
 import { createRomNotes } from "./rom-guide.js";
@@ -5,6 +7,13 @@ import type { RomCheckpoint, RomGuide } from "./rom-guide.js";
 import { createRomReference } from "./rom-reference.js";
 import type { DebugLocation } from "./instruction-debugger.js";
 import { formatXtDebugAddress, parseXtDebugAddress } from "./xt-debugger.js";
+
+export interface XtCheckpoint extends RomCheckpoint {
+  readonly expect?: UltimaObservation;
+  /** The ROM address remains the explanation/browse location; an event determines the stop. */
+  readonly event?: XtEventCondition;
+  readonly memory?: string;
+}
 
 /** Labels describe physical BIOS bytes; walkthrough stops retain the exact CS:IP pair. */
 export function createXtRomAnnotations(guide: RomGuide) {
