@@ -855,6 +855,60 @@ machine state, also matching execution without the observer. Attempting
 `ECHO HELLO>SAVE.TXT` on the read-only disk must reach DOS's write-protect error,
 with zero write DMA bytes, decoded ST1 write protection and unchanged media.
 
+### Files, allocation chains and RAM
+
+**DMA / diskette → Files** connects the mounted disk's root directory to its
+allocation and recorded transfers. Pause the XT and choose a root entry. The
+view shows its attributes, length, cluster chain, directory-entry location,
+packed entries in each FAT copy and allocated data ranges. Clicking a range
+filters Activity; clicking a recorded transfer selects its command. The RAM
+links navigate to the observed source or destination, clipped to the actual
+file bytes. **Show all activity** removes the filter without losing history.
+
+The BPB describes the reserved sectors, FAT copies, fixed root directory and
+cluster size. FAT12 packs two cluster links into three bytes; a link can cross
+a sector boundary. Data clusters begin at 2. Directory entries name their first
+cluster and byte length, so unused space at the end of an allocated cluster is
+*slack*, not file content. A zero-length file can have no allocated clusters.
+The decoder follows Microsoft's [FAT on-disk format specification, version
+1.03](https://www.pcjs.org/documents/papers/microsoft/MS_FAT_OVERVIEW_103-2000-12-06.pdf),
+particularly the BPB, FAT12 entry and short directory-entry descriptions.
+
+This first inspector accepts whole 360 KiB FAT12 images with a DOS BPB, 512-byte
+sectors and one or two FAT copies. It lists short root names, including hidden
+and system files, volume labels and subdirectory allocations. It does not walk
+subdirectories, recover deleted entries or decode long names. Non-ASCII name
+bytes remain visible as hexadecimal escapes. Unsupported images produce an
+explanation; inspection does not prevent their use by the emulated controller.
+Invalid chains stop at free, reserved, bad, out-of-range or repeated clusters.
+Size mismatches, shared clusters and disagreeing FAT copies are reported;
+when copies disagree, displayed chains use FAT 1 explicitly.
+
+Allocation is read from a stable image while paused. The board exposes its
+existing immutable media snapshot; later guest writes use a private copy.
+This neither reads a controller port nor changes emulated time. Parsing is
+cached until that image changes; Run holds the previous inspection, and
+**Refresh files** re-reads it while paused. Media exchange, reset and checkpoint
+restore invalidate the view. No filesystem editing is performed by this tool.
+
+A file's current allocation can overlap an older transfer without having owned
+those sectors then. RAM can also have changed since a transfer, and DOS can
+satisfy a read from its own buffers without disk activity. The view therefore
+labels these as recorded overlaps, not current RAM contents or proven historical
+file ownership. Metadata links include the neighbouring bits in each packed FAT
+entry's two-byte range. A paused mid-write image may show incomplete directory
+or FAT updates; these are diagnostic observations, not a repaired filesystem.
+
+The [decoder checks](../../../tests/site/xt-fat12.test.ts) include fragmented
+chains, FAT-sector crossings, corrupt images and exact RAM overlap clipping.
+The [DOS acceptance](../../../tests/site/xt-disk-activity-dos.test.ts) also
+requires `TYPE README.TXT` to link its 58 file bytes to the observed DMA buffer.
+On a writable copy, `ECHO HELLO>SAVE.TXT` creates a seven-byte file in the next
+free cluster, 4. The inspector must identify the directory write, both FAT
+updates and data at image offset `$02000`. After export and a fresh XT/DOS boot,
+`TYPE SAVE.TXT` must print `HELLO`, with the same allocation and seven matching
+bytes at the newly observed RAM destination.
+
 ### Port trace and interrupt inspection
 
 **Port trace**, a tab beside Disassembly, retains up to 1,024 captured events.

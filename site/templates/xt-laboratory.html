@@ -89,12 +89,21 @@
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="dma" data-panel-title="DMA / diskette" data-panel-live="true">
       <div class="basic-controls" role="group" aria-label="Disk inspection view">
         <button type="button" data-disk-inspection="activity" aria-pressed="true">Activity</button>
+        <button type="button" data-disk-inspection="files" aria-pressed="false">Files</button>
         <button type="button" data-disk-inspection="registers" aria-pressed="false">Registers</button>
       </div>
       <div data-disk-activity>
+        <div class="basic-controls"><span class="lab-hint" data-disk-filter></span><button type="button" data-disk-filter-clear hidden>Show all activity</button></div>
         <div class="basic-controls"><label><input type="checkbox" data-disk-recording checked> Record disk activity</label><button type="button" data-disk-clear>Clear activity</button></div>
         <p class="lab-hint" data-disk-activity-status></p><div data-disk-operations></div>
         <details><summary>Reading sector activity</summary><p class="lab-hint">Newest commands first. Byte spans link to RAM; image offsets use the mounted 360 KiB geometry. TC ends DMA; the controller result and IRQ6 entry are separate observations. A normal result may name the next sector ID. Continued entries begin after recording starts or a checkpoint is restored, so their byte totals cover only the observed suffix. Reset, restore and media exchange clear this history. Live affects drawing; Record controls capture independently of Port trace.</p></details>
+      </div>
+      <div data-disk-files hidden>
+        <div class="basic-controls"><label>Root entry <select data-disk-file-choice aria-label="FAT12 root entry"></select></label><button type="button" data-disk-files-refresh>Refresh files</button></div>
+        <p class="lab-hint" data-disk-files-status></p><p class="basic-message" data-disk-files-warnings></p>
+        <div data-disk-file-detail></div>
+        <h2>Recorded transfers</h2><div data-disk-file-transfers></div>
+        <details><summary>Reading file allocation</summary><p class="lab-hint">Read-only, paused inspection of this mounted 360 KiB FAT12 disk. Sector numbers start at zero. Short root names, volume labels and subdirectory allocations are shown; subdirectory contents and long names are not decoded. Non-ASCII name bytes appear as hex escapes. Invalid chains and mismatching FAT copies are reported.</p><p class="lab-hint">File ranges exclude trailing slack from RAM links. FAT entries share packed bytes with their neighbours. Links match this snapshot's allocation against retained activity; they do not prove past file ownership or that RAM still contains those bytes. DOS may cache reads. A mid-write snapshot may contain incomplete filesystem updates.</p></details>
       </div>
       <div data-disk-registers hidden>
       <h2>8237A channel 2</h2>

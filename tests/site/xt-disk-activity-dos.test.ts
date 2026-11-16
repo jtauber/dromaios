@@ -9,9 +9,11 @@ import { screen } from "../machines/8088/pc-xt/rom-console.js";
 import { createXtSession, type XtSessionState } from "../../site/interactive/xt-session.js";
 import { createXtDiskActivity } from "../../site/interactive/xt-disk-activity.js";
 import { xtDisketteResult } from "../../site/interactive/xt-diskette-decode.js";
+import { fat12FileRegions, inspectFat12, readFat12File } from "../../site/interactive/fat12.js";
+import { xtFileTransfers } from "../../site/interactive/xt-disk-file-transfers.js";
 
 const { XT_BIOS_ROM, XT_BASIC_ROM, XT_CGA_ROM, XT_DOS_DISK } = process.env;
-test("DOS sector inspection explains a file read, replays a halfway checkpoint, and reports write protection", {
+test("DOS file inspection links FAT12 to DMA, replays a checkpoint, rejects protected writes and reloads an exported save", {
   skip: !(XT_BIOS_ROM && XT_BASIC_ROM && XT_CGA_ROM && XT_DOS_DISK) && "Set the XT firmware and DOS disk paths.",
 }, async () => {
   const digest = async (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -56,6 +58,10 @@ test("DOS sector inspection explains a file read, replays a halfway checkpoint, 
   const sector = read.sectors.find(sector => sector.offset === 12 * 512)!;
   assert.equal(sector.bytes, 512); assert.equal(sector.firstAddress, halfway.address);
   assert.deepEqual(end.hardware.ram.slice(sector.firstAddress, sector.firstAddress + 512), [...dataDisk.subarray(12 * 512, 13 * 512)]);
+  const original = session.machine.io.inspectDiskette()!, volume = inspectFat12(original), readme = volume.entries.find(e => e.name === "README.TXT")!;
+  const linkedRead = xtFileTransfers(fat12FileRegions(volume, readme), activity.entries()).find(t => t.kind === "data")!;
+  assert.equal(linkedRead.address, sector.firstAddress); assert.equal(linkedRead.bytes, 58);
+  assert.equal(Buffer.from(readFat12File(original, volume, readme)).toString("ascii"), "Dromaios XT data disk.\r\nDOS read this file from drive A.\r\n");
 
   session.restore(halfway.state); activity.reset(); captureRead = false;
   assert.equal(activity.entries()[0]!.continued, true); assert.equal(activity.entries()[0]!.bytes, 0);
@@ -80,5 +86,38 @@ test("DOS sector inspection explains a file read, replays a halfway checkpoint, 
     assert.equal(op.state, "complete"); assert.equal(op.consumed, 7);
   }
   assert.deepEqual(session.machine.io.exportDiskette(), new Uint8Array(dataDisk));
+
+  // Resume the verified prompt, then let DOS create a new file on a writable copy.
+  session.restore(end); activity.reset(); until(() => !session.machine.io.disketteMotorOn);
+  session.insertDisk("DATA.IMG", dataDisk, { writable: true }); activity.reset();
+  session.keyboard.paste("ECHO HELLO>SAVE.TXT\n"); until(() => lastLine() === "A>");
+  const edited = session.machine.io.inspectDiskette()!, savedVolume = inspectFat12(edited), savedFile = savedVolume.entries.find(e => e.name === "SAVE.TXT")!;
+  assert.equal(savedFile.size, 7); assert.deepEqual(savedFile.clusters, [4]); assert.deepEqual(savedFile.issues, []);
+  assert.deepEqual(savedVolume.warnings, []); assert.equal(savedFile.offset, 2560 + 96);
+  const content = Buffer.from(readFat12File(edited, savedVolume, savedFile)); assert.equal(content.toString("ascii"), "HELLO\r\n");
+  const linkedWrites = xtFileTransfers(fat12FileRegions(savedVolume, savedFile), activity.entries()).filter(t => t.direction === "memory-to-disk");
+  assert.ok(linkedWrites.some(t => t.kind === "directory" && t.offset === 2656 && t.bytes === 32));
+  for (const offset of [518, 1542]) assert.ok(linkedWrites.some(t => t.kind === "fat" && t.offset === offset && t.bytes === 2));
+  assert.ok(linkedWrites.some(t => t.kind === "data" && t.offset === 8192 && t.bytes === 7));
+  assert.equal(inspectFat12(original).entries.some(e => e.name === "SAVE.TXT"), false);
+  until(() => !session.machine.io.disketteMotorOn);
+  const exported = session.machine.io.exportDiskette();
+  // Independent offsets from the fixture, not inferred from the inspector's region mapping.
+  assert.equal(Buffer.from(exported.slice(2656, 2667)).toString("ascii"), "SAVE    TXT");
+  assert.deepEqual(exported.slice(8192, 8199), new Uint8Array(content));
+  assert.deepEqual(exported.slice(512, 1536), exported.slice(1536, 2560));
+
+  // Fresh CPU/RAM/DOS buffers: only exported sectors carry the saved file to the second session.
+  activity.record(false); session.insertDisk("DOS.IMG", disk); session.powerOn("quick"); activity.reset();
+  until(() => lastLine() === "Enter new date (mm-dd-yy):", 25_000_000);
+  session.keyboard.paste("\n"); until(() => lastLine() === "Enter new time:");
+  session.keyboard.paste("\n"); until(() => lastLine() === "A>"); until(() => !session.machine.io.disketteMotorOn);
+  session.insertDisk("EXPORTED.IMG", exported); activity.reset(); activity.record(true);
+  session.keyboard.paste("TYPE SAVE.TXT\n"); until(() => lastLine() === "A>" && screen(session.machine).includes("HELLO"));
+  const freshBytes = session.machine.io.inspectDiskette()!, freshVolume = inspectFat12(freshBytes), freshFile = freshVolume.entries.find(e => e.name === "SAVE.TXT")!;
+  assert.deepEqual(freshFile, savedFile); assert.deepEqual(readFat12File(freshBytes, freshVolume, freshFile), new Uint8Array(content));
+  const reloaded = xtFileTransfers(fat12FileRegions(freshVolume, freshFile), activity.entries()).find(t => t.kind === "data")!;
+  assert.equal(reloaded.direction, "disk-to-memory"); assert.equal(reloaded.bytes, 7);
+  assert.deepEqual(session.machine.snapshot().ram.slice(reloaded.address, reloaded.address + 7), [...content]);
   activity.dispose();
 });

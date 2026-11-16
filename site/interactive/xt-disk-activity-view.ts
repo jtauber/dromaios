@@ -3,29 +3,34 @@ import { xtDisketteCommand, xtDisketteParameters, xtDisketteResult } from "./xt-
 import { xtHex as hex } from "./8088-disassembly.js";
 import { memoryLink } from "./memory-link.js";
 import type { DebugLocation } from "./instruction-debugger.js";
+import type { Fat12Region } from "./fat12.js";
+import { xtDiskActivityMatches } from "./xt-disk-file-transfers.js";
 
 export function createXtDiskActivityView(root: HTMLElement, activity: ReturnType<typeof createXtDiskActivity>,
   browseMemory: (address: number) => void, browseCode: (location: DebugLocation) => void, changed: () => void) {
   const at = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const output = at("disk-operations"), recording = at<HTMLInputElement>("disk-recording");
   let revision = -1;
+  let filter: { regions: readonly Fat12Region[]; label: string; operation?: number } | undefined;
   recording.onchange = () => { activity.record(recording.checked); changed(); };
-  at("disk-clear").onclick = () => { activity.reset(); changed(); };
-  const modes = [...root.querySelectorAll<HTMLButtonElement>("[data-disk-inspection]")];
-  for (const button of modes) button.onclick = () => {
-    for (const option of modes) option.setAttribute("aria-pressed", String(option === button));
-    at("disk-activity").hidden = button.dataset.diskInspection !== "activity";
-    at("disk-registers").hidden = button.dataset.diskInspection !== "registers";
-    changed();
-  };
+  at("disk-clear").onclick = () => { activity.reset(); filter = undefined; revision = -1; changed(); };
+  at("disk-filter-clear").onclick = () => { filter = undefined; revision = -1; changed(); };
   return {
+    filter(regions: readonly Fat12Region[], label: string, operation?: number): void {
+      filter = { regions, label, operation }; revision = -1;
+    },
+    resetFilter(): void { filter = undefined; revision = -1; },
     refresh(): void {
+      if (at("disk-activity").hidden) return;
       if (activity.revision === revision) return;
       revision = activity.revision;
       const opened = new Map([...output.querySelectorAll<HTMLDetailsElement>("details[data-operation]")].map(el => [Number(el.dataset.operation), el.open]));
       output.replaceChildren();
-      const entries = activity.entries();
-      at("disk-activity-status").textContent = `${activity.recording ? "Recording" : "Recording paused"} · ${entries.length}/${activity.capacity} commands`
+      const retained = activity.entries(), entries = filter ? retained.filter(op => (filter!.operation === undefined || filter!.operation === op.id)
+        && xtDiskActivityMatches(op, filter!.regions)) : retained;
+      at("disk-filter").textContent = filter ? `${filter.label} · matching snapshot ranges` : "";
+      at("disk-filter-clear").hidden = !filter;
+      at("disk-activity-status").textContent = `${activity.recording ? "Recording" : "Recording paused"} · ${entries.length} shown · ${retained.length}/${activity.capacity} retained commands`
         + (activity.discarded ? ` · ${activity.discarded} older discarded` : "");
       for (const op of [...entries].reverse()) {
         const row = document.createElement("details"), summary = document.createElement("summary"), parameters = document.createElement("p"), state = document.createElement("p");
@@ -63,7 +68,7 @@ export function createXtDiskActivityView(root: HTMLElement, activity: ReturnType
         if (op.note) row.append(op.note);
         output.append(row);
       }
-      if (!entries.length) output.textContent = "No disk commands observed. Run the XT or restore a transfer checkpoint.";
+      if (!entries.length) output.textContent = filter ? "No retained commands match these disk ranges." : "No disk commands observed. Run the XT or restore a transfer checkpoint.";
     },
   };
 }

@@ -1,5 +1,6 @@
 import { createXtDiskActivity } from "./xt-disk-activity.js";
 import { createXtDiskActivityView } from "./xt-disk-activity-view.js";
+import { createXtDiskFilesView } from "./xt-disk-files-view.js";
 import { decodeStoredXtCheckpoint, encodeStoredXtCheckpoint } from "./xt-checkpoint-storage.js";
 import { createXtDmaView } from "./xt-dma-view.js";
 import { createXtIoTrace } from "./xt-io-trace.js";
@@ -86,6 +87,14 @@ function mount(root: HTMLElement): void {
   const diskActivityView = createXtDiskActivityView(root, diskActivity, browseMemory,
     location => { showCode.browse(location); workspace.show("code"); }, () => refresh("dma"));
   const dmaView = createXtDmaView(root, browseMemory);
+  function diskMode(mode: string): void {
+    for (const button of root.querySelectorAll<HTMLButtonElement>("[data-disk-inspection]")) button.setAttribute("aria-pressed", String(button.dataset.diskInspection === mode));
+    for (const name of ["activity", "files", "registers"]) at(`disk-${name}`).hidden = name !== mode;
+    refresh("dma");
+  }
+  for (const button of root.querySelectorAll<HTMLButtonElement>("[data-disk-inspection]")) button.onclick = () => diskMode(button.dataset.diskInspection!);
+  const diskFiles = createXtDiskFilesView(root, diskActivity, browseMemory,
+    (regions, label, operation) => { diskActivityView.filter(regions, label, operation); diskMode("activity"); }, () => refresh("dma"));
   const showInstruction = createXtInstructionView(instruction, browseMemory);
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
@@ -243,7 +252,10 @@ function mount(root: HTMLElement): void {
       }
       for (const [id, show] of [["log", changeLog.refresh], ["debugger", watchView.refresh], ["ports", ioView.refreshTrace],
         ["pic", () => ioView.refreshPic(session.machine.io.interruptState(), cpu)],
-        ["dma", () => { dmaView.refresh(session.machine.io.disketteState()); diskActivityView.refresh(); }]] as const) {
+        ["dma", () => {
+          if (!at("disk-registers").hidden) dmaView.refresh(session.machine.io.disketteState());
+          diskActivityView.refresh(); diskFiles.refresh(session.machine.io, running);
+        }]] as const) {
         if (root.querySelector<HTMLElement>(`[data-workspace-panel="${id}"]`)!.getClientRects().length
           && (requested === id || updates.shouldUpdate(id, running))) show();
       }
@@ -257,6 +269,7 @@ function mount(root: HTMLElement): void {
   function resetTools(): void {
     unobserveSpeaker(); unobserveSpeaker = observeSpeaker(); intervals.clearStep();
     execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset(); ioView.reset(); diskActivity.reset();
+    diskFiles.reset(); diskActivityView.resetFilter();
   }
   function run(): void { debug.run(); message.textContent = ""; execution.run(); screen.focus(); }
   function powerOn(start: "cold" | "quick"): void {
@@ -329,11 +342,11 @@ function mount(root: HTMLElement): void {
     readingDisk = true; diskMessage.textContent = ""; refresh();
     try {
       if (file.size !== xtDisketteSize) throw new Error("Choose a raw 360 KiB disk image (368,640 bytes).");
-      session.insertDisk(file.name, new Uint8Array(await file.arrayBuffer()), { writable: writableCopy }); diskActivity.reset();
+      session.insertDisk(file.name, new Uint8Array(await file.arrayBuffer()), { writable: writableCopy }); diskActivity.reset(); diskFiles.reset(); diskActivityView.resetFilter();
     } catch (cause) { diskMessage.textContent = cause instanceof Error ? cause.message : String(cause); }
     finally { diskFile.value = ""; readingDisk = false; refresh(); }
   };
-  button("disk-eject").onclick = () => act(() => { session.ejectDisk(); diskActivity.reset(); diskMessage.textContent = ""; });
+  button("disk-eject").onclick = () => act(() => { session.ejectDisk(); diskActivity.reset(); diskFiles.reset(); diskActivityView.resetFilter(); diskMessage.textContent = ""; });
   button("disk-export").onclick = () => act(() => {
     if (!session.diskName || session.machine.io.disketteMotorOn) return;
     const filename = downloadDiskImage(session.diskName, ".img", session.machine.io.exportDiskette());

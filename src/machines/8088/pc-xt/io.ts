@@ -232,6 +232,11 @@ export class XtIo implements MemoryConnection {
     return Uint8Array.from(this.#disketteImage.snapshot());
   }
 
+  /** Immutable current media for paused inspectors; later guest writes use a private copy. No device access. */
+  inspectDiskette(): readonly number[] | null {
+    return this.#disketteImage?.snapshot() ?? null;
+  }
+
   /** Called only from the CPU's accepted INTR callback. */
   acknowledge(): number {
     const vector = this.#pic.vector();
