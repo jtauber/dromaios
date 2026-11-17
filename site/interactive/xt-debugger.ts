@@ -1,7 +1,8 @@
 import { xtIoTransfers } from "./xt-io-events.js";
 import type { XtIoTransfer } from "./xt-io-events.js";
-import { validateXtEventStops, matchesXtEvent, describeXtEvent, xtEventCondition } from "./xt-event-stops.js";
+import { validateXtEventStops, matchesXtEvent, matchesXtDosEvent, describeXtEvent, xtEventCondition } from "./xt-event-stops.js";
 import type { XtEventCondition, XtEventStop } from "./xt-event-stops.js";
+import type { DosCall, createXtDosCalls } from "./xt-dos-services.js";
 import { observe8088Boundary } from "./8088-debugger.js";
 import type { RamWrite } from "../../src/components/memory/ram.js";
 import type { XtBoundary as Boundary } from "./xt-session.js";
@@ -65,17 +66,19 @@ function validate(points: readonly InstructionBreakpoint[], maximum: number, log
 }
 
 /** Adapt XT boundaries and physical RAM stores to the shared stopping policy. */
-export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
+export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, dosCalls?: ReturnType<typeof createXtDosCalls>) {
   const policy = createInstructionDebugger(budget), writes = createRamWriteCapture(() => machine().ram);
   const location = () => xtDebugLocation(machine().cpu.snapshot());
   let watches: readonly InstructionBreakpoint[] = [], hit: XtWriteHit | undefined;
   let events: readonly XtEventStop[] = [], activeEvents: readonly XtEventStop[] = [], eventHit: XtEventHit | undefined;
+  let dosHit: DosCall | undefined;
   let targetEvent: XtEventCondition | undefined;
   let eventCondition: (() => boolean) | undefined;
-  function clearHit(): void { hit = undefined; eventHit = undefined; targetEvent = undefined; eventCondition = undefined; }
+  function clearHit(): void { hit = undefined; eventHit = undefined; dosHit = undefined; targetEvent = undefined; eventCondition = undefined; }
   return {
     get eventStops() { return events; },
     get eventHit() { return eventHit; },
+    get dosHit() { return dosHit; },
     setEventStops(points: readonly XtEventStop[]): void {
       events = validateXtEventStops(points); activeEvents = events.filter(point => point.enabled);
     },
@@ -112,6 +115,7 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
         const { record, write } = writes.capture(step);
         if (record.outcome === "unsupported") policy.fail(xtDebugLocation(record.after), "Unsupported instruction.");
         else {
+          const dosCall = dosCalls?.observe(record);
           observe8088Boundary(policy, record);
           if (write) {
             hit = { ...write, caller: xtDebugLocation(record.before), record };
@@ -122,6 +126,15 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
             if (event) {
               eventHit = { caller: xtDebugLocation(record.before), event };
               policy.event(xtDebugLocation(record.after), `${describeXtEvent(xtEventCondition(event))} ${event.kind === "dma" ? "before the CPU boundary at" : "from"} ${formatXtDebugAddress(eventHit.caller)}. Stopped after the complete CPU/board boundary.`);
+            } else if (dosCall) {
+              const condition = targetEvent && matchesXtDosEvent(targetEvent, dosCall) && (eventCondition?.() ?? true) ? targetEvent
+                : activeEvents.find(point => matchesXtDosEvent(point, dosCall));
+              if (condition) {
+                dosHit = dosCall;
+                const caller = logical8088(dosCall.caller.cs, dosCall.caller.ip), result = dosCall.result;
+                policy.event(xtDebugLocation(record.after), `${describeXtEvent(condition)} · ${dosCall.service.name} from ${caller}. `
+                  + (result ? `AX=${hex(result.ax, 4)} · CF=${+result.carry}. Stopped after the observed return.` : "Stopped after the complete INT 21h entry."));
+              }
             }
           }
           if (policy.request === "step") policy.beforeStep(xtDebugLocation(record.after));
@@ -132,7 +145,7 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000) {
         throw cause;
       }
     },
-    reset(): void { policy.reset(); clearHit(); writes.reconnect(); },
+    reset(): void { policy.reset(); clearHit(); dosCalls?.reset(); writes.reconnect(); },
     dispose: writes.dispose,
   };
 }

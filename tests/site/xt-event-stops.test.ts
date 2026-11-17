@@ -30,10 +30,14 @@ test("trace conditions retain exact port/value or source/vector; INTA selects en
 
 test("event preferences validate bounds, reject malformed/duplicate input, and detach accepted entries", () => {
   const points: XtEventStop[] = [{ kind: "input", port: 0, value: 0, enabled: false },
-    { kind: "output", port: 0xffff, value: 0xff, enabled: true }, { kind: "interrupt", vector: 0, enabled: true }, { kind: "iret", enabled: true }];
+    { kind: "output", port: 0xffff, value: 0xff, enabled: true }, { kind: "interrupt", vector: 0, enabled: true }, { kind: "iret", enabled: true },
+    { kind: "dos", phase: "call", function: 0, enabled: true }, { kind: "dos", phase: "return", function: 255, enabled: false },
+    { kind: "dos", phase: "error", enabled: true }];
   assert.deepEqual(decodeXtEventStops(JSON.stringify(points)), points);
   const copy = validateXtEventStops(points); assert.notEqual(copy[0], points[0]);
   for (const value of [null, {}, [null], [{ kind: "iret" }], [{ kind: "oops", enabled: true }],
+    [{ kind: "dos", enabled: true }], [{ kind: "dos", phase: "success", enabled: true }],
+    [{ kind: "dos", phase: "call", function: "3F", enabled: true }], [{ kind: "dos", phase: "error", function: 256, enabled: true }],
     [{ kind: "dma", address: 0x100000, enabled: true }], [{ kind: "dma", address: "3000", enabled: true }],
     [{ kind: "input", port: -1, enabled: true }], [{ kind: "output", port: 0x10000, enabled: true }],
     [{ kind: "input", port: 1.5, enabled: true }], [{ kind: "input", port: "60", enabled: true }],

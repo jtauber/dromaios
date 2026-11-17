@@ -6,6 +6,7 @@ import type { createXtDebugger } from "./xt-debugger.js";
 import { parseXtAddress } from "./xt-inspection.js";
 import { xtHex as hex } from "./8088-disassembly.js";
 import type { RomGuide } from "./rom-guide.js";
+import type { DosServices } from "./xt-dos-services.js";
 
 /** Shared stop editors, with XT address notation and navigation. */
 export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof createXtDebugger>, options: {
@@ -15,6 +16,7 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
   readonly history: (address: number) => void;
   readonly watchesChanged: () => void;
   readonly labels: RomGuide["labels"];
+  readonly dos: DosServices;
 }) {
   createBreakpointView(root.querySelector("[data-xt-breakpoints]"), {
     kind: "breakpoint", key: "dromaios:debugger:xt:breakpoints", maximum: 0xfffff,
@@ -22,7 +24,7 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
     values: () => debug.breakpoints, set: debug.setBreakpoints, changed: options.changed,
   });
   const eventStops = createXtEventStopsView(root, {
-    values: () => debug.eventStops, set: debug.setEventStops, changed: options.changed,
+    values: () => debug.eventStops, set: debug.setEventStops, changed: options.changed, dos: options.dos,
   });
   const labels = options.labels.filter(label => label.scope === "workspace").flatMap(label =>
     Array.from({ length: label.bytes ?? 1 }, (_, byte) => ({ address: parseInt(label.address, 16) + byte,

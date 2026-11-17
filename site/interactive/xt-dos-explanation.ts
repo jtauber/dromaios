@@ -1,4 +1,5 @@
 import type { DosBuffer, DosCall, DosRequest, DosServices } from "./xt-dos-services.js";
+import { dosReportsErrors } from "./xt-dos-services.js";
 import { logical8088, physical8088, xtHex as hex } from "./8088-disassembly.js";
 
 function sampleText(bytes: readonly number[]): string {
@@ -28,7 +29,7 @@ export function dosCallLines(request: DosRequest, catalogue: DosServices, observ
   else {
     lines.push(`Observed return to ${logical8088(returnTo.cs, returnTo.ip)} · AX=${hex(result.ax, 4)} · CF=${+result.carry}.`);
     const kind = service.result.kind;
-    if (["status", "handle", "count"].includes(kind) && result.carry) {
+    if (dosReportsErrors(service) && result.carry) {
       lines.push(`Error ${hex(result.ax, 4)} · ${catalogue.errors[hex(result.ax, 4)] ?? "Unlisted DOS error"}. No successful buffer result is claimed.`);
     } else if (kind === "handle") lines.push(`Handle ${result.ax} (${hex(result.ax, 4)}).`);
     else if (kind === "count") {

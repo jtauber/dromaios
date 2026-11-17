@@ -65,7 +65,6 @@ function mount(root: HTMLElement): void {
   let unobserveSpeaker = observeSpeaker();
   const images = { ...romImages, ...egaRomImages };
   const checkpointKey = ega ? xtCheckpointKey + ":ega" : xtCheckpointKey;
-  const debug = createXtDebugger(() => session.machine);
   const registers = root.querySelector<HTMLElement>('[data-workspace-panel="registers"]')!;
   const code = root.querySelector<HTMLElement>('[data-workspace-panel="code"]')!;
   const instruction = root.querySelector<HTMLElement>('[data-workspace-panel="instruction"]')!;
@@ -101,7 +100,9 @@ function mount(root: HTMLElement): void {
   const showInstruction = createXtInstructionView(instruction, browseMemory);
   const readStorage = (address: number) => readXtStorage(session.machine, catalogue.storage, address);
   const dosCalls = createXtDosCalls(guide.dos, readStorage);
-  const showDos = createXtDosServicesView(instruction, guide.dos, dosCalls, browseMemory, () => refresh("instruction"));
+  const debug = createXtDebugger(() => session.machine, undefined, dosCalls);
+  const showDos = createXtDosServicesView(instruction, guide.dos, dosCalls, browseMemory, () => refresh("instruction"),
+    condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }));
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
     followChoices: [
@@ -139,7 +140,6 @@ function mount(root: HTMLElement): void {
       const observed = log.recording ? observeBoundary() : undefined;
       const record = log.capture(() => debug.capture(() => diskActivity.capture(() => session.step())), observed);
       portTrace.observe(record, session.machine.io.clock.ticks);
-      dosCalls.observe(record);
       sound.observe();
       watchHistory.observe(record, debug.watchpoints, log.memoryWrites(record));
       return record;
@@ -155,7 +155,7 @@ function mount(root: HTMLElement): void {
   const debugView = createXtDebuggerView(root, debug, {
     ramMaximum: session.machine.ram.size - 1, changed: refresh,
     memory: browseMemory,
-    labels: guide.labels, history: address => watchView.select({ address }),
+    labels: guide.labels, dos: guide.dos, history: address => watchView.select({ address }),
     watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
   });
   function browseMemory(address: number): void { memory.browse(address); workspace.show("memory"); }
@@ -254,7 +254,7 @@ function mount(root: HTMLElement): void {
       if (instruction.getClientRects().length && (requested === "instruction" || updates.shouldUpdate("instruction", running))) {
         const preview = previewXtInstruction(session, catalogue);
         showInstruction(preview);
-        showDos(preview.record && dosRequest(guide.dos, preview.record, readStorage));
+        showDos(preview.record && dosRequest(guide.dos, preview.record, readStorage), debug.dosHit);
       }
       if (memoryPanel.getClientRects().length && (requested === "memory" || updates.shouldUpdate("memory", running))) {
         memory.refresh(address => readXtStorage(session.machine, catalogue.storage, address), cpu.pc, {
@@ -284,7 +284,7 @@ function mount(root: HTMLElement): void {
   function resetTools(): void {
     unobserveSpeaker(); unobserveSpeaker = observeSpeaker(); intervals.clearStep();
     execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset(); ioView.reset(); diskActivity.reset();
-    diskFiles.reset(); diskActivityView.resetFilter(); dosCalls.reset();
+    diskFiles.reset(); diskActivityView.resetFilter();
   }
   function run(): void { debug.run(); message.textContent = ""; execution.run(); screen.focus(); }
   function powerOn(start: "cold" | "quick"): void {

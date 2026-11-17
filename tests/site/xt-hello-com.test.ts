@@ -11,7 +11,7 @@ import { matchesXtDosObservation, type XtDosObservation } from "../../site/inter
 import type { XtCheckpoint } from "../../site/interactive/xt-rom-guide.js";
 import { createXtDiskActivity } from "../../site/interactive/xt-disk-activity.js";
 import { fat12FileRegions, inspectFat12, readFat12File } from "../../site/interactive/fat12.js";
-import { createXtDosCalls } from "../../site/interactive/xt-dos-services.js";
+import { createXtDosCalls, type DosCall } from "../../site/interactive/xt-dos-services.js";
 import { dosCallLines } from "../../site/interactive/xt-dos-explanation.js";
 import { xtFileTransfers } from "../../site/interactive/xt-disk-file-transfers.js";
 import { xtRomGuide } from "./xt-inspection-fixture.js";
@@ -66,8 +66,9 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   session.keyboard.paste("\n"); until(() => lastLine() === "Enter new time:");
   session.keyboard.paste("\n"); until(() => lastLine() === "A>"); until(() => !session.machine.io.disketteMotorOn);
   session.insertDisk("DATA.IMG", disk);
-  const debug = createXtDebugger(() => session.machine), activity = createXtDiskActivity(() => session.machine.io);
+  const activity = createXtDiskActivity(() => session.machine.io);
   const dosCalls = createXtDosCalls(xtRomGuide.dos, address => address < session.machine.ram.size ? session.machine.ram.read(address) : undefined);
+  const debug = createXtDebugger(() => session.machine, undefined, dosCalls);
   let boundaries = 0, halfway: { state: XtSessionState; boundaries: number } | undefined;
   const copies: { pc: number; address: number; value: number }[] = [];
   let writer = 0;
@@ -82,7 +83,6 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
     while (!debug.beforeStep()) {
       writer = session.machine.cpu.snapshot().pc;
       const record = debug.capture(() => activity.capture(() => session.step())); boundaries++;
-      dosCalls.observe(record);
       if (!halfway && record.dma?.offset === 7168 + 255) halfway = { state: session.snapshot(), boundaries };
       // Termination must not fall through into the string at 010C.
       if (index === 7) assert.notEqual(record.after.pc, 0xc6bc);
@@ -128,15 +128,38 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   assert.deepEqual(session.machine.io.exportDiskette(), new Uint8Array(disk));
 
   // All DOS results are paired with the observed caller, without using loader or kernel addresses.
-  function command(text: string): void {
+  function command(text: string, functions: readonly number[], checkpointCall: (call: DosCall) => boolean) {
     dosCalls.reset(); session.keyboard.paste(text + "\n");
+    debug.setEventStops([...functions.flatMap(fn => (["call", "return"] as const).map(phase =>
+      ({ kind: "dos" as const, phase, function: fn, enabled: true }))), { kind: "dos", phase: "error", function: 0x3e, enabled: true }]);
+    debug.run();
+    const hits: DosCall[] = [];
+    let halfway: { state: XtSessionState; boundaries: number } | undefined;
     for (let n = 0; n < 3_000_000; n++) {
-      dosCalls.observe(session.step());
-      if (n % 512 === 0 && !session.keyboard.pasteRemaining && !session.keyboard.queuedBytes && lastLine() === "A>") return;
+      debug.capture(() => session.step());
+      if (debug.beforeStep()) {
+        assert.equal(debug.stop!.kind, "event"); const call = debug.dosHit!; hits.push(call);
+        if (!halfway && checkpointCall(call) && call.state === "pending") halfway = { state: session.snapshot(), boundaries: n + 1 };
+        debug.run(); // Resume crosses this completed event once, without matching the history again.
+      }
+      if (n % 512 === 0 && !session.keyboard.pasteRemaining && !session.keyboard.queuedBytes && lastLine() === "A>") {
+        assert.ok(halfway); return { hits, halfway, boundaries: n + 1 };
+      }
     }
     assert.fail(screen(session.machine).join("\n"));
   }
-  command("TYPE README.TXT");
+  function recover(completed: ReturnType<typeof command>): readonly DosCall[] {
+    const end = session.snapshot(), points = debug.eventStops, hits: DosCall[] = [];
+    session.restore(completed.halfway.state); debug.reset(); debug.run();
+    assert.deepEqual(debug.eventStops, points); assert.deepEqual(dosCalls.entries(), []);
+    for (let n = completed.halfway.boundaries; n < completed.boundaries; n++) {
+      debug.capture(() => session.step());
+      if (debug.beforeStep()) { assert.equal(debug.stop!.kind, "event"); hits.push(debug.dosHit!); debug.run(); }
+    }
+    assert.deepEqual(session.snapshot(), end, "Stopping and restoring mid-call preserve every guest byte and clock");
+    assert.equal(lastLine(), "A>"); return hits;
+  }
+  const readStops = command("TYPE README.TXT", [0x3d, 0x3f], call => call.service.function === "3F");
   const opened = dosCalls.entries().find(call => call.service.function === "3D")!;
   assert.equal(Buffer.from(opened.buffer!.bytes).toString("ascii"), "README.TXT");
   assert.equal(opened.result!.ax, 5); assert.equal(opened.result!.carry, false);
@@ -149,9 +172,16 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   const invalidClose = dosCalls.entries().find(call => call.service.function === "3E" && call.result?.carry)!;
   assert.equal(invalidClose.result!.ax, 6);
   assert.match(dosCallLines(invalidClose, xtRomGuide.dos, invalidClose).join("\n"), /Error 0006 · Invalid handle/);
+  assert.deepEqual(readStops.hits.filter(call => call.service.function === "3F").map(call => [call.state, call.result?.ax]),
+    [["pending", undefined], ["returned", 58], ["pending", undefined], ["returned", 0]]);
+  assert.ok(readStops.hits.some(call => call.service.function === "3E" && call.result?.carry && call.result.ax === 6));
+  const replayReads = recover(readStops).filter(call => call.service.function === "3F");
+  assert.deepEqual(replayReads.map(call => [call.state, call.result?.ax]), [["pending", undefined], ["returned", 0]],
+    "The first read's uncaptured return is ignored after restoration; the next read still stops at EOF");
   until(() => !session.machine.io.disketteMotorOn);
   session.insertDisk("DATA.IMG", disk, { writable: true });
-  command("ECHO HELLO>SAVE.TXT");
+  const writeStops = command("ECHO HELLO>SAVE.TXT", [0x3c, 0x40],
+    call => call.service.function === "40" && Buffer.from(call.buffer!.bytes).toString("ascii") === "HELLO");
   const created = dosCalls.entries().find(call => call.service.function === "3C")!;
   assert.equal(Buffer.from(created.buffer!.bytes).toString("ascii"), "SAVE.TXT");
   assert.equal(created.result!.carry, false); assert.equal(created.result!.ax, 5);
@@ -164,5 +194,11 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   const savedFile = savedVolume.entries.find(file => file.name === "SAVE.TXT")!;
   assert.equal(Buffer.from(readFat12File(exported, savedVolume, savedFile)).toString("ascii"), "HELLO\r\n");
   assert.equal(Buffer.from(reads[0]!.result!.buffer!.bytes).toString("ascii"), readmeText, "History retains captured bytes after reuse of guest RAM");
+  assert.deepEqual(writeStops.hits.filter(call => call.id >= written.id && call.id <= following.id).map(call => [call.state, call.result?.ax]),
+    [["pending", undefined], ["returned", 5], ["pending", undefined], ["returned", 2]]);
+  const replayWrites = recover(writeStops).filter(call => call.service.function === "40");
+  assert.deepEqual(replayWrites.slice(0, 2).map(call => [call.state, call.result?.ax]), [["pending", undefined], ["returned", 2]]);
+  assert.ok(replayWrites.every(call => Buffer.from(call.buffer!.bytes).toString("ascii") !== "HELLO"), "The restored HELLO write has no captured call");
+  assert.deepEqual(session.machine.io.exportDiskette(), exported, "The writable image survives a mid-write restoration");
   activity.dispose(); debug.dispose();
 });

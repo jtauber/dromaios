@@ -453,6 +453,32 @@ marks unfinished calls untracked. Reset, restoring a checkpoint, and
 **Clear DOS calls** discard both history and pending pairs; an uncaptured
 call's later return cannot manufacture a result.
 
+In **Debugger → Event stops**, choose **DOS service**, a call, return, or
+error return, and a described service (or all described services). The buttons
+beside an observed call in Instruction add the same conditions, matching its
+`AH` for any caller or handle; adding an existing condition enables it again.
+Conditions can be disabled or removed and are remembered separately from the
+machine checkpoint. They work with Live updates and trace recording off.
+
+A call stop follows the complete `INT 21h` entry, with the saved interrupt
+frame already on the stack and DOS ready to execute. A return stop follows
+the matched return to the caller, including an error return. An error stop
+requires returned `CF=1` on a service whose declared result kind is `status`,
+`handle`, or `count`; raw carry on print or child-status calls is not an error
+indication. Termination supports call stops only. These conditions can
+interrupt Run, Step over, and Step out. Resume advances from the stopped
+boundary without matching the same event again. RAM write watches take
+priority over raw I/O/interrupt events, which take priority over DOS stops;
+DOS observations are still captured when another condition wins.
+
+When a DOS condition stops execution, Instruction selects that observed call
+so its arguments, result, and buffer links can be inspected. Reset and
+checkpoint restoration keep the conditions but clear the captured pairs.
+Restoring inside a service therefore cannot stop on that service's later
+return; its call was not observed in the restored session. The next captured
+call can stop normally. Restoring before a call reproduces its entry and
+return stops.
+
 The original-DOS acceptance checks these observations alongside the existing
 HELLO.COM walkthrough:
 
@@ -469,6 +495,14 @@ the successful reads and writes. Handle 1 can refer to a file after
 the inspector therefore reports its numeric value without assuming a screen
 destination. These checks use recorded calls and returns rather than fixed
 DOS kernel addresses.
+
+The same checks enable service entry/return stops for opening and reading
+README.TXT, creating SAVE.TXT, and writing through its redirected handle.
+The read stops expose 58 bytes followed by zero at EOF; the write stops expose
+5 bytes followed by 2. Error stops catch the command interpreter's invalid
+handle closes. Checkpoints taken inside the first read and write reproduce
+the complete guest state, clocks, and writable disk image: the uncaptured
+return is skipped, and the subsequent EOF read or CR/LF write still stops.
 
 ### Saving a DOS file across a fresh boot
 

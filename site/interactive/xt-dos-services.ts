@@ -40,6 +40,10 @@ export interface DosCall extends DosRequest {
   readonly state: "pending" | "returned" | "no-return" | "untracked";
   readonly result?: DosResult;
 }
+/** Only these declared contracts assign an error meaning to returned carry. */
+export function dosReportsErrors(service: DosService): boolean {
+  return ["status", "handle", "count"].includes(service.result.kind);
+}
 type Read = (address: number) => number | undefined;
 
 const sampleLimit = 256;
@@ -91,7 +95,7 @@ export function createXtDosCalls(catalogue: DosServices, read: Read) {
     get revision() { return revision; },
     entries(): readonly DosCall[] { return history.slice(); },
     reset(): void { history.length = 0; pending = []; revision++; },
-    observe(record: XtBoundary): void {
+    observe(record: XtBoundary): DosCall | undefined {
       const request = dosRequest(catalogue, record, read);
       if (request) {
         const terminates = request.service.result.kind === "terminate";
@@ -101,7 +105,7 @@ export function createXtDosCalls(catalogue: DosServices, read: Read) {
         if (history.length > 128) {
           const removed = history.shift()!; pending = pending.filter(id => id !== removed.id);
         }
-        revision++; return;
+        revision++; return call;
       }
       if (!pending.length || record.outcome !== "executed" || !record.instruction) return;
       const opcode = record.instruction.bytes[opcode8088Index(record.instruction.bytes)];
@@ -117,8 +121,10 @@ export function createXtDosCalls(catalogue: DosServices, read: Read) {
       const call = history[index]!, input = call.buffer;
       const output = input && call.service.buffer?.direction === "output" && !cpu.flags.cf
         ? buffer(read, input.segment, input.offset, Math.min(cpu.ax, input.length!), true) : undefined;
-      history[index] = { ...call, state: "returned", result: { ax: cpu.ax, carry: cpu.flags.cf, ...(output && { buffer: output }) } };
+      const completed: DosCall = { ...call, state: "returned", result: { ax: cpu.ax, carry: cpu.flags.cf, ...(output && { buffer: output }) } };
+      history[index] = completed;
       pending = pending.filter(id => id !== call.id); revision++;
+      return completed;
     },
   };
 }
