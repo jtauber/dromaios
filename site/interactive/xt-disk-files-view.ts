@@ -4,15 +4,18 @@ import type { createXtDiskActivity } from "./xt-disk-activity.js";
 import type { XtIo } from "../../src/machines/8088/pc-xt/io.js";
 import { xtHex as hex } from "./8088-disassembly.js";
 import { memoryLink } from "./memory-link.js";
+import type { DosFileLink } from "./xt-dos-file-links.js";
+import { showDosFileLink } from "./xt-dos-file-link-view.js";
 
 export function createXtDiskFilesView(root: HTMLElement, activity: ReturnType<typeof createXtDiskActivity>,
-  browseMemory: (address: number) => void, browseActivity: (regions: readonly Fat12Region[], label: string, operation?: number) => void,
+  browseMemory: (address: number) => void, browseActivity: (regions: readonly Fat12Region[], label: string, operations?: number | readonly number[]) => void,
   changed: () => void) {
   const at = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const panel = at("disk-files"), status = at("disk-files-status"), choice = at<HTMLSelectElement>("disk-file-choice");
   const output = at("disk-file-detail"), transfers = at("disk-file-transfers");
   let image: readonly number[] | null | undefined, volume: Fat12Volume | undefined, revision = -1;
   let selected = "", error = "", ticks = 0;
+  let captured: DosFileLink | undefined;
   const key = (offset: number, name: string) => `${offset}:${name}`;
   function button(label: string, regions: readonly Fat12Region[], operation?: number) {
     const link = document.createElement("button"); link.type = "button"; link.className = "lab-memory-link";
@@ -21,6 +24,11 @@ export function createXtDiskFilesView(root: HTMLElement, activity: ReturnType<ty
   }
   function details(): void {
     output.replaceChildren(); transfers.replaceChildren();
+    at("disk-file-transfers-title").hidden = !!captured;
+    if (captured) {
+      showDosFileLink(output, captured, captured.epoch === activity.epoch, browseMemory, browseActivity);
+      return;
+    }
     const entry = volume?.entries.find(e => key(e.offset, e.name) === selected);
     if (!volume || !entry) return;
     const regions = fat12FileRegions(volume, entry), info = document.createElement("p");
@@ -56,14 +64,19 @@ export function createXtDiskFilesView(root: HTMLElement, activity: ReturnType<ty
       transfers.append(row);
     }
   }
-  choice.onchange = () => { selected = choice.value; details(); };
-  at("disk-files-refresh").onclick = () => { image = undefined; changed(); };
+  choice.onchange = () => { captured = undefined; selected = choice.value; changed(); details(); };
+  at("disk-files-refresh").onclick = () => { captured = undefined; image = undefined; changed(); };
   return {
     select(name: string): void {
+      captured = undefined;
       const entry = volume?.entries.find(entry => entry.name === name);
       if (entry) { selected = key(entry.offset, entry.name); choice.value = selected; details(); }
     },
-    reset(): void { image = undefined; volume = undefined; selected = ""; revision = -1; output.replaceChildren(); transfers.replaceChildren(); choice.replaceChildren(); at("disk-files-warnings").textContent = ""; },
+    selectRange(link: DosFileLink): void {
+      captured = link; choice.value = link.entry ? key(link.entry.offset, link.entry.name) : "";
+      revision = -1; details();
+    },
+    reset(): void { captured = undefined; image = undefined; volume = undefined; selected = ""; revision = -1; output.replaceChildren(); transfers.replaceChildren(); choice.replaceChildren(); at("disk-files-warnings").textContent = ""; },
     refresh(io: XtIo, running: boolean): void {
       if (panel.hidden) return;
       at<HTMLButtonElement>("disk-files-refresh").disabled = running;
@@ -79,9 +92,10 @@ export function createXtDiskFilesView(root: HTMLElement, activity: ReturnType<ty
           const entry = volume?.entries.find(e => e.kind === "file") ?? volume?.entries[0];
           selected = entry ? key(entry.offset, entry.name) : "";
         }
-        choice.value = selected; revision = -1;
+        choice.value = captured ? captured.entry ? key(captured.entry.offset, captured.entry.name) : "" : selected;
+        revision = -1;
       }
-      status.textContent = error || (!image ? "Drive A is empty." : volume
+      status.textContent = captured ? "Captured DOS range. Choose a root entry or Refresh files to inspect the current disk." : error || (!image ? "Drive A is empty." : volume
         ? `FAT12 · ${volume.entries.length} root entries · ${volume.sectorsPerCluster} sectors per cluster · ${volume.clusterCount} data clusters · root at +$${hex(volume.rootOffset, 5)} · snapshot at ${ticks.toLocaleString()} ticks`
         : "No readable root directory.");
       at("disk-files-warnings").textContent = volume?.warnings.join(" ") ?? "";

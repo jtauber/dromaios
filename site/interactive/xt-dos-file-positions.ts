@@ -5,11 +5,16 @@ export interface DosFileTableProfile {
   readonly entrySize: string;
   readonly information: string;
   readonly position: string;
+  readonly firstCluster: string;
+  readonly directorySector: string;
+  readonly directoryIndex: string;
+  readonly name: string;
 }
 export interface DosFilePosition {
   readonly scope: string;
   readonly entry: number;
   readonly offset: number;
+  readonly disk?: { readonly drive: number; readonly firstCluster: number; readonly directory: number; readonly name: string };
 }
 
 /** Read local disk-file positions from the selected DOS's SFT chain; never call DOS or read devices. */
@@ -38,7 +43,15 @@ export function dosFilePositions(profile: DosFileTableProfile, kernel: number, s
       // Exclude unused records, FCB records, character devices, and remote files.
       if (references !== undefined && references > 0 && references !== 0xffff && mode !== undefined && !(mode & 0x8000)
         && info !== undefined && !(info & 0x8080) && low !== undefined && high !== undefined) {
-        positions.set(index, { scope, entry: physical8088(segment, entry), offset: low + high * 0x10000 });
+        const cluster = word(segment, entry + parseInt(profile.firstCluster, 16));
+        const sector = word(segment, entry + parseInt(profile.directorySector, 16));
+        const slot = read(physical8088(segment, entry + parseInt(profile.directoryIndex, 16)));
+        const name = Array.from({ length: 11 }, (_, i) => read(physical8088(segment, entry + parseInt(profile.name, 16) + i)));
+        const disk = cluster !== undefined && sector !== undefined && slot !== undefined && slot < 16
+          && name.every(byte => byte !== undefined && byte >= 32 && byte < 127)
+          ? { drive: info & 0x3f, firstCluster: cluster, directory: sector * 512 + slot * 32,
+            name: String.fromCharCode(...name as number[]) } : undefined;
+        positions.set(index, { scope, entry: physical8088(segment, entry), offset: low + high * 0x10000, ...(disk && { disk }) });
       }
       wanted.delete(index);
     }

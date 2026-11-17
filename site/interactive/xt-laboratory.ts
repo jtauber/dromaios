@@ -39,6 +39,7 @@ import { previewXtInstruction } from "./xt-instruction-preview.js";
 import { createXtInstructionView } from "./xt-instruction-view.js";
 import { createXtDosCalls, type DosServices } from "./xt-dos-services.js";
 import { createXtDosServicesView } from "./xt-dos-services-view.js";
+import { createXtDosFileLinks } from "./xt-dos-file-links.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
 import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
 import { createXtRomAnnotations, xtCheckpointPosition } from "./xt-rom-guide.js";
@@ -99,10 +100,13 @@ function mount(root: HTMLElement): void {
     (regions, label, operation) => { diskActivityView.filter(regions, label, operation); diskMode("activity"); }, () => refresh("dma"));
   const showInstruction = createXtInstructionView(instruction, browseMemory);
   const readStorage = (address: number) => readXtStorage(session.machine, catalogue.storage, address);
-  const dosCalls = createXtDosCalls(guide.dos, readStorage);
+  const dosFileLinks = createXtDosFileLinks(() => session.machine.io, diskActivity);
+  const dosCalls = createXtDosCalls(guide.dos, readStorage, dosFileLinks.observe);
   const debug = createXtDebugger(() => session.machine, undefined, dosCalls);
-  const showDos = createXtDosServicesView(instruction, guide.dos, dosCalls, browseMemory, () => refresh("instruction"),
-    condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }));
+  const showDos = createXtDosServicesView(instruction, guide.dos, dosCalls, browseMemory,
+    () => { dosFileLinks.reset(); diskFiles.reset(); refresh("instruction"); },
+    condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }), dosFileLinks,
+    link => { diskFiles.selectRange(link); diskMode("files"); workspace.show("dma"); });
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
     followChoices: [
@@ -284,7 +288,7 @@ function mount(root: HTMLElement): void {
   function resetTools(): void {
     unobserveSpeaker(); unobserveSpeaker = observeSpeaker(); intervals.clearStep();
     execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset(); ioView.reset(); diskActivity.reset();
-    diskFiles.reset(); diskActivityView.resetFilter();
+    dosFileLinks.reset(); diskFiles.reset(); diskActivityView.resetFilter();
   }
   function run(): void { debug.run(); message.textContent = ""; execution.run(); screen.focus(); }
   function powerOn(start: "cold" | "quick"): void {

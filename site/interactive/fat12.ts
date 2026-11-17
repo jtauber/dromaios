@@ -125,7 +125,7 @@ export function fat12FileRegions(volume: Fat12Volume, entry: Fat12Entry): Fat12R
   for (const [index, cluster] of entry.clusters.entries()) {
     for (const [copy, offset] of volume.fatOffsets.entries()) regions.push({ kind: "fat", label: `FAT ${copy + 1} · cluster ${cluster}`,
       offset: offset + Math.floor(cluster * 3 / 2), length: 2, cluster });
-    regions.push({ kind: "data", label: `Cluster ${cluster}`, offset: volume.dataOffset + (cluster - 2) * clusterBytes,
+    regions.push({ kind: "data", label: `Cluster ${cluster}`, cluster, offset: volume.dataOffset + (cluster - 2) * clusterBytes,
       length: clusterBytes, ...(entry.kind === "file" && { fileOffset: index * clusterBytes,
         fileBytes: Math.min(clusterBytes, Math.max(0, entry.size - index * clusterBytes)) }) });
   }

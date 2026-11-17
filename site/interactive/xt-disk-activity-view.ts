@@ -11,13 +11,13 @@ export function createXtDiskActivityView(root: HTMLElement, activity: ReturnType
   const at = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const output = at("disk-operations"), recording = at<HTMLInputElement>("disk-recording");
   let revision = -1;
-  let filter: { regions: readonly Fat12Region[]; label: string; operation?: number } | undefined;
+  let filter: { regions: readonly Fat12Region[]; label: string; operations?: readonly number[] } | undefined;
   recording.onchange = () => { activity.record(recording.checked); changed(); };
   at("disk-clear").onclick = () => { activity.reset(); filter = undefined; revision = -1; changed(); };
   at("disk-filter-clear").onclick = () => { filter = undefined; revision = -1; changed(); };
   return {
-    filter(regions: readonly Fat12Region[], label: string, operation?: number): void {
-      filter = { regions, label, operation }; revision = -1;
+    filter(regions: readonly Fat12Region[], label: string, operations?: number | readonly number[]): void {
+      filter = { regions, label, operations: typeof operations === "number" ? [operations] : operations }; revision = -1;
     },
     resetFilter(): void { filter = undefined; revision = -1; },
     refresh(): void {
@@ -26,7 +26,7 @@ export function createXtDiskActivityView(root: HTMLElement, activity: ReturnType
       revision = activity.revision;
       const opened = new Map([...output.querySelectorAll<HTMLDetailsElement>("details[data-operation]")].map(el => [Number(el.dataset.operation), el.open]));
       output.replaceChildren();
-      const retained = activity.entries(), entries = filter ? retained.filter(op => (filter!.operation === undefined || filter!.operation === op.id)
+      const retained = activity.entries(), entries = filter ? retained.filter(op => (filter!.operations === undefined || filter!.operations.includes(op.id))
         && xtDiskActivityMatches(op, filter!.regions)) : retained;
       at("disk-filter").textContent = filter ? `${filter.label} · matching snapshot ranges` : "";
       at("disk-filter-clear").hidden = !filter;

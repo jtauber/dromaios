@@ -2,9 +2,11 @@ import { dosReportsErrors, type DosCall, type DosRequest, type DosServices, type
 import type { XtDosCondition } from "./xt-event-stops.js";
 import { dosCallLines, dosOffsetText } from "./xt-dos-explanation.js";
 import { memoryAddressText } from "./memory-link.js";
+import type { createXtDosFileLinks, DosFileLink } from "./xt-dos-file-links.js";
 
 export function createXtDosServicesView(panel: HTMLElement, catalogue: DosServices, calls: ReturnType<typeof createXtDosCalls>,
-  browse: (address: number) => void, changed: () => void, addStop: (condition: XtDosCondition) => void) {
+  browse: (address: number) => void, changed: () => void, addStop: (condition: XtDosCondition) => void,
+  fileLinks: ReturnType<typeof createXtDosFileLinks>, browseFile: (link: DosFileLink) => void) {
   const at = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-dos-${name}]`)!;
   const next = at("next"), choice = at<HTMLSelectElement>("call"), detail = at("detail");
   const filenameOnly = at<HTMLInputElement>("filename-only");
@@ -12,6 +14,8 @@ export function createXtDosServicesView(panel: HTMLElement, catalogue: DosServic
   let previousHit: DosCall | undefined;
   function showObserved(): void {
     const call = selected === undefined ? calls.entries().at(-1) : calls.entries().find(call => call.id === selected);
+    const link = call && fileLinks.get(call), files = at<HTMLButtonElement>("files");
+    files.disabled = !link; files.onclick = () => { if (link) browseFile(link); };
     detail.replaceChildren(memoryAddressText(call ? `Observed DOS call · INT 21h/AH=${call.service.function} · ${call.service.name}\n`
       + dosCallLines(call, catalogue, call).join("\n") : "No observed DOS calls.", browse, 5));
     filenameOnly.disabled = call?.filename === undefined;

@@ -33,6 +33,7 @@ function fixture(writing = false, start = 0x24000, count = 1024) {
 
 test("sector activity groups actual DMA spans and decodes a complete two-sector read", () => {
   const f = fixture();
+  const mark = f.activity.mark();
   f.until(() => f.activity.entries()[0]?.bytes === 1024);
   let op = f.activity.entries()[0]!;
   assert.equal(op.command, 0xe6); assert.equal(op.continued, false); assert.equal(op.state, "result");
@@ -43,6 +44,8 @@ test("sector activity groups actual DMA spans and decodes a complete two-sector 
   assert.match(xtDisketteResult(op.command, op.result), /Normal termination.*0\/0\/3\/2/);
   f.drain(); op = f.activity.entries()[0]!;
   assert.equal(op.state, "complete"); assert.equal(op.consumed, 7);
+  assert.equal(f.activity.since(mark).complete, true);
+  assert.equal(f.activity.since(mark).operations[0]!.bytes, 1024);
   f.activity.dispose();
 });
 
@@ -76,15 +79,19 @@ test("a 64 KiB DMA wrap splits RAM spans without inventing a different disk sect
 
 test("pausing capture cannot join unobserved bytes, and bounded history and copies stay independent", () => {
   const f = fixture(); f.until(() => f.activity.entries()[0]?.bytes === 256);
+  const partial = f.activity.mark();
   f.activity.record(false); const revision = f.activity.revision;
   for (let i = 0; i < 100; i++) f.step();
   assert.equal(f.activity.revision, revision);
   f.activity.record(true); assert.equal(f.activity.entries().at(-1)!.continued, true);
   f.until(() => f.activity.entries().at(-1)?.state === "result"); f.drain();
+  assert.equal(f.activity.since(partial).complete, false);
+  const beforeOverflow = f.activity.mark();
   for (let i = 0; i < 6; i++) {
     f.program([0xb0, 8, 0xee, 0xec, 0xec]); for (let n = 0; n < 4; n++) f.step();
   }
   assert.equal(f.activity.entries().length, 3); assert.ok(f.activity.discarded >= 3);
+  assert.equal(f.activity.since(beforeOverflow).complete, false, "Lost commands cannot establish an empty activity window");
   const entries = f.activity.entries(); (entries[0]!.result as number[])[0] = 99;
   assert.notEqual(f.activity.entries()[0]!.result[0], 99); f.activity.dispose();
 });

@@ -100,7 +100,7 @@ export function dosRequest(catalogue: DosServices, record: XtBoundary, read: Rea
 }
 
 /** Bounded observed calls, independent of CPU emulation, drawing, and the shared stopping policy. */
-export function createXtDosCalls(catalogue: DosServices, read: Read) {
+export function createXtDosCalls(catalogue: DosServices, read: Read, observed?: (call: DosCall) => void) {
   const history: DosCall[] = [], handles = createDosHandles(() => dosHandleTable(catalogue.handleTable, read));
   const forgottenInterrupts = catalogue.forgetHandles.interrupts.map(value => parseInt(value, 16));
   const forgottenFunctions = catalogue.forgetHandles.functions.map(value => parseInt(value, 16));
@@ -140,7 +140,7 @@ export function createXtDosCalls(catalogue: DosServices, read: Read) {
           const removed = history.shift()!;
           if (pending.includes(removed.id)) abandon();
         }
-        revision++; return call;
+        revision++; observed?.(call); return call;
       }
       if (!pending.length || record.outcome !== "executed" || !record.instruction) return;
       const opcode = record.instruction.bytes[opcode8088Index(record.instruction.bytes)];
@@ -164,7 +164,7 @@ export function createXtDosCalls(catalogue: DosServices, read: Read) {
       handles.returned(call, completed.result!);
       history[index] = completed;
       pending = pending.filter(id => id !== call.id); revision++;
-      return completed;
+      observed?.(completed); return completed;
     },
   };
 }

@@ -624,6 +624,62 @@ The [original-DOS acceptance](../../../tests/site/xt-hello-com.test.ts) checks:
 | Checkpoint recovery | Restore before and inside a read, relative seek, and overwrite. Replay must reproduce complete machine state and disk bytes; only a captured entry can reproduce a paired result and range. |
 | Device handles | Open `NUL` and write to it without claiming disk-file positions or byte ranges. |
 
+#### Following file bytes into RAM
+
+After an observed read or write, choose **Follow file bytes** in Instruction.
+**DMA / diskette → Files** opens that call's captured connection:
+
+- **Program buffer** links the completed range at the caller's original
+  `DS:DX` to Memory. Segment and physical-address wrapping split the links.
+- **FAT12 allocation** maps those file offsets to clusters and disk-image
+  sectors, clipping the first and last sectors to the bytes actually transferred.
+  Fragmented files follow their FAT chain; file offsets are not image offsets.
+- **Disk activity during this call** links only matching DMA spans observed
+  between that call's entry and return, in its transfer direction. Select a
+  sector or command to filter Activity; the DMA RAM links can lead to DOS's
+  own buffers, distinct from the program buffer.
+
+The connection captures the on-disk allocation at the return, not when the
+view is opened. Later seeks, overwrites, or disk exchanges cannot rewrite that
+observation. **Refresh files** or choosing a root entry returns to the current
+disk inspector. Memory links always open current RAM. Clearing DOS calls,
+resetting, or restoring a checkpoint discards these captured connections.
+Clearing Activity or exchanging media disables old command links rather than
+reusing their command numbers for another history.
+
+The guarded SFT identity adds the local drive, first cluster (`000B`),
+directory sector (`001D`), slot within that sector (`001F`), and padded short
+name (`0020`). These fields follow the same
+[DOS 3.1–3.3 table](https://fd.lod.bz/rbil/interrup/dos_kernel/2152.html)
+and are checked against the mounted disk's root entry. Only local Drive A root
+files with matching directory location, name and first cluster are linked;
+the inspector does not guess a basename, current directory, or drive from the
+path used at open time. A restored call can therefore recover allocation
+links from DOS RAM even though its opening-name history is gone. Inconsistent
+FAT copies, incomplete chains, or ranges beyond the on-disk size leave
+allocation unavailable. DOS may still hold updated metadata in its buffers.
+
+A successful read need not access the disk. With uninterrupted recording,
+the view can report that **no disk DMA occurred during this read**. A cached
+read still has a program buffer and file allocation, but no new disk transfer
+to link. Conversely, writes may remain buffered after DOS returns. A command
+window does not attribute later flushes to an earlier write, or claim that
+overlapping DMA and program buffers prove which CPU instructions copied the
+bytes. Paused recording, discarded commands or sectors, uncaptured controller
+accesses, and incomplete calls make the window explicitly partial.
+
+The [file-range acceptance](../../../tests/site/xt-dos-file-ranges-dos.test.ts)
+boots the original DOS with an independently constructed 2,050-byte file whose
+clusters are `2 → 5 → 4`. It requires these results:
+
+| Operation | Connection and independently checked result |
+| --- | --- |
+| Read 40 bytes at file offset 500 | Two sectors supply 12 and 28 file bytes. DMA enters DOS's buffers; the complete 40 bytes also reach the caller's buffer. |
+| Seek to 520 and read 8 bytes | The exact bytes arrive without new disk DMA; earlier sector reads are not relabelled as this call's activity. |
+| Seek to 1000 and read 40 bytes | The last 24 bytes of cluster 2 and first 16 of cluster 5 map to separate image ranges, across the allocation gap. |
+| Seek a duplicate to 508, write through the original | Twelve replacement bytes cross the sector boundary. Only the first four reach disk during the call; the other eight remain buffered. Reading back and inspecting the exported FAT12 file after closing must agree, with every other byte unchanged. Later flushes cannot rewrite the call's captured activity. |
+| Restore before or halfway through transfers | The read and write replay to identical complete machine state. A replay from before entry reproduces the connection; a restore inside the call leaves its return uncaptured. Ordinary execution without observers reaches the same state. |
+
 ### Saving a DOS file across a fresh boot
 
 At the `A>` prompt, wait for **Motor off**. Choose **Insert writable copy…**
@@ -1348,7 +1404,7 @@ a return instruction before establishing a working RAM stack.
     ],
     "errors": {"0001": "Invalid function", "0002": "File not found", "0003": "Path not found", "0004": "Too many open files", "0005": "Access denied", "0006": "Invalid handle", "000C": "Invalid access mode"},
     "forgetHandles": {"interrupts": ["20", "27"], "functions": ["00", "26", "31", "4B", "4C", "50", "55", "5A", "5B", "67", "6C"]},
-    "handleTable": {"name": "MS-DOS 3.30 local handle table", "entry": "1460", "guards": [{"offset": "1460", "bytes": "2E 3A 26 FF 0D 77 DC 80 FC 51 74 A1"}, {"offset": "140D", "bytes": "2E 8B 1E DE 02 CF"}], "currentPsp": "02DE", "count": "0032", "pointer": "0034", "systemFiles": {"pointer": "002A", "entrySize": "0035", "information": "0005", "position": "0015"}}
+    "handleTable": {"name": "MS-DOS 3.30 local handle table", "entry": "1460", "guards": [{"offset": "1460", "bytes": "2E 3A 26 FF 0D 77 DC 80 FC 51 74 A1"}, {"offset": "140D", "bytes": "2E 8B 1E DE 02 CF"}], "currentPsp": "02DE", "count": "0032", "pointer": "0034", "systemFiles": {"pointer": "002A", "entrySize": "0035", "information": "0005", "position": "0015", "firstCluster": "000B", "directorySector": "001D", "directoryIndex": "001F", "name": "0020"}}
   },
   "sha256": "2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2",
   "io": {

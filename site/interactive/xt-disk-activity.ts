@@ -34,12 +34,19 @@ interface Operation {
 export type XtDiskOperation = Readonly<Omit<Operation, "parameters" | "result" | "sectors">> & {
   readonly parameters: readonly number[]; readonly result: readonly number[]; readonly sectors: readonly Readonly<Sector>[];
 };
+export interface XtDiskActivityMark {
+  readonly epoch: number;
+  readonly continuity: number;
+  readonly sequence: number;
+  readonly complete: boolean;
+}
 
 /** A passive protocol history, separate from both device state and the bounded raw byte trace. */
 export function createXtDiskActivity(current: () => XtIo, capacity = 64) {
   if (!Number.isSafeInteger(capacity) || capacity < 1) throw new RangeError("Disk activity capacity must be positive.");
   let io: XtIo | undefined, detach = () => {}, recording = true, capturing = false, needsSeed = true;
   let pending: XtDisketteAccess[] | undefined, active: Operation | undefined, sequence = 0, revision = 0;
+  let epoch = 0, continuity = 0;
   const history: Operation[] = [];
   function interrupt(note: string): void {
     if (active) { active.state = "interrupted"; active.note = note; active = undefined; revision++; }
@@ -70,13 +77,14 @@ export function createXtDiskActivity(current: () => XtIo, capacity = 64) {
   function connect(): void {
     const next = current();
     if (io === next) return;
+    continuity++;
     interrupt("The machine was replaced.");
     detach(); io = next; needsSeed = true;
     if (!recording) return;
     detach = io.observeDiskette(access => {
       if (!recording) return;
       if (capturing) (pending ??= []).push(access);
-      else { interrupt("A controller access occurred outside captured execution."); needsSeed = true; }
+      else { interrupt("A controller access occurred outside captured execution."); needsSeed = true; continuity++; }
     });
   }
   function access(event: XtDisketteAccess, caller: DebugLocation, ticks: number): void {
@@ -123,22 +131,35 @@ export function createXtDiskActivity(current: () => XtIo, capacity = 64) {
     if (transfer.terminal || byte === 511) result(io!.disketteState().diskette, ticks);
   }
   function reset(): void {
-    interrupt("Inspection restarted."); history.length = 0; sequence = 0; revision++; needsSeed = true;
+    interrupt("Inspection restarted."); history.length = 0; sequence = 0; revision++; epoch++; continuity++; needsSeed = true;
     connect(); if (recording) seed();
   }
   connect(); seed();
   return {
     capacity,
     get revision() { return revision; },
+    get epoch() { return epoch; },
     get recording() { return recording; },
     get discarded() { return Math.max(0, sequence - capacity); },
+    mark(): XtDiskActivityMark {
+      connect();
+      return { epoch, continuity, sequence, complete: recording && !needsSeed && !active };
+    },
+    since(mark: XtDiskActivityMark): { readonly complete: boolean; readonly operations: readonly XtDiskOperation[] } {
+      connect();
+      const operations = mark.epoch === epoch ? this.entries().filter(op => op.id > mark.sequence) : [];
+      const complete = mark.complete && recording && mark.epoch === epoch && mark.continuity === continuity
+        && sequence - mark.sequence <= capacity && !needsSeed && !active
+        && operations.every(op => !op.continued && !op.omittedSectors && !op.note);
+      return { complete, operations };
+    },
     entries(): readonly XtDiskOperation[] {
       return history.map(op => ({ ...op, ...(op.caller && { caller: { ...op.caller } }), parameters: [...op.parameters],
         result: [...op.result], sectors: op.sectors.map(sector => ({ ...sector })) }));
     },
     record(enabled: boolean): void {
       if (enabled === recording) return;
-      interrupt("Recording paused before completion."); recording = enabled; needsSeed = true; revision++;
+      interrupt("Recording paused before completion."); recording = enabled; needsSeed = true; revision++; continuity++;
       detach(); io = undefined;
       connect(); if (enabled) seed();
     },
@@ -155,7 +176,7 @@ export function createXtDiskActivity(current: () => XtIo, capacity = 64) {
           active.irq6 = true; active.updated = ticks; revision++;
         }
         return record;
-      } catch (cause) { interrupt("Execution failed; partial effects are not reconstructed."); needsSeed = true; throw cause; }
+      } catch (cause) { interrupt("Execution failed; partial effects are not reconstructed."); needsSeed = true; continuity++; throw cause; }
       finally { capturing = false; pending = undefined; }
     },
     dispose(): void { detach(); recording = false; },

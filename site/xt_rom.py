@@ -131,11 +131,13 @@ def _dos_services(record):
                 or int(guard["offset"], 16) + len(guard["bytes"].split()) > 0x10000):
             raise ValueError("DOS kernel guards need bounded code signatures.")
     files = profile["systemFiles"]
-    if (not isinstance(files, dict) or set(files) != {"pointer", "entrySize", "information", "position"}
+    if (not isinstance(files, dict) or set(files) != {"pointer", "entrySize", "information", "position", "firstCluster", "directorySector", "directoryIndex", "name"}
             or not all(hex_value(v, 4) for v in files.values())
             or not 0x19 <= int(files["entrySize"], 16) <= 0x100
             or not 4 <= int(files["information"], 16) <= int(files["entrySize"], 16) - 2
             or not 4 <= int(files["position"], 16) <= int(files["entrySize"], 16) - 4
+            or any(not 4 <= int(files[key], 16) <= int(files["entrySize"], 16) - width
+                   for key, width in (("firstCluster", 2), ("directorySector", 2), ("directoryIndex", 1), ("name", 11)))
             or int(files["pointer"], 16) > 0xfffc):
         raise ValueError("DOS system file tables need a far pointer and fields within a bounded record.")
     errors = record["errors"]

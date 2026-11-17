@@ -49,6 +49,8 @@ class XtRomTests(unittest.TestCase):
                        lambda r: r["dos"]["handleTable"].update(guards=[]),
                        lambda r: r["dos"]["handleTable"]["systemFiles"].update(entrySize="0000"),
                        lambda r: r["dos"]["handleTable"]["systemFiles"].update(position="0033"),
+                       lambda r: r["dos"]["handleTable"]["systemFiles"].update(name="002B"),
+                       lambda r: r["dos"]["handleTable"]["systemFiles"].update(directoryIndex="0035"),
                        lambda r: r["dos"]["services"][6]["arguments"].pop(),
                        lambda r: r["dos"]["services"][6]["result"].update(kind="status"),
                        lambda r: r["dos"]["services"][6].pop("handles"),
