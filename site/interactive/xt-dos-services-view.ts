@@ -1,6 +1,6 @@
 import { dosReportsErrors, type DosCall, type DosRequest, type DosServices, type createXtDosCalls } from "./xt-dos-services.js";
 import type { XtDosCondition } from "./xt-event-stops.js";
-import { dosCallLines } from "./xt-dos-explanation.js";
+import { dosCallLines, dosOffsetText } from "./xt-dos-explanation.js";
 import { memoryAddressText } from "./memory-link.js";
 
 export function createXtDosServicesView(panel: HTMLElement, catalogue: DosServices, calls: ReturnType<typeof createXtDosCalls>,
@@ -29,7 +29,7 @@ export function createXtDosServicesView(panel: HTMLElement, catalogue: DosServic
   return (request?: DosRequest, hit?: DosCall): void => {
     if (hit && hit !== previousHit) { selected = hit.id; revision = -1; }
     previousHit = hit;
-    at("handles").textContent = "Known handles · " + (calls.handles().map(entry => `${entry.handle} → ${JSON.stringify(entry.filename)}`).join(" · ") || "none observed");
+    at("handles").textContent = "Known handles · " + (calls.handles().map(entry => `${entry.handle} → ${JSON.stringify(entry.filename)}${entry.position === undefined ? "" : " @ " + dosOffsetText(entry.position)}`).join(" · ") || "none observed");
     next.hidden = !request;
     next.replaceChildren(...(request ? [memoryAddressText(`Next DOS call · INT 21h/AH=${request.service.function} · ${request.service.name}\n`
       + dosCallLines(request, catalogue).join("\n"), browse, 5)] : []));

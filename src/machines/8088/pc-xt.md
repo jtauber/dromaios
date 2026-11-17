@@ -469,7 +469,7 @@ A call stop follows the complete `INT 21h` entry, with the saved interrupt
 frame already on the stack and DOS ready to execute. A return stop follows
 the matched return to the caller, including an error return. An error stop
 requires returned `CF=1` on a service whose declared result kind is `status`,
-`handle`, or `count`; raw carry on print or child-status calls is not an error
+`handle`, `count`, or `position`; raw carry on print or child-status calls is not an error
 indication. Termination supports call stops only. These conditions can
 interrupt Run, Step over, and Step out. Resume advances from the stopped
 boundary without matching the same event again. RAM write watches take
@@ -564,6 +564,65 @@ handle removes that filename association. The exported file contains exactly
 those three bytes. The [handle tests](../../../tests/site/xt-dos-handles.test.ts)
 cover failures, malformed tables, process changes, immutable history, and
 case-insensitive filename conditions without requiring external media.
+
+#### File positions, seeks, and byte ranges
+
+An open disk file has a **position**: the byte offset where its next read or
+write begins. The first byte is offset zero. Successful reads and writes
+advance by the actual returned count, which can be smaller than the request.
+Two handles created by duplication share this position. Opening the same
+filename twice creates independent positions; the filename alone cannot
+identify the open file.
+
+`AH=42` changes that position without transferring bytes. `AL=0` selects an
+unsigned absolute offset in `CX:DX`. `AL=1` and `AL=2` select a signed 32-bit
+displacement from the current position or end. For example, `CX:DX=FFFF:FFFE`
+means two bytes backwards for a relative seek. On success, `DX:AX` returns
+the new absolute position; on failure, CF is set and AX is an error code.
+Seeking beyond EOF does not extend a file. A later write can extend it, and a
+zero-length write sets its length to the current position.
+[Microsoft's seek and write contracts](https://www.pcjs.org/documents/books/mspl13/msdos/encyclopedia/section5/)
+define these behaviors.
+
+Instruction captures **File position before call** and **File position after
+call** from DOS's system file table (SFT). Completed reads and writes also
+show the inclusive **File bytes** range, provided the same open-file record
+remains selected and its position change agrees with returned AX. These are
+offsets within the file, not disk-image offsets or RAM addresses. The range
+covers the entire transfer even when the displayed buffer sample is limited
+to 256 bytes. EOF and zero-length writes have no byte span; errors or
+inconsistent observations supply no claimed range. The known-handle list
+shows current positions, while past calls keep their captured values.
+
+The chapter's guarded DOS 3.30 profile supplies `systemFiles`: the far pointer
+at kernel offset `002A`, record size `0035`, device-information word at `0005`,
+and 32-bit position at `0015`. Our trace of the selected DOS's `AH=52` returns
+its list of lists at kernel offset `0026`; the SFT pointer is four bytes
+later. Each SFT block starts with its next far pointer and a word-sized record
+count. The reader follows bounded, non-cyclic blocks and accepts only
+allocated local disk-file records. Character devices, remote files, FCB
+records, missing storage, and an unrecognized kernel leave positions unknown.
+This layout agrees with the DOS 3.1–3.3 SFT in
+[Ralf Brown's table 01641](https://fd.lod.bz/rbil/interrup/dos_kernel/2152.html).
+The lab reads declared storage without invoking DOS or estimating positions
+from earlier byte counts.
+
+This makes duplicate and redirected handles share the position DOS actually
+uses. Restoring a checkpoint restores those tables with RAM. Captured calls
+and names are still cleared, but the next observed call can read its restored
+position even before its filename is known. Restoring *inside* a call cannot
+invent its missing entry or range; the following call starts a new observation.
+
+The [original-DOS acceptance](../../../tests/site/xt-hello-com.test.ts) checks:
+
+| Sequence | Required observation |
+| --- | --- |
+| Read–seek–read | Read `Dromaios` at offsets 0–7 of README, duplicate the handle, seek the duplicate to 1, then read `rom` through the original at 1–3. |
+| Relative and end seeks | Seek back two bytes through the duplicate and read `om`; seek two bytes before EOF and read only CR/LF. A further read returns zero. |
+| Full 32-bit positions | Seek to `00010002h`; returned DX is 1, and an EOF read through the duplicate retains that position. |
+| Write–seek–overwrite | Write `ABCDEF` to SAVE, seek its duplicate to 2, overwrite with `xy` through the original, then read back and independently inspect exported FAT12 bytes `ABxyEF`. |
+| Checkpoint recovery | Restore before and inside a read, relative seek, and overwrite. Replay must reproduce complete machine state and disk bytes; only a captured entry can reproduce a paired result and range. |
+| Device handles | Open `NUL` and write to it without claiming disk-file positions or byte ranges. |
 
 ### Saving a DOS file across a fresh boot
 
@@ -1281,14 +1340,15 @@ a return instruction before establishing a working RAM stack.
       {"function": "3E", "name": "Close handle", "description": "Close the handle and flush pending file updates.", "arguments": [{"register": "BX", "label": "Handle"}], "result": {"kind": "status", "description": "CF clear indicates success; CF set returns an error in AX."}, "handles": {"action": "close", "source": "BX"}},
       {"function": "3F", "name": "Read handle", "description": "Read into the destination buffer.", "arguments": [{"register": "BX", "label": "Handle"}, {"register": "CX", "label": "Maximum bytes to read"}], "result": {"kind": "count", "description": "CF clear: AX is bytes read, possibly fewer than CX. Zero means no bytes read. CF set: AX is an error."}, "buffer": {"label": "Destination", "direction": "output", "length": "CX"}, "handles": {"action": "use", "source": "BX"}},
       {"function": "40", "name": "Write handle", "description": "Write from the source buffer. CX=0 changes a disk file’s length at its current position.", "arguments": [{"register": "BX", "label": "Handle"}, {"register": "CX", "label": "Bytes to write"}], "result": {"kind": "count", "description": "CF clear: AX is bytes written; a short write is possible. CF set: AX is an error."}, "buffer": {"label": "Source", "direction": "input", "length": "CX"}, "handles": {"action": "use", "source": "BX"}},
+      {"function": "42", "name": "Seek file", "description": "Move the file pointer relative to the beginning, current position, or end of the file. Seeking does not transfer bytes or change the file length.", "arguments": [{"register": "AL", "label": "Origin: 0=beginning, 1=current position, 2=end"}, {"register": "BX", "label": "Handle"}, {"register": "CX", "label": "Displacement high word"}, {"register": "DX", "label": "Displacement low word"}], "result": {"kind": "position", "description": "CF clear: DX:AX is the new absolute byte position. CF set: AX is an error; DX is not a position."}, "handles": {"action": "seek", "source": "BX"}},
       {"function": "45", "name": "Duplicate handle", "description": "Create another handle for the same open file, sharing its file position. Closing one alias leaves the other open.", "arguments": [{"register": "BX", "label": "Source handle"}], "result": {"kind": "handle", "description": "CF clear: AX is the new handle. CF set: AX is an error."}, "handles": {"action": "duplicate", "source": "BX"}},
       {"function": "46", "name": "Redirect handle", "description": "Make the target handle refer to the source file, closing its previous file if necessary. Both handles share the file position.", "arguments": [{"register": "BX", "label": "Source handle"}, {"register": "CX", "label": "Target handle"}], "result": {"kind": "status", "description": "CF clear indicates success; CF set returns an error in AX."}, "handles": {"action": "redirect", "source": "BX", "target": "CX"}},
       {"function": "4C", "name": "Terminate process", "description": "Exit to the parent process.", "arguments": [{"register": "AL", "label": "Requested exit status"}], "result": {"kind": "terminate", "description": "This call does not return to its caller."}},
       {"function": "4D", "name": "Child exit status", "description": "Read the child process’s exit information.", "arguments": [], "result": {"kind": "exit-status", "description": "AH: 00 normal, 01 Ctrl-C, 02 critical-error abort, 03 stayed resident. AL: exit status. CF is not a success indicator."}}
     ],
-    "errors": {"0002": "File not found", "0003": "Path not found", "0004": "Too many open files", "0005": "Access denied", "0006": "Invalid handle", "000C": "Invalid access mode"},
+    "errors": {"0001": "Invalid function", "0002": "File not found", "0003": "Path not found", "0004": "Too many open files", "0005": "Access denied", "0006": "Invalid handle", "000C": "Invalid access mode"},
     "forgetHandles": {"interrupts": ["20", "27"], "functions": ["00", "26", "31", "4B", "4C", "50", "55", "5A", "5B", "67", "6C"]},
-    "handleTable": {"name": "MS-DOS 3.30 local handle table", "entry": "1460", "guards": [{"offset": "1460", "bytes": "2E 3A 26 FF 0D 77 DC 80 FC 51 74 A1"}, {"offset": "140D", "bytes": "2E 8B 1E DE 02 CF"}], "currentPsp": "02DE", "count": "0032", "pointer": "0034"}
+    "handleTable": {"name": "MS-DOS 3.30 local handle table", "entry": "1460", "guards": [{"offset": "1460", "bytes": "2E 3A 26 FF 0D 77 DC 80 FC 51 74 A1"}, {"offset": "140D", "bytes": "2E 8B 1E DE 02 CF"}], "currentPsp": "02DE", "count": "0032", "pointer": "0034", "systemFiles": {"pointer": "002A", "entrySize": "0035", "information": "0005", "position": "0015"}}
   },
   "sha256": "2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2",
   "io": {

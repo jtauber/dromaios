@@ -1,3 +1,4 @@
+import { dosFilePositions, type DosFilePosition, type DosFileTableProfile } from "./xt-dos-file-positions.js";
 import { physical8088 } from "./8088-disassembly.js";
 
 /** Offsets and code guards for the chapter's selected DOS, not a universal DOS layout. */
@@ -8,10 +9,12 @@ export interface DosHandleTableProfile {
   readonly currentPsp: string;
   readonly count: string;
   readonly pointer: string;
+  readonly systemFiles: DosFileTableProfile;
 }
 export interface DosHandleTable {
   readonly scope: string;
   readonly entries: readonly number[];
+  readonly positions: ReadonlyMap<number, DosFilePosition>;
 }
 
 /** Read declared storage only. A mismatched kernel or malformed PSP supplies no table. */
@@ -37,5 +40,6 @@ export function dosHandleTable(profile: DosHandleTableProfile, read: (address: n
     if (value === undefined) return;
     entries.push(value);
   }
-  return { scope: `${kernel}:${psp}`, entries };
+  const scope = `${kernel}:${psp}`;
+  return { scope, entries, positions: dosFilePositions(profile.systemFiles, kernel, scope, entries, read) };
 }

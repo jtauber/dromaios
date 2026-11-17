@@ -12,7 +12,7 @@ import { matchesXtDosObservation, type XtDosObservation } from "../../site/inter
 import type { XtCheckpoint } from "../../site/interactive/xt-rom-guide.js";
 import { createXtDiskActivity } from "../../site/interactive/xt-disk-activity.js";
 import { fat12FileRegions, inspectFat12, readFat12File } from "../../site/interactive/fat12.js";
-import { createXtDosCalls, type DosCall } from "../../site/interactive/xt-dos-services.js";
+import { createXtDosCalls, dosFileRange, type DosCall } from "../../site/interactive/xt-dos-services.js";
 import { dosCallLines } from "../../site/interactive/xt-dos-explanation.js";
 import { xtFileTransfers } from "../../site/interactive/xt-disk-file-transfers.js";
 import { xtRomGuide } from "./xt-inspection-fixture.js";
@@ -221,19 +221,38 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
 
   // Exercise the actual DOS duplicate/force-duplicate services too: COMMAND.COM edits its JFT directly.
   dosCalls.reset(); debug.setEventStops([]); debug.run();
-  function invoke(ah: number, bx = 5, cx = 0, text = "") {
+  function invoke(ah: number, bx = 5, cx = 0, text = "", options: { al?: number; dx?: number; checkpoint?: boolean } = {}) {
     const m = session.machine;
     [0xcd, 0x21].forEach((byte, i) => m.ram.write(0x80000 + i, byte));
     [...Buffer.from(text, "ascii"), 0].forEach((byte, i) => m.ram.write(0x80100 + i, byte));
     m.cpu = new Cpu8088(m.memory, { ...m.cpu.snapshot(), cs: 0x8000, ip: 0, ss: 0x8000, sp: 0xfffe,
-      ax: ah << 8, bx, cx, ds: 0x8000, dx: 0x100 }, { ports: m.ports });
+      ax: ah << 8 | (options.al ?? 0), bx, cx, ds: 0x8000, dx: options.dx ?? 0x100 }, { ports: m.ports });
+    const before = options.checkpoint ? session.snapshot() : undefined;
+    let during: XtSessionState | undefined;
     const previousId = dosCalls.entries().at(-1)?.id ?? 0;
     let id: number | undefined;
     for (let n = 0; n < 1_000_000; n++) {
       debug.capture(() => session.step());
       const call = dosCalls.entries().at(-1);
       if (id === undefined && call && call.id > previousId && call.service.function === ah.toString(16).toUpperCase()) id = call.id;
-      if (call?.id === id && call?.state === "returned") return call;
+      if (options.checkpoint && n === 20) during = session.snapshot();
+      if (call?.id === id && call?.state === "returned") {
+        if (before) {
+          assert.ok(during); const end = session.snapshot();
+          // Before entry: reconstruct the same captured positions and range from restored DOS RAM.
+          session.restore(before); debug.reset();
+          for (let step = 0; step <= n; step++) debug.capture(() => session.step());
+          assert.deepEqual(session.snapshot(), end);
+          const replayed = dosCalls.entries().at(-1)!;
+          assert.deepEqual(replayed.file, call.file); assert.deepEqual(replayed.result, call.result);
+          assert.deepEqual(dosFileRange(replayed, replayed.result!), dosFileRange(call, call.result!));
+          // During the call: replay hardware exactly, without manufacturing an uncaptured return.
+          session.restore(during); debug.reset();
+          for (let step = 21; step <= n; step++) debug.capture(() => session.step());
+          assert.deepEqual(session.snapshot(), end); assert.deepEqual(dosCalls.entries(), []);
+        }
+        return call;
+      }
     }
     assert.fail(`DOS AH=${ah.toString(16)} failed to return`);
   }
@@ -254,5 +273,43 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   const finalDisk = session.machine.io.exportDiskette(), finalVolume = inspectFat12(finalDisk);
   assert.equal(Buffer.from(readFat12File(finalDisk, finalVolume, finalVolume.entries.find(entry => entry.name === "SAVE.TXT")!)).toString("ascii"), "DUP");
   assert.equal(openedAgain.filename, "README.TXT");
+  const range = (call: DosCall, offset: number, length: number) => assert.deepEqual(dosFileRange(call, call.result!), { offset, length });
+  function seek(handle: number, origin: number, distance: number, checkpoint = false) {
+    const call = invoke(0x42, handle, distance >>> 16, "", { al: origin, dx: distance & 65535, checkpoint });
+    assert.equal(call.result!.carry, false);
+    assert.equal(call.result!.file!.offset, call.result!.dx * 65536 + call.result!.ax);
+    return call;
+  }
+  const reopened = invoke(0x3d, 0, 0, "README.TXT"); assert.equal(reopened.result!.file!.offset, 0);
+  const beginning = invoke(0x3f, 5, 8); range(beginning, 0, 8);
+  assert.equal(Buffer.from(beginning.result!.buffer!.bytes).toString("ascii"), "Dromaios");
+  const alias = invoke(0x45, 5).result!.ax;
+  assert.equal(seek(alias, 0, 1).result!.file!.offset, 1);
+  const reread = invoke(0x3f, 5, 3, "", { checkpoint: true }); range(reread, 1, 3);
+  assert.equal(Buffer.from(reread.result!.buffer!.bytes).toString("ascii"), "rom");
+  assert.equal(seek(alias, 1, -2, true).result!.file!.offset, 2);
+  const relative = invoke(0x3f, 5, 2); range(relative, 2, 2);
+  assert.equal(Buffer.from(relative.result!.buffer!.bytes).toString("ascii"), "om");
+  assert.equal(seek(5, 2, -2).result!.file!.offset, 56);
+  const ending = invoke(0x3f, alias, 8); range(ending, 56, 2); assert.deepEqual(ending.result!.buffer!.bytes, [13, 10]);
+  range(invoke(0x3f, 5, 8), 58, 0);
+  assert.equal(seek(5, 0, 0x10002).result!.dx, 1, "The returned position includes DX, not just AX");
+  range(invoke(0x3f, alias, 1), 0x10002, 0);
+  invoke(0x3e, alias); invoke(0x3e, 5);
+
+  invoke(0x3c, 0, 0, "SAVE.TXT"); range(invoke(0x40, 5, 6, "ABCDEF"), 0, 6);
+  const writeAlias = invoke(0x45, 5).result!.ax;
+  seek(writeAlias, 0, 2);
+  const overwrite = invoke(0x40, 5, 2, "xy", { checkpoint: true }); range(overwrite, 2, 2);
+  seek(writeAlias, 0, 0); const overwritten = invoke(0x3f, 5, 10); range(overwritten, 0, 6);
+  assert.equal(Buffer.from(overwritten.result!.buffer!.bytes).toString("ascii"), "ABxyEF");
+  assert.equal(beginning.file!.offset, 0); assert.equal(beginning.result!.file!.offset, 8, "Later seeks cannot rewrite a captured range");
+  invoke(0x3e, writeAlias); invoke(0x3e, 5);
+  const overwrittenDisk = session.machine.io.exportDiskette(), overwrittenVolume = inspectFat12(overwrittenDisk);
+  assert.equal(Buffer.from(readFat12File(overwrittenDisk, overwrittenVolume, overwrittenVolume.entries.find(entry => entry.name === "SAVE.TXT")!)).toString("ascii"), "ABxyEF");
+  // Device opens can have names, but their counters must never be presented as disk-file offsets.
+  const device = invoke(0x3d, 0, 0, "NUL"); assert.equal(device.result!.file, undefined);
+  const discarded = invoke(0x40, device.result!.ax, 2, "XX"); assert.equal(dosFileRange(discarded, discarded.result!), undefined);
+  invoke(0x3e, device.result!.ax);
   activity.dispose(); debug.dispose();
 });

@@ -2,6 +2,7 @@ import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-c
 import type { XtBoundary } from "./xt-session.js";
 import { opcode8088Index } from "./8088-encoding.js";
 import { physical8088 } from "./8088-disassembly.js";
+import type { DosFilePosition } from "./xt-dos-file-positions.js";
 import { dosHandleTable, type DosHandleTableProfile } from "./xt-dos-handle-table.js";
 import { createDosHandles, type DosHandleContract } from "./xt-dos-handles.js";
 
@@ -12,7 +13,7 @@ export interface DosService {
   readonly description: string;
   readonly arguments: readonly { readonly register: DosRegister; readonly label: string }[];
   readonly buffer?: { readonly label: string; readonly direction: "input" | "output"; readonly length: "CX" | "00" | "24" };
-  readonly result: { readonly kind: "none" | "status" | "handle" | "count" | "terminate" | "exit-status"; readonly description: string };
+  readonly result: { readonly kind: "none" | "status" | "handle" | "count" | "terminate" | "exit-status" | "position"; readonly description: string };
   readonly handles?: DosHandleContract;
 }
 export interface DosServices {
@@ -35,11 +36,14 @@ export interface DosRequest {
   readonly buffer?: DosBuffer;
   readonly filename?: string;
   readonly handle?: number;
+  readonly file?: DosFilePosition;
   readonly targetHandle?: number;
   readonly returnTo: { readonly cs: number; readonly ip: number; readonly ss: number; readonly sp: number };
 }
 export interface DosResult {
   readonly ax: number;
+  readonly dx: number;
+  readonly file?: DosFilePosition;
   readonly carry: boolean;
   readonly buffer?: DosBuffer;
 }
@@ -50,8 +54,16 @@ export interface DosCall extends DosRequest {
 }
 /** Only these declared contracts assign an error meaning to returned carry. */
 export function dosReportsErrors(service: DosService): boolean {
-  return ["status", "handle", "count"].includes(service.result.kind);
+  return ["status", "handle", "count", "position"].includes(service.result.kind);
 }
+/** A completed byte range requires the same local file and a position change agreeing with DOS's count. */
+export function dosFileRange(call: DosRequest, result: DosResult): { readonly offset: number; readonly length: number } | undefined {
+  const before = call.file, after = result.file;
+  if (call.service.result.kind !== "count" || result.carry || result.ax > call.buffer!.length! || !before || !after
+    || before.scope !== after.scope || before.entry !== after.entry || before.offset + result.ax !== after.offset) return;
+  return { offset: before.offset, length: result.ax };
+}
+
 type Read = (address: number) => number | undefined;
 
 const sampleLimit = 256;
@@ -145,7 +157,10 @@ export function createXtDosCalls(catalogue: DosServices, read: Read) {
       const call = history[index]!, input = call.buffer;
       const output = input && call.service.buffer?.direction === "output" && !cpu.flags.cf
         ? buffer(read, input.segment, input.offset, Math.min(cpu.ax, input.length!), true) : undefined;
-      const completed: DosCall = { ...call, state: "returned", result: { ax: cpu.ax, carry: cpu.flags.cf, ...(output && { buffer: output }) } };
+      const handle = call.service.result.kind === "handle" && !cpu.flags.cf ? cpu.ax : call.handle;
+      const file = handle === undefined ? undefined : handles.position(handle);
+      const completed: DosCall = { ...call, state: "returned", result: { ax: cpu.ax, dx: cpu.dx, carry: cpu.flags.cf,
+        ...(file && { file }), ...(output && { buffer: output }) } };
       handles.returned(call, completed.result!);
       history[index] = completed;
       pending = pending.filter(id => id !== call.id); revision++;

@@ -1,9 +1,10 @@
 import type { DosBuffer, DosRequest, DosResult } from "./xt-dos-services.js";
+import type { DosFilePosition } from "./xt-dos-file-positions.js";
 import type { DosHandleTable } from "./xt-dos-handle-table.js";
 
 /** Register roles belong to the chapter; these effects describe observed DOS conventions. */
 export type DosHandleContract = { readonly action: "open" }
-  | { readonly action: "use" | "close" | "duplicate"; readonly source: "BX" | 1 }
+  | { readonly action: "use" | "close" | "duplicate" | "seek"; readonly source: "BX" | 1 }
   | { readonly action: "redirect"; readonly source: "BX"; readonly target: "CX" };
 
 export function completeDosFilename(buffer?: DosBuffer): string | undefined {
@@ -27,7 +28,9 @@ export function createDosHandles(table: () => DosHandleTable | undefined) {
   function filename(handle: number, snapshot: DosHandleTable | undefined): string | undefined {
     return snapshot?.scope === current?.scope ? names.get(identity(handle, snapshot) ?? -1) : undefined;
   }
+  const position = (handle: number, snapshot: DosHandleTable | undefined) => snapshot?.positions.get(snapshot.entries[handle] ?? -1);
   return {
+    position(handle: number): DosFilePosition | undefined { return position(handle, table()); },
     reset(): void { names.clear(); current = undefined; },
     /** Called at DOS boundaries, not on each CPU instruction or during a preview. */
     refresh(): boolean {
@@ -40,12 +43,13 @@ export function createDosHandles(table: () => DosHandleTable | undefined) {
       }
       return changed;
     },
-    entries(): readonly { readonly handle: number; readonly filename: string }[] {
+    entries(): readonly { readonly handle: number; readonly filename: string; readonly position?: number }[] {
       const snapshot = table();
       const handles = snapshot ? snapshot.entries.map((_, index) => index) : [...names.keys()].sort((a, b) => a - b);
       return handles.flatMap(handle => {
         const name = filename(handle, snapshot);
-        return name === undefined ? [] : [{ handle, filename: name }];
+        const file = position(handle, snapshot);
+        return name === undefined ? [] : [{ handle, filename: name, ...(file && { position: file.offset }) }];
       });
     },
     capture(request: DosRequest): DosRequest {
@@ -56,9 +60,9 @@ export function createDosHandles(table: () => DosHandleTable | undefined) {
         return { ...request, ...(name !== undefined && { filename: name }) };
       }
       const handle = contract.source === 1 ? 1 : request.arguments.find(arg => arg.register === contract.source)!.value;
-      const name = filename(handle, table());
+      const snapshot = table(), name = filename(handle, snapshot), file = position(handle, snapshot);
       const targetHandle = contract.action === "redirect" ? request.arguments.find(arg => arg.register === contract.target)!.value : undefined;
-      return { ...request, handle, ...(name !== undefined && { filename: name }), ...(targetHandle !== undefined && { targetHandle }) };
+      return { ...request, handle, ...(file && { file }), ...(name !== undefined && { filename: name }), ...(targetHandle !== undefined && { targetHandle }) };
     },
     returned(call: DosRequest, result: DosResult): void {
       const action = call.service.handles?.action;

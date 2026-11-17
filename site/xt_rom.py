@@ -85,7 +85,7 @@ def _dos_services(record):
             raise ValueError("DOS arguments need distinct registers and labels.")
         result = service["result"]
         if (not isinstance(result, dict) or set(result) != {"kind", "description"}
-                or result["kind"] not in ("none", "status", "handle", "count", "terminate", "exit-status") or not text(result["description"])):
+                or result["kind"] not in ("none", "status", "handle", "count", "terminate", "exit-status", "position") or not text(result["description"])):
             raise ValueError("DOS results need a supported interpretation and description.")
         buffer = service.get("buffer")
         if "buffer" in service and (not isinstance(buffer, dict) or set(buffer) != {"label", "direction", "length"}
@@ -100,15 +100,20 @@ def _dos_services(record):
             action = effect.get("action") if isinstance(effect, dict) else None
             valid = (action == "open" and set(effect) == {"action"} and result["kind"] == "handle"
                      and buffer and buffer["direction"] == "input" and buffer["length"] == "00")
-            if action in ("use", "close", "duplicate", "redirect"):
+            if action in ("use", "close", "duplicate", "redirect", "seek"):
                 source = effect.get("source")
                 valid = (set(effect) == ({"action", "source", "target"} if action == "redirect" else {"action", "source"})
                          and (source == "BX" and "BX" in registers or type(source) is int and source == 1 and action == "use")
                          and (action != "duplicate" or result["kind"] == "handle")
+                         and (action != "seek" or result["kind"] == "position" and {"AL", "BX", "CX", "DX"} <= registers)
                          and (action not in ("close", "redirect") or result["kind"] == "status")
                          and (action != "redirect" or effect["target"] == "CX" and "CX" in registers))
+            if result["kind"] == "position" and action != "seek":
+                valid = False
             if not valid:
                 raise ValueError("DOS handle effects must agree with the service's arguments, filename and result.")
+        if result["kind"] == "position" and "handles" not in service:
+            raise ValueError("DOS position results require a seek contract.")
     hex_value = lambda value, width: isinstance(value, str) and re.fullmatch(r"[0-9A-F]{%d}" % width, value)
     forget = record["forgetHandles"]
     if (not isinstance(forget, dict) or set(forget) != {"interrupts", "functions"}
@@ -116,7 +121,7 @@ def _dos_services(record):
                    or len(values) != len(set(values)) for values in forget.values())):
         raise ValueError("DOS handle invalidation needs distinct interrupt and function bytes.")
     profile = record["handleTable"]
-    if (not isinstance(profile, dict) or set(profile) != {"name", "entry", "guards", "currentPsp", "count", "pointer"}
+    if (not isinstance(profile, dict) or set(profile) != {"name", "entry", "guards", "currentPsp", "count", "pointer", "systemFiles"}
             or not text(profile["name"]) or not all(hex_value(profile[k], 4) for k in ("entry", "currentPsp", "count", "pointer"))
             or not isinstance(profile["guards"], list) or not profile["guards"]):
         raise ValueError("DOS handle tables need a named kernel profile, code guards and word-sized offsets.")
@@ -125,6 +130,14 @@ def _dos_services(record):
                 or not isinstance(guard["bytes"], str) or not re.fullmatch(r"[0-9A-F]{2}( [0-9A-F]{2}){5,63}", guard["bytes"])
                 or int(guard["offset"], 16) + len(guard["bytes"].split()) > 0x10000):
             raise ValueError("DOS kernel guards need bounded code signatures.")
+    files = profile["systemFiles"]
+    if (not isinstance(files, dict) or set(files) != {"pointer", "entrySize", "information", "position"}
+            or not all(hex_value(v, 4) for v in files.values())
+            or not 0x19 <= int(files["entrySize"], 16) <= 0x100
+            or not 4 <= int(files["information"], 16) <= int(files["entrySize"], 16) - 2
+            or not 4 <= int(files["position"], 16) <= int(files["entrySize"], 16) - 4
+            or int(files["pointer"], 16) > 0xfffc):
+        raise ValueError("DOS system file tables need a far pointer and fields within a bounded record.")
     errors = record["errors"]
     if not isinstance(errors, dict) or any(not re.fullmatch(r"[0-9A-F]{4}", key) or not text(value) for key, value in errors.items()):
         raise ValueError("DOS errors need word-sized codes and descriptions.")

@@ -32,7 +32,7 @@ class XtRomTests(unittest.TestCase):
 
     def test_dos_services_validate_arguments_buffers_and_return_contracts(self):
         services = self.record["dos"]["services"]
-        self.assertEqual([s["function"] for s in services], ["09", "3C", "3D", "3E", "3F", "40", "45", "46", "4C", "4D"])
+        self.assertEqual([s["function"] for s in services], ["09", "3C", "3D", "3E", "3F", "40", "42", "45", "46", "4C", "4D"])
         for mutate in [lambda r: r["dos"]["services"].append(copy.deepcopy(services[0])),
                        lambda r: r["dos"]["services"][0].update(function="100"),
                        lambda r: r["dos"]["services"][1]["arguments"][0].update(register="PC"),
@@ -41,12 +41,17 @@ class XtRomTests(unittest.TestCase):
                        lambda r: r["dos"]["services"][0]["buffer"].update(direction="output"),
                        lambda r: r["dos"]["errors"].update(unknown="Error"),
                        lambda r: r["dos"]["services"][1]["handles"].update(action="duplicate"),
-                       lambda r: r["dos"]["services"][6]["handles"].update(source="CX"),
-                       lambda r: r["dos"]["services"][7]["handles"].update(target="DX"),
+                       lambda r: r["dos"]["services"][7]["handles"].update(source="CX"),
+                       lambda r: r["dos"]["services"][8]["handles"].update(target="DX"),
                        lambda r: r["dos"]["services"][0]["handles"].update(source=True),
                        lambda r: r["dos"]["forgetHandles"]["functions"].append("4B"),
                        lambda r: r["dos"]["handleTable"].update(entry="-1"),
                        lambda r: r["dos"]["handleTable"].update(guards=[]),
+                       lambda r: r["dos"]["handleTable"]["systemFiles"].update(entrySize="0000"),
+                       lambda r: r["dos"]["handleTable"]["systemFiles"].update(position="0033"),
+                       lambda r: r["dos"]["services"][6]["arguments"].pop(),
+                       lambda r: r["dos"]["services"][6]["result"].update(kind="status"),
+                       lambda r: r["dos"]["services"][6].pop("handles"),
                        lambda r: r["dos"]["handleTable"]["guards"][0].update(bytes="00")]:
             record = copy.deepcopy(self.record)
             mutate(record)
