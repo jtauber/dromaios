@@ -5,6 +5,7 @@ import { compileCpuChapter } from "../../src/components/cpus/semantics/literate/
 import { parseMachine } from "../../src/machines/machine-language.js";
 import { machineChapterSource } from "../../src/machines/machine-chapter.js";
 import type { RomGuide } from "../../site/interactive/rom-guide.js";
+import type { DosServices } from "../../site/interactive/xt-dos-services.js";
 
 const file = "src/machines/8088/pc-xt.md", source = readFileSync(file, "utf8");
 const board = parseMachine(machineChapterSource(source, file), file);
@@ -13,4 +14,4 @@ export const xtCatalogue = {
   cpu: instructionCatalogue8088(compileCpuChapter(readFileSync("src/components/cpus/specifications/8088.md", "utf8"))),
   storage: xtStorageRegions(board),
 };
-export const xtRomGuide: RomGuide & { readonly sha256: string } = JSON.parse(source.match(/```json\n([\s\S]*?)```/)![1]!);
+export const xtRomGuide: RomGuide & { readonly sha256: string; readonly dos: DosServices } = JSON.parse(source.match(/```json\n([\s\S]*?)```/)![1]!);

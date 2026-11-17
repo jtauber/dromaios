@@ -37,6 +37,8 @@ import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebug
 import { createXtDebuggerView } from "./xt-debugger-view.js";
 import { previewXtInstruction } from "./xt-instruction-preview.js";
 import { createXtInstructionView } from "./xt-instruction-view.js";
+import { createXtDosCalls, dosRequest, type DosServices } from "./xt-dos-services.js";
+import { createXtDosServicesView } from "./xt-dos-services-view.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
 import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
 import { createXtRomAnnotations, xtCheckpointPosition } from "./xt-rom-guide.js";
@@ -69,7 +71,7 @@ function mount(root: HTMLElement): void {
   const instruction = root.querySelector<HTMLElement>('[data-workspace-panel="instruction"]')!;
   const memoryPanel = root.querySelector<HTMLElement>('[data-workspace-panel="memory"]')!;
   const catalogue: XtCatalogue = JSON.parse(at("xt-catalogue").textContent!);
-  const guide: RomGuide & { readonly io: XtIoLabels } = JSON.parse(at("xt-rom-guide").textContent!);
+  const guide: RomGuide & { readonly io: XtIoLabels; readonly dos: DosServices } = JSON.parse(at("xt-rom-guide").textContent!);
   const ultima: RomWalkthrough = JSON.parse(at("ultima-walkthrough").textContent!);
   const annotations = createXtRomAnnotations(guide);
   const showRegisters = createXtRegisterView(registers);
@@ -97,6 +99,9 @@ function mount(root: HTMLElement): void {
   const diskFiles = createXtDiskFilesView(root, diskActivity, browseMemory,
     (regions, label, operation) => { diskActivityView.filter(regions, label, operation); diskMode("activity"); }, () => refresh("dma"));
   const showInstruction = createXtInstructionView(instruction, browseMemory);
+  const readStorage = (address: number) => readXtStorage(session.machine, catalogue.storage, address);
+  const dosCalls = createXtDosCalls(guide.dos, readStorage);
+  const showDos = createXtDosServicesView(instruction, guide.dos, dosCalls, browseMemory, () => refresh("instruction"));
   const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
     followChoices: [
@@ -134,6 +139,7 @@ function mount(root: HTMLElement): void {
       const observed = log.recording ? observeBoundary() : undefined;
       const record = log.capture(() => debug.capture(() => diskActivity.capture(() => session.step())), observed);
       portTrace.observe(record, session.machine.io.clock.ticks);
+      dosCalls.observe(record);
       sound.observe();
       watchHistory.observe(record, debug.watchpoints, log.memoryWrites(record));
       return record;
@@ -246,7 +252,9 @@ function mount(root: HTMLElement): void {
         showCode.refresh(session.machine, cpu, execution.records);
       }
       if (instruction.getClientRects().length && (requested === "instruction" || updates.shouldUpdate("instruction", running))) {
-        showInstruction(previewXtInstruction(session, catalogue));
+        const preview = previewXtInstruction(session, catalogue);
+        showInstruction(preview);
+        showDos(preview.record && dosRequest(guide.dos, preview.record, readStorage));
       }
       if (memoryPanel.getClientRects().length && (requested === "memory" || updates.shouldUpdate("memory", running))) {
         memory.refresh(address => readXtStorage(session.machine, catalogue.storage, address), cpu.pc, {
@@ -276,7 +284,7 @@ function mount(root: HTMLElement): void {
   function resetTools(): void {
     unobserveSpeaker(); unobserveSpeaker = observeSpeaker(); intervals.clearStep();
     execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset(); ioView.reset(); diskActivity.reset();
-    diskFiles.reset(); diskActivityView.resetFilter();
+    diskFiles.reset(); diskActivityView.resetFilter(); dosCalls.reset();
   }
   function run(): void { debug.run(); message.textContent = ""; execution.run(); screen.focus(); }
   function powerOn(start: "cold" | "quick"): void {

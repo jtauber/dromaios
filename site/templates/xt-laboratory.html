@@ -122,6 +122,13 @@
       <p class="basic-readout" data-instruction-location></p><pre class="lab-instruction-preview" data-instruction-preview></pre>
       <details><summary>From the CPU specification</summary><p class="lab-hint" data-instruction-explanation></p></details>
       <details><summary>Previewed storage accesses</summary><p class="lab-hint">A private copy predicts the next boundary. Port I/O, TEST, and coprocessor connections stop the preview.</p><pre data-instruction-accesses></pre></details>
+      <details open><summary>DOS services</summary>
+        <pre class="lab-instruction-preview" data-dos-next hidden></pre>
+        <label>Observed call <select data-dos-call aria-label="Observed DOS call"></select></label>
+        <button type="button" data-dos-clear>Clear DOS calls</button>
+        <pre class="lab-instruction-preview" data-dos-detail></pre>
+        <p class="lab-hint">DOS interpretation of INT 21h. Retains 128 calls and samples up to 256 bytes from declared storage. Input samples are captured at interrupt entry; output samples at the observed return. Memory links browse current storage. Reset and checkpoint restore clear this history; a return without a captured call is not interpreted.</p>
+      </details>
     </section>
     <section class="lab-tool lab-tool-memory" data-workspace-panel="memory" data-panel-title="Memory" data-panel-live="true">
       <div class="lab-panel-body">

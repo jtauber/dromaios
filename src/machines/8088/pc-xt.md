@@ -421,6 +421,55 @@ halfway through the sector and verifies identical state after replay, checks
 all 47 copied bytes, compares the printed message, and rejects a return into
 the message bytes after termination.
 
+### Understanding DOS calls in Instruction
+
+The **Instruction** panel's **DOS services** section interprets the chapter's
+declared `INT 21h` services. It explains the next call from a private CPU
+preview and keeps a separate list of calls actually observed. Choose a past
+call to hold its captured arguments and result, or **Latest observed call**
+to follow execution. The service names, argument labels, buffer rules, return
+contracts, and error descriptions come from the `dos` catalogue below; the
+8088 decoder remains independent of DOS. The reference is Microsoft's
+[system-call documentation](https://www.pcjs.org/documents/books/mspl13/msdos/encyclopedia/section5/).
+
+Input strings and write buffers are sampled after interrupt entry. A read
+request identifies its destination without treating the old RAM contents as
+the result. A matching `IRET` or far return must restore the captured caller's
+exact `CS:IP` and `SS:SP` before the inspector records a result. It samples read
+data using the original pointer and the smaller of returned `AX` and requested
+`CX`, retaining at most 256 bytes. Samples indicate unavailable storage or
+truncation, escape non-ASCII bytes, and wrap both the offset and physical
+address. The Memory links always browse **current** storage; the displayed
+samples preserve the observed bytes.
+
+This is a bounded observation of DOS conventions, not an implementation of
+DOS services or a simulation of their results. A prospective call does not
+count as execution, a failed read does not supply a successful buffer, and a
+termination request is not labelled completed. The service with `AH=4D` can
+separately report the child's status to its parent. Unsupported services and
+nonstandard unwinds are not interpreted. The history retains 128 calls and
+tracks at most 16 pending calls. Process termination or that pending limit
+marks unfinished calls untracked. Reset, restoring a checkpoint, and
+**Clear DOS calls** discard both history and pending pairs; an uncaptured
+call's later return cannot manufacture a result.
+
+The original-DOS acceptance checks these observations alongside the existing
+HELLO.COM walkthrough:
+
+| Command | Captured call and result |
+| --- | --- |
+| `HELLO.COM` | The `09` request identifies the message. Its observed return has raw `AX=0924`; the declared contract does not interpret CF as success. `4C` requests exit status zero, and the parent's `4D` reports normal termination with status zero. |
+| `TYPE README.TXT` | `3D` opens the name and returns handle 5. Two `3F` calls request 65,024 bytes each; the first returns exactly the 58 README bytes, the second returns zero without displaying stale buffer contents. |
+| `ECHO HELLO>SAVE.TXT` | `3C` creates the file and returns handle 5. Writes through redirected handle 1 supply `HELLO` and CR/LF, returning counts 5 and 2. The exported FAT12 file contains those seven bytes. |
+
+The command interpreter also attempts to close unused handles. Their
+observed `CF=1, AX=0006` results appear as invalid-handle errors, distinct from
+the successful reads and writes. Handle 1 can refer to a file after
+[output redirection](https://www.pcjs.org/documents/books/mspl13/msdos/encyclopedia/section2/);
+the inspector therefore reports its numeric value without assuming a screen
+destination. These checks use recorded calls and returns rather than fixed
+DOS kernel addresses.
+
 ### Saving a DOS file across a fresh boot
 
 At the `A>` prompt, wait for **Motor off**. Choose **Insert writable copy…**
@@ -1129,6 +1178,19 @@ a return instruction before establishing a working RAM stack.
 
 ```json
 {
+  "dos": {
+    "services": [
+      {"function": "09", "name": "Print string", "description": "Write a dollar-terminated message to standard output, which may be redirected.", "arguments": [], "result": {"kind": "none", "description": "No documented return value; CF is not a success indicator."}, "buffer": {"label": "Message", "direction": "input", "length": "24"}},
+      {"function": "3C", "name": "Create file", "description": "Create or truncate a named file.", "arguments": [{"register": "CX", "label": "File attributes"}], "result": {"kind": "handle", "description": "CF clear: AX is the new handle. CF set: AX is an error."}, "buffer": {"label": "Filename", "direction": "input", "length": "00"}},
+      {"function": "3D", "name": "Open file", "description": "Open an existing file.", "arguments": [{"register": "AL", "label": "Access/sharing mode: low three bits 0=read, 1=write, 2=read/write"}], "result": {"kind": "handle", "description": "CF clear: AX is the handle. CF set: AX is an error."}, "buffer": {"label": "Filename", "direction": "input", "length": "00"}},
+      {"function": "3E", "name": "Close handle", "description": "Close the handle and flush pending file updates.", "arguments": [{"register": "BX", "label": "Handle"}], "result": {"kind": "status", "description": "CF clear indicates success; CF set returns an error in AX."}},
+      {"function": "3F", "name": "Read handle", "description": "Read into the destination buffer.", "arguments": [{"register": "BX", "label": "Handle"}, {"register": "CX", "label": "Maximum bytes to read"}], "result": {"kind": "count", "description": "CF clear: AX is bytes read, possibly fewer than CX. Zero means no bytes read. CF set: AX is an error."}, "buffer": {"label": "Destination", "direction": "output", "length": "CX"}},
+      {"function": "40", "name": "Write handle", "description": "Write from the source buffer. CX=0 changes a disk file’s length at its current position.", "arguments": [{"register": "BX", "label": "Handle"}, {"register": "CX", "label": "Bytes to write"}], "result": {"kind": "count", "description": "CF clear: AX is bytes written; a short write is possible. CF set: AX is an error."}, "buffer": {"label": "Source", "direction": "input", "length": "CX"}},
+      {"function": "4C", "name": "Terminate process", "description": "Exit to the parent process.", "arguments": [{"register": "AL", "label": "Requested exit status"}], "result": {"kind": "terminate", "description": "This call does not return to its caller."}},
+      {"function": "4D", "name": "Child exit status", "description": "Read the child process’s exit information.", "arguments": [], "result": {"kind": "exit-status", "description": "AH: 00 normal, 01 Ctrl-C, 02 critical-error abort, 03 stayed resident. AL: exit status. CF is not a success indicator."}}
+    ],
+    "errors": {"0002": "File not found", "0003": "Path not found", "0004": "Too many open files", "0005": "Access denied", "0006": "Invalid handle", "000C": "Invalid access mode"}
+  },
   "sha256": "2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2",
   "io": {
     "ports": [

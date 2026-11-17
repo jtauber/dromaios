@@ -10,7 +10,9 @@ import { createXtDebugger, parseXtDebugAddress } from "../../site/interactive/xt
 import { matchesXtDosObservation, type XtDosObservation } from "../../site/interactive/xt-dos-observation.js";
 import type { XtCheckpoint } from "../../site/interactive/xt-rom-guide.js";
 import { createXtDiskActivity } from "../../site/interactive/xt-disk-activity.js";
-import { fat12FileRegions, inspectFat12 } from "../../site/interactive/fat12.js";
+import { fat12FileRegions, inspectFat12, readFat12File } from "../../site/interactive/fat12.js";
+import { createXtDosCalls } from "../../site/interactive/xt-dos-services.js";
+import { dosCallLines } from "../../site/interactive/xt-dos-explanation.js";
 import { xtFileTransfers } from "../../site/interactive/xt-disk-file-transfers.js";
 import { xtRomGuide } from "./xt-inspection-fixture.js";
 import { screen } from "../machines/8088/pc-xt/rom-console.js";
@@ -65,6 +67,7 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   session.keyboard.paste("\n"); until(() => lastLine() === "A>"); until(() => !session.machine.io.disketteMotorOn);
   session.insertDisk("DATA.IMG", disk);
   const debug = createXtDebugger(() => session.machine), activity = createXtDiskActivity(() => session.machine.io);
+  const dosCalls = createXtDosCalls(xtRomGuide.dos, address => address < session.machine.ram.size ? session.machine.ram.read(address) : undefined);
   let boundaries = 0, halfway: { state: XtSessionState; boundaries: number } | undefined;
   const copies: { pc: number; address: number; value: number }[] = [];
   let writer = 0;
@@ -79,6 +82,7 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
     while (!debug.beforeStep()) {
       writer = session.machine.cpu.snapshot().pc;
       const record = debug.capture(() => activity.capture(() => session.step())); boundaries++;
+      dosCalls.observe(record);
       if (!halfway && record.dma?.offset === 7168 + 255) halfway = { state: session.snapshot(), boundaries };
       // Termination must not fall through into the string at 010C.
       if (index === 7) assert.notEqual(record.after.pc, 0xc6bc);
@@ -103,6 +107,12 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
     else if (index === 7) assert.equal(lastLine(), "A>");
   }
   detach();
+  const printed = dosCalls.entries().find(call => call.service.function === "09")!;
+  assert.equal(Buffer.from(printed.buffer!.bytes).toString("ascii"), "Hello from HELLO.COM on drive A.\r\n");
+  assert.equal(printed.state, "returned"); assert.equal(printed.result!.ax, 0x0924);
+  assert.doesNotMatch(dosCallLines(printed, xtRomGuide.dos, printed).join("\n"), /Succeeded|Error /);
+  assert.equal(dosCalls.entries().find(call => call.service.function === "4C")!.state, "no-return");
+  assert.equal(dosCalls.entries().find(call => call.service.function === "4D")!.result!.ax, 0);
   assert.ok(halfway);
   const end = session.snapshot(), finished = boundaries;
   const volume = inspectFat12(disk), hello = volume.entries.find(e => e.name === "HELLO.COM")!;
@@ -116,5 +126,43 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   for (let n = halfway.boundaries; n < finished; n++) plain.step();
   assert.deepEqual(plain.snapshot(), end);
   assert.deepEqual(session.machine.io.exportDiskette(), new Uint8Array(disk));
+
+  // All DOS results are paired with the observed caller, without using loader or kernel addresses.
+  function command(text: string): void {
+    dosCalls.reset(); session.keyboard.paste(text + "\n");
+    for (let n = 0; n < 3_000_000; n++) {
+      dosCalls.observe(session.step());
+      if (n % 512 === 0 && !session.keyboard.pasteRemaining && !session.keyboard.queuedBytes && lastLine() === "A>") return;
+    }
+    assert.fail(screen(session.machine).join("\n"));
+  }
+  command("TYPE README.TXT");
+  const opened = dosCalls.entries().find(call => call.service.function === "3D")!;
+  assert.equal(Buffer.from(opened.buffer!.bytes).toString("ascii"), "README.TXT");
+  assert.equal(opened.result!.ax, 5); assert.equal(opened.result!.carry, false);
+  const reads = dosCalls.entries().filter(call => call.service.function === "3F");
+  assert.deepEqual(reads.map(call => call.result!.ax), [58, 0]);
+  assert.ok(reads.every(call => call.buffer!.length === 65024 && !call.result!.carry));
+  const readmeText = "Dromaios XT data disk.\r\nDOS read this file from drive A.\r\n";
+  assert.equal(Buffer.from(reads[0]!.result!.buffer!.bytes).toString("ascii"), readmeText);
+  assert.deepEqual(reads[1]!.result!.buffer!.bytes, []);
+  const invalidClose = dosCalls.entries().find(call => call.service.function === "3E" && call.result?.carry)!;
+  assert.equal(invalidClose.result!.ax, 6);
+  assert.match(dosCallLines(invalidClose, xtRomGuide.dos, invalidClose).join("\n"), /Error 0006 · Invalid handle/);
+  until(() => !session.machine.io.disketteMotorOn);
+  session.insertDisk("DATA.IMG", disk, { writable: true });
+  command("ECHO HELLO>SAVE.TXT");
+  const created = dosCalls.entries().find(call => call.service.function === "3C")!;
+  assert.equal(Buffer.from(created.buffer!.bytes).toString("ascii"), "SAVE.TXT");
+  assert.equal(created.result!.carry, false); assert.equal(created.result!.ax, 5);
+  const written = dosCalls.entries().find(call => call.service.function === "40" && Buffer.from(call.buffer!.bytes).toString("ascii") === "HELLO")!;
+  assert.equal(written.arguments.find(arg => arg.register === "BX")!.value, 1, "Standard output is redirected to SAVE.TXT");
+  assert.equal(written.result!.ax, 5); assert.equal(written.result!.carry, false);
+  const following = dosCalls.entries().find(call => call.id > written.id && call.service.function === "40")!;
+  assert.equal(Buffer.from(following.buffer!.bytes).toString("ascii"), "\r\n"); assert.equal(following.result!.ax, 2);
+  const exported = session.machine.io.exportDiskette(), savedVolume = inspectFat12(exported);
+  const savedFile = savedVolume.entries.find(file => file.name === "SAVE.TXT")!;
+  assert.equal(Buffer.from(readFat12File(exported, savedVolume, savedFile)).toString("ascii"), "HELLO\r\n");
+  assert.equal(Buffer.from(reads[0]!.result!.buffer!.bytes).toString("ascii"), readmeText, "History retains captured bytes after reuse of guest RAM");
   activity.dispose(); debug.dispose();
 });

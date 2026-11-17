@@ -30,6 +30,21 @@ class XtRomTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 ultima_walkthrough(source)
 
+    def test_dos_services_validate_arguments_buffers_and_return_contracts(self):
+        services = self.record["dos"]["services"]
+        self.assertEqual([s["function"] for s in services], ["09", "3C", "3D", "3E", "3F", "40", "4C", "4D"])
+        for mutate in [lambda r: r["dos"]["services"].append(copy.deepcopy(services[0])),
+                       lambda r: r["dos"]["services"][0].update(function="100"),
+                       lambda r: r["dos"]["services"][1]["arguments"][0].update(register="PC"),
+                       lambda r: r["dos"]["services"][4].pop("buffer"),
+                       lambda r: r["dos"]["services"][4]["buffer"].update(length="00"),
+                       lambda r: r["dos"]["services"][0]["buffer"].update(direction="output"),
+                       lambda r: r["dos"]["errors"].update(unknown="Error")]:
+            record = copy.deepcopy(self.record)
+            mutate(record)
+            with self.assertRaises(ValueError):
+                xt_annotations("```json\n" + json.dumps(record) + "\n```", self.catalogue)
+
     def test_chapter_owns_nine_exact_execution_stops_and_physical_annotations(self):
         self.assertEqual(xt_annotations(self.source, self.catalogue), self.record)
         steps = self.record["walkthroughs"][0]["steps"]

@@ -66,10 +66,46 @@ def _dos_observation(expect, ram_end):
             and all(isinstance(v, str) and v.strip() and v.isascii() for v in screen.values()))
 
 
+def _dos_services(record):
+    """Check the small DOS annotation vocabulary before publishing it to either XT lab."""
+    text = lambda value: isinstance(value, str) and bool(value.strip())
+    if not isinstance(record, dict) or set(record) != {"services", "errors"} or not isinstance(record["services"], list) or not record["services"]:
+        raise ValueError("DOS annotations need services and error descriptions.")
+    seen = set()
+    for service in record["services"]:
+        if (not isinstance(service, dict) or set(service) not in ({"function", "name", "description", "arguments", "result"},
+                                                                 {"function", "name", "description", "arguments", "result", "buffer"})
+                or not all(text(service[key]) for key in ("function", "name", "description"))
+                or not re.fullmatch(r"[0-9A-F]{2}", service["function"]) or service["function"] in seen):
+            raise ValueError("DOS services need unique AH bytes, names and descriptions.")
+        seen.add(service["function"])
+        arguments = service["arguments"]
+        if (not isinstance(arguments, list) or any(not isinstance(arg, dict) or set(arg) != {"register", "label"}
+                or arg["register"] not in ("AL", "AX", "BX", "CX", "DX") or not text(arg["label"]) for arg in arguments)
+                or len({arg["register"] for arg in arguments}) != len(arguments)):
+            raise ValueError("DOS arguments need distinct registers and labels.")
+        result = service["result"]
+        if (not isinstance(result, dict) or set(result) != {"kind", "description"}
+                or result["kind"] not in ("none", "status", "handle", "count", "terminate", "exit-status") or not text(result["description"])):
+            raise ValueError("DOS results need a supported interpretation and description.")
+        buffer = service.get("buffer")
+        if "buffer" in service and (not isinstance(buffer, dict) or set(buffer) != {"label", "direction", "length"}
+                or not text(buffer["label"]) or buffer["direction"] not in ("input", "output") or buffer["length"] not in ("CX", "00", "24")
+                or buffer["direction"] == "output" and result["kind"] != "count"):
+            raise ValueError("DOS buffers need a direction and a count or terminator.")
+        if result["kind"] == "count" and (not buffer or buffer["length"] != "CX"):
+            raise ValueError("DOS byte-count results require a CX-sized buffer.")
+    errors = record["errors"]
+    if not isinstance(errors, dict) or any(not re.fullmatch(r"[0-9A-F]{4}", key) or not text(value) for key, value in errors.items()):
+        raise ValueError("DOS errors need word-sized codes and descriptions.")
+    return record
+
+
 def xt_annotations(source, catalogue):
     storage = catalogue["storage"]
     ram_end = next(r["size"] for r in storage if r["component"] == "ram")
     record = _guide_record(source, "XT chapter")
+    dos = _dos_services(record.pop("dos", None))
     io = record.pop("io", None)
     if (not isinstance(io, dict) or set(io) != {"ports", "irqs"} or not isinstance(io["ports"], list)
             or not isinstance(io["irqs"], list) or len(io["irqs"]) != 8
@@ -126,4 +162,4 @@ def xt_annotations(source, catalogue):
     for step, extra in extras:
         step.update(extra)
     validated["walkthroughs"].extend(software)
-    return {**validated, "io": io}
+    return {**validated, "io": io, "dos": dos}
