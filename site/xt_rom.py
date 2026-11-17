@@ -69,12 +69,11 @@ def _dos_observation(expect, ram_end):
 def _dos_services(record):
     """Check the small DOS annotation vocabulary before publishing it to either XT lab."""
     text = lambda value: isinstance(value, str) and bool(value.strip())
-    if not isinstance(record, dict) or set(record) != {"services", "errors"} or not isinstance(record["services"], list) or not record["services"]:
+    if not isinstance(record, dict) or set(record) != {"services", "errors", "forgetHandles", "handleTable"} or not isinstance(record["services"], list) or not record["services"]:
         raise ValueError("DOS annotations need services and error descriptions.")
     seen = set()
     for service in record["services"]:
-        if (not isinstance(service, dict) or set(service) not in ({"function", "name", "description", "arguments", "result"},
-                                                                 {"function", "name", "description", "arguments", "result", "buffer"})
+        if (not isinstance(service, dict) or not {"function", "name", "description", "arguments", "result"} <= set(service) <= {"function", "name", "description", "arguments", "result", "buffer", "handles"}
                 or not all(text(service[key]) for key in ("function", "name", "description"))
                 or not re.fullmatch(r"[0-9A-F]{2}", service["function"]) or service["function"] in seen):
             raise ValueError("DOS services need unique AH bytes, names and descriptions.")
@@ -95,6 +94,37 @@ def _dos_services(record):
             raise ValueError("DOS buffers need a direction and a count or terminator.")
         if result["kind"] == "count" and (not buffer or buffer["length"] != "CX"):
             raise ValueError("DOS byte-count results require a CX-sized buffer.")
+        if "handles" in service:
+            effect = service["handles"]
+            registers = {arg["register"] for arg in arguments}
+            action = effect.get("action") if isinstance(effect, dict) else None
+            valid = (action == "open" and set(effect) == {"action"} and result["kind"] == "handle"
+                     and buffer and buffer["direction"] == "input" and buffer["length"] == "00")
+            if action in ("use", "close", "duplicate", "redirect"):
+                source = effect.get("source")
+                valid = (set(effect) == ({"action", "source", "target"} if action == "redirect" else {"action", "source"})
+                         and (source == "BX" and "BX" in registers or type(source) is int and source == 1 and action == "use")
+                         and (action != "duplicate" or result["kind"] == "handle")
+                         and (action not in ("close", "redirect") or result["kind"] == "status")
+                         and (action != "redirect" or effect["target"] == "CX" and "CX" in registers))
+            if not valid:
+                raise ValueError("DOS handle effects must agree with the service's arguments, filename and result.")
+    hex_value = lambda value, width: isinstance(value, str) and re.fullmatch(r"[0-9A-F]{%d}" % width, value)
+    forget = record["forgetHandles"]
+    if (not isinstance(forget, dict) or set(forget) != {"interrupts", "functions"}
+            or any(not isinstance(values, list) or not all(hex_value(v, 2) for v in values)
+                   or len(values) != len(set(values)) for values in forget.values())):
+        raise ValueError("DOS handle invalidation needs distinct interrupt and function bytes.")
+    profile = record["handleTable"]
+    if (not isinstance(profile, dict) or set(profile) != {"name", "entry", "guards", "currentPsp", "count", "pointer"}
+            or not text(profile["name"]) or not all(hex_value(profile[k], 4) for k in ("entry", "currentPsp", "count", "pointer"))
+            or not isinstance(profile["guards"], list) or not profile["guards"]):
+        raise ValueError("DOS handle tables need a named kernel profile, code guards and word-sized offsets.")
+    for guard in profile["guards"]:
+        if (not isinstance(guard, dict) or set(guard) != {"offset", "bytes"} or not hex_value(guard["offset"], 4)
+                or not isinstance(guard["bytes"], str) or not re.fullmatch(r"[0-9A-F]{2}( [0-9A-F]{2}){5,63}", guard["bytes"])
+                or int(guard["offset"], 16) + len(guard["bytes"].split()) > 0x10000):
+            raise ValueError("DOS kernel guards need bounded code signatures.")
     errors = record["errors"]
     if not isinstance(errors, dict) or any(not re.fullmatch(r"[0-9A-F]{4}", key) or not text(value) for key, value in errors.items()):
         raise ValueError("DOS errors need word-sized codes and descriptions.")

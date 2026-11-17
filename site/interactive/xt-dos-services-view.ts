@@ -7,17 +7,21 @@ export function createXtDosServicesView(panel: HTMLElement, catalogue: DosServic
   browse: (address: number) => void, changed: () => void, addStop: (condition: XtDosCondition) => void) {
   const at = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-dos-${name}]`)!;
   const next = at("next"), choice = at<HTMLSelectElement>("call"), detail = at("detail");
+  const filenameOnly = at<HTMLInputElement>("filename-only");
   let selected: number | undefined, revision = -1;
   let previousHit: DosCall | undefined;
   function showObserved(): void {
     const call = selected === undefined ? calls.entries().at(-1) : calls.entries().find(call => call.id === selected);
     detail.replaceChildren(memoryAddressText(call ? `Observed DOS call · INT 21h/AH=${call.service.function} · ${call.service.name}\n`
       + dosCallLines(call, catalogue, call).join("\n") : "No observed DOS calls.", browse, 5));
+    filenameOnly.disabled = call?.filename === undefined;
+    at("filename-scope").textContent = call?.filename === undefined ? "Only this filename (unknown)" : `Only ${JSON.stringify(call.filename)}`;
     for (const phase of ["call", "return", "error"] as const) {
       const button = at<HTMLButtonElement>("stop-" + phase);
       button.disabled = !call || phase === "return" && call.service.result.kind === "terminate"
         || phase === "error" && !dosReportsErrors(call.service);
-      button.onclick = () => { if (call) addStop({ kind: "dos", phase, function: parseInt(call.service.function, 16) }); };
+      button.onclick = () => { if (call) addStop({ kind: "dos", phase, function: parseInt(call.service.function, 16),
+        ...(filenameOnly.checked && call.filename !== undefined && { filename: call.filename }) }); };
     }
   }
   choice.onchange = () => { selected = choice.value ? Number(choice.value) : undefined; showObserved(); };
@@ -25,6 +29,7 @@ export function createXtDosServicesView(panel: HTMLElement, catalogue: DosServic
   return (request?: DosRequest, hit?: DosCall): void => {
     if (hit && hit !== previousHit) { selected = hit.id; revision = -1; }
     previousHit = hit;
+    at("handles").textContent = "Known handles · " + (calls.handles().map(entry => `${entry.handle} → ${JSON.stringify(entry.filename)}`).join(" · ") || "none observed");
     next.hidden = !request;
     next.replaceChildren(...(request ? [memoryAddressText(`Next DOS call · INT 21h/AH=${request.service.function} · ${request.service.name}\n`
       + dosCallLines(request, catalogue).join("\n"), browse, 5)] : []));
@@ -33,7 +38,7 @@ export function createXtDosServicesView(panel: HTMLElement, catalogue: DosServic
       const entries = calls.entries();
       if (!entries.some(call => call.id === selected)) selected = undefined;
       choice.replaceChildren(new Option("Latest observed call", ""), ...[...entries].reverse().map(call => new Option(
-        `#${call.id} · AH=${call.service.function} ${call.service.name} · ${call.state === "no-return" ? "no return expected" : call.state}`, String(call.id))));
+        `#${call.id} · AH=${call.service.function} ${call.service.name}${call.filename === undefined ? "" : " · " + call.filename} · ${call.state === "no-return" ? "no return expected" : call.state}`, String(call.id))));
       choice.value = selected === undefined ? "" : String(selected); choice.disabled = !entries.length;
       showObserved();
     }

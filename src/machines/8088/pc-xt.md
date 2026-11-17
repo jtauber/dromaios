@@ -448,15 +448,20 @@ count as execution, a failed read does not supply a successful buffer, and a
 termination request is not labelled completed. The service with `AH=4D` can
 separately report the child's status to its parent. Unsupported services and
 nonstandard unwinds are not interpreted. The history retains 128 calls and
-tracks at most 16 pending calls. Process termination or that pending limit
-marks unfinished calls untracked. Reset, restoring a checkpoint, and
-**Clear DOS calls** discard both history and pending pairs; an uncaptured
+tracks at most 16 pending calls. Process changes, unmodeled handle-creation services, or an observation limit
+mark unfinished calls untracked and discard known handle names. Reset, restoring a checkpoint, and
+**Clear DOS calls** discard history, pending pairs, and known filenames; an uncaptured
 call's later return cannot manufacture a result.
 
 In **Debugger → Event stops**, choose **DOS service**, a call, return, or
 error return, and a described service (or all described services). The buttons
 beside an observed call in Instruction add the same conditions, matching its
-`AH` for any caller or handle; adding an existing condition enables it again.
+`AH` for any caller. Add an optional **Filename** in Debugger, or keep
+**Only this filename** checked beside an identified call. Matching uses the
+exact captured path, ignoring ASCII case: `README.TXT` matches `readme.txt`,
+but not `A:\README.TXT`. There are no wildcards or inferred current directories.
+Unknown filenames never match a filename condition. Adding an existing condition
+enables it again.
 Conditions can be disabled or removed and are remembered separately from the
 machine checkpoint. They work with Live updates and trace recording off.
 
@@ -476,8 +481,9 @@ so its arguments, result, and buffer links can be inspected. Reset and
 checkpoint restoration keep the conditions but clear the captured pairs.
 Restoring inside a service therefore cannot stop on that service's later
 return; its call was not observed in the restored session. The next captured
-call can stop normally. Restoring before a call reproduces its entry and
-return stops.
+call can stop normally. Filename conditions remain set, but require a new
+observed open or create before identifying reads and writes again. Restoring
+before the open reproduces its name and subsequent filename-aware stops.
 
 The original-DOS acceptance checks these observations alongside the existing
 HELLO.COM walkthrough:
@@ -492,9 +498,8 @@ The command interpreter also attempts to close unused handles. Their
 observed `CF=1, AX=0006` results appear as invalid-handle errors, distinct from
 the successful reads and writes. Handle 1 can refer to a file after
 [output redirection](https://www.pcjs.org/documents/books/mspl13/msdos/encyclopedia/section2/);
-the inspector therefore reports its numeric value without assuming a screen
-destination. These checks use recorded calls and returns rather than fixed
-DOS kernel addresses.
+the inspector shows `SAVE.TXT` beside its captured handle 1 writes and keeps
+that name with the call after the handle changes again.
 
 The same checks enable service entry/return stops for opening and reading
 README.TXT, creating SAVE.TXT, and writing through its redirected handle.
@@ -502,7 +507,63 @@ The read stops expose 58 bytes followed by zero at EOF; the write stops expose
 5 bytes followed by 2. Error stops catch the command interpreter's invalid
 handle closes. Checkpoints taken inside the first read and write reproduce
 the complete guest state, clocks, and writable disk image: the uncaptured
-return is skipped, and the subsequent EOF read or CR/LF write still stops.
+return is skipped. Unfiltered conditions still stop on the subsequent EOF
+read or CR/LF write; filename-filtered conditions do not, because restoration
+cleared their opening-name evidence.
+
+#### From handles to filenames
+
+DOS gives a process a small integer **handle**, not a permanent file number.
+The inspector associates the name sampled by `3C` or `3D` with the handle
+returned on success. The complete zero-terminated name must fit the sample
+and contain printable ASCII. A failed open still has a requested filename for
+error stops, but does not create an association. Missing, truncated, and
+non-ASCII names remain unknown. Names are the paths used at open time; the
+inspector does not resolve them to absolute paths or follow later renames.
+
+`45` creates another handle for the same open file. `46` makes a chosen target
+handle refer to the source, replacing the target's former association. These
+aliases share DOS's file position; closing one leaves the others usable.
+Only successful returns change observed associations. Redirecting from an
+unidentified source removes the target's old name. Closing and reusing handle
+5 cannot relabel earlier captured reads. These rules follow the duplicate and
+force-duplicate services in the [MS-DOS reference](https://www.pcjs.org/documents/books/mspl13/msdos/encyclopedia/section5/).
+
+The selected MS-DOS 3.30 `COMMAND.COM` redirects its output by changing its
+**job file table** directly, rather than calling `45` or `46`. That table maps
+process handles to system-file-table entries. The inspector therefore also
+checks the chapter's `handleTable` profile against declared RAM at DOS call
+and return boundaries. The INT 21h vector must have offset `1460`, and both
+code guards must match in its segment. Our trace of `AH=51` on the selected
+DOS image reads the current PSP from offset `02DE` in that segment. The PSP
+starts with `CD 20`, stores the table count at `0032`, and its far pointer at
+`0034`. The acceptance test checks this layout against the original DOS image;
+these are observations of that binary, not universal kernel addresses.
+
+Names are attached to observed local system-file entries, letting handle 1
+inherit the known name when COMMAND.COM redirects it to the same entry as
+handle 5. Entries no longer referenced by the process are forgotten. The
+reader accepts 5–256 table entries, requires available storage, and treats
+`FF` as closed and `80–FE` as unidentified network entries. A changed PSP or
+lost code guard discards names and pending pairs. Without a matching profile,
+only the declared service effects are tracked; direct table edits cannot be
+identified. Standard handles are never assumed to mean the console.
+
+The `forgetHandles` declarations also discard associations at process
+creation, switching, and termination, and at unmodeled handle-creation or
+resize services. This deliberately does not reconstruct inherited handles,
+previous opens, or network state. No guest code is called and no memory is
+written by inspection. Checkpoints store the real DOS tables as RAM, but
+captured names remain debugger observations and are cleared on restoration.
+
+The acceptance checks additionally call the real `45` and `46` services:
+open README, read its first byte, duplicate its handle, close the original,
+and reuse handle 5 for SAVE. Reading the duplicate yields the next two README
+bytes. Redirecting handle 1 to SAVE writes `DUP`; restoring the saved console
+handle removes that filename association. The exported file contains exactly
+those three bytes. The [handle tests](../../../tests/site/xt-dos-handles.test.ts)
+cover failures, malformed tables, process changes, immutable history, and
+case-insensitive filename conditions without requiring external media.
 
 ### Saving a DOS file across a fresh boot
 
@@ -1214,16 +1275,20 @@ a return instruction before establishing a working RAM stack.
 {
   "dos": {
     "services": [
-      {"function": "09", "name": "Print string", "description": "Write a dollar-terminated message to standard output, which may be redirected.", "arguments": [], "result": {"kind": "none", "description": "No documented return value; CF is not a success indicator."}, "buffer": {"label": "Message", "direction": "input", "length": "24"}},
-      {"function": "3C", "name": "Create file", "description": "Create or truncate a named file.", "arguments": [{"register": "CX", "label": "File attributes"}], "result": {"kind": "handle", "description": "CF clear: AX is the new handle. CF set: AX is an error."}, "buffer": {"label": "Filename", "direction": "input", "length": "00"}},
-      {"function": "3D", "name": "Open file", "description": "Open an existing file.", "arguments": [{"register": "AL", "label": "Access/sharing mode: low three bits 0=read, 1=write, 2=read/write"}], "result": {"kind": "handle", "description": "CF clear: AX is the handle. CF set: AX is an error."}, "buffer": {"label": "Filename", "direction": "input", "length": "00"}},
-      {"function": "3E", "name": "Close handle", "description": "Close the handle and flush pending file updates.", "arguments": [{"register": "BX", "label": "Handle"}], "result": {"kind": "status", "description": "CF clear indicates success; CF set returns an error in AX."}},
-      {"function": "3F", "name": "Read handle", "description": "Read into the destination buffer.", "arguments": [{"register": "BX", "label": "Handle"}, {"register": "CX", "label": "Maximum bytes to read"}], "result": {"kind": "count", "description": "CF clear: AX is bytes read, possibly fewer than CX. Zero means no bytes read. CF set: AX is an error."}, "buffer": {"label": "Destination", "direction": "output", "length": "CX"}},
-      {"function": "40", "name": "Write handle", "description": "Write from the source buffer. CX=0 changes a disk file’s length at its current position.", "arguments": [{"register": "BX", "label": "Handle"}, {"register": "CX", "label": "Bytes to write"}], "result": {"kind": "count", "description": "CF clear: AX is bytes written; a short write is possible. CF set: AX is an error."}, "buffer": {"label": "Source", "direction": "input", "length": "CX"}},
+      {"function": "09", "name": "Print string", "description": "Write a dollar-terminated message to standard output, which may be redirected.", "arguments": [], "result": {"kind": "none", "description": "No documented return value; CF is not a success indicator."}, "buffer": {"label": "Message", "direction": "input", "length": "24"}, "handles": {"action": "use", "source": 1}},
+      {"function": "3C", "name": "Create file", "description": "Create or truncate a named file.", "arguments": [{"register": "CX", "label": "File attributes"}], "result": {"kind": "handle", "description": "CF clear: AX is the new handle. CF set: AX is an error."}, "buffer": {"label": "Filename", "direction": "input", "length": "00"}, "handles": {"action": "open"}},
+      {"function": "3D", "name": "Open file", "description": "Open an existing file.", "arguments": [{"register": "AL", "label": "Access/sharing mode: low three bits 0=read, 1=write, 2=read/write"}], "result": {"kind": "handle", "description": "CF clear: AX is the handle. CF set: AX is an error."}, "buffer": {"label": "Filename", "direction": "input", "length": "00"}, "handles": {"action": "open"}},
+      {"function": "3E", "name": "Close handle", "description": "Close the handle and flush pending file updates.", "arguments": [{"register": "BX", "label": "Handle"}], "result": {"kind": "status", "description": "CF clear indicates success; CF set returns an error in AX."}, "handles": {"action": "close", "source": "BX"}},
+      {"function": "3F", "name": "Read handle", "description": "Read into the destination buffer.", "arguments": [{"register": "BX", "label": "Handle"}, {"register": "CX", "label": "Maximum bytes to read"}], "result": {"kind": "count", "description": "CF clear: AX is bytes read, possibly fewer than CX. Zero means no bytes read. CF set: AX is an error."}, "buffer": {"label": "Destination", "direction": "output", "length": "CX"}, "handles": {"action": "use", "source": "BX"}},
+      {"function": "40", "name": "Write handle", "description": "Write from the source buffer. CX=0 changes a disk file’s length at its current position.", "arguments": [{"register": "BX", "label": "Handle"}, {"register": "CX", "label": "Bytes to write"}], "result": {"kind": "count", "description": "CF clear: AX is bytes written; a short write is possible. CF set: AX is an error."}, "buffer": {"label": "Source", "direction": "input", "length": "CX"}, "handles": {"action": "use", "source": "BX"}},
+      {"function": "45", "name": "Duplicate handle", "description": "Create another handle for the same open file, sharing its file position. Closing one alias leaves the other open.", "arguments": [{"register": "BX", "label": "Source handle"}], "result": {"kind": "handle", "description": "CF clear: AX is the new handle. CF set: AX is an error."}, "handles": {"action": "duplicate", "source": "BX"}},
+      {"function": "46", "name": "Redirect handle", "description": "Make the target handle refer to the source file, closing its previous file if necessary. Both handles share the file position.", "arguments": [{"register": "BX", "label": "Source handle"}, {"register": "CX", "label": "Target handle"}], "result": {"kind": "status", "description": "CF clear indicates success; CF set returns an error in AX."}, "handles": {"action": "redirect", "source": "BX", "target": "CX"}},
       {"function": "4C", "name": "Terminate process", "description": "Exit to the parent process.", "arguments": [{"register": "AL", "label": "Requested exit status"}], "result": {"kind": "terminate", "description": "This call does not return to its caller."}},
       {"function": "4D", "name": "Child exit status", "description": "Read the child process’s exit information.", "arguments": [], "result": {"kind": "exit-status", "description": "AH: 00 normal, 01 Ctrl-C, 02 critical-error abort, 03 stayed resident. AL: exit status. CF is not a success indicator."}}
     ],
-    "errors": {"0002": "File not found", "0003": "Path not found", "0004": "Too many open files", "0005": "Access denied", "0006": "Invalid handle", "000C": "Invalid access mode"}
+    "errors": {"0002": "File not found", "0003": "Path not found", "0004": "Too many open files", "0005": "Access denied", "0006": "Invalid handle", "000C": "Invalid access mode"},
+    "forgetHandles": {"interrupts": ["20", "27"], "functions": ["00", "26", "31", "4B", "4C", "50", "55", "5A", "5B", "67", "6C"]},
+    "handleTable": {"name": "MS-DOS 3.30 local handle table", "entry": "1460", "guards": [{"offset": "1460", "bytes": "2E 3A 26 FF 0D 77 DC 80 FC 51 74 A1"}, {"offset": "140D", "bytes": "2E 8B 1E DE 02 CF"}], "currentPsp": "02DE", "count": "0032", "pointer": "0034"}
   },
   "sha256": "2798f8a9a7dcab651ede40373d35269ad573b75acf811115c263e034ef80a1f2",
   "io": {

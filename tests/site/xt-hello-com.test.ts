@@ -1,3 +1,4 @@
+import { Cpu8088 } from "../../src/components/cpus/generated/8088-cpu.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -128,10 +129,10 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   assert.deepEqual(session.machine.io.exportDiskette(), new Uint8Array(disk));
 
   // All DOS results are paired with the observed caller, without using loader or kernel addresses.
-  function command(text: string, functions: readonly number[], checkpointCall: (call: DosCall) => boolean) {
+  function command(text: string, functions: readonly number[], checkpointCall: (call: DosCall) => boolean, filename?: string) {
     dosCalls.reset(); session.keyboard.paste(text + "\n");
     debug.setEventStops([...functions.flatMap(fn => (["call", "return"] as const).map(phase =>
-      ({ kind: "dos" as const, phase, function: fn, enabled: true }))), { kind: "dos", phase: "error", function: 0x3e, enabled: true }]);
+      ({ kind: "dos" as const, phase, function: fn, ...(filename && { filename }), enabled: true }))), { kind: "dos", phase: "error", function: 0x3e, enabled: true }]);
     debug.run();
     const hits: DosCall[] = [];
     let halfway: { state: XtSessionState; boundaries: number } | undefined;
@@ -165,6 +166,7 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   assert.equal(opened.result!.ax, 5); assert.equal(opened.result!.carry, false);
   const reads = dosCalls.entries().filter(call => call.service.function === "3F");
   assert.deepEqual(reads.map(call => call.result!.ax), [58, 0]);
+  assert.ok(reads.every(call => call.filename === "README.TXT"));
   assert.ok(reads.every(call => call.buffer!.length === 65024 && !call.result!.carry));
   const readmeText = "Dromaios XT data disk.\r\nDOS read this file from drive A.\r\n";
   assert.equal(Buffer.from(reads[0]!.result!.buffer!.bytes).toString("ascii"), readmeText);
@@ -176,6 +178,7 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
     [["pending", undefined], ["returned", 58], ["pending", undefined], ["returned", 0]]);
   assert.ok(readStops.hits.some(call => call.service.function === "3E" && call.result?.carry && call.result.ax === 6));
   const replayReads = recover(readStops).filter(call => call.service.function === "3F");
+  assert.ok(replayReads.every(call => call.filename === undefined), "Restoration cannot reconstruct opening names from handle indices");
   assert.deepEqual(replayReads.map(call => [call.state, call.result?.ax]), [["pending", undefined], ["returned", 0]],
     "The first read's uncaptured return is ignored after restoration; the next read still stops at EOF");
   until(() => !session.machine.io.disketteMotorOn);
@@ -187,8 +190,10 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   assert.equal(created.result!.carry, false); assert.equal(created.result!.ax, 5);
   const written = dosCalls.entries().find(call => call.service.function === "40" && Buffer.from(call.buffer!.bytes).toString("ascii") === "HELLO")!;
   assert.equal(written.arguments.find(arg => arg.register === "BX")!.value, 1, "Standard output is redirected to SAVE.TXT");
+  assert.equal(written.filename, "SAVE.TXT");
   assert.equal(written.result!.ax, 5); assert.equal(written.result!.carry, false);
   const following = dosCalls.entries().find(call => call.id > written.id && call.service.function === "40")!;
+  assert.equal(following.filename, "SAVE.TXT");
   assert.equal(Buffer.from(following.buffer!.bytes).toString("ascii"), "\r\n"); assert.equal(following.result!.ax, 2);
   const exported = session.machine.io.exportDiskette(), savedVolume = inspectFat12(exported);
   const savedFile = savedVolume.entries.find(file => file.name === "SAVE.TXT")!;
@@ -200,5 +205,54 @@ test("DOS loads HELLO.COM through every named stop, prints, terminates, and repl
   assert.deepEqual(replayWrites.slice(0, 2).map(call => [call.state, call.result?.ax]), [["pending", undefined], ["returned", 2]]);
   assert.ok(replayWrites.every(call => Buffer.from(call.buffer!.bytes).toString("ascii") !== "HELLO"), "The restored HELLO write has no captured call");
   assert.deepEqual(session.machine.io.exportDiskette(), exported, "The writable image survives a mid-write restoration");
+  assert.ok(replayWrites.every(call => call.filename === undefined));
+  assert.equal(reads[0]!.filename, "README.TXT", "Reusing handle 5 and its SFT slot does not rewrite a captured call");
+
+  for (const [text, filename, functions, fn] of [
+    ["TYPE README.TXT", "readme.txt", [0x3d, 0x3f], "3F"],
+    ["ECHO HELLO>SAVE.TXT", "save.txt", [0x3c, 0x40], "40"],
+  ] as const) {
+    const completed = command(text, functions, call => call.service.function === fn, filename);
+    assert.ok(completed.hits.filter(call => call.service.function === fn).every(call => call.filename?.toLowerCase() === filename));
+    assert.equal(completed.hits.filter(call => call.service.function === fn).length, 4);
+    const replay = recover(completed);
+    assert.ok(replay.every(call => call.service.function !== fn), "The saved filename filter survives restoration and excludes unidentified handles");
+  }
+
+  // Exercise the actual DOS duplicate/force-duplicate services too: COMMAND.COM edits its JFT directly.
+  dosCalls.reset(); debug.setEventStops([]); debug.run();
+  function invoke(ah: number, bx = 5, cx = 0, text = "") {
+    const m = session.machine;
+    [0xcd, 0x21].forEach((byte, i) => m.ram.write(0x80000 + i, byte));
+    [...Buffer.from(text, "ascii"), 0].forEach((byte, i) => m.ram.write(0x80100 + i, byte));
+    m.cpu = new Cpu8088(m.memory, { ...m.cpu.snapshot(), cs: 0x8000, ip: 0, ss: 0x8000, sp: 0xfffe,
+      ax: ah << 8, bx, cx, ds: 0x8000, dx: 0x100 }, { ports: m.ports });
+    const previousId = dosCalls.entries().at(-1)?.id ?? 0;
+    let id: number | undefined;
+    for (let n = 0; n < 1_000_000; n++) {
+      debug.capture(() => session.step());
+      const call = dosCalls.entries().at(-1);
+      if (id === undefined && call && call.id > previousId && call.service.function === ah.toString(16).toUpperCase()) id = call.id;
+      if (call?.id === id && call?.state === "returned") return call;
+    }
+    assert.fail(`DOS AH=${ah.toString(16)} failed to return`);
+  }
+  const openedAgain = invoke(0x3d, 0, 0, "README.TXT"); assert.equal(openedAgain.result!.ax, 5);
+  assert.deepEqual(invoke(0x3f, 5, 1).result!.buffer!.bytes, [68]); // D
+  const duplicate = invoke(0x45, 5); assert.equal(duplicate.result!.ax, 6); assert.equal(duplicate.filename, "README.TXT");
+  invoke(0x3e, 5);
+  const reused = invoke(0x3c, 0, 0, "SAVE.TXT"); assert.equal(reused.result!.ax, 5);
+  const shared = invoke(0x3f, 6, 2); assert.equal(shared.filename, "README.TXT");
+  assert.equal(Buffer.from(shared.result!.buffer!.bytes).toString("ascii"), "ro", "The duplicate shares the original file position");
+  const consoleHandle = invoke(0x45, 1).result!.ax;
+  assert.equal(invoke(0x46, 5, 1).result!.carry, false);
+  const redirected = invoke(0x40, 1, 3, "DUP");
+  assert.equal(redirected.filename, "SAVE.TXT"); assert.equal(redirected.result!.ax, 3);
+  assert.equal(invoke(0x46, consoleHandle, 1).result!.carry, false);
+  assert.ok(!dosCalls.handles().some(entry => entry.handle === 1), "Restoring the unnamed console removes the file association");
+  invoke(0x3e, consoleHandle); invoke(0x3e, 5); invoke(0x3e, 6);
+  const finalDisk = session.machine.io.exportDiskette(), finalVolume = inspectFat12(finalDisk);
+  assert.equal(Buffer.from(readFat12File(finalDisk, finalVolume, finalVolume.entries.find(entry => entry.name === "SAVE.TXT")!)).toString("ascii"), "DUP");
+  assert.equal(openedAgain.filename, "README.TXT");
   activity.dispose(); debug.dispose();
 });

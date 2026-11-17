@@ -37,7 +37,7 @@ import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebug
 import { createXtDebuggerView } from "./xt-debugger-view.js";
 import { previewXtInstruction } from "./xt-instruction-preview.js";
 import { createXtInstructionView } from "./xt-instruction-view.js";
-import { createXtDosCalls, dosRequest, type DosServices } from "./xt-dos-services.js";
+import { createXtDosCalls, type DosServices } from "./xt-dos-services.js";
 import { createXtDosServicesView } from "./xt-dos-services-view.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
 import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
@@ -254,7 +254,7 @@ function mount(root: HTMLElement): void {
       if (instruction.getClientRects().length && (requested === "instruction" || updates.shouldUpdate("instruction", running))) {
         const preview = previewXtInstruction(session, catalogue);
         showInstruction(preview);
-        showDos(preview.record && dosRequest(guide.dos, preview.record, readStorage), debug.dosHit);
+        showDos(preview.record && dosCalls.preview(preview.record), debug.dosHit);
       }
       if (memoryPanel.getClientRects().length && (requested === "memory" || updates.shouldUpdate("memory", running))) {
         memory.refresh(address => readXtStorage(session.machine, catalogue.storage, address), cpu.pc, {

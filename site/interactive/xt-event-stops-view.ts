@@ -13,7 +13,7 @@ export function createXtEventStopsView(root: HTMLElement, options: {
   const at = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-event-${name}]`)!;
   const form = at<HTMLFormElement>("form"), kind = at<HTMLSelectElement>("kind"), source = at<HTMLSelectElement>("source");
   const port = at<HTMLInputElement>("port"), value = at<HTMLInputElement>("value"), vector = at<HTMLInputElement>("vector");
-  const address = at<HTMLInputElement>("address");
+  const address = at<HTMLInputElement>("address"), filename = at<HTMLInputElement>("dos-filename");
   const phase = at<HTMLSelectElement>("dos-phase"), service = at<HTMLSelectElement>("dos-service");
   const status = at("status"), output = at("rows"), key = "dromaios:debugger:xt:events:1";
   for (const name of xtInterruptSources) source.add(new Option(name.toUpperCase(), name));
@@ -60,7 +60,7 @@ export function createXtEventStopsView(root: HTMLElement, options: {
     at("dma-fields").hidden = kind.value !== "dma"; address.disabled = kind.value !== "dma";
     at("port-fields").hidden = !isPort; port.disabled = value.disabled = !isPort;
     at("interrupt-fields").hidden = kind.value !== "interrupt"; source.disabled = vector.disabled = kind.value !== "interrupt";
-    at("dos-fields").hidden = kind.value !== "dos"; phase.disabled = service.disabled = kind.value !== "dos";
+    at("dos-fields").hidden = kind.value !== "dos"; phase.disabled = service.disabled = filename.disabled = kind.value !== "dos";
   }
   kind.onchange = fields;
   form.onsubmit = event => {
@@ -68,7 +68,7 @@ export function createXtEventStopsView(root: HTMLElement, options: {
     try {
       if (kind.value === "iret") add({ kind: "iret" });
       else if (kind.value === "dos") add({ kind: "dos", phase: phase.value as "call" | "return" | "error",
-        ...(service.value && { function: parseInt(service.value, 16) }) });
+        ...(service.value && { function: parseInt(service.value, 16) }), ...(filename.value && { filename: filename.value }) });
       else if (kind.value === "dma") add({ kind: "dma", ...(address.value.trim() && { address: parseMemoryAddress(address.value, 0xfffff) }) });
       else if (kind.value === "interrupt") add({ kind: "interrupt",
         ...(source.value && { source: xtInterruptSources.find(name => name === source.value)! }),

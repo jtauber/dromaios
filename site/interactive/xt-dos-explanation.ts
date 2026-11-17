@@ -15,6 +15,10 @@ export function dosCallLines(request: DosRequest, catalogue: DosServices, observ
   const { service, buffer, returnTo } = request;
   const lines = [service.description, `Caller ${logical8088(request.caller.cs, request.caller.ip)}`,
     ...request.arguments.map(arg => `${arg.register}=${hex(arg.value, arg.register === "AL" ? 2 : 4)} · ${arg.label} (${arg.value})`)];
+  if (service.handles) {
+    lines.push(`${request.handle === undefined ? "Requested filename" : "Handle " + request.handle} · ${request.filename === undefined ? "filename unknown" : JSON.stringify(request.filename)}`);
+    if (request.targetHandle !== undefined) lines.push(`Target handle ${request.targetHandle}; its association changes only after a successful return.`);
+  }
   if (buffer) {
     lines.push(`${service.buffer!.label} · DS:DX ${logical8088(buffer.segment, buffer.offset)} → physical $${hex(physical8088(buffer.segment, buffer.offset), 5)}`);
     if (buffer.length !== undefined) lines.push(`${buffer.length} bytes requested.`);
@@ -24,7 +28,7 @@ export function dosCallLines(request: DosRequest, catalogue: DosServices, observ
   const result = observed?.result;
   if (!observed) lines.push("Preview only; the service has not run.");
   else if (observed.state === "no-return") lines.push("Termination requested; no return to this caller is expected. This is not confirmation of completion.");
-  else if (observed.state === "untracked") lines.push("No return observed before termination or the pending-call limit cleared tracking.");
+  else if (observed.state === "untracked") lines.push("Return tracking was cleared by a process change or observation limit.");
   else if (!result) lines.push(`Awaiting return to ${logical8088(returnTo.cs, returnTo.ip)} with SS:SP ${logical8088(returnTo.ss, returnTo.sp)}.`);
   else {
     lines.push(`Observed return to ${logical8088(returnTo.cs, returnTo.ip)} · AX=${hex(result.ax, 4)} · CF=${+result.carry}.`);

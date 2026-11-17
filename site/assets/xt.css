@@ -31,3 +31,5 @@
 [data-io-entries] .lab-device-event > button { margin-top: 5px; padding: 3px 6px; font-size: 11px; }
 [data-disk-activity] .basic-controls label { display: inline-flex; align-items: center; gap: 6px; }
 .xt-laboratory [data-dos-next], .xt-laboratory [data-dos-detail] { margin: .6rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.xt-laboratory .xt-dos-filename { display: flex; align-items: center; gap: 6px; margin: 6px 0; }

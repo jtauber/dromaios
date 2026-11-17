@@ -2,6 +2,8 @@ import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-c
 import type { XtBoundary } from "./xt-session.js";
 import { opcode8088Index } from "./8088-encoding.js";
 import { physical8088 } from "./8088-disassembly.js";
+import { dosHandleTable, type DosHandleTableProfile } from "./xt-dos-handle-table.js";
+import { createDosHandles, type DosHandleContract } from "./xt-dos-handles.js";
 
 export type DosRegister = "AL" | "AX" | "BX" | "CX" | "DX";
 export interface DosService {
@@ -11,10 +13,13 @@ export interface DosService {
   readonly arguments: readonly { readonly register: DosRegister; readonly label: string }[];
   readonly buffer?: { readonly label: string; readonly direction: "input" | "output"; readonly length: "CX" | "00" | "24" };
   readonly result: { readonly kind: "none" | "status" | "handle" | "count" | "terminate" | "exit-status"; readonly description: string };
+  readonly handles?: DosHandleContract;
 }
 export interface DosServices {
   readonly services: readonly DosService[];
   readonly errors: Readonly<Record<string, string>>;
+  readonly handleTable: DosHandleTableProfile;
+  readonly forgetHandles: { readonly interrupts: readonly string[]; readonly functions: readonly string[] };
 }
 export interface DosBuffer {
   readonly segment: number;
@@ -28,6 +33,9 @@ export interface DosRequest {
   readonly caller: { readonly cs: number; readonly ip: number };
   readonly arguments: readonly { readonly register: DosRegister; readonly label: string; readonly value: number }[];
   readonly buffer?: DosBuffer;
+  readonly filename?: string;
+  readonly handle?: number;
+  readonly targetHandle?: number;
   readonly returnTo: { readonly cs: number; readonly ip: number; readonly ss: number; readonly sp: number };
 }
 export interface DosResult {
@@ -81,10 +89,13 @@ export function dosRequest(catalogue: DosServices, record: XtBoundary, read: Rea
 
 /** Bounded observed calls, independent of CPU emulation, drawing, and the shared stopping policy. */
 export function createXtDosCalls(catalogue: DosServices, read: Read) {
-  const history: DosCall[] = [];
+  const history: DosCall[] = [], handles = createDosHandles(() => dosHandleTable(catalogue.handleTable, read));
+  const forgottenInterrupts = catalogue.forgetHandles.interrupts.map(value => parseInt(value, 16));
+  const forgottenFunctions = catalogue.forgetHandles.functions.map(value => parseInt(value, 16));
   let sequence = 0, revision = 0;
   let pending: number[] = [];
-  function abandon(): void {
+  function abandon(clearHandles = true): void {
+    if (clearHandles) handles.reset();
     for (const id of pending) {
       const index = history.findIndex(call => call.id === id);
       if (index >= 0) history[index] = { ...history[index]!, state: "untracked" };
@@ -93,17 +104,29 @@ export function createXtDosCalls(catalogue: DosServices, read: Read) {
   }
   return {
     get revision() { return revision; },
+    handles: handles.entries,
     entries(): readonly DosCall[] { return history.slice(); },
-    reset(): void { history.length = 0; pending = []; revision++; },
-    observe(record: XtBoundary): DosCall | undefined {
+    reset(): void { history.length = 0; pending = []; handles.reset(); revision++; },
+    preview(record: XtBoundary): DosRequest | undefined {
       const request = dosRequest(catalogue, record, read);
+      return request && handles.capture(request);
+    },
+    observe(record: XtBoundary): DosCall | undefined {
+      if (record.instruction && record.outcome === "executed" && "interrupt" in record && record.interrupt?.source === "software"
+        && (forgottenInterrupts.includes(record.interrupt.vector) || record.interrupt.vector === 0x21 && forgottenFunctions.includes(record.before.ah))) {
+        abandon(); revision++;
+      }
+      const raw = dosRequest(catalogue, record, read);
+      if (raw && handles.refresh()) abandon(false);
+      const request = raw && handles.capture(raw);
       if (request) {
         const terminates = request.service.result.kind === "terminate";
         if (terminates || pending.length === 16) abandon();
         const call: DosCall = { ...request, id: ++sequence, state: terminates ? "no-return" : "pending" };
         history.push(call); if (!terminates) pending.push(call.id);
         if (history.length > 128) {
-          const removed = history.shift()!; pending = pending.filter(id => id !== removed.id);
+          const removed = history.shift()!;
+          if (pending.includes(removed.id)) abandon();
         }
         revision++; return call;
       }
@@ -118,10 +141,12 @@ export function createXtDosCalls(catalogue: DosServices, read: Read) {
           && call.returnTo.ss === cpu.ss && call.returnTo.sp === cpu.sp) break;
       }
       if (index < 0) return;
+      if (handles.refresh()) { abandon(false); revision++; return; }
       const call = history[index]!, input = call.buffer;
       const output = input && call.service.buffer?.direction === "output" && !cpu.flags.cf
         ? buffer(read, input.segment, input.offset, Math.min(cpu.ax, input.length!), true) : undefined;
       const completed: DosCall = { ...call, state: "returned", result: { ax: cpu.ax, carry: cpu.flags.cf, ...(output && { buffer: output }) } };
+      handles.returned(call, completed.result!);
       history[index] = completed;
       pending = pending.filter(id => id !== call.id); revision++;
       return completed;
