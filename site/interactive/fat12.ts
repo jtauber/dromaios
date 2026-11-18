@@ -140,3 +140,19 @@ export function readFat12File(bytes: Fat12Bytes, volume: Fat12Volume, entry: Fat
   }
   return result;
 }
+
+/** Clip file allocation to a logical byte range; retain sector boundaries for navigation. */
+export function fat12FileSectors(regions: readonly Fat12Region[], offset: number, length: number): Fat12Region[] {
+  return regions.flatMap(region => {
+    if (region.fileOffset === undefined) return [];
+    let start = Math.max(offset, region.fileOffset);
+    const end = Math.min(offset + length, region.fileOffset + region.fileBytes!);
+    const result: Fat12Region[] = [];
+    while (start < end) {
+      const image = region.offset + start - region.fileOffset, bytes = Math.min(end - start, 512 - image % 512);
+      result.push({ ...region, offset: image, length: bytes, fileOffset: start, fileBytes: bytes });
+      start += bytes;
+    }
+    return result;
+  });
+}

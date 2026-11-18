@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { dosTransfer } from "./dos-transfer.js";
 import { runInput } from "./rom-console.js";
+import type { XtDisketteTransfer } from "../../../../src/machines/8088/pc-xt/io.js";
 
 type Xt = Parameters<typeof runInput>[0];
 
@@ -32,14 +33,14 @@ export function ultimaVParty(machine: Xt, base: number) {
     move(0x15, 0, 45, 62); // Y enters Britannia.
   }
 
-  function save() {
+  function save(onDiskByte?: (transfer: XtDisketteTransfer) => void) {
     press(0x10); // Q: Quit and Save.
-    const saved = dosTransfer(machine, [0x15, 0x95], "write", 4192); // Y at "Save game?"
+    const saved = dosTransfer(machine, [0x15, 0x95], "write", 4192, onDiskByte); // Y at "Save game?"
     // DOS writes SAVED.OOL next. Export only after the BIOS releases the drive motor.
-    runInput(machine, [], { limit: 2_000_000, until: (_, { before, instruction }) =>
+    runInput(machine, [], { onDiskByte, limit: 2_000_000, until: (_, { before, instruction }) =>
       !machine.io.disketteMotorOn && before.cs === 0x0c6f && before.ah === 1
       && instruction?.bytes[0] === 0xcd && instruction.bytes[1] === 0x16 });
-    return { record: saved.bytes, disk: machine.io.exportDiskette() };
+    return { base: saved.base, record: saved.bytes, disk: machine.io.exportDiskette() };
   }
 
   return { position, move, leaveHut, save };

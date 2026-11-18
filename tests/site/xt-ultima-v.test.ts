@@ -31,11 +31,16 @@ test("the hut, movement and reload checkpoints distinguish guest state at shared
   ram.write(0x215c7, 16);
   assert.ok(match(2)); assert.equal(match(1), false);
   ram.write(0x215c3, 0); ram.write(0x215c6, 46); ram.write(0x215c7, 62);
-  assert.ok(match(3)); assert.ok(match(4));
+  assert.ok(match(3)); assert.ok(match(4)); assert.equal(match(6), false);
   for (const change of [{ ax: 512 }, { dx: 0x100 }, { flags: { ...state.flags, cf: true } }]) {
     assert.equal(matchesUltimaObservation(steps[3]!.expect!, { ...state, ...change }, ram), false);
   }
   const poll = { address: 0xe45c, space: "CS:IP 0C6F:1D6C" };
   assert.match(xtCheckpointPosition(steps[1]!, poll, true, false, () => match(1)), /does not yet match/);
   assert.match(xtCheckpointPosition(steps[4]!, poll, true, false, () => match(4)), /^At checkpoint/);
+  ram.write(0x215c6, 45);
+  assert.ok(match(5)); assert.ok(match(6)); assert.equal(match(3), false);
+  const readReturn = { address: 0x13966, space: "CS:IP 0C6F:7276" };
+  assert.match(xtCheckpointPosition(steps[6]!, poll, true, false, () => match(6)), /^Paused at/);
+  assert.match(xtCheckpointPosition(steps[6]!, readReturn, true, false, () => match(6)), /^At checkpoint/);
 });

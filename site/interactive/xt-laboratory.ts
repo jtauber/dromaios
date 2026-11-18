@@ -179,8 +179,8 @@ function mount(root: HTMLElement): void {
     available: tour => tour.id !== "hello-com" || !ega,
     runTo: (text, step) => act(() => runTo(text, step)),
     browse: (address, step) => { showCode.browse({ address, space: "CS:IP " + step.execution }); workspace.show("code"); },
-    inspect: ({ expect, memory: address, file }: XtCheckpoint) => file ? [
-      { label: "Files · " + file, show: () => { workspace.show("dma"); diskMode("files"); diskFiles.select(file); } },
+    inspect: ({ expect, memory: address, file, fileRange }: XtCheckpoint) => file ? [
+      { label: "Files · " + file, show: () => { workspace.show("dma"); diskMode("files"); diskFiles.select(file, fileRange); } },
       { label: "Inspect memory", show: () => browseMemory(parseInt(address!, 16)) },
       { label: "Instruction", show: () => workspace.show("instruction") },
     ] : address ? [

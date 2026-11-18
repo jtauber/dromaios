@@ -1,12 +1,17 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
 import { create8088PcXtEga, romImages } from "../../../../src/machines/generated/8088/pc-xt-ega.js";
 import { RomImage } from "../../../../src/machines/rom-image.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
 import { renderEgaGraphicsFrame, renderEgaTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
 import { makeXtEgaBarsDisk } from "../../../../scripts/make-xt-ega-bars.js";
+import type { XtDisketteTransfer } from "../../../../src/machines/8088/pc-xt/io.js";
+import { inspectFat12, fat12FileRegions, readFat12File } from "../../../../site/interactive/fat12.js";
+import { matchesUltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
+import type { UltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import { ultimaVParty } from "./ultima-v-party.js";
 import { dosTransfer } from "./dos-transfer.js";
 import { runInput, scanCodes, screen } from "./rom-console.js";
@@ -139,7 +144,7 @@ async function bootUltimaTitle(disk: Uint8Array) {
   return m;
 }
 
-function journeyOnward(m: EgaXt, player: Uint8Array) {
+function journeyOnward(m: EgaXt, player: Uint8Array, onDiskByte?: (transfer: XtDisketteTransfer) => void) {
   runInput(m, scanCodes("\n"), { limit: 2_000_000, until: (_, { before, instruction }) =>
     before.ah === 0x3d && instruction?.bytes[0] === 0xcd && instruction.bytes[1] === 0x21
     && filenameAt(m, before.ds, before.dx) === "TILES.16" });
@@ -158,10 +163,13 @@ function journeyOnward(m: EgaXt, player: Uint8Array) {
   const { ds, dx } = m.cpu.snapshot();
   assert.equal(filenameAt(m, ds, dx), "SAVED.GAM");
   m.io.setDiskette(player, { writable: true });
-  const party = dosTransfer(m, [], "read", 4192);
+  const party = dosTransfer(m, [], "read", 4192, onDiskByte);
+  return { party: ultimaVParty(m, party.base), record: party.bytes };
+}
+
+function waitForMap(m: EgaXt) {
   // At this keyboard poll the game has finished drawing the map.
   runInput(m, [], { limit: 6_000_000, until: (_, { after }) => after.cs === 0x0c6f && after.ip === 0x1d6c });
-  return { party: ultimaVParty(m, party.base), record: party.bytes };
 }
 
 /** One map tile, in row order, from the frame rendered by the adapter. */
@@ -185,6 +193,7 @@ test("Ultima V selects EGA.DRV automatically and draws both reference menu strip
     const player = readFileSync(XT_ULTIMA_PLAYER!);
     assert.equal(sha256(player), "135c06d4193b1f01062b27d0f884e2045d0ea0dec667e88b281f0ef466bc9b7a");
     const { party, record } = journeyOnward(m, player);
+    waitForMap(m);
     assert.equal(sha256(record), "e4cf6298c3f04151669d7948330ce85f51edec2c0efc9eeabe6c3b3ac3e7b740");
     assert.deepEqual(party.position(), [13, 15, 15]);
     const table = tile(m, 112, 88);
@@ -204,8 +213,53 @@ test("Ultima V selects EGA.DRV automatically and draws both reference menu strip
     const resumed = journeyOnward(fresh, saved.disk);
     assert.deepEqual(resumed.record, saved.record);
     assert.deepEqual(resumed.party.position(), [0, 46, 62]);
+    waitForMap(fresh);
     assert.deepEqual(tile(fresh, 56, 72), forest);
     resumed.party.move(0x4b, 0, 45, 62);
     assert.deepEqual(tile(fresh, 72, 72), forest);
+
+    // Resolve the exported file again: the game recreates it on each save.
+    const beforeSave = fresh.io.exportDiskette(), oldVolume = inspectFat12(beforeSave);
+    assert.deepEqual(readFat12File(beforeSave, oldVolume, oldVolume.entries.find(e => e.name === "SAVED.GAM")!), saved.record);
+    const writes: XtDisketteTransfer[] = [], reads: XtDisketteTransfer[] = [];
+    const west = resumed.party.save(byte => { if (byte.direction === "memory-to-disk") writes.push(byte); });
+    assert.equal(west.base, 0x212d6);
+    const volume = inspectFat12(west.disk), entry = volume.entries.find(e => e.name === "SAVED.GAM")!;
+    const file = readFat12File(west.disk, volume, entry);
+    assert.deepEqual(file, west.record);
+    const first = fat12FileRegions(volume, entry).find(region => region.fileOffset === 0)!;
+    assert.equal(first.cluster, 355); // The audited second export, not a fixed game sector.
+    assert.equal(first.offset, 718 * 512);
+
+    const reboot = await bootUltimaTitle(disk);
+    const reload = journeyOnward(reboot, west.disk, byte => { if (byte.direction === "disk-to-memory") reads.push(byte); });
+    const cpu = reboot.cpu.snapshot();
+    const guide = readFileSync("docs/machines/pc-xt-ultima-v.md", "utf8");
+    const { steps }: { steps: { title: string; execution: string; expect: UltimaObservation }[] } =
+      JSON.parse(guide.match(/^```json\n([\s\S]*?)^```$/m)![1]!);
+    const stop = steps.find(step => step.title === "Read the westward step from disk")!;
+    assert.equal(stop.execution, [cpu.cs, cpu.ip].map(n => n.toString(16).toUpperCase().padStart(4, "0")).join(":"));
+    assert.ok(matchesUltimaObservation(stop.expect, cpu, reboot.ram));
+    assert.deepEqual(reload.record, file);
+
+    for (const [offset, before, after] of [[0x2ed, 0, 0], [0x2f0, 46, 45], [0x2f1, 62, 62]] as const) {
+      assert.equal(saved.record[offset], before);
+      const image = first.offset + offset;
+      assert.equal(west.disk[image], after);
+      const written = writes.filter(byte => byte.offset === image).at(-1);
+      const read = reads.find(byte => byte.offset === image);
+      // These three bytes crossed channel 2 directly at the party buffer, in both directions.
+      assert.deepEqual([written?.address, written?.value], [west.base + offset, after]);
+      assert.deepEqual([read?.address, read?.value], [west.base + offset, after]);
+    }
+    waitForMap(reboot);
+    assert.deepEqual(tile(reboot, 72, 72), forest);
+
+    const directory = process.env.XT_ULTIMA_SAVE_EXPORTS;
+    if (directory) {
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(join(directory, "PLAYER-46-62.IMG"), saved.disk);
+      writeFileSync(join(directory, "PLAYER-45-62.IMG"), west.disk);
+    }
   });
 });

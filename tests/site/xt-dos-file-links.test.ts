@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dosAllocationRegions, dosBufferRegions, createXtDosFileLinks } from "../../site/interactive/xt-dos-file-links.js";
-import { fat12FileRegions, inspectFat12 } from "../../site/interactive/fat12.js";
+import { dosBufferRegions, createXtDosFileLinks } from "../../site/interactive/xt-dos-file-links.js";
+import { fat12FileSectors, fat12FileRegions, inspectFat12 } from "../../site/interactive/fat12.js";
 import { createXtSession } from "../../site/interactive/xt-session.js";
 import { createXtDiskActivity } from "../../site/interactive/xt-disk-activity.js";
 import type { DosCall } from "../../site/interactive/xt-dos-services.js";
@@ -27,10 +27,10 @@ function fixture() {
 
 test("DOS byte ranges split at sectors and fragmented clusters without including slack or metadata", () => {
   const { disk } = xtFileRangeDisk(), volume = inspectFat12(disk), file = volume.entries[1]!;
-  assert.deepEqual(dosAllocationRegions(fat12FileRegions(volume, file), 500, 540).map(r => [r.offset, r.fileOffset, r.length, r.cluster]),
+  assert.deepEqual(fat12FileSectors(fat12FileRegions(volume, file), 500, 540).map(r => [r.offset, r.fileOffset, r.length, r.cluster]),
     [[6644, 500, 12, 2], [6656, 512, 512, 2], [9216, 1024, 16, 5]]);
-  assert.deepEqual(dosAllocationRegions(fat12FileRegions(volume, file), 2048, 50).map(r => [r.offset, r.length]), [[8192, 2]]);
-  assert.deepEqual(dosAllocationRegions(fat12FileRegions(volume, file), 0, 0), []);
+  assert.deepEqual(fat12FileSectors(fat12FileRegions(volume, file), 2048, 50).map(r => [r.offset, r.length]), [[8192, 2]]);
+  assert.deepEqual(fat12FileSectors(fat12FileRegions(volume, file), 0, 0), []);
   assert.deepEqual(dosBufferRegions(0xffff, 8, 1000, 40), [{ address: 0xffff8, length: 8, fileOffset: 1000 }, { address: 0, length: 32, fileOffset: 1008 }]);
   assert.deepEqual(dosBufferRegions(0x1000, 0xfffe, 4, 4), [{ address: 0x1fffe, length: 2, fileOffset: 4 }, { address: 0x10000, length: 2, fileOffset: 6 }]);
 });

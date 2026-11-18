@@ -15,6 +15,7 @@ export interface XtCheckpoint extends RomCheckpoint {
   readonly event?: XtEventCondition;
   readonly memory?: string;
   readonly file?: string;
+  readonly fileRange?: { readonly offset: number; readonly length: number };
 }
 
 /** Labels describe physical BIOS bytes; walkthrough stops retain the exact CS:IP pair. */

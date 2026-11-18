@@ -43,6 +43,16 @@ def ultima_walkthrough(source):
         step["address"] = f"{_physical_address(step.get('execution')):05X}"
         if not _ultima_observation(step.get("expect")):
             raise ValueError(f"Invalid guest observation at {step['execution']}.")
+        if {"file", "fileRange", "memory"} & step.keys():
+            # A walkthrough may link a small file field to its counterpart in conventional RAM.
+            span, address, name = step.get("fileRange"), step.get("memory"), step.get("file")
+            if (not isinstance(span, dict) or set(span) != {"offset", "length"}
+                    or type(span["offset"]) is not int or span["offset"] < 0
+                    or type(span["length"]) is not int or not 1 <= span["length"] <= 32
+                    or not isinstance(name, str) or not re.fullmatch(r"[A-Z0-9_]{1,8}(?:\.[A-Z0-9_]{1,3})?", name)
+                    or not isinstance(address, str) or not re.fullmatch(r"[0-9A-F]{5}", address)
+                    or int(address, 16) + span["length"] > 0xA0000):
+                raise ValueError("Invalid file or memory range in the Ultima V walkthrough.")
     return tour
 
 

@@ -278,6 +278,35 @@ the exported image. Run to the keyboard poll at `0C6F:1D6C` for the
 finished map. One Left keypress moves the forest tile at screen (56,72)
 to (72,72) as the party walks west.
 
+### Where did the westward step go?
+
+After that Left keypress, pause at **Walk west before saving**. **Inspect
+memory** shows `2D 3E`, but **Files · SAVED.GAM** still shows `2E 3E` on
+the mounted disk. The party has moved; its saved position has not. Leave
+**Record disk activity** enabled, save again with **Q**, **Y**, and pause
+after **Done** and **Motor off**. Reopen **Files · SAVED.GAM**. This time
+the bytes on disk match RAM. The sector button opens the controller command;
+the recorded transfer links lead to the addresses used by DMA.
+
+| Field | Physical RAM | Offset in `SAVED.GAM` | Offset in the second exported image | Before → after (hex) |
+| --- | --- | --- | --- | --- |
+| Outdoor location | `$215C3` | `$02ED` | `$59EED` | `00 → 00` |
+| X | `$215C6` | `$02F0` | `$59EF0` | `2E → 2D` |
+| Y | `$215C7` | `$02F1` | `$59EF1` | `3E → 3E` |
+
+For this EGA run, the recreated file starts in FAT12 cluster **355**.
+Its first two 512-byte sectors are 718 and **719** (zero-based); X and Y
+are at offsets `$F0` and `$F1` in sector 719, **cylinder 39, head 1,
+sector ID 9**. DOS transferred those bytes directly from the party buffer.
+The file offsets describe Ultima’s format; the sector number describes this
+particular export. The laboratory looks up the mounted file’s allocation.
+
+Export the second save separately. On a fresh XT, choose Journey Onward,
+exchange the Program disk for that export, and run to **Read the westward
+step from disk**. It stops at the same DOS return as the earlier save but
+requires `(45,62)` instead of `(46,62)`. At this boundary the floppy has
+delivered both coordinates to RAM and the map is still to be drawn.
+
 <details>
 <summary>Executable laboratory walkthrough</summary>
 
@@ -322,8 +351,24 @@ location, X and Y bytes in the loaded party record, in decimal.
       "title": "Resume in Britannia",
       "execution": "0C6F:1D6C",
       "prepare": "From the DOS read on the fresh XT, run to this checkpoint without pressing a key.",
-      "observe": "The outdoor map is drawn and the game is waiting for input at (46,62). Click the screen, press Left once, then choose Run in Execution. The party moves west to (45,62).",
+      "observe": "The outdoor map is drawn and the game is waiting for input at (46,62). Inspect party bytes: X is 2E and Y is 3E. Leave this XT paused for the next step.",
       "expect": { "party": [0, 46, 62] }
+    },
+    {
+      "title": "Walk west before saving",
+      "execution": "0C6F:1D6C",
+      "prepare": "From the outdoor keyboard poll at (46,62), click the paused screen, press Left once and run to this checkpoint.",
+      "observe": "At the next poll, RAM $215C6–$215C7 holds 2D 3E. Inspect memory for the live coordinates, then Files · SAVED.GAM for the same two offsets on the mounted Player disk: they still read 2E 3E until you save.",
+      "expect": { "party": [0, 45, 62] },
+      "memory": "215C6", "file": "SAVED.GAM", "fileRange": { "offset": 752, "length": 2 }
+    },
+    {
+      "title": "Read the westward step from disk",
+      "execution": "0C6F:7276",
+      "prepare": "At (45,62), choose Run, press Q and confirm with Y. After Done and Motor off, pause. Inspect Files · SAVED.GAM, then export this Player disk under a new name. Insert the Program disk, choose Fresh power-on and Run, and repeat the first disk-exchange stop. Mount the new export, select this checkpoint and run to it.",
+      "observe": "DOS has just returned 4,192 bytes to 1BD3:55A6. Before the map redraws, Inspect memory shows 2D 3E (45,62); Files · SAVED.GAM shows the same bytes at file offsets +$02F0 and +$02F1 and links their Player disk sector to recorded activity. Run again to draw Britannia.",
+      "expect": { "partyRead": true, "party": [0, 45, 62] },
+      "memory": "215C6", "file": "SAVED.GAM", "fileRange": { "offset": 752, "length": 2 }
     }
   ]
 }
@@ -337,7 +382,11 @@ the same route. They compare the full party record written by DOS with the
 one loaded on a new XT and check the next step. Set `XT_BIOS_ROM`,
 `XT_BASIC_ROM` and `XT_ULTIMA_PLAYER` to the audited images. CGA also
 requires `XT_ULTIMA_PROGRAM`. EGA uses `XT_EGA_ROM` and `XT_ULTIMA_EGA_PROGRAM`.
-After building, run the check for either adapter.
+The EGA test also makes the second save, checks the write and read DMA bytes
+against the exported file, and cold-boots it to the westward stop. Set
+`XT_ULTIMA_SAVE_EXPORTS` to a local output directory to keep both
+`PLAYER-46-62.IMG` and `PLAYER-45-62.IMG`. After building, run the check
+for either adapter.
 
 ```sh
 node --test dist/tests/machines/8088/pc-xt/rom-ultima-v.test.js

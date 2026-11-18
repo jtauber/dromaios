@@ -22,11 +22,13 @@ class XtRomTests(unittest.TestCase):
 
     def test_software_checkpoints_browse_ram_and_share_the_keyboard_poll(self):
         steps = ultima_walkthrough(self.ultima)["steps"]
-        self.assertEqual([s["address"] for s in steps], ["13939", "0E45C", "150DE", "13966", "0E45C"])
-        self.assertNotEqual(steps[1]["expect"], steps[-1]["expect"])
+        self.assertEqual([s["address"] for s in steps], ["13939", "0E45C", "150DE", "13966", "0E45C", "0E45C", "13966"])
+        self.assertNotEqual(steps[3]["expect"], steps[-1]["expect"])
+        self.assertEqual(steps[-1]["fileRange"], {"offset": 0x2f0, "length": 2})
         self.assertTrue(all("routine" not in s for s in steps))
         for source in [self.ultima.replace("0C6F:7249", "C6F:7249"), self.ultima.replace('"partyRead": true', '"partyRead": false'),
-                       self.ultima.replace('[13, 15, 15]', '[13, 15]')]:
+                       self.ultima.replace('[13, 15, 15]', '[13, 15]'), self.ultima.replace('"offset": 752', '"offset": -1'),
+                       self.ultima.replace('"memory": "215C6"', '"memory": "9FFFF"')]:
             with self.assertRaises(ValueError):
                 ultima_walkthrough(source)
 

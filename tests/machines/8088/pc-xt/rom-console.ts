@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { create8088PcXt } from "../../../../src/machines/generated/8088/pc-xt.js";
 import type { create8088PcXtEga } from "../../../../src/machines/generated/8088/pc-xt-ega.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
+import type { XtDisketteTransfer } from "../../../../src/machines/8088/pc-xt/io.js";
 
 type Machine = ReturnType<typeof create8088PcXt | typeof create8088PcXtEga>;
 
@@ -42,6 +43,7 @@ export function scanCodes(text: string): number[] {
 }
 
 interface RunOptions {
+  readonly onDiskByte?: (transfer: XtDisketteTransfer) => void;
   readonly batchSize?: number;
   readonly limit?: number;
   readonly until?: (boundaries: number, record: ReturnType<typeof stepTimedXtCpu>["record"]) => boolean;
@@ -55,7 +57,8 @@ export function runInput(machine: Machine, bytes: readonly number[], options: Ru
     const end = Math.min(boundaries + batchSize, limit);
     while (boundaries < end) {
       if (offset < bytes.length && machine.io.offerScanCode(bytes[offset]!)) offset++;
-      const { record } = stepTimedXtCpu(machine); boundaries++;
+      const { record, dma } = stepTimedXtCpu(machine); boundaries++;
+      if (dma?.channel === 2) options.onDiskByte?.(dma);
       if (record.outcome === "accepted" && record.vector === 9) keyboardInterrupts++;
       if (record.outcome !== "executed" && record.outcome !== "accepted") {
         assert.fail(`Firmware ${record.outcome} at ${record.before.pc.toString(16)}`);

@@ -1,6 +1,6 @@
 import type { XtIo } from "../../src/machines/8088/pc-xt/io.js";
 import { physical8088 } from "./8088-disassembly.js";
-import { fat12FileRegions, inspectFat12, type Fat12Entry, type Fat12Region } from "./fat12.js";
+import { fat12FileSectors, fat12FileRegions, inspectFat12, type Fat12Entry, type Fat12Region } from "./fat12.js";
 import { dosFileRange, type DosCall } from "./xt-dos-services.js";
 import type { createXtDiskActivity, XtDiskActivityMark } from "./xt-disk-activity.js";
 import { xtFileTransfers } from "./xt-disk-file-transfers.js";
@@ -27,22 +27,6 @@ export function dosBufferRegions(segment: number, offset: number, fileOffset: nu
     length -= count; fileOffset += count; offset = (offset + count) & 0xffff;
   }
   return regions;
-}
-
-/** Clip file allocation to the completed call; retain sector boundaries for navigation. */
-export function dosAllocationRegions(regions: readonly Fat12Region[], offset: number, length: number): Fat12Region[] {
-  return regions.flatMap(region => {
-    if (region.fileOffset === undefined) return [];
-    let start = Math.max(offset, region.fileOffset);
-    const end = Math.min(offset + length, region.fileOffset + region.fileBytes!);
-    const result: Fat12Region[] = [];
-    while (start < end) {
-      const image = region.offset + start - region.fileOffset, bytes = Math.min(end - start, 512 - image % 512);
-      result.push({ ...region, offset: image, length: bytes, fileOffset: start, fileBytes: bytes });
-      start += bytes;
-    }
-    return result;
-  });
 }
 
 /** Join at the observed return, never by reinterpreting old calls against today's disk. */
@@ -77,7 +61,7 @@ export function createXtDosFileLinks(current: () => XtIo, activity: ReturnType<t
           if (!entry || !volume) note = "DOS's open file does not match a root entry on the mounted disk.";
           else if (entry.issues.length || volume.warnings.length) note = "The on-disk allocation is incomplete or inconsistent; it may still be buffered by DOS.";
           else {
-            regions = dosAllocationRegions(fat12FileRegions(volume, entry), range.offset, range.length);
+            regions = fat12FileSectors(fat12FileRegions(volume, entry), range.offset, range.length);
             if (regions.reduce((sum, r) => sum + r.length, 0) !== range.length) {
               regions = []; note = "The completed range is not yet present in the on-disk file size or allocation.";
             }
