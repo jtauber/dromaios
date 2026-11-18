@@ -61,7 +61,6 @@ function mount(root: HTMLElement): void {
   const screen = at("screen"), message = at("message"), status = at("execution");
   const display = createXtScreen(root.querySelector("canvas")!, at("screen-text"), at("screen-notice"));
   const ega = root.dataset.xtLaboratory === "ega";
-  const pixelInspector = ega ? createXtEgaPixelInspector(screen.closest<HTMLElement>("[data-workspace-panel]")!) : undefined;
   const session = ega ? createXtEgaSession() : createXtSession();
   const intervals = createExecutionIntervalView(root, () => session.machine.io.clock, "oscillator ticks");
   const sound = createMachineSound(root, () => ({ clock: session.machine.io.clock, level: Number(session.machine.io.speakerLevel) }));
@@ -106,6 +105,9 @@ function mount(root: HTMLElement): void {
   const dosFileLinks = createXtDosFileLinks(() => session.machine.io, diskActivity);
   const dosCalls = createXtDosCalls(guide.dos, readStorage, dosFileLinks.observe);
   const debug = createXtDebugger(() => session.machine, undefined, dosCalls);
+  const pixelInspector = ega ? createXtEgaPixelInspector(screen.closest<HTMLElement>("[data-workspace-panel]")!, debug, catalogue.cpu,
+    (x, y) => act(() => { debug.runUntilPixelChanges(x, y); execution.run(); screen.focus(); }),
+    location => { showCode.browse(location); workspace.show("code"); }) : undefined;
   const showDos = createXtDosServicesView(instruction, guide.dos, dosCalls, browseMemory,
     () => { dosFileLinks.reset(); diskFiles.reset(); refresh("instruction"); },
     condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }), dosFileLinks,
@@ -259,7 +261,7 @@ function mount(root: HTMLElement): void {
       session.keyboard.pasteRemaining ? `${session.keyboard.pasteRemaining} characters to paste` : ""].filter(Boolean).join(" · ");
     at("error").textContent = execution.error ?? "";
     debugView.refresh(running);
-    pixelInspector?.refresh(ready && !running && "ega" in session.machine ? session.machine.ega : undefined);
+    pixelInspector?.refresh(ready && !running && "ega" in session.machine ? session.machine.ega : undefined, runnable);
     walkthrough.refresh(xtDebugLocation(cpu), runnable, running);
     const now = performance.now();
     if (requested || !running || now - lastDraw >= 65) {

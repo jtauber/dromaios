@@ -1,4 +1,5 @@
 import { xtIoTransfers } from "./xt-io-events.js";
+import { watchXtEgaPixel, type XtPixelChange } from "./xt-ega-pixel.js";
 import type { XtIoTransfer } from "./xt-io-events.js";
 import { validateXtEventStops, matchesXtEvent, matchesXtDosEvent, describeXtEvent, xtEventCondition } from "./xt-event-stops.js";
 import type { XtEventCondition, XtEventStop } from "./xt-event-stops.js";
@@ -74,8 +75,14 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
   let dosHit: DosCall | undefined;
   let targetEvent: XtEventCondition | undefined;
   let eventCondition: (() => boolean) | undefined;
-  function clearHit(): void { hit = undefined; eventHit = undefined; dosHit = undefined; targetEvent = undefined; eventCondition = undefined; }
+  let pixelWatch: ReturnType<typeof watchXtEgaPixel> | undefined, pixelHit: XtPixelChange | undefined;
+  function clearHit(): void {
+    hit = undefined; eventHit = undefined; dosHit = undefined; targetEvent = undefined; eventCondition = undefined;
+    pixelWatch = undefined; pixelHit = undefined;
+  }
   return {
+    get pixelTarget(): { readonly x: number; readonly y: number } | undefined { return pixelWatch; },
+    get pixelHit() { return pixelHit; },
     get eventStops() { return events; },
     get eventHit() { return eventHit; },
     get dosHit() { return dosHit; },
@@ -108,8 +115,19 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
       clearHit(); targetEvent = target; eventCondition = when;
       policy.stepUntil(location(), () => undefined); // Retain the shared instruction budget.
     },
-    pause(detail?: string): void { policy.pause(location(), detail); },
-    beforeStep(current: DebugLocation | (() => DebugLocation) = location): boolean { return policy.beforeStep(current); },
+    runUntilPixelChanges(x: number, y: number): void {
+      const board = machine();
+      if (!("ega" in board)) throw new Error("Pixel stops require the EGA display.");
+      const watch = watchXtEgaPixel(board.ega, x, y);
+      clearHit(); pixelWatch = watch;
+      policy.stepUntil(location(), () => undefined);
+    },
+    pause(detail?: string): void { pixelWatch = undefined; policy.pause(location(), detail); },
+    beforeStep(current: DebugLocation | (() => DebugLocation) = location): boolean {
+      const stopped = policy.beforeStep(current);
+      if (stopped) pixelWatch = undefined;
+      return stopped;
+    },
     capture(step: () => Boundary): Boundary {
       try {
         const { record, write } = writes.capture(step);
@@ -136,6 +154,17 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
                   + (result ? `AX=${hex(result.ax, 4)} · CF=${+result.carry}. Stopped after the observed return.` : "Stopped after the complete INT 21h entry."));
               }
             }
+          }
+          if (pixelWatch) {
+            const change = pixelWatch.observe(record);
+            if (change === "mode-ended") {
+              if (!policy.stop) policy.pause(xtDebugLocation(record.after), "Pixel watch ended when the EGA left mode 0Dh.");
+            } else if (change) {
+              pixelHit = change;
+              if (!policy.stop) policy.event(xtDebugLocation(record.after),
+                `Pixel (${change.x},${change.y}) changed from ${change.before.colour} to ${change.after.colour}. See Screen for the instruction and plane values.`);
+            }
+            if (policy.stop) pixelWatch = undefined;
           }
           if (policy.request === "step") policy.beforeStep(xtDebugLocation(record.after));
         }

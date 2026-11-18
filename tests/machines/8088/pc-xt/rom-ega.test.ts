@@ -12,6 +12,7 @@ import type { XtDisketteTransfer } from "../../../../src/machines/8088/pc-xt/io.
 import { inspectFat12, fat12FileRegions, readFat12File } from "../../../../site/interactive/fat12.js";
 import { matchesUltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import { xtEgaPixelReadout } from "../../../../site/interactive/xt-ega-pixel.js";
+import { createXtDebugger } from "../../../../site/interactive/xt-debugger.js";
 import type { UltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import { ultimaSteps } from "../../../helpers/ultima-v-guide.js";
 import { ultimaVParty } from "./ultima-v-party.js";
@@ -90,6 +91,21 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
   skip: !(hasFirmware && XT_DOS_DISK) && "Set the XT firmware and XT_DOS_DISK.",
 }, async () => {
   const m = await bootEga(makeXtEgaBarsDisk(readFileSync(XT_DOS_DISK!)), true);
+  // Stop at the program's INT 10h with AX=1002h, just before the palette load.
+  runInput(m, [], { limit: 6_000_000, until: (_, { after, instruction }) => m.ega.graphicsSupported
+    && after.cs < 0xa000 && after.ip === 0x012f && after.ax === 0x1002 && instruction?.bytes[0] === 0xb8 });
+  const debug = createXtDebugger(() => m, 20_000);
+  debug.runUntilPixelChanges(0, 0);
+  while (!debug.beforeStep()) debug.capture(() => stepTimedXtCpu(m).record);
+  assert.equal(debug.stop?.kind, "event");
+  const hit = debug.pixelHit!;
+  assert.equal(hit.afterBlanking, true);
+  assert.deepEqual([hit.record.before.cs, hit.record.before.ip, hit.record.instruction?.bytes], [0xc000, 0x1db4, [0xee]]);
+  assert.deepEqual(hit.record.accesses.filter(a => a.kind === "output"), [{ kind: "output", port: 0x3c0, value: 0x20 }]);
+  assert.deepEqual(hit.before.planeBytes, [0, 0, 0, 0]); assert.deepEqual(hit.after.planeBytes, hit.before.planeBytes);
+  assert.deepEqual([hit.before.paletteIndex, hit.after.paletteIndex, hit.before.pins, hit.after.pins], [0, 0, 0, 0x17]);
+  assert.deepEqual([hit.before.colour, hit.after.colour, renderEgaGraphicsFrame(m.ega).pixels[0]], ["#000000", "#FFFFFF", 0x17]);
+  debug.dispose();
   // BARS.COM waits through INT 16h only after the adapter query and all 16 bands succeed.
   runInput(m, [], { limit: 6_000_000, until: (_, { instruction, before }) => m.ega.graphicsSupported
     && before.cs < 0xa000 && before.ah === 0 && instruction?.bytes[0] === 0xcd && instruction.bytes[1] === 0x16 });

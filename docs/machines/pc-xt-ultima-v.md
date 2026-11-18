@@ -212,7 +212,9 @@ instruction boundary, rather than the instant a CRT beam reaches a dot.
 At 40 bytes per scan line, the second destination byte, `$0BCB`, is
 `75 × 40 + 19`. Its leftmost bit (bit 7) supplies pixel **(152,75)**,
 counting from the upper left. Choose **Inspect pixel (152,75)** at the
-walkthrough stop to mark that dot on the screen. Step once and compare:
+walkthrough stop to mark that dot on the screen. Choose **Run until this pixel
+changes**. The Screen panel stops after one repetition, links to the captured
+`REP MOVSW` at `9D27:1C1A`, and shows both samples.
 
 | Stage | Before | After one repetition |
 | --- | --- | --- |
@@ -262,7 +264,7 @@ That dot is still black. The marker stays on the selected dot as you step.
       "title": "Draw the first Origin logo pixels",
       "execution": "9D27:1C1A",
       "prepare": "From the mode-setting call or its return, run to this checkpoint without pressing a key. The driver prepares the Origin logo off screen first.",
-      "observe": "The frame is black. REP MOVSW is about to copy 00 FF from A800:0012 to A000:0BCA. Step once: eight light-blue dots appear together on row 75. The pixel readout follows the leftmost one, (152,75): bit 7 is set in planes 0 and 3, giving index 9; palette entry 9 drives $39, or #5555FF on this monitor. IP still points at REP MOVSW, but CX is now 000A.",
+      "observe": "Choose Inspect pixel (152,75), then Run until this pixel changes. REP MOVSW at 9D27:1C1A copies 00 FF from A800:0012 to A000:0BCA. Eight light-blue dots appear together. Compare Before and After in Screen: bit 7 becomes set in planes 0 and 3, giving index 9, palette output $39 and monitor colour #5555FF. IP still points at REP MOVSW, but CX is now 000A.",
       "memory": "9EE8A", "file": "EGA.DRV", "fileRange": { "offset": 7194, "length": 2 },
       "expect": { "bytes": { "address": "9EE8A", "value": "F3 A5" },
         "registers": { "ds": "A800", "si": "0012", "es": "A000", "di": "0BCA", "cx": "000B" },

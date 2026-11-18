@@ -199,6 +199,15 @@ drives `$17`, which the 5154 displays as white. On the bottom band all four
 bits are one and palette entry 15 gives black. Use the arrow keys to move
 one dot at a time. To return to DOS, choose **Run**, click the screen and press a key.
 
+To catch the palette change, add a breakpoint at `0C5F:012F` before choosing
+**Quick boot** with this disk. It lands on the program’s `INT 10h` with
+`AX=1002h`. Choose **Inspect pixel**, click anywhere in the black picture,
+and choose **Run until this pixel changes**. The BIOS briefly blanks the
+display to load its palette. At `C000:1DB4`, `OUT DX,AL` sends `20h` to
+port `3C0h` and the picture returns. Compare **Before blanking** and
+**Display re-enabled**. The four plane bytes are still zero, but palette
+entry 0 now drives `$17` and the dot appears white.
+
 The same BIOS calls let [Ultima V select its EGA driver and draw the title menu](../../../docs/machines/pc-xt-ultima-v.md#native-ega-title-menu).
 In [Journey Onward](../../../docs/machines/pc-xt-ultima-v.md#one-ega-step-in-iolos-hut),
 watch the game update its Y coordinate and see the sixteen-colour map scroll

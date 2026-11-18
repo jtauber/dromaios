@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { romImages } from "../../src/machines/generated/8088/pc-xt-ega.js";
+import { Cpu8088 } from "../../src/components/cpus/generated/8088-cpu.js";
+import { stepTimedXtCpu } from "../../src/machines/8088/pc-xt/interrupts.js";
 import { egaRgb, renderEgaGraphicsFrame } from "../../src/machines/8088/pc-xt/video.js";
 import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { RomImage } from "../../src/machines/rom-image.js";
@@ -40,6 +42,43 @@ test("the EGA mode stop requires both the driver's INT instruction and the mode 
   assert.ok(match());
   state.ax = 0x0f00; assert.equal(match(), false);
   state.ax = 13; machine.ram.write(0x9dae7, 0x21); assert.equal(match(), false);
+});
+
+test("a pixel stop ignores RGBI-equivalent palette writes and retains the instruction that changes the colour", () => {
+  const { machine } = createXtEgaSession(), { ega } = machine;
+  function reg(port: number, index: number, value: number) { ega.writePort(port, index); ega.writePort(port + 1, value); }
+  ega.writePort(0x3c2, 3);
+  reg(0x3c4, 1, 1); reg(0x3ce, 6, 5);
+  for (const [index, value] of [[1, 39], [0x12, 199], [0x13, 20], [0x17, 0xe3], [0x18, 255]] as const) reg(0x3d4, index, value);
+  reg(0x3c0, 0x30, 1); reg(0x3c0, 0x32, 15);
+  machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000, dx: 0x3c0 }, { ports: machine.ports });
+  // OUT to palette entry zero with video enabled. $28 still displays black; $17 displays white.
+  const program = [0xb0, 0x20, 0xee, 0xb0, 0x28, 0xee, 0xb0, 0x20, 0xee, 0xb0, 0x17, 0xee, 0x90];
+  program.forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
+  const debug = createXtDebugger(() => machine, 16);
+  const run = () => { while (!debug.beforeStep()) debug.capture(() => stepTimedXtCpu(machine).record); };
+  debug.runUntilPixelChanges(42, 23);
+  run();
+  const hit = debug.pixelHit!;
+  assert.equal(debug.stop?.kind, "event");
+  assert.deepEqual([hit.record.before.ip, hit.record.after.ip, hit.record.instruction?.bytes], [0x200b, 0x200c, [0xee]]);
+  assert.deepEqual([hit.before.pins, hit.after.pins, hit.before.colour, hit.after.colour], [0x28, 0x17, "#000000", "#FFFFFF"]);
+  assert.deepEqual(hit.before.planeBytes, hit.after.planeBytes);
+  assert.equal(hit.afterBlanking, false);
+  assert.deepEqual(egaRgb(renderEgaGraphicsFrame(ega).pixels[23 * 320 + 42]!, true), [255, 255, 255]);
+
+  // A new request uses the current dot. Ordinary stops and checkpoint reset discard it.
+  debug.setBreakpoints([{ address: 0x200d, enabled: true }]);
+  debug.runUntilPixelChanges(42, 23); run();
+  assert.equal(debug.stop?.kind, "breakpoint"); assert.equal(debug.pixelHit, undefined); assert.equal(debug.pixelTarget, undefined);
+  debug.runUntilPixelChanges(42, 23); debug.reset();
+  assert.equal(debug.pixelTarget, undefined); assert.equal(debug.pixelHit, undefined);
+  // Switch to text mode. There is no longer a planar sample at this coordinate.
+  [0xb0, 0x30, 0xee, 0xb0, 0, 0xee].forEach((byte, i) => machine.ram.write(0x200d + i, byte));
+  debug.runUntilPixelChanges(42, 23); run();
+  assert.equal(debug.stop?.kind, "pause"); assert.match(debug.stop.detail!, /left mode 0Dh/);
+  assert.equal(debug.pixelHit, undefined); assert.equal(debug.pixelTarget, undefined);
+  debug.dispose();
 });
 
 test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin logo pixels", {
@@ -111,7 +150,17 @@ test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin lo
   assert.deepEqual([before.seq[2], before.gc[5], before.gc[8], before.attr[0x12]], [9, 0, 255, 15]);
   const selectedDot = () => xtEgaPixelReadout(machine.ega, 159, 75);
   assert.match(selectedDot(), /bit 0: 0 0 0 0 · index 0 · palette\[0\] = \$00 · #000000$/);
-  const paint = capture();
+  const neighbour = createXtDebugger(() => machine);
+  neighbour.runUntilPixelChanges(160, 75); debug.runUntilPixelChanges(159, 75);
+  assert.equal(debug.beforeStep(), false); assert.equal(neighbour.beforeStep(), false);
+  const paint = neighbour.capture(capture);
+  assert.equal(debug.beforeStep(), true); assert.equal(debug.stop?.kind, "event");
+  assert.equal(neighbour.beforeStep(), false); assert.equal(neighbour.pixelHit, undefined);
+  neighbour.dispose();
+  const hit = debug.pixelHit!;
+  assert.equal(hit.record, paint);
+  assert.deepEqual([hit.record.before.cs, hit.record.before.ip, hit.record.instruction?.bytes], [0x9d27, 0x1c1a, [0xf3, 0xa5]]);
+  assert.deepEqual([hit.before.colour, hit.after.colour, hit.before.pins, hit.after.pins], ["#000000", "#5555FF", 0, 0x39]);
   assert.deepEqual(paint.instruction?.bytes, [...file.slice(logo.fileRange!.offset, logo.fileRange!.offset + 2)]);
   assert.deepEqual(paint.accesses.filter(a => "address" in a && a.address >= 0xa0000), [
     { kind: "read", address: 0xa8012, value: 0 }, { kind: "read", address: 0xa8013, value: 255 },
