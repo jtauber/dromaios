@@ -173,7 +173,7 @@ to enter Iolo’s hut.
 
 Open **Ultima V · EGA driver startup** in the EGA laboratory with the
 audited Program disk mounted. Choose **Fresh power-on**, then **Run to
-checkpoint**. No keypress or Player disk is needed. Both stops pause
+checkpoint**. No keypress or Player disk is needed. The stops pause
 *before* the named instruction executes.
 
 Ultima opens `EGA.DRV`, seeks to the end to measure it, closes it,
@@ -186,6 +186,7 @@ loader while the bytes are arriving; reading code doesn't execute it.
 | --- | --- | --- | --- |
 | Enter the EGA driver | `9D27:0003` | `+$0003: E9 62 08` | Cluster 262, sector 532, image `+$42803` |
 | Select 16-colour graphics | `9D27:0876` | `+$0876: CD 10` | Cluster 264, sector 536, image `+$43076` |
+| Draw the first Origin logo pixels | `9D27:1C1A` | `+$1C1A: F3 A5` | Cluster 269, sector 546, image `+$4441A` |
 
 The far call at `0C6F:08C1` takes its destination from `DS:5350`
 and enters the **second** three-byte jump in the driver’s table.
@@ -196,6 +197,35 @@ The routine sets `AH=00h` (set video mode) and `AL=0Dh` (320 × 200,
 by the EGA option ROM. Step over instead to see the result on return:
 the BIOS mode byte at physical `$00449` is now `0D`. The driver still
 has to set the palette and draw; choosing the mode does not draw the logo.
+
+### The first visible Origin logo pixel
+
+Run from the mode call to **Draw the first Origin logo pixels**, without
+pressing Space. The frame is still black. The driver has prepared a bitmap
+outside the displayed page and is copying it with `REP MOVSW`. The XT
+laboratory steps one repetition at a time. Earlier repetitions copied zeros;
+this one reads `00 FF` at `A800:0012` and writes them at `A000:0BCA`.
+The CRTC still displays page zero: the write makes the dots visible, not a
+page flip. Here “visible” means the frame the emulator can render at that
+instruction boundary, rather than the instant a CRT beam reaches a dot.
+
+At 40 bytes per scan line, the second destination byte, `$0BCB`, is
+`75 × 40 + 19`. Its leftmost bit (bit 7) supplies pixel **(152,75)**,
+counting from the upper left. Step once and watch the pixel readout:
+
+| Stage | Before | After one repetition |
+| --- | --- | --- |
+| Bytes in planes 0, 1, 2, 3 at `$0BCB` | `00 00 00 00` | `FF 00 00 FF` |
+| Bit 7 from each plane (P0 first) | `0 0 0 0` | `1 0 0 1` |
+| Colour index | 0 | 1 + 8 = **9** |
+| Attribute palette → 5154 monitor | `$00` → black | `$39` → light blue, **#5555FF** |
+
+The Sequencer write mask is `09h`: only planes 0 and 3 receive the
+`FF` byte. All four planes are enabled for display. In 200-line RGBI
+mode, palette output `39h` drives blue and intensity. **Eight dots
+appear together**, x=152 through 159 on row 75; (152,75) is first in
+scan order. The rest of the 320 × 200 frame is still black. The PC remains
+at the repeat instruction; SI and DI advance by two and CX drops to ten.
 
 <details>
 <summary>Executable EGA driver walkthrough</summary>
@@ -222,6 +252,16 @@ has to set the palette and draw; choosing the mode does not draw the logo.
       "observe": "INT 10h is next. AX=000D asks the BIOS for mode 0Dh. Files · EGA.DRV and Inspect memory link CD 10 on the disk and in RAM. In Execution, Step over the interrupt; then browse $00449 in Memory to see 0D before the logo is drawn.",
       "memory": "9DAE6", "file": "EGA.DRV", "fileRange": { "offset": 2166, "length": 2 },
       "expect": { "bytes": { "address": "9DAE6", "value": "CD 10" }, "registers": { "ax": "000D" } }
+    },
+    {
+      "title": "Draw the first Origin logo pixels",
+      "execution": "9D27:1C1A",
+      "prepare": "From the mode-setting call or its return, run to this checkpoint without pressing a key. The driver prepares the Origin logo off screen first.",
+      "observe": "The frame is black. REP MOVSW is about to copy 00 FF from A800:0012 to A000:0BCA. Step once: eight light-blue dots appear together on row 75. The pixel readout follows the leftmost one, (152,75): bit 7 is set in planes 0 and 3, giving index 9; palette entry 9 drives $39, or #5555FF on this monitor. IP still points at REP MOVSW, but CX is now 000A.",
+      "memory": "9EE8A", "file": "EGA.DRV", "fileRange": { "offset": 7194, "length": 2 },
+      "expect": { "bytes": { "address": "9EE8A", "value": "F3 A5" },
+        "registers": { "ds": "A800", "si": "0012", "es": "A000", "di": "0BCA", "cx": "000B" },
+        "egaPixel": { "x": 152, "y": 75, "index": 0, "pins": 0 } }
     }
   ]
 }

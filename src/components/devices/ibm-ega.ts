@@ -233,16 +233,30 @@ export class IbmEga {
   colour(index: number): number { return this.#attr[index & 15]! & 63; }
   get blinkEnabled(): boolean { return Boolean(this.#attr[0x10]! & 8); }
 
+  // Bit address in one 64 KiB plane, numbered in scan order (MSB first).
+  #graphicsDot(x: number, y: number): number {
+    return (8 * this.#cell(y, 0) + x + (this.#attr[0x13]! & 7)) & 0x7ffff;
+  }
+
   /** The four shift registers present one dot together, most significant bit first in each byte. */
   graphicsIndex(x: number, y: number): number {
-    const pan = this.#attr[0x13]! & 7;
-    const offset = this.#cell(y, (x + pan) >>> 3), shift = 7 - ((x + pan) & 7);
+    const dot = this.#graphicsDot(x, y), offset = dot >>> 3, shift = 7 - (dot & 7);
     let index = 0;
     for (let plane = 0; plane < 4; plane++) {
       const bit = (this.#planes[plane * planeSize + offset]! >>> shift) & 1;
       index |= bit << plane;
     }
     return index;
+  }
+
+  /** Inspect the displayed dot without reading the CPU aperture or disturbing its latches. */
+  inspectGraphicsPixel(x: number, y: number) {
+    if (!this.graphicsSupported || !this.videoEnabled) return undefined;
+    checkUnsigned("EGA pixel X", x, 319); checkUnsigned("EGA pixel Y", y, 199);
+    const dot = this.#graphicsDot(x, y), offset = dot >>> 3, bit = 7 - (dot & 7);
+    const planeBytes = [0, 1, 2, 3].map(p => this.#planes[p * planeSize + offset]!);
+    const index = this.graphicsIndex(x, y), paletteIndex = index & this.#attr[0x12]!;
+    return { offset, bit, planeBytes, index, paletteIndex, pins: this.colour(paletteIndex) };
   }
 
   /** Six colour pins at an active raster position, also sampled by the POST diagnostic multiplexer. */

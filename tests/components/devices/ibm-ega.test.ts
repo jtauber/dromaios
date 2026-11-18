@@ -73,6 +73,10 @@ test("planar scanout follows the CRTC page and stride; CPU writes use the latche
   assert.deepEqual(indices(0), Array(8).fill(0));
   reg(0x3d4, 0x0c, 0x80); assert.deepEqual(indices(0), [0, 1, 2, 3, 4, 5, 6, 7]);
   reg(0x3c0, 0x32, 3); assert.equal(ega.pixel(7, 0), ega.colour(3)); // Disable planes 2 and 3 only for display.
+  reg(0x3c0, 0x33, 2); // Pan two dots; screen x=5 now takes bit 0 of the copied bytes.
+  assert.deepEqual(ega.inspectGraphicsPixel(5, 0), {
+    offset: 0x8000, bit: 0, planeBytes: [0x55, 0x33, 0x0f, 0], index: 7, paletteIndex: 3, pins: ega.colour(3),
+  });
   reg(0x3c4, 2, 1); reg(0x3ce, 5, 0); reg(0x3ce, 3, 0x19); reg(0x3ce, 8, 0xf0);
   ega.read(0x8000); ega.peek(0); ega.write(0x8000, 0x81);
   assert.equal(ega.peek(0x8000), 0x95); // Rotate 81 right once, XOR the latched 55, preserve its low nibble.

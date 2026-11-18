@@ -1,11 +1,12 @@
 import type { XtMachine } from "./xt-session.js";
 
-type Register = "ax" | "cx" | "dx" | "ds" | "es" | "ss" | "sp";
+type Register = "ax" | "cx" | "dx" | "ds" | "es" | "ss" | "sp" | "si" | "di";
 
 /** Guards for the chapter's audited DOS load layout, checked only at the selected stop. */
 export interface XtDosObservation {
   readonly bytes: { readonly address: string; readonly value: string };
   readonly registers?: Readonly<Partial<Record<Register, string>>>;
+  readonly egaPixel?: { readonly x: number; readonly y: number; readonly index: number; readonly pins: number };
   readonly screen?: { readonly contains: string; readonly lastLine: string };
 }
 
@@ -14,6 +15,11 @@ export function matchesXtDosObservation(expect: XtDosObservation, machine: XtMac
   const address = parseInt(expect.bytes.address, 16), bytes = expect.bytes.value.split(" ").map(b => parseInt(b, 16));
   if (address + bytes.length > ram.size || bytes.some((byte, i) => ram.read(address + i) !== byte)) return false;
   if (Object.entries(expect.registers ?? {}).some(([key, value]) => cpu[key as Register] !== parseInt(value, 16))) return false;
+  if (expect.egaPixel) {
+    const { x, y, index, pins } = expect.egaPixel;
+    const pixel = "ega" in machine && machine.ega.inspectGraphicsPixel(x, y);
+    if (!pixel || pixel.index !== index || pixel.pins !== pins) return false;
+  }
   if (!expect.screen) return true;
   // Screen text guards describe the CGA text-page layout.
   if ("ega" in machine) return false;

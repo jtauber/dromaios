@@ -10,6 +10,7 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   readonly inspect?: (step: RomCheckpoint) => readonly {
     readonly label: string; readonly show: () => void; readonly available?: () => boolean;
   }[];
+  readonly readout?: (step: RomCheckpoint) => string | undefined;
   readonly available?: (tour: RomWalkthrough) => boolean;
   readonly position?: typeof romCheckpointPosition;
   readonly description?: (step: RomCheckpoint) => string;
@@ -22,6 +23,7 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
   const position = element("position");
   const reference = element<HTMLButtonElement>("reference"), referenceLabel = reference.textContent;
   const referenceText = panel.querySelector<HTMLElement>("[data-walkthrough-reference-text]");
+  const readout = panel.querySelector<HTMLElement>("[data-walkthrough-readout]");
   const inspections = document.createElement("div");
   inspections.className = "basic-controls"; inspections.dataset.walkthroughInspections = "";
   reference.parentElement!.after(inspections);
@@ -38,6 +40,11 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
     position.setAttribute("aria-live", running ? "off" : "polite");
     const text = (actions.position ?? romCheckpointPosition)(checkpoint(), location, enabled, running);
     if (position.textContent !== text) position.textContent = text;
+    if (readout) {
+      const value = enabled && !running ? actions.readout?.(checkpoint()) : undefined;
+      readout.hidden = !value;
+      if (readout.textContent !== (value ?? "")) readout.textContent = value ?? "";
+    }
   }
   function showCheckpoint(): void {
     const step = checkpoint();

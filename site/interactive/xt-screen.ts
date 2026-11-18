@@ -1,9 +1,22 @@
 import { cgaColours, egaRgb, renderEgaGraphicsFrame, renderEgaTextFrame, renderXtGraphicsFrame, renderXtTextFrame } from "../../src/machines/8088/pc-xt/video.js";
+import { xtHex } from "./8088-disassembly.js";
+import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import type { XtMachine } from "./xt-session.js";
 
 const egaPalette = Array.from({ length: 64 }, (_, colour) => egaRgb(colour));
 const egaRgbiPalette = Array.from({ length: 64 }, (_, colour) => egaRgb(colour, true));
 const cgaPalette = cgaColours.map(hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)));
+
+/** One paused dot, using the same monitor decoding as the canvas. */
+export function xtEgaPixelReadout(ega: IbmEga, x: number, y: number): string {
+  const label = `Pixel (${x},${y})`, dot = ega.inspectGraphicsPixel(x, y);
+  if (!dot) return `${label} · waiting for an enabled mode 0Dh display.`;
+  const bytes = dot.planeBytes.map(b => xtHex(b, 2)).join(" ");
+  const bits = dot.planeBytes.map(b => b >> dot.bit & 1).join(" ");
+  const rgb = egaRgb(dot.pins, ega.rgbiOutput).map(v => xtHex(v, 2)).join("");
+  return `${label} · plane offset $${xtHex(dot.offset, 4)} · P0–P3: ${bytes} · bit ${dot.bit}: ${bits}`
+    + ` · index ${dot.index} · palette[${dot.paletteIndex}] = $${xtHex(dot.pins, 2)} · #${rgb}`;
+}
 
 function screenText(rows: number, columns: number, character: (row: number, column: number) => number) {
   const lines: string[] = [];

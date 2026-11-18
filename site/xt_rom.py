@@ -45,7 +45,7 @@ def _ultima_tour(tour):
         if "boundaryLimit" in step and (type(step["boundaryLimit"]) is not int or not 1 <= step["boundaryLimit"] <= 40_000_000):
             raise ValueError("Invalid checkpoint execution limit.")
         expect = step.get("expect")
-        if not (_ultima_observation(expect) or _dos_observation(expect, 0xa0000)):
+        if not (_ultima_observation(expect) or _dos_observation(expect, 0xa0000, ega=tour.get("adapter") == "ega")):
             raise ValueError(f"Invalid guest observation at {step['execution']}.")
         if {"file", "fileRange", "memory"} & step.keys():
             # A walkthrough may link a small file field to its counterpart in conventional RAM.
@@ -71,8 +71,8 @@ def ultima_walkthroughs(source):
     return tours
 
 
-def _dos_observation(expect, ram_end):
-    if not isinstance(expect, dict) or not {"bytes"} <= set(expect) <= {"bytes", "registers", "screen"}:
+def _dos_observation(expect, ram_end, *, ega=False):
+    if not isinstance(expect, dict) or not {"bytes"} <= set(expect) <= {"bytes", "registers", "egaPixel" if ega else "screen"}:
         return False
     signature = expect["bytes"]
     if (not isinstance(signature, dict) or set(signature) != {"address", "value"}
@@ -81,9 +81,14 @@ def _dos_observation(expect, ram_end):
             or int(signature["address"], 16) + len(signature["value"].split()) > ram_end):
         return False
     registers = expect.get("registers", {})
-    if (not isinstance(registers, dict) or not set(registers) <= {"ax", "cx", "dx", "ds", "es", "ss", "sp"}
+    if (not isinstance(registers, dict) or not set(registers) <= {"ax", "cx", "dx", "ds", "es", "ss", "sp", "si", "di"}
             or not all(isinstance(v, str) and re.fullmatch(r"[0-9A-F]{4}", v) for v in registers.values())):
         return False
+    if "egaPixel" in expect:
+        pixel = expect["egaPixel"]
+        bounds = {"x": 320, "y": 200, "index": 16, "pins": 64}
+        return (isinstance(pixel, dict) and pixel.keys() == bounds.keys()
+                and all(type(pixel[k]) is int and 0 <= pixel[k] < bound for k, bound in bounds.items()))
     if "screen" not in expect:
         return True
     screen = expect["screen"]

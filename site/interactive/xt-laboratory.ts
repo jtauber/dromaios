@@ -31,7 +31,7 @@ import type { XtCatalogue } from "./xt-inspection.js";
 import { createXtEgaSession, createXtSession } from "./xt-session.js";
 import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
-import { createXtScreen } from "./xt-screen.js";
+import { createXtScreen, xtEgaPixelReadout } from "./xt-screen.js";
 import { xtCheckpointKey } from "./xt-checkpoint.js";
 import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
 import { createXtDebuggerView } from "./xt-debugger-view.js";
@@ -188,6 +188,10 @@ function mount(root: HTMLElement): void {
       { label: "DMA / diskette", show: () => workspace.show("dma") },
       { label: "Port trace", show: () => workspace.show("ports") },
     ] : expect && "party" in expect ? [{ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) }] : [],
+    readout: ({ expect }: XtCheckpoint) => {
+      const pixel = expect && "egaPixel" in expect && expect.egaPixel;
+      return pixel && "ega" in session.machine ? xtEgaPixelReadout(session.machine.ega, pixel.x, pixel.y) : undefined;
+    },
     description: (step: XtCheckpoint) => step.event ? describeXtEvent(step.event) : step.execution ?? step.address,
     position: (step: XtCheckpoint, location, available, running) => step.event && available
       ? `${running ? "Running to" : debug.eventHit && matchesXtEvent(step.event, debug.eventHit.event) && (guestCondition(step)?.() ?? true) ? "At checkpoint" : "Selected checkpoint"} ${describeXtEvent(step.event)}.`

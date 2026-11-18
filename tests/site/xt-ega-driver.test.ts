@@ -4,8 +4,10 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { romImages } from "../../src/machines/generated/8088/pc-xt-ega.js";
+import { egaRgb, renderEgaGraphicsFrame } from "../../src/machines/8088/pc-xt/video.js";
+import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { RomImage } from "../../src/machines/rom-image.js";
-import { createXtEgaSession } from "../../site/interactive/xt-session.js";
+import { createXtEgaSession, type XtBoundary } from "../../site/interactive/xt-session.js";
 import { createXtDebugger, parseXtDebugAddress } from "../../site/interactive/xt-debugger.js";
 import { matchesXtDosObservation, type XtDosObservation } from "../../site/interactive/xt-dos-observation.js";
 import { createXtDosCalls } from "../../site/interactive/xt-dos-services.js";
@@ -17,7 +19,7 @@ import { ultimaSteps } from "../helpers/ultima-v-guide.js";
 import { runInput } from "../machines/8088/pc-xt/rom-console.js";
 
 const steps = ultimaSteps<XtDosObservation>("ultima-v-ega-driver");
-const [entry, mode] = [steps[0]!, steps[1]!];
+const entry = steps[0]!, mode = steps[1]!, logo = steps[2]!;
 const { XT_BIOS_ROM, XT_BASIC_ROM, XT_EGA_ROM, XT_ULTIMA_EGA_PROGRAM } = process.env;
 
 test("the EGA mode stop requires both the driver's INT instruction and the mode request", () => {
@@ -29,7 +31,7 @@ test("the EGA mode stop requires both the driver's INT instruction and the mode 
   state.ax = 13; machine.ram.write(0x9dae7, 0x21); assert.equal(match(), false);
 });
 
-test("Ultima loads EGA.DRV and executes its second jump slot before requesting mode 0Dh", {
+test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin logo pixels", {
   skip: !(XT_BIOS_ROM && XT_BASIC_ROM && XT_EGA_ROM && XT_ULTIMA_EGA_PROGRAM) && "Set the XT firmware and XT_ULTIMA_EGA_PROGRAM.",
 }, async () => {
   const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -51,7 +53,7 @@ test("Ultima loads EGA.DRV and executes its second jump slot before requesting m
   const debug = createXtDebugger(() => machine, undefined, calls);
   const capture = () => debug.capture(() => activity.capture(() => session.step()));
   let prior: ReturnType<typeof capture> | undefined;
-  for (const step of steps) {
+  for (const step of [entry, mode]) {
     debug.runTo(parseXtDebugAddress(step.execution), { when: () => matchesXtDosObservation(step.expect, machine),
       limit: step === entry ? entry.boundaryLimit! - boot.boundaries : undefined });
     while (!debug.beforeStep()) {
@@ -88,5 +90,54 @@ test("Ultima loads EGA.DRV and executes its second jump slot before requesting m
   while (!debug.beforeStep()) capture();
   assert.equal(debug.stop?.kind, "over");
   assert.deepEqual([machine.cpu.snapshot().cs, machine.cpu.snapshot().ip, machine.ram.read(0x449)], [0x9d27, 0x0878, 13]);
+  // Start with a black frame. Between here and the stop, only a write to the
+  // displayed page or a display register can light a dot (no blink in mode 0Dh).
+  assertBlackPageZero(machine.ega);
+  debug.runTo(parseXtDebugAddress(logo.execution), { when: () => matchesXtDosObservation(logo.expect, machine) });
+  while (!debug.beforeStep()) checkEarlierVideoWrite(machine.ega, capture());
+  assert.equal(debug.stop?.kind, "target");
+  const before = machine.ega.snapshot();
+  assert.deepEqual([before.seq[2], before.gc[5], before.gc[8], before.attr[0x12]], [9, 0, 255, 15]);
+  const paint = capture();
+  assert.deepEqual(paint.instruction?.bytes, [...file.slice(logo.fileRange!.offset, logo.fileRange!.offset + 2)]);
+  assert.deepEqual(paint.accesses.filter(a => "address" in a && a.address >= 0xa0000), [
+    { kind: "read", address: 0xa8012, value: 0 }, { kind: "read", address: 0xa8013, value: 255 },
+    { kind: "write", address: 0xa0bca, value: 0 }, { kind: "write", address: 0xa0bcb, value: 255 },
+  ]);
+  assert.deepEqual([paint.after.ip, paint.after.si, paint.after.di, paint.after.cx], [0x1c1a, 0x14, 0xbcc, 10]);
+  assert.equal(matchesXtDosObservation(logo.expect, machine), false);
+
+  // Reconstruct the dot independently from the four physical plane bytes.
+  const x = 152, y = 75, offset = 40 * y + (x >>> 3), shift = 7 - (x & 7);
+  const planes = (state: typeof before) => [0, 1, 2, 3].map(p => state.planes[p * 65536 + offset]!);
+  const after = machine.ega.snapshot(), bytes = planes(after);
+  assert.deepEqual(planes(before), [0, 0, 0, 0]); assert.deepEqual(bytes, [255, 0, 0, 255]);
+  const index = bytes.reduce((v, byte, p) => v | ((byte >>> shift) & 1) << p, 0);
+  const pins = after.attr[index & after.attr[0x12]!]!;
+  assert.deepEqual([index, pins, machine.ega.rgbiOutput], [9, 0x39, true]);
+  const expected = new Uint8Array(320 * 200);
+  expected.fill(pins, y * 320 + x, y * 320 + x + 8);
+  const frame = renderEgaGraphicsFrame(machine.ega);
+  assert.deepEqual(frame.pixels, expected);
+  assert.deepEqual(egaRgb(frame.pixels[y * 320 + x]!, machine.ega.rgbiOutput), [85, 85, 255]);
+  assert.deepEqual(machine.ega.inspectGraphicsPixel(x, y), { offset, bit: shift, planeBytes: bytes, index: 9, paletteIndex: 9, pins });
   debug.dispose(); activity.dispose();
 });
+
+function assertBlackPageZero(ega: IbmEga): void {
+  const { seq, gc, crt, attr } = ega.snapshot();
+  // Check the assumptions behind the dirty address range below: planar, A000,
+  // no panning, start zero, 40 bytes per row. Fail if the game ever flips pages.
+  assert.ok(ega.graphicsSupported);
+  assert.deepEqual([seq[4]! & 4, (gc[6]! >> 2) & 3, crt[12], crt[13], crt[19], attr[19]! & 7], [4, 1, 0, 0, 20, 0]);
+  assert.ok(!renderEgaGraphicsFrame(ega).pixels.some(Boolean));
+}
+
+function checkEarlierVideoWrite(ega: IbmEga, record: XtBoundary): void {
+  // A register change can expose different storage without a CPU write to it.
+  if (record.accesses.some(a => a.kind === "output" && a.port >= 0x3b0 && a.port <= 0x3df)) {
+    assertBlackPageZero(ega);
+  } else if (record.accesses.some(a => a.kind === "write" && a.address >= 0xa0000 && a.address < 0xa0000 + 8000)) {
+    assert.ok(!renderEgaGraphicsFrame(ega).pixels.some(Boolean));
+  }
+}
