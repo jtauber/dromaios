@@ -169,6 +169,74 @@ lettering, menu choices and copyright. The selector and flame animate
 between those strips. Continue with the [disk exchange](#disk-exchange-in-the-laboratory)
 to enter Iolo’s hut.
 
+### From driver file to running code
+
+Open **Ultima V · EGA driver startup** in the EGA laboratory with the
+audited Program disk mounted. Choose **Fresh power-on**, then **Run to
+checkpoint**. No keypress or Player disk is needed. Both stops pause
+*before* the named instruction executes.
+
+Ultima opens `EGA.DRV`, seeks to the end to measure it, closes it,
+allocates RAM and reopens it. DOS function `3Fh` reads the entire
+`2D86h` bytes into `9D27:0000`. Immediately after that call, the
+whole buffer matches the FAT12 file. The processor keeps running the
+loader while the bytes are arriving; reading code doesn't execute it.
+
+| Stop | CS:IP | File offset and bytes | Where to look on the Program disk |
+| --- | --- | --- | --- |
+| Enter the EGA driver | `9D27:0003` | `+$0003: E9 62 08` | Cluster 262, sector 532, image `+$42803` |
+| Select 16-colour graphics | `9D27:0876` | `+$0876: CD 10` | Cluster 264, sector 536, image `+$43076` |
+
+The far call at `0C6F:08C1` takes its destination from `DS:5350`
+and enters the **second** three-byte jump in the driver’s table.
+The relative displacement `0862h` is measured from the *next*
+instruction: `0006h + 0862h = 0868h`. Step once to see that jump.
+The routine sets `AH=00h` (set video mode) and `AL=0Dh` (320 × 200,
+16 colours). At the second stop, Step enters the handler installed
+by the EGA option ROM. Step over instead to see the result on return:
+the BIOS mode byte at physical `$00449` is now `0D`. The driver still
+has to set the palette and draw; choosing the mode does not draw the logo.
+
+<details>
+<summary>Executable EGA driver walkthrough</summary>
+
+```json
+{
+  "id": "ultima-v-ega-driver",
+  "adapter": "ega",
+  "title": "Ultima V · EGA driver startup",
+  "setup": "Load the XT BIOS, BASIC and IBM EGA option ROM. Insert ULTIMA-EGA-PROGRAM.IMG and choose Fresh power-on. Leave the XT paused at reset; Run to checkpoint takes it through POST and DOS startup. No Player disk or keypress is needed.",
+  "steps": [
+    {
+      "title": "Enter the EGA driver",
+      "execution": "9D27:0003", "boundaryLimit": 34000000,
+      "prepare": "From reset, choose Run to checkpoint. Leave Record disk activity enabled to inspect the transfers after the loader runs.",
+      "observe": "The far call at 0C6F:08C1 has landed on the second jump table slot. Files · EGA.DRV shows E9 62 08 at file +$0003; Inspect memory shows the same bytes at $9D273. Browse code to see the jump. Step once to reach 9D27:0868.",
+      "memory": "9D273", "file": "EGA.DRV", "fileRange": { "offset": 3, "length": 3 },
+      "expect": { "bytes": { "address": "9D273", "value": "E9 62 08" }, "registers": { "ax": "0001" } }
+    },
+    {
+      "title": "Select 16-colour graphics",
+      "execution": "9D27:0876",
+      "prepare": "From the driver entry or its jump target, run to this checkpoint without pressing a key.",
+      "observe": "INT 10h is next. AX=000D asks the BIOS for mode 0Dh. Files · EGA.DRV and Inspect memory link CD 10 on the disk and in RAM. In Execution, Step over the interrupt; then browse $00449 in Memory to see 0D before the logo is drawn.",
+      "memory": "9DAE6", "file": "EGA.DRV", "fileRange": { "offset": 2166, "length": 2 },
+      "expect": { "bytes": { "address": "9DAE6", "value": "CD 10" }, "registers": { "ax": "000D" } }
+    }
+  ]
+}
+```
+
+</details>
+
+To replay the [driver acceptance test](../../tests/site/xt-ega-driver.test.ts)
+after building, set `XT_BIOS_ROM`, `XT_BASIC_ROM`, `XT_EGA_ROM` and
+`XT_ULTIMA_EGA_PROGRAM` and run:
+
+```sh
+node --test dist/tests/site/xt-ega-driver.test.js
+```
+
 ## Journey Onward
 
 The [disk builder](../../scripts/make-ultima-v-disks.ts) takes the audited

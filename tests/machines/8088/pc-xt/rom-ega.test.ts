@@ -12,6 +12,7 @@ import type { XtDisketteTransfer } from "../../../../src/machines/8088/pc-xt/io.
 import { inspectFat12, fat12FileRegions, readFat12File } from "../../../../site/interactive/fat12.js";
 import { matchesUltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import type { UltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
+import { ultimaSteps } from "../../../helpers/ultima-v-guide.js";
 import { ultimaVParty } from "./ultima-v-party.js";
 import { dosTransfer } from "./dos-transfer.js";
 import { runInput, scanCodes, screen } from "./rom-console.js";
@@ -234,9 +235,7 @@ test("Ultima V selects EGA.DRV automatically and draws both reference menu strip
     const reboot = await bootUltimaTitle(disk);
     const reload = journeyOnward(reboot, west.disk, byte => { if (byte.direction === "disk-to-memory") reads.push(byte); });
     const cpu = reboot.cpu.snapshot();
-    const guide = readFileSync("docs/machines/pc-xt-ultima-v.md", "utf8");
-    const { steps }: { steps: { title: string; execution: string; expect: UltimaObservation }[] } =
-      JSON.parse(guide.match(/^```json\n([\s\S]*?)^```$/m)![1]!);
+    const steps = ultimaSteps<UltimaObservation>("ultima-v");
     const stop = steps.find(step => step.title === "Read the westward step from disk")!;
     assert.equal(stop.execution, [cpu.cs, cpu.ip].map(n => n.toString(16).toUpperCase().padStart(4, "0")).join(":"));
     assert.ok(matchesUltimaObservation(stop.expect, cpu, reboot.ram));

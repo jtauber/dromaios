@@ -24,7 +24,7 @@ from machines import ALTAIR, APPLE2, COCO, XT, MACHINES, media_record, rom_conta
 from apple2_rom import APPLE2_ROM, explorer_catalogue, dos_walkthroughs
 from apple2_software import ULTIMA_IV, ultima4_walkthroughs
 from coco_rom import coco_annotations
-from xt_rom import ultima_walkthrough, xt_annotations
+from xt_rom import ultima_walkthroughs, xt_annotations
 from rendering import CHAPTERS, MYSTERY_HOUSE, REPOSITORY, ChapterRendering, github_slug
 
 SITE = Path(__file__).resolve().parent
@@ -162,7 +162,7 @@ def build(base):
                           "coco_rom_guides": coco_annotations(COCO.read_text(), coco_instructions["romImages"], coco_instructions)})
     xt_lab = machine_guide(XT, "Intel 8088", "XT",
                            "Explore the IBM PC/XT’s executable specification and boot its laboratory into ROM BASIC or DOS.")
-    ultima = ultima_walkthrough((ROOT / "docs/machines/pc-xt-ultima-v.md").read_text())
+    ultima = ultima_walkthroughs((ROOT / "docs/machines/pc-xt-ultima-v.md").read_text())
     for profile in ("cga", "ega"):
         xt_catalogue = json.loads(subprocess.run(["node", "site/xt-instructions.ts", profile], cwd=ROOT,
                                                  check=True, capture_output=True, text=True).stdout)
@@ -170,7 +170,8 @@ def build(base):
         site.render_template("xt-laboratory.html", f"{lab}index.html",
                              {"xt_url": MACHINES[XT], "xt_lab": xt_lab, "ega": profile == "ega",
                               "title": f"IBM PC/XT laboratory · {profile.upper()}", "xt_catalogue": xt_catalogue,
-                              "xt_rom_guide": xt_annotations(XT.read_text(), xt_catalogue), "ultima_walkthrough": ultima})
+                              "xt_rom_guide": xt_annotations(XT.read_text(), xt_catalogue),
+                              "ultima_walkthroughs": [t for t in ultima if t.get("adapter", profile) == profile]})
     loading_source = SITE / "content/basic-loading.md"
     loading = Markup(lesson_markdown(loading_source, base).convert(loading_source.read_text()))
     for index, lesson in enumerate(lessons):

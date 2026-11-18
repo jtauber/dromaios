@@ -32,16 +32,20 @@ def _ultima_observation(expect):
     return isinstance(party, list) and len(party) == 3 and all(type(b) is int and 0 <= b <= 255 for b in party)
 
 
-def ultima_walkthrough(source):
+def _ultima_tour(tour):
     """The software guide describes a particular DOS load layout in RAM."""
-    tour = _guide_record(source, "Ultima V workload")
+    if not isinstance(tour, dict) or tour.get("adapter") not in (None, "ega", "cga"):
+        raise ValueError("Invalid Ultima V walkthrough or adapter.")
     if not tour.get("steps") or not all(isinstance(tour.get(k), str) and tour[k].strip() for k in ("id", "title", "setup")):
         raise ValueError("The Ultima V walkthrough needs an introduction and checkpoints.")
     for step in tour["steps"]:
         if not all(isinstance(step.get(k), str) and step[k].strip() for k in ("title", "prepare", "observe")):
             raise ValueError("Each Ultima V checkpoint needs preparation and observations.")
         step["address"] = f"{_physical_address(step.get('execution')):05X}"
-        if not _ultima_observation(step.get("expect")):
+        if "boundaryLimit" in step and (type(step["boundaryLimit"]) is not int or not 1 <= step["boundaryLimit"] <= 40_000_000):
+            raise ValueError("Invalid checkpoint execution limit.")
+        expect = step.get("expect")
+        if not (_ultima_observation(expect) or _dos_observation(expect, 0xa0000)):
             raise ValueError(f"Invalid guest observation at {step['execution']}.")
         if {"file", "fileRange", "memory"} & step.keys():
             # A walkthrough may link a small file field to its counterpart in conventional RAM.
@@ -53,7 +57,18 @@ def ultima_walkthrough(source):
                     or not isinstance(address, str) or not re.fullmatch(r"[0-9A-F]{5}", address)
                     or int(address, 16) + span["length"] > 0xA0000):
                 raise ValueError("Invalid file or memory range in the Ultima V walkthrough.")
+        if "bytes" in expect and (expect["bytes"]["address"] != step.get("memory")
+                                  or step.get("fileRange", {}).get("length") != len(expect["bytes"]["value"].split())
+                                  or step["address"] != step["memory"]):
+            raise ValueError("Driver checkpoint must link the instruction bytes in RAM and on disk.")
     return tour
+
+
+def ultima_walkthroughs(source):
+    tours = [_ultima_tour(json.loads(block)) for block in re.findall(r"^```json\n(.*?)^```$", source, re.M | re.S)]
+    if not tours or len({t["id"] for t in tours}) != len(tours):
+        raise ValueError("Expected distinct Ultima V walkthroughs.")
+    return tours
 
 
 def _dos_observation(expect, ram_end):

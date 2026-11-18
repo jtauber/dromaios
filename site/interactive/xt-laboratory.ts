@@ -72,7 +72,7 @@ function mount(root: HTMLElement): void {
   const memoryPanel = root.querySelector<HTMLElement>('[data-workspace-panel="memory"]')!;
   const catalogue: XtCatalogue = JSON.parse(at("xt-catalogue").textContent!);
   const guide: RomGuide & { readonly io: XtIoLabels; readonly dos: DosServices } = JSON.parse(at("xt-rom-guide").textContent!);
-  const ultima: RomWalkthrough = JSON.parse(at("ultima-walkthrough").textContent!);
+  const ultima: RomWalkthrough[] = JSON.parse(at("ultima-walkthroughs").textContent!);
   const annotations = createXtRomAnnotations(guide);
   const showRegisters = createXtRegisterView(registers);
   const showCode = createXtCodeView(code, catalogue, annotations, () => refresh("code"));
@@ -172,10 +172,10 @@ function mount(root: HTMLElement): void {
     const when = step && guestCondition(step);
     // Loading the EGA tiles alone exceeds the ordinary two-million-boundary limit.
     if (step?.event) debug.runToEvent(step.event, when);
-    else debug.runTo(parseXtDebugAddress(text), when ? { limit: 10_000_000, when } : undefined);
+    else debug.runTo(parseXtDebugAddress(text), when ? { limit: step?.boundaryLimit ?? 10_000_000, when } : undefined);
     message.textContent = ""; execution.run();
   }
-  const walkthrough = createRomWalkthrough(root, { routines: guide.routines, walkthroughs: [...guide.walkthroughs, ultima] }, {
+  const walkthrough = createRomWalkthrough(root, { routines: guide.routines, walkthroughs: [...guide.walkthroughs, ...ultima] }, {
     available: tour => tour.id !== "hello-com" || !ega,
     runTo: (text, step) => act(() => runTo(text, step)),
     browse: (address, step) => { showCode.browse({ address, space: "CS:IP " + step.execution }); workspace.show("code"); },

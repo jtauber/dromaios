@@ -13,6 +13,7 @@ export interface XtCheckpoint extends RomCheckpoint {
   readonly expect?: UltimaObservation | XtDosObservation;
   /** The ROM address remains the explanation/browse location; an event determines the stop. */
   readonly event?: XtEventCondition;
+  readonly boundaryLimit?: number;
   readonly memory?: string;
   readonly file?: string;
   readonly fileRange?: { readonly offset: number; readonly length: number };

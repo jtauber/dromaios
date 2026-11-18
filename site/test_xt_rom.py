@@ -7,7 +7,7 @@ import re
 import subprocess
 import unittest
 
-from xt_rom import ultima_walkthrough, xt_annotations
+from xt_rom import ultima_walkthroughs, xt_annotations
 
 
 class XtRomTests(unittest.TestCase):
@@ -21,16 +21,23 @@ class XtRomTests(unittest.TestCase):
         cls.ultima = (root / "docs/machines/pc-xt-ultima-v.md").read_text()
 
     def test_software_checkpoints_browse_ram_and_share_the_keyboard_poll(self):
-        steps = ultima_walkthrough(self.ultima)["steps"]
+        tours = {t["id"]: t for t in ultima_walkthroughs(self.ultima)}
+        driver = tours["ultima-v-ega-driver"]
+        self.assertEqual(driver["adapter"], "ega")
+        self.assertEqual([s["address"] for s in driver["steps"]], ["9D273", "9DAE6"])
+        steps = tours["ultima-v"]["steps"]
         self.assertEqual([s["address"] for s in steps], ["13939", "0E45C", "150DE", "13966", "0E45C", "0E45C", "13966"])
         self.assertNotEqual(steps[3]["expect"], steps[-1]["expect"])
         self.assertEqual(steps[-1]["fileRange"], {"offset": 0x2f0, "length": 2})
         self.assertTrue(all("routine" not in s for s in steps))
         for source in [self.ultima.replace("0C6F:7249", "C6F:7249"), self.ultima.replace('"partyRead": true', '"partyRead": false'),
                        self.ultima.replace('[13, 15, 15]', '[13, 15]'), self.ultima.replace('"offset": 752', '"offset": -1'),
-                       self.ultima.replace('"memory": "215C6"', '"memory": "9FFFF"')]:
+                       self.ultima.replace('"memory": "215C6"', '"memory": "9FFFF"'),
+                       self.ultima.replace('"boundaryLimit": 34000000', '"boundaryLimit": 0'),
+                       self.ultima.replace('"address": "9DAE6"', '"address": "9DAE7"'),
+                       self.ultima.replace('"adapter": "ega"', '"adapter": "other"')]:
             with self.assertRaises(ValueError):
-                ultima_walkthrough(source)
+                ultima_walkthroughs(source)
 
     def test_dos_services_validate_arguments_buffers_and_return_contracts(self):
         services = self.record["dos"]["services"]
