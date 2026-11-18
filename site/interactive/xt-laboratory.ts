@@ -31,7 +31,9 @@ import type { XtCatalogue } from "./xt-inspection.js";
 import { createXtEgaSession, createXtSession } from "./xt-session.js";
 import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
-import { createXtScreen, xtEgaPixelReadout } from "./xt-screen.js";
+import { createXtScreen } from "./xt-screen.js";
+import { xtEgaPixelReadout } from "./xt-ega-pixel.js";
+import { createXtEgaPixelInspector } from "./xt-ega-pixel-view.js";
 import { xtCheckpointKey } from "./xt-checkpoint.js";
 import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
 import { createXtDebuggerView } from "./xt-debugger-view.js";
@@ -59,6 +61,7 @@ function mount(root: HTMLElement): void {
   const screen = at("screen"), message = at("message"), status = at("execution");
   const display = createXtScreen(root.querySelector("canvas")!, at("screen-text"), at("screen-notice"));
   const ega = root.dataset.xtLaboratory === "ega";
+  const pixelInspector = ega ? createXtEgaPixelInspector(screen.closest<HTMLElement>("[data-workspace-panel]")!) : undefined;
   const session = ega ? createXtEgaSession() : createXtSession();
   const intervals = createExecutionIntervalView(root, () => session.machine.io.clock, "oscillator ticks");
   const sound = createMachineSound(root, () => ({ clock: session.machine.io.clock, level: Number(session.machine.io.speakerLevel) }));
@@ -179,15 +182,23 @@ function mount(root: HTMLElement): void {
     available: tour => tour.id !== "hello-com" || !ega,
     runTo: (text, step) => act(() => runTo(text, step)),
     browse: (address, step) => { showCode.browse({ address, space: "CS:IP " + step.execution }); workspace.show("code"); },
-    inspect: ({ expect, memory: address, file, fileRange }: XtCheckpoint) => file ? [
-      { label: "Files · " + file, show: () => { workspace.show("dma"); diskMode("files"); diskFiles.select(file, fileRange); } },
-      { label: "Inspect memory", show: () => browseMemory(parseInt(address!, 16)) },
-      { label: "Instruction", show: () => workspace.show("instruction") },
-    ] : address ? [
-      { label: "Inspect sector buffer", show: () => browseMemory(parseInt(address, 16)) },
-      { label: "DMA / diskette", show: () => workspace.show("dma") },
-      { label: "Port trace", show: () => workspace.show("ports") },
-    ] : expect && "party" in expect ? [{ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) }] : [],
+    inspect: ({ expect, memory: address, file, fileRange }: XtCheckpoint) => {
+      const pixel = expect && "egaPixel" in expect && expect.egaPixel;
+      const tools = file ? [
+        { label: "Files · " + file, show: () => { workspace.show("dma"); diskMode("files"); diskFiles.select(file, fileRange); } },
+        { label: "Inspect memory", show: () => browseMemory(parseInt(address!, 16)) },
+        { label: "Instruction", show: () => workspace.show("instruction") },
+      ] : address ? [
+        { label: "Inspect sector buffer", show: () => browseMemory(parseInt(address, 16)) },
+        { label: "DMA / diskette", show: () => workspace.show("dma") },
+        { label: "Port trace", show: () => workspace.show("ports") },
+      ] : expect && "party" in expect ? [{ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) }] : [];
+      if (!pixel || !pixelInspector) return tools;
+      return [...tools, {
+        label: `Inspect pixel (${pixel.x},${pixel.y})`, available: () => pixelInspector.available,
+        show: () => { workspace.show("screen"); pixelInspector.select(pixel.x, pixel.y); },
+      }];
+    },
     readout: ({ expect }: XtCheckpoint) => {
       const pixel = expect && "egaPixel" in expect && expect.egaPixel;
       return pixel && "ega" in session.machine ? xtEgaPixelReadout(session.machine.ega, pixel.x, pixel.y) : undefined;
@@ -248,6 +259,7 @@ function mount(root: HTMLElement): void {
       session.keyboard.pasteRemaining ? `${session.keyboard.pasteRemaining} characters to paste` : ""].filter(Boolean).join(" · ");
     at("error").textContent = execution.error ?? "";
     debugView.refresh(running);
+    pixelInspector?.refresh(ready && !running && "ega" in session.machine ? session.machine.ega : undefined);
     walkthrough.refresh(xtDebugLocation(cpu), runnable, running);
     const now = performance.now();
     if (requested || !running || now - lastDraw >= 65) {
@@ -314,6 +326,7 @@ function mount(root: HTMLElement): void {
   button("warm").onclick = () => act(() => session.keyboard.chord(["ControlLeft", "AltLeft", "Delete"]));
 
   screen.addEventListener("keydown", event => {
+    if (pixelInspector?.handleKey(event)) return;
     if (!session.ready || loading || event.metaKey || event.code === "Tab" || event.ctrlKey && event.code === "KeyV") return;
     if (!xtKeySupported(event.code)) return;
     event.preventDefault();
@@ -321,6 +334,7 @@ function mount(root: HTMLElement): void {
   });
   screen.addEventListener("keyup", event => { session.keyboard.up(event.code); });
   screen.addEventListener("paste", event => {
+    if (pixelInspector?.active) { event.preventDefault(); return; }
     if (!session.ready || loading || checkpointBusy) return;
     event.preventDefault(); act(() => session.keyboard.paste(event.clipboardData?.getData("text/plain") ?? ""));
   });

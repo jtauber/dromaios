@@ -193,8 +193,11 @@ In the EGA laboratory, insert this image and choose **Quick boot**.
 Controller write mode 2 and fills the screen with pixel indices 0 through 15.
 In this write mode each low-order bit of the CPU byte supplies a whole byte
 of dots to its corresponding plane. The program alternates 12-row and 13-row
-bands to cover all 200 rows. The first band appears white and the last black.
-Click the screen and press a key to return to DOS in text mode.
+bands to cover all 200 rows. Pause and choose **Inspect pixel** in the Screen
+panel. Click the top band. All four plane bits are zero, but palette entry 0
+drives `$17`, which the 5154 displays as white. On the bottom band all four
+bits are one and palette entry 15 gives black. Use the arrow keys to move
+one dot at a time. To return to DOS, choose **Run**, click the screen and press a key.
 
 The same BIOS calls let [Ultima V select its EGA driver and draw the title menu](../../../docs/machines/pc-xt-ultima-v.md#native-ega-title-menu).
 In [Journey Onward](../../../docs/machines/pc-xt-ultima-v.md#one-ega-step-in-iolos-hut),

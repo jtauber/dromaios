@@ -8,6 +8,7 @@ import { egaRgb, renderEgaGraphicsFrame } from "../../src/machines/8088/pc-xt/vi
 import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { createXtEgaSession, type XtBoundary } from "../../site/interactive/xt-session.js";
+import { egaPixelAt, xtEgaPixelReadout } from "../../site/interactive/xt-ega-pixel.js";
 import { createXtDebugger, parseXtDebugAddress } from "../../site/interactive/xt-debugger.js";
 import { matchesXtDosObservation, type XtDosObservation } from "../../site/interactive/xt-dos-observation.js";
 import { createXtDosCalls } from "../../site/interactive/xt-dos-services.js";
@@ -21,6 +22,16 @@ import { runInput } from "../machines/8088/pc-xt/rom-console.js";
 const steps = ultimaSteps<XtDosObservation>("ultima-v-ega-driver");
 const entry = steps[0]!, mode = steps[1]!, logo = steps[2]!;
 const { XT_BIOS_ROM, XT_BASIC_ROM, XT_EGA_ROM, XT_ULTIMA_EGA_PROGRAM } = process.env;
+
+test("a resized 4:3 monitor selects native EGA dots and excludes the surround", () => {
+  const rect = { left: 16.5, top: 12.5, width: 480, height: 360 };
+  assert.deepEqual(egaPixelAt(rect, 16.5, 12.5), { x: 0, y: 0 });
+  assert.deepEqual(egaPixelAt(rect, 496, 372), { x: 319, y: 199 });
+  assert.deepEqual(egaPixelAt(rect, 245, 148), { x: 152, y: 75 });
+  for (const [x, y] of [[16, 13], [17, 12], [496.5, 42], [42, 372.5]] as const) {
+    assert.equal(egaPixelAt(rect, x, y), undefined);
+  }
+});
 
 test("the EGA mode stop requires both the driver's INT instruction and the mode request", () => {
   const machine = createXtEgaSession().machine, state = { ...machine.cpu.snapshot(), ax: 13 };
@@ -98,6 +109,8 @@ test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin lo
   assert.equal(debug.stop?.kind, "target");
   const before = machine.ega.snapshot();
   assert.deepEqual([before.seq[2], before.gc[5], before.gc[8], before.attr[0x12]], [9, 0, 255, 15]);
+  const selectedDot = () => xtEgaPixelReadout(machine.ega, 159, 75);
+  assert.match(selectedDot(), /bit 0: 0 0 0 0 · index 0 · palette\[0\] = \$00 · #000000$/);
   const paint = capture();
   assert.deepEqual(paint.instruction?.bytes, [...file.slice(logo.fileRange!.offset, logo.fileRange!.offset + 2)]);
   assert.deepEqual(paint.accesses.filter(a => "address" in a && a.address >= 0xa0000), [
@@ -121,6 +134,8 @@ test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin lo
   assert.deepEqual(frame.pixels, expected);
   assert.deepEqual(egaRgb(frame.pixels[y * 320 + x]!, machine.ega.rgbiOutput), [85, 85, 255]);
   assert.deepEqual(machine.ega.inspectGraphicsPixel(x, y), { offset, bit: shift, planeBytes: bytes, index: 9, paletteIndex: 9, pins });
+  assert.equal(selectedDot(), "Pixel (159,75) · plane offset $0BCB · P0–P3: FF 00 00 FF · bit 0: 1 0 0 1 · index 9 · palette[9] = $39 · #5555FF");
+  assert.match(xtEgaPixelReadout(machine.ega, 160, 75), /bit 7: 0 0 0 0 · index 0 · palette\[0\] = \$00 · #000000$/);
   debug.dispose(); activity.dispose();
 });
 

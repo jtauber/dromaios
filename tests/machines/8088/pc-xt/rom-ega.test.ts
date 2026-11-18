@@ -11,6 +11,7 @@ import { makeXtEgaBarsDisk } from "../../../../scripts/make-xt-ega-bars.js";
 import type { XtDisketteTransfer } from "../../../../src/machines/8088/pc-xt/io.js";
 import { inspectFat12, fat12FileRegions, readFat12File } from "../../../../site/interactive/fat12.js";
 import { matchesUltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
+import { xtEgaPixelReadout } from "../../../../site/interactive/xt-ega-pixel.js";
 import type { UltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import { ultimaSteps } from "../../../helpers/ultima-v-guide.js";
 import { ultimaVParty } from "./ultima-v-party.js";
@@ -101,6 +102,9 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
     assert.equal(m.ega.colour(band), pins);
     assert.ok(frame.pixels.subarray(y * 320, (y + 1) * 320).every(pixel => pixel === pins), `Band ${band}, line ${y}`);
   }
+  assert.match(xtEgaPixelReadout(m.ega, 0, 0), /bit 7: 0 0 0 0 · index 0 · palette\[0\] = \$17 · #FFFFFF$/);
+  assert.match(xtEgaPixelReadout(m.ega, 137, 112), /bit 6: 1 0 0 1 · index 9 · palette\[9\] = \$06 · #AA5500$/);
+  assert.match(xtEgaPixelReadout(m.ega, 319, 199), /bit 0: 1 1 1 1 · index 15 · palette\[15\] = \$00 · #000000$/);
   runInput(m, scanCodes(" "), { limit: 1_000_000, until: n => n % 2048 === 0 && screen(m).filter(Boolean).at(-1) === "A>" });
   assert.equal(m.ram.read(0x449), 3);
 });

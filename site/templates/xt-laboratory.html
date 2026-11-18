@@ -28,10 +28,17 @@
       <div class="lab-panel-body"><div class="lab-display-area">
         <div class="xt-monitor" data-screen tabindex="0" role="region" aria-label="{{ 'EGA' if ega else 'CGA' }} display and XT keyboard" aria-describedby="xt-input-help">
           <canvas width="640" height="200" hidden aria-hidden="true"></canvas>
+          {% if ega %}<span class="xt-pixel-marker" data-pixel-marker hidden aria-hidden="true"></span>{% endif %}
           <pre class="visually-hidden" data-screen-text aria-label="Screen contents"></pre>
           <div class="xt-screen-notice" data-screen-notice>Preparing display…</div>
         </div>
-      </div><div class="lab-display-footer"><p class="basic-readout" id="xt-input-help">Click the screen to type or paste. Enter submits a line.</p></div></div>
+      </div><div class="lab-display-footer">
+        <p class="basic-readout" id="xt-input-help">Click the screen to type or paste. Enter submits a line.</p>
+        {% if ega %}
+        <button type="button" data-screen-inspect disabled aria-pressed="false" title="Select a dot while paused in 320 × 200 EGA graphics.">Inspect pixel</button>
+        <output class="lab-screen-inspector xt-pixel-readout" data-pixel-readout hidden></output>
+        {% endif %}
+      </div></div>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">
       <div class="basic-controls">{% for name, label in [('run','Run'),('pause','Pause'),('step','Step'),('machine-over','Step over'),('machine-out','Step out'),('break','Ctrl-Break'),('warm','Ctrl-Alt-Del'),('reset','Reset CPU'),('power','Fresh power-on')] %}

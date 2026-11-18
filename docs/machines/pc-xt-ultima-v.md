@@ -211,7 +211,8 @@ instruction boundary, rather than the instant a CRT beam reaches a dot.
 
 At 40 bytes per scan line, the second destination byte, `$0BCB`, is
 `75 × 40 + 19`. Its leftmost bit (bit 7) supplies pixel **(152,75)**,
-counting from the upper left. Step once and watch the pixel readout:
+counting from the upper left. Choose **Inspect pixel (152,75)** at the
+walkthrough stop to mark that dot on the screen. Step once and compare:
 
 | Stage | Before | After one repetition |
 | --- | --- | --- |
@@ -226,6 +227,10 @@ mode, palette output `39h` drives blue and intensity. **Eight dots
 appear together**, x=152 through 159 on row 75; (152,75) is first in
 scan order. The rest of the 320 × 200 frame is still black. The PC remains
 at the repeat instruction; SI and DI advance by two and CX drops to ten.
+
+Click the rightmost blue dot at (159,75) to inspect bit 0 of the same four
+plane bytes. Press Right once to inspect bit 7 of the next byte at `$0BCC`.
+That dot is still black. The marker stays on the selected dot as you step.
 
 <details>
 <summary>Executable EGA driver walkthrough</summary>
