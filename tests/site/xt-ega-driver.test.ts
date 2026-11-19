@@ -45,13 +45,61 @@ test("the EGA mode stop requires both the driver's INT instruction and the mode 
   state.ax = 13; machine.ram.write(0x9dae7, 0x21); assert.equal(match(), false);
 });
 
-test("a pixel stop ignores RGBI-equivalent palette writes and retains the instruction that changes the colour", () => {
+function planarMachine() {
   const { machine } = createXtEgaSession(), { ega } = machine;
   function reg(port: number, index: number, value: number) { ega.writePort(port, index); ega.writePort(port + 1, value); }
   ega.writePort(0x3c2, 3);
   reg(0x3c4, 1, 1); reg(0x3ce, 6, 5);
   for (const [index, value] of [[1, 39], [0x12, 199], [0x13, 20], [0x17, 0xe3], [0x18, 255]] as const) reg(0x3d4, index, value);
   reg(0x3c0, 0x30, 1); reg(0x3c0, 0x32, 15);
+  return { machine, reg };
+}
+
+test("the watched dot follows a new CRTC start address and traces the matching byte of STOSW", () => {
+  const { machine, reg } = planarMachine();
+  reg(0x3c0, 0x29, 6); // Index 9 appears brown.
+  reg(0x3c4, 2, 15); reg(0x3c4, 4, 4); reg(0x3ce, 5, 2); reg(0x3ce, 8, 0x40);
+  machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000,
+    dx: 0x3d4, ax: 0x020d, es: 0xa000, di: 1 }, { ports: machine.ports });
+  // Move display start to byte 2 while the dot is black. Store FF at byte 1 and 09 at byte 2.
+  [0xef, 0xb8, 0xff, 0x09, 0xab].forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
+  const debug = createXtDebugger(() => machine, 4);
+  debug.runUntilPixelChanges(1, 0);
+  while (!debug.beforeStep()) debug.capture(() => stepTimedXtCpu(machine).record);
+  const hit = debug.pixelHit!;
+  assert.deepEqual([hit.record.before.ip, hit.after.colour], [0x2004, "#AA5500"]);
+  assert.deepEqual(hit.store, { source: "CPU", write: {
+    address: 2, offset: 2, value: 9, writeMode: 2, enabledPlanes: 15, bitMask: 0x40,
+    before: [0, 0, 0, 0], after: [0x40, 0, 0, 0x40],
+  } });
+  debug.dispose();
+});
+
+test("when DMA and the CPU write the same byte, the stop traces the write that changed the monitor colour", () => {
+  const { machine, reg } = planarMachine();
+  reg(0x3c0, 0x21, 7); reg(0x3c0, 0x23, 7); // Different plane bits, same grey.
+  reg(0x3c4, 2, 15); reg(0x3c4, 4, 4); reg(0x3ce, 5, 2); reg(0x3ce, 8, 255);
+  machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000,
+    ax: 3, es: 0xa000, di: 0 }, { ports: machine.ports });
+  machine.ram.write(0x2000, 0xaa); // STOSB supplies colour index 3 after DMA has supplied index 1.
+  const debug = createXtDebugger(() => machine);
+  debug.runUntilPixelChanges(0, 0);
+  debug.capture(() => {
+    machine.memory.write(0xa0000, 1);
+    return { ...stepTimedXtCpu(machine).record, dma: { channel: 2, address: 0xa0000, value: 1,
+      direction: "disk-to-memory", offset: 0, terminal: true, oscillatorTicks: 12 } };
+  });
+  const hit = debug.pixelHit!;
+  assert.deepEqual([hit.before.index, hit.after.index, hit.after.colour], [0, 3, "#AAAAAA"]);
+  assert.deepEqual(hit.store, { source: "DMA2", write: {
+    address: 0, offset: 0, value: 1, writeMode: 2, enabledPlanes: 15, bitMask: 255,
+    before: [0, 0, 0, 0], after: [255, 0, 0, 0],
+  } });
+  debug.dispose();
+});
+
+test("a pixel stop ignores RGBI-equivalent palette writes and retains the instruction that changes the colour", () => {
+  const { machine } = planarMachine(), { ega } = machine;
   machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000, dx: 0x3c0 }, { ports: machine.ports });
   // OUT to palette entry zero with video enabled. $28 still displays black; $17 displays white.
   const program = [0xb0, 0x20, 0xee, 0xb0, 0x28, 0xee, 0xb0, 0x20, 0xee, 0xb0, 0x17, 0xee, 0x90];
@@ -67,6 +115,7 @@ test("a pixel stop ignores RGBI-equivalent palette writes and retains the instru
   assert.deepEqual([hit.before.pins, hit.after.pins, hit.before.colour, hit.after.colour], [0x28, 0x17, "#000000", "#FFFFFF"]);
   assert.deepEqual(hit.before.planeBytes, hit.after.planeBytes);
   assert.equal(hit.afterBlanking, false);
+  assert.equal(hit.store, undefined);
   assert.equal(hit.paletteWrite, hit.record.paletteWrite);
   assert.deepEqual(hit.paletteWrite!.transfer, { kind: "output", port: 0x3c0, value: 0x17, paletteIndex: 0, before: 0x28, after: 0x17 });
   assert.deepEqual(egaRgb(renderEgaGraphicsFrame(ega).pixels[23 * 320 + 42]!, true), [255, 255, 255]);
@@ -163,6 +212,10 @@ test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin lo
   neighbour.dispose();
   const hit = debug.pixelHit!;
   assert.equal(hit.record, paint);
+  assert.deepEqual(hit.store, { source: "CPU", write: {
+    address: 0x0bcb, offset: 0x0bcb, value: 255, writeMode: 0, enabledPlanes: 9, bitMask: 255,
+    before: [0, 0, 0, 0], after: [255, 0, 0, 255],
+  } });
   assert.deepEqual([hit.record.before.cs, hit.record.before.ip, hit.record.instruction?.bytes], [0x9d27, 0x1c1a, [0xf3, 0xa5]]);
   assert.deepEqual([hit.before.colour, hit.after.colour, hit.before.pins, hit.after.pins], ["#000000", "#5555FF", 0, 0x39]);
   assert.deepEqual(paint.instruction?.bytes, [...file.slice(logo.fileRange!.offset, logo.fileRange!.offset + 2)]);

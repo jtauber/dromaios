@@ -14,6 +14,18 @@ export interface EgaPaletteWrite {
   readonly after: number;
 }
 
+/** One bus byte written through the CPU aperture to a byte in each enabled plane. */
+export interface EgaMemoryWrite {
+  readonly address: number; // Relative to the start of the aperture.
+  readonly offset: number;  // The decoded byte address within each plane.
+  readonly value: number;
+  readonly writeMode: number;
+  readonly enabledPlanes: number;
+  readonly bitMask: number;
+  readonly before: readonly number[];
+  readonly after: readonly number[];
+}
+
 export interface IbmEgaSnapshot {
   readonly misc: number;
   readonly seqIndex: number;
@@ -39,6 +51,7 @@ export class IbmEga {
   readonly #crt = new Uint8Array(25);
   readonly #attr = new Uint8Array(20);
   readonly #paletteObservers = new Set<(write: EgaPaletteWrite) => void>();
+  readonly #planeObservers = new Map<number, Set<(write: EgaMemoryWrite) => void>>();
   readonly #latch = new Uint8Array(4);
   readonly #planes = new Uint8Array(4 * planeSize);
   #misc = 0;
@@ -188,6 +201,21 @@ export class IbmEga {
   read(address: number): number { return this.#read(address, true); }
   peek(address: number): number { return this.#read(address, false); }
 
+  #planeBytes(offset: number): number[] {
+    return [0, 1, 2, 3].map(p => this.#planes[p * planeSize + offset]!);
+  }
+
+  /** Observe stores to one decoded plane offset without loading the CPU read latches. */
+  observePlaneWrites(offset: number, observe: (write: EgaMemoryWrite) => void): () => void {
+    checkUnsigned("EGA plane offset", offset, planeSize - 1);
+    const observers = this.#planeObservers.get(offset) ?? new Set<typeof observe>();
+    this.#planeObservers.set(offset, observers);
+    observers.add(observe);
+    return () => {
+      if (observers.delete(observe) && !observers.size) this.#planeObservers.delete(offset);
+    };
+  }
+
   write(address: number, value: number): void {
     checkUnsigned("EGA memory byte", value, 255);
     const offset = this.#offset(address);
@@ -196,6 +224,8 @@ export class IbmEga {
     const cell = (paired ? offset >>> 1 : offset) & 0xffff;
     const planes = this.#seq[2]! & (paired ? (offset & 1 ? 0xa : 0x5) : 0xf);
     const mode = this.#gc[5]! & 3, rotate = this.#gc[3]! & 7, mask = this.#gc[8]!;
+    const observers = this.#planeObservers.get(cell);
+    const before = observers && this.#planeBytes(cell);
     for (let p = 0; p < 4; p++) {
       const bit = 1 << p;
       if (!(planes & bit) || mode === 3) continue;
@@ -213,6 +243,11 @@ export class IbmEga {
         data = (data & mask) | (latch & ~mask);
       }
       this.#planes[p * planeSize + cell] = data;
+    }
+    if (observers && before) {
+      const write = { address, offset: cell, value, writeMode: mode, enabledPlanes: planes,
+        bitMask: mask, before, after: this.#planeBytes(cell) };
+      for (const observe of observers) observe(write);
     }
   }
 
@@ -246,6 +281,8 @@ export class IbmEga {
   }
   get repeatNinthDot(): boolean { return Boolean(this.#attr[0x10]! & 4); }
   colour(index: number): number { return this.#attr[index & 15]! & 63; }
+  /** The Attribute Controller's plane enable gates the four shift-register bits before palette lookup. */
+  graphicsPaletteIndex(index: number): number { return index & this.#attr[0x12]! & 15; }
   /** Observe the data strobe for a palette register without touching the address/data flip-flop. */
   observePaletteWrites(observe: (write: EgaPaletteWrite) => void): () => void {
     this.#paletteObservers.add(observe);
@@ -274,14 +311,14 @@ export class IbmEga {
     if (!this.graphicsSupported || !this.videoEnabled) return undefined;
     checkUnsigned("EGA pixel X", x, 319); checkUnsigned("EGA pixel Y", y, 199);
     const dot = this.#graphicsDot(x, y), offset = dot >>> 3, bit = 7 - (dot & 7);
-    const planeBytes = [0, 1, 2, 3].map(p => this.#planes[p * planeSize + offset]!);
-    const index = this.graphicsIndex(x, y), paletteIndex = index & this.#attr[0x12]!;
+    const planeBytes = this.#planeBytes(offset);
+    const index = this.graphicsIndex(x, y), paletteIndex = this.graphicsPaletteIndex(index);
     return { offset, bit, planeBytes, index, paletteIndex, pins: this.colour(paletteIndex) };
   }
 
   /** Six colour pins at an active raster position, also sampled by the POST diagnostic multiplexer. */
   pixel(x: number, y: number): number {
-    if (this.#attr[0x10]! & 1) return this.colour(this.graphicsIndex(x, y) & this.#attr[0x12]!);
+    if (this.#attr[0x10]! & 1) return this.colour(this.graphicsPaletteIndex(this.graphicsIndex(x, y)));
     const cell = this.#cell(Math.floor(y / this.cellHeight), Math.floor(x / this.cellWidth));
     const ch = this.#planes[cell]!, attr = this.#planes[planeSize + cell]!;
     const line = y % this.cellHeight, dot = x % this.cellWidth;

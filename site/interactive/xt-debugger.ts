@@ -76,9 +76,12 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
   let targetEvent: XtEventCondition | undefined;
   let eventCondition: (() => boolean) | undefined;
   let pixelWatch: ReturnType<typeof watchXtEgaPixel> | undefined, pixelHit: XtPixelChange | undefined;
+  function endPixelWatch(): void {
+    pixelWatch?.dispose(); pixelWatch = undefined;
+  }
   function clearHit(): void {
     hit = undefined; eventHit = undefined; dosHit = undefined; targetEvent = undefined; eventCondition = undefined;
-    pixelWatch = undefined; pixelHit = undefined;
+    endPixelWatch(); pixelHit = undefined;
   }
   return {
     get pixelTarget(): { readonly x: number; readonly y: number } | undefined { return pixelWatch; },
@@ -122,14 +125,15 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
       clearHit(); pixelWatch = watch;
       policy.stepUntil(location(), () => undefined);
     },
-    pause(detail?: string): void { pixelWatch = undefined; policy.pause(location(), detail); },
+    pause(detail?: string): void { endPixelWatch(); policy.pause(location(), detail); },
     beforeStep(current: DebugLocation | (() => DebugLocation) = location): boolean {
       const stopped = policy.beforeStep(current);
-      if (stopped) pixelWatch = undefined;
+      if (stopped) endPixelWatch();
       return stopped;
     },
     capture(step: () => Boundary): Boundary {
       try {
+        pixelWatch?.beginBoundary();
         const { record, write } = writes.capture(step);
         if (record.outcome === "unsupported") policy.fail(xtDebugLocation(record.after), "Unsupported instruction.");
         else {
@@ -164,10 +168,10 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
               if (!policy.stop) policy.event(xtDebugLocation(record.after),
                 `Pixel (${change.x},${change.y}) changed from ${change.before.colour} to ${change.after.colour}. See Screen for the instruction and plane values.`);
             }
-            if (policy.stop) pixelWatch = undefined;
           }
           if (policy.request === "step") policy.beforeStep(xtDebugLocation(record.after));
         }
+        if (pixelWatch && policy.stop) endPixelWatch();
         return record;
       } catch (cause) {
         clearHit(); policy.fail(location(), cause instanceof Error ? cause.message : String(cause));
@@ -175,7 +179,7 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
       }
     },
     reset(): void { policy.reset(); clearHit(); dosCalls?.reset(); writes.reconnect(); },
-    dispose: writes.dispose,
+    dispose(): void { endPixelWatch(); writes.dispose(); },
   };
 }
 

@@ -96,7 +96,7 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
   // Stop at the program's INT 10h with AX=1002h, just before the palette load.
   runInput(m, [], { limit: 6_000_000, until: (_, { after, instruction }) => m.ega.graphicsSupported
     && after.cs < 0xa000 && after.ip === 0x012f && after.ax === 0x1002 && instruction?.bytes[0] === 0xb8 });
-  const debug = createXtDebugger(() => m, 20_000);
+  const debug = createXtDebugger(() => m);
   const palette = createXtPaletteCapture(m)!, trace = createXtIoTrace();
   trace.recording = true;
   debug.runUntilPixelChanges(0, 0);
@@ -106,6 +106,7 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
   }
   assert.equal(debug.stop?.kind, "event");
   const hit = debug.pixelHit!;
+  assert.equal(hit.store, undefined, "The BIOS changed the palette with the plane bytes untouched.");
   assert.equal(hit.afterBlanking, true);
   assert.deepEqual([hit.record.before.cs, hit.record.before.ip, hit.record.instruction?.bytes], [0xc000, 0x1db4, [0xee]]);
   assert.deepEqual(hit.record.accesses.filter(a => a.kind === "output"), [{ kind: "output", port: 0x3c0, value: 0x20 }]);
@@ -122,6 +123,17 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
   assert.deepEqual(hit.paletteWrite!.caller, entries[1]!.caller);
   assert.deepEqual(hit.paletteWrite!.bytes, [0xee]);
   assert.equal(hit.paletteWrite!.ticks, entries[1]!.ticks);
+  // With the palette installed, the ninth nonzero band turns a white dot brown.
+  debug.runUntilPixelChanges(137, 112);
+  while (!debug.beforeStep()) debug.capture(() => stepTimedXtCpu(m).record);
+  assert.equal(debug.stop?.kind, "event");
+  const band = debug.pixelHit!;
+  assert.deepEqual([band.record.before.cs, band.record.before.ip, band.record.instruction?.bytes], [0x0c5f, 0x0151, [0xf3, 0xaa]]);
+  assert.deepEqual(band.store, { source: "CPU", write: {
+    address: 0x1191, offset: 0x1191, value: 9, writeMode: 2, enabledPlanes: 15, bitMask: 255,
+    before: [0, 0, 0, 0], after: [255, 0, 0, 255],
+  } });
+  assert.deepEqual([band.before.colour, band.after.colour, renderEgaGraphicsFrame(m.ega).pixels[112 * 320 + 137]], ["#FFFFFF", "#AA5500", 6]);
   palette.dispose(); debug.dispose();
   // BARS.COM waits through INT 16h only after the adapter query and all 16 bands succeed.
   runInput(m, [], { limit: 6_000_000, until: (_, { instruction, before }) => m.ega.graphicsSupported

@@ -214,6 +214,13 @@ display was blank. Click its address to inspect the instruction in Disassembly.
 The Screen result still links to the later output at `C000:1DB4`. The pixel
 watch retains the palette write even when general port recording is off.
 
+From that stop, select dot **(137,112)** and choose **Run until this pixel
+changes** again. When `REP STOSB` reaches `A000:1191`, its CPU byte is
+`09h`. Write mode 2 expands bits 0 and 3 into full bytes. The plane enable
+mask `0Fh` admits all four planes and the bit mask `FFh` admits all eight
+dots. The Screen panel shows `00 00 00 00 → FF 00 00 FF` in plane order.
+The selected dot changes from white to brown through reversed palette entry 9.
+
 The same BIOS calls let [Ultima V select its EGA driver and draw the title menu](../../../docs/machines/pc-xt-ultima-v.md#native-ega-title-menu).
 In [Journey Onward](../../../docs/machines/pc-xt-ultima-v.md#one-ega-step-in-iolos-hut),
 watch the game update its Y coordinate and see the sixteen-colour map scroll

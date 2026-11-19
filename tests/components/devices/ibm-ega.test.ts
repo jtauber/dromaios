@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { IbmEga } from "../../../src/components/devices/ibm-ega.js";
+import { IbmEga, type EgaMemoryWrite } from "../../../src/components/devices/ibm-ega.js";
 import { egaRgb } from "../../../src/machines/8088/pc-xt/video.js";
 
 test("EGA exposes the four monitor switches and switches the active CRTC/status ports", () => {
@@ -22,7 +22,14 @@ test("EGA routes text and uploaded glyphs into distinct planes and restores the 
   assert.equal(ega.read(0x18000), 0xff);
   ega.writePort(0x3c2, 3);
   reg(0x3c4, 2, 3); reg(0x3c4, 4, 3); reg(0x3ce, 5, 0x10); reg(0x3ce, 6, 0x0e); reg(0x3ce, 8, 255);
+  const writes: EgaMemoryWrite[] = [];
+  const detach = ega.observePlaneWrites(0, write => writes.push(write));
   ega.write(0x18000, 65); ega.write(0x18001, 7);
+  detach();
+  assert.deepEqual(writes.map(w => [w.address, w.offset, w.enabledPlanes, w.before, w.after]), [
+    [0x18000, 0, 1, [0, 0, 0, 0], [65, 0, 0, 0]],
+    [0x18001, 0, 2, [65, 0, 0, 0], [65, 7, 0, 0]],
+  ]);
   assert.deepEqual([ega.character(0, 0), ega.attribute(0, 0), ega.read(0x18001), ega.read(0)], [65, 7, 7, 255]);
   reg(0x3c4, 2, 4); reg(0x3c4, 4, 7); reg(0x3ce, 5, 0); reg(0x3ce, 6, 4); reg(0x3ce, 4, 2);
   ega.write(65 * 32 + 2, 0x5a);
@@ -78,7 +85,12 @@ test("planar scanout follows the CRTC page and stride; CPU writes use the latche
     offset: 0x8000, bit: 0, planeBytes: [0x55, 0x33, 0x0f, 0], index: 7, paletteIndex: 3, pins: ega.colour(3),
   });
   reg(0x3c4, 2, 1); reg(0x3ce, 5, 0); reg(0x3ce, 3, 0x19); reg(0x3ce, 8, 0xf0);
+  const writes: EgaMemoryWrite[] = [];
+  const detach = ega.observePlaneWrites(0x8000, write => writes.push(write));
   ega.read(0x8000); ega.peek(0); ega.write(0x8000, 0x81);
+  detach();
+  assert.deepEqual(writes, [{ address: 0x8000, offset: 0x8000, value: 0x81, writeMode: 0, enabledPlanes: 1, bitMask: 0xf0,
+    before: [0x55, 0x33, 0x0f, 0], after: [0x95, 0x33, 0x0f, 0] }]);
   assert.equal(ega.peek(0x8000), 0x95); // Rotate 81 right once, XOR the latched 55, preserve its low nibble.
   assert.equal(ega.peek(40), 0x55);
 });
