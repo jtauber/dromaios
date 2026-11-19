@@ -4,11 +4,13 @@ import type { DebugLocation } from "./instruction-debugger.js";
 import type { Cpu8088Delivery, Cpu8088InterruptSource } from "../../src/components/cpus/generated/8088-cpu.js";
 import { xtDebugLocation } from "./xt-inspection.js";
 import { opcode8088Index } from "./8088-encoding.js";
+import type { XtPaletteEntry } from "./xt-ega-palette.js";
 
 type Boundary = ReturnType<typeof stepXtSessionCpu>;
 export type XtInterruptSource = Cpu8088Delivery["source"] | Cpu8088InterruptSource;
 export type XtIoTransfer = ({ readonly kind: "dma" } & XtDisketteTransfer)
   | { readonly kind: "input" | "output"; readonly port: number; readonly value: number }
+  | XtPaletteEntry["transfer"]
   | { readonly kind: "acknowledge"; readonly value: number }
   | { readonly kind: "interrupt"; readonly source: XtInterruptSource; readonly vector: number; readonly target: DebugLocation }
   | { readonly kind: "iret"; readonly target: DebugLocation };
@@ -17,8 +19,10 @@ export type XtIoTransfer = ({ readonly kind: "dma" } & XtDisketteTransfer)
 export function xtIoTransfers(record: Boundary): readonly XtIoTransfer[] {
   if (record.outcome !== "executed" && record.outcome !== "accepted") return [];
   const transfers: XtIoTransfer[] = record.dma ? [{ kind: "dma", ...record.dma }] : [];
+  const palette = record.paletteWrite?.transfer;
   for (const access of record.accesses) {
-    if (access.kind === "input" || access.kind === "output") transfers.push({ kind: access.kind, port: access.port, value: access.value });
+    if (palette && access.kind === "output" && access.port === palette.port && access.value === palette.value) transfers.push(palette);
+    else if (access.kind === "input" || access.kind === "output") transfers.push({ kind: access.kind, port: access.port, value: access.value });
     else if (access.kind === "acknowledge") transfers.push({ kind: access.kind, value: access.value });
   }
   const interrupt = record.outcome === "accepted" ? record : "interrupt" in record ? record.interrupt : undefined;

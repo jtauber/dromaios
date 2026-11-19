@@ -1,12 +1,14 @@
 import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { describeXtPixel, dmaWritesXtVideo, egaPixelAt, xtEgaPixelReadout } from "./xt-ega-pixel.js";
 import type { Catalogue8088 } from "./8088-disassembly.js";
+import type { XtPaletteEntry } from "./xt-ega-palette.js";
 import type { DebugLocation } from "./instruction-debugger.js";
 import { xtBoundaryEvent, xtHistoryAssembly } from "./xt-history.js";
 import { xtDebugLocation, type createXtDebugger } from "./xt-debugger.js";
 
 export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<ReturnType<typeof createXtDebugger>, "pixelTarget" | "pixelHit">,
-  cpu: Catalogue8088, run: (x: number, y: number) => void, browse: (location: DebugLocation) => void) {
+  cpu: Catalogue8088, run: (x: number, y: number) => void, browse: (location: DebugLocation) => void,
+  showPaletteWrite: (entry: XtPaletteEntry) => void) {
   const screen = panel.querySelector<HTMLElement>("[data-screen]")!;
   const canvas = screen.querySelector("canvas")!;
   const toggle = panel.querySelector<HTMLButtonElement>("[data-screen-inspect]")!;
@@ -15,7 +17,8 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
   const until = panel.querySelector<HTMLButtonElement>("[data-pixel-until]")!;
   const waiting = panel.querySelector<HTMLElement>("[data-pixel-waiting]")!;
   const result = panel.querySelector<HTMLElement>("[data-pixel-result]")!;
-  const writer = result.querySelector("button")!, before = result.querySelector<HTMLElement>("[data-pixel-before]")!;
+  const writer = result.querySelector<HTMLButtonElement>("[data-pixel-instruction]")!, before = result.querySelector<HTMLElement>("[data-pixel-before]")!;
+  const palette = result.querySelector<HTMLElement>("[data-pixel-palette]")!, paletteLink = palette.querySelector("button")!;
   const after = result.querySelector<HTMLElement>("[data-pixel-after]")!;
   const help = panel.querySelector<HTMLElement>("#xt-input-help")!, typingHelp = help.textContent;
   let selected = { x: 160, y: 100 }, enabled = false;
@@ -44,6 +47,8 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
       writer.textContent = `${caller.space} · ${assembly}${dmaWritesXtVideo(hit.record) ? " (DMA2 video write at this boundary)" : ""}`;
       before.textContent = `Pixel (${hit.x},${hit.y}) · ${hit.afterBlanking ? "Before blanking" : "Before"} · ${describeXtPixel(hit.before)}`;
       after.textContent = `${hit.afterBlanking ? "Display re-enabled" : "After"} · ${describeXtPixel(hit.after)}`;
+      palette.hidden = !hit.paletteWrite;
+      if (hit.paletteWrite) paletteLink.textContent = `Trace palette[${hit.paletteWrite.transfer.paletteIndex}] write in Ports`;
     } else {
       const detail = xtEgaPixelReadout(pausedDisplay!, selected.x, selected.y);
       if (readout.textContent !== detail) readout.textContent = detail;
@@ -61,6 +66,7 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
   };
   until.onclick = () => { if (pausedDisplay && enabled) run(selected.x, selected.y); };
   writer.onclick = () => { if (debug.pixelHit) browse(xtDebugLocation(debug.pixelHit.record.before)); };
+  paletteLink.onclick = () => { if (debug.pixelHit?.paletteWrite) showPaletteWrite(debug.pixelHit.paletteWrite); };
   canvas.addEventListener("click", event => {
     if (!enabled || !pausedDisplay) return;
     const dot = egaPixelAt(canvas.getBoundingClientRect(), event.clientX, event.clientY);

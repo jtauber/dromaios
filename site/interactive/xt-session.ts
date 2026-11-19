@@ -6,6 +6,7 @@ import type { RomImage } from "../../src/machines/rom-image.js";
 import { checkMachineSnapshot } from "../../src/machines/snapshot.js";
 import { XtKeyboard } from "./xt-keyboard.js";
 import type { XtKeyboardState } from "./xt-keyboard.js";
+import type { XtPaletteEntry } from "./xt-ega-palette.js";
 
 export type XtMachine = ReturnType<typeof create8088PcXt | typeof create8088PcXtEga>;
 type Bindings = Parameters<typeof create8088PcXt>[0];
@@ -17,7 +18,7 @@ export interface XtSessionState {
   readonly diskName: string | null;
 }
 
-export type XtBoundary = ReturnType<typeof stepTimedXtCpu>["record"] & { readonly dma?: XtDisketteTransfer };
+export type XtBoundary = ReturnType<typeof stepTimedXtCpu>["record"] & { readonly dma?: XtDisketteTransfer; readonly paletteWrite?: XtPaletteEntry };
 
 /** Keyboard delivery and timed arbitration are identical for live execution and a private preview. */
 export function stepXtSessionCpu(machine: XtCpuBoard & Pick<XtMachine, "ram">, keyboard: XtKeyboard): XtBoundary {

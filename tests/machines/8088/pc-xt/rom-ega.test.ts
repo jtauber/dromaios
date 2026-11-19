@@ -13,6 +13,8 @@ import { inspectFat12, fat12FileRegions, readFat12File } from "../../../../site/
 import { matchesUltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import { xtEgaPixelReadout } from "../../../../site/interactive/xt-ega-pixel.js";
 import { createXtDebugger } from "../../../../site/interactive/xt-debugger.js";
+import { createXtPaletteCapture } from "../../../../site/interactive/xt-ega-palette.js";
+import { createXtIoTrace } from "../../../../site/interactive/xt-io-trace.js";
 import type { UltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import { ultimaSteps } from "../../../helpers/ultima-v-guide.js";
 import { ultimaVParty } from "./ultima-v-party.js";
@@ -95,8 +97,13 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
   runInput(m, [], { limit: 6_000_000, until: (_, { after, instruction }) => m.ega.graphicsSupported
     && after.cs < 0xa000 && after.ip === 0x012f && after.ax === 0x1002 && instruction?.bytes[0] === 0xb8 });
   const debug = createXtDebugger(() => m, 20_000);
+  const palette = createXtPaletteCapture(m)!, trace = createXtIoTrace();
+  trace.recording = true;
   debug.runUntilPixelChanges(0, 0);
-  while (!debug.beforeStep()) debug.capture(() => stepTimedXtCpu(m).record);
+  while (!debug.beforeStep()) {
+    const record = debug.capture(() => palette.capture(() => stepTimedXtCpu(m).record));
+    trace.observe(record, m.io.clock.ticks);
+  }
   assert.equal(debug.stop?.kind, "event");
   const hit = debug.pixelHit!;
   assert.equal(hit.afterBlanking, true);
@@ -105,7 +112,17 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
   assert.deepEqual(hit.before.planeBytes, [0, 0, 0, 0]); assert.deepEqual(hit.after.planeBytes, hit.before.planeBytes);
   assert.deepEqual([hit.before.paletteIndex, hit.after.paletteIndex, hit.before.pins, hit.after.pins], [0, 0, 0, 0x17]);
   assert.deepEqual([hit.before.colour, hit.after.colour, renderEgaGraphicsFrame(m.ega).pixels[0]], ["#000000", "#FFFFFF", 0x17]);
-  debug.dispose();
+  const entries = trace.entries().filter(({ transfer }) => transfer.kind === "output" && transfer.port === 0x3c0);
+  assert.deepEqual(entries.map(e => [e.caller.space, e.transfer]), [
+    ["CS:IP C000:1DAE", { kind: "output", port: 0x3c0, value: 0 }],
+    ["CS:IP C000:1DB1", { kind: "output", port: 0x3c0, value: 0x17, paletteIndex: 0, before: 0, after: 0x17 }],
+    ["CS:IP C000:1DB4", { kind: "output", port: 0x3c0, value: 0x20 }],
+  ]);
+  assert.equal(hit.paletteWrite!.transfer, entries[1]!.transfer);
+  assert.deepEqual(hit.paletteWrite!.caller, entries[1]!.caller);
+  assert.deepEqual(hit.paletteWrite!.bytes, [0xee]);
+  assert.equal(hit.paletteWrite!.ticks, entries[1]!.ticks);
+  palette.dispose(); debug.dispose();
   // BARS.COM waits through INT 16h only after the adapter query and all 16 bands succeed.
   runInput(m, [], { limit: 6_000_000, until: (_, { instruction, before }) => m.ega.graphicsSupported
     && before.cs < 0xa000 && before.ah === 0 && instruction?.bytes[0] === 0xcd && instruction.bytes[1] === 0x16 });

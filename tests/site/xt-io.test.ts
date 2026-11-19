@@ -7,7 +7,8 @@ import { Cpu8088 } from "../../src/components/cpus/generated/8088-cpu.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { create8088PcXt, romImages } from "../../src/machines/generated/8088/pc-xt.js";
 import { stepTimedXtCpu } from "../../src/machines/8088/pc-xt/interrupts.js";
-import { createXtSession } from "../../site/interactive/xt-session.js";
+import { createXtEgaSession, createXtSession } from "../../site/interactive/xt-session.js";
+import { createXtPaletteCapture } from "../../site/interactive/xt-ega-palette.js";
 import { createXtIoTrace } from "../../site/interactive/xt-io-trace.js";
 import { createXtDebugger, parseXtDebugAddress } from "../../site/interactive/xt-debugger.js";
 import { xtRomGuide as guide } from "./xt-inspection-fixture.js";
@@ -41,6 +42,23 @@ test("XT port trace retains ordered byte transfers, exact callers, boundary time
   assert.equal(trace.captured, 4);
   trace.clear(); assert.equal(trace.recording, true); assert.equal(trace.captured, 0); assert.equal(trace.discarded, 0);
   assert.throws(() => createXtIoTrace(0), /capacity/);
+});
+
+test("only an EGA palette data strobe annotates a byte in Ports, including the high byte of OUT DX,AX", () => {
+  const { machine } = createXtEgaSession(), trace = createXtIoTrace();
+  machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000, dx: 0x3c0, ax: 0xdd25 }, { ports: machine.ports });
+  // Palette 5 = $1D, then attribute control register $12. Each OUT word strobes index then data.
+  [0xef, 0xb8, 0x32, 0x0f, 0xef].forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
+  const capture = createXtPaletteCapture(machine)!;
+  trace.recording = true;
+  for (let i = 0; i < 3; i++) trace.observe(capture.capture(() => stepTimedXtCpu(machine).record), machine.io.clock.ticks);
+  assert.deepEqual(trace.entries().map(e => e.transfer), [
+    { kind: "output", port: 0x3c0, value: 0x25 },
+    { kind: "output", port: 0x3c1, value: 0xdd, paletteIndex: 5, before: 0, after: 0x1d },
+    { kind: "output", port: 0x3c0, value: 0x32 },
+    { kind: "output", port: 0x3c1, value: 0x0f },
+  ]);
+  capture.dispose();
 });
 
 test("XT trace identifies software entry, NMI, pending traps and prefixed IRET without inventing INTA", () => {

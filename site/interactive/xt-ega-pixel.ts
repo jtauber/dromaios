@@ -1,6 +1,7 @@
 import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { egaRgb } from "../../src/machines/8088/pc-xt/video.js";
 import type { XtBoundary } from "./xt-session.js";
+import type { XtPaletteEntry } from "./xt-ega-palette.js";
 import { xtHex } from "./8088-disassembly.js";
 
 /** Map a click on the stretched 4:3 picture to its native mode 0Dh raster. */
@@ -25,6 +26,7 @@ export interface XtPixelChange {
   readonly before: PixelSample;
   readonly after: PixelSample;
   readonly afterBlanking: boolean;
+  readonly paletteWrite?: XtPaletteEntry;
   readonly record: XtBoundary;
 }
 
@@ -49,16 +51,23 @@ export function watchXtEgaPixel(ega: IbmEga, x: number, y: number) {
   const initial = sample(ega, x, y);
   if (!initial) throw new Error("Select a visible dot in mode 0Dh first.");
   let previous = initial, blanked = false;
+  let paletteWrite: XtPaletteEntry | undefined;
   function observe(record: XtBoundary): XtPixelChange | "mode-ended" | undefined {
     // Mode 0Dh has no blinking dots. A video store or display register write can change scanout.
     if (!dmaWritesXtVideo(record) && !record.accesses.some(a => a.kind === "write" && inVideoMemory(a.address)
       || a.kind === "output" && a.port >= 0x3b0 && a.port <= 0x3df)) return;
     if (!ega.graphicsSupported) return "mode-ended";
+    const entry = record.paletteWrite;
+    if (entry && entry.transfer.paletteIndex === previous.paletteIndex && entry.transfer.before !== entry.transfer.after) paletteWrite = entry;
     const next = sample(ega, x, y);
     // BIOS palette calls can blank video while programming the card. Compare the next visible dot.
     if (!next) { blanked = true; return; }
-    if (next.colour !== previous.colour) return { x, y, before: previous, after: next, afterBlanking: blanked, record };
-    previous = next; blanked = false;
+    if (next.colour !== previous.colour) {
+      const linked = paletteWrite && previous.paletteIndex === next.paletteIndex && previous.pins !== next.pins
+        && paletteWrite.transfer.after === next.pins;
+      return { x, y, before: previous, after: next, afterBlanking: blanked, record, ...(linked && { paletteWrite }) };
+    }
+    previous = next; blanked = false; paletteWrite = undefined;
   }
   return { x, y, observe };
 }

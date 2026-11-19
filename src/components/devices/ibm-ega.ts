@@ -6,6 +6,14 @@ const xtClock = 14_318_180, enhancedClock = 16_257_000;
 // Colour Plane Enable bits 5:4 select the output wires sampled by Input Status 1.
 const diagnosticPins = [[0, 2], [1, 3], [4, 5], [6, 6]] as const;
 
+export interface EgaPaletteWrite {
+  readonly port: number;
+  readonly value: number;
+  readonly paletteIndex: number;
+  readonly before: number;
+  readonly after: number;
+}
+
 export interface IbmEgaSnapshot {
   readonly misc: number;
   readonly seqIndex: number;
@@ -30,6 +38,7 @@ export class IbmEga {
   readonly #gc = new Uint8Array(9);
   readonly #crt = new Uint8Array(25);
   readonly #attr = new Uint8Array(20);
+  readonly #paletteObservers = new Set<(write: EgaPaletteWrite) => void>();
   readonly #latch = new Uint8Array(4);
   readonly #planes = new Uint8Array(4 * planeSize);
   #misc = 0;
@@ -131,8 +140,14 @@ export class IbmEga {
     else switch (port) {
       // The IBM ROM also writes index/data as a pair at 3C0/3C1. Both strobe the flip-flop.
       case 0x3c0: case 0x3c1:
-        if (this.#attrData) this.#attr[this.#attrIndex & 31] = value;
-        else this.#attrIndex = value & 63;
+        if (this.#attrData) {
+          const index = this.#attrIndex & 31, before = this.#attr[index];
+          this.#attr[index] = value;
+          if (index < 16 && this.#paletteObservers.size) {
+            const write = { port, value, paletteIndex: index, before: before! & 63, after: value & 63 };
+            for (const observe of this.#paletteObservers) observe(write);
+          }
+        } else this.#attrIndex = value & 63;
         this.#attrData = !this.#attrData;
         break;
       case 0x3c2: this.#misc = value; this.#setTiming(); break;
@@ -231,6 +246,11 @@ export class IbmEga {
   }
   get repeatNinthDot(): boolean { return Boolean(this.#attr[0x10]! & 4); }
   colour(index: number): number { return this.#attr[index & 15]! & 63; }
+  /** Observe the data strobe for a palette register without touching the address/data flip-flop. */
+  observePaletteWrites(observe: (write: EgaPaletteWrite) => void): () => void {
+    this.#paletteObservers.add(observe);
+    return () => { this.#paletteObservers.delete(observe); };
+  }
   get blinkEnabled(): boolean { return Boolean(this.#attr[0x10]! & 8); }
 
   // Bit address in one 64 KiB plane, numbered in scan order (MSB first).

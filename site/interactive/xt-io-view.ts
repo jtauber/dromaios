@@ -8,6 +8,7 @@ import type { DebugLocation } from "./instruction-debugger.js";
 import { memoryLink } from "./memory-link.js";
 import { xtHistoryAssembly } from "./xt-history.js";
 import type { createXtIoTrace } from "./xt-io-trace.js";
+import type { XtPaletteEntry } from "./xt-ega-palette.js";
 
 export interface XtIoLabels {
   readonly ports: readonly { readonly address: string; readonly input?: string; readonly output?: string }[];
@@ -20,6 +21,8 @@ export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof creat
   const at = <T extends HTMLElement>(name: string) => root.querySelector<T>(`[data-${name}]`)!;
   const record = at<HTMLInputElement>("io-recording"), ports = at<HTMLInputElement>("io-ports"), interrupts = at<HTMLInputElement>("io-interrupts");
   const dma = at<HTMLInputElement>("io-dma");
+  const all = at<HTMLButtonElement>("io-all");
+  let selected: XtPaletteEntry | undefined;
   const portLabels = new Map(labels.ports.map(port => [parseInt(port.address, 16), port]));
   let lastTrace: string | undefined;
   function code(location: DebugLocation, prefix = ""): HTMLButtonElement {
@@ -32,8 +35,12 @@ export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof creat
     const key = `${trace.captured}:${trace.recording}:${ports.checked}:${interrupts.checked}:${dma.checked}`;
     if (key === lastTrace) return;
     lastTrace = key;
-    const entries = trace.entries().filter(({ transfer }) => transfer.kind === "dma" ? dma.checked : "port" in transfer ? ports.checked : interrupts.checked);
-    at("io-status").textContent = `${trace.recording ? "Recording" : "Recording paused"} · ${entries.length} shown · ${trace.capacity} events retained at most`
+    const history = trace.entries();
+    const entries = selected ? [history.find(entry => entry.transfer === selected?.transfer) ?? { ...selected, sequence: undefined }]
+      : history.filter(({ transfer }) => transfer.kind === "dma" ? dma.checked : "port" in transfer ? ports.checked : interrupts.checked);
+    all.hidden = !selected;
+    ports.disabled = interrupts.disabled = dma.disabled = Boolean(selected);
+    at("io-status").textContent = selected ? "Palette write captured by the pixel stop." : `${trace.recording ? "Recording" : "Recording paused"} · ${entries.length} shown · ${trace.capacity} events retained at most`
       + (trace.discarded ? ` · ${trace.discarded.toLocaleString()} older discarded` : "");
     const output = at("io-entries"); output.replaceChildren();
     for (const entry of [...entries].reverse()) {
@@ -51,13 +58,15 @@ export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof creat
       if ("port" in transfer) {
         const label = portLabels.get(transfer.port)?.[transfer.kind];
         heading.append(`${transfer.kind === "input" ? "IN" : "OUT"} $${hex(transfer.port, 4)} · $${hex(transfer.value, 2)}${label ? ` · ${label}` : ""}`);
+        if ("paletteIndex" in transfer) heading.append(` · EGA palette[${transfer.paletteIndex}] · $${hex(transfer.before, 2)} → $${hex(transfer.after, 2)}`);
       } else if (transfer.kind === "acknowledge") heading.append(`INTA · vector $${hex(transfer.value, 2)}`);
       else if (transfer.kind !== "dma") {
         heading.append(transfer.kind === "iret" ? "IRET → " : `${transfer.source.toUpperCase()} · vector $${hex(transfer.vector, 2)} → `,
           code(transfer.target));
       }
       const assembly = entry.bytes.length ? xtHistoryAssembly(cpu, entry.caller, entry.bytes) : "External CPU boundary";
-      detail.append(`#${entry.sequence} · ${entry.ticks.toLocaleString()} ticks at boundary end · `);
+      if (entry.sequence !== undefined) detail.append(`#${entry.sequence} · `);
+      detail.append(`${entry.ticks.toLocaleString()} ticks at boundary end · `);
       if (transfer.kind === "dma") detail.append("DMA precedes CPU at ", code(entry.caller));
       else detail.append(assembly);
       const stop = document.createElement("button"), condition = xtEventCondition(transfer);
@@ -71,10 +80,15 @@ export function createXtIoView(root: HTMLElement, trace: ReturnType<typeof creat
   }
   record.addEventListener("change", () => { trace.recording = record.checked; refreshTrace(); });
   for (const control of [ports, interrupts, dma]) control.addEventListener("change", refreshTrace);
-  at("io-clear").addEventListener("click", () => { trace.clear(); lastTrace = undefined; refreshTrace(); });
+  function selectPaletteWrite(entry?: XtPaletteEntry): void {
+    selected = entry; lastTrace = undefined; refreshTrace();
+  }
+  all.onclick = () => selectPaletteWrite();
+  at("io-clear").addEventListener("click", () => { trace.clear(); selectPaletteWrite(); });
   return {
     refreshTrace,
-    reset(): void { trace.clear(); lastTrace = undefined; },
+    selectPaletteWrite,
+    reset(): void { trace.clear(); selected = undefined; lastTrace = undefined; },
     refreshPic(state: ReturnType<XtIo["interruptState"]>, cpu: Cpu8088Snapshot): void {
       const { pic, vector } = state;
       const phases = ["Not initialized", "Awaiting ICW2", "Awaiting ICW4", "Ready"];

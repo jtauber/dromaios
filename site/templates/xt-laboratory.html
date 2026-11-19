@@ -42,6 +42,7 @@
         <div class="lab-screen-inspector xt-pixel-readout" data-pixel-result hidden>
           <div><button type="button" class="lab-memory-link" title="Browse this instruction in Disassembly" data-pixel-instruction></button></div>
           <span data-pixel-before></span><span data-pixel-after></span>
+          <div data-pixel-palette hidden><button type="button" class="lab-memory-link"></button></div>
         </div>
         {% endif %}
       </div></div>
@@ -81,6 +82,7 @@
       <div class="basic-controls">
         <label><input type="checkbox" data-io-recording> Record</label>
         <button type="button" data-io-clear>Clear trace</button>
+        <button type="button" data-io-all hidden>Show all events</button>
         <label><input type="checkbox" data-io-ports checked> Ports</label>
         <label><input type="checkbox" data-io-interrupts checked> Interrupts</label>
         <label><input type="checkbox" data-io-dma checked> DMA2</label>

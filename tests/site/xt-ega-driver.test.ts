@@ -11,6 +11,7 @@ import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { createXtEgaSession, type XtBoundary } from "../../site/interactive/xt-session.js";
 import { egaPixelAt, xtEgaPixelReadout } from "../../site/interactive/xt-ega-pixel.js";
+import { createXtPaletteCapture } from "../../site/interactive/xt-ega-palette.js";
 import { createXtDebugger, parseXtDebugAddress } from "../../site/interactive/xt-debugger.js";
 import { matchesXtDosObservation, type XtDosObservation } from "../../site/interactive/xt-dos-observation.js";
 import { createXtDosCalls } from "../../site/interactive/xt-dos-services.js";
@@ -56,7 +57,8 @@ test("a pixel stop ignores RGBI-equivalent palette writes and retains the instru
   const program = [0xb0, 0x20, 0xee, 0xb0, 0x28, 0xee, 0xb0, 0x20, 0xee, 0xb0, 0x17, 0xee, 0x90];
   program.forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
   const debug = createXtDebugger(() => machine, 16);
-  const run = () => { while (!debug.beforeStep()) debug.capture(() => stepTimedXtCpu(machine).record); };
+  const palette = createXtPaletteCapture(machine)!;
+  const run = () => { while (!debug.beforeStep()) debug.capture(() => palette.capture(() => stepTimedXtCpu(machine).record)); };
   debug.runUntilPixelChanges(42, 23);
   run();
   const hit = debug.pixelHit!;
@@ -65,6 +67,8 @@ test("a pixel stop ignores RGBI-equivalent palette writes and retains the instru
   assert.deepEqual([hit.before.pins, hit.after.pins, hit.before.colour, hit.after.colour], [0x28, 0x17, "#000000", "#FFFFFF"]);
   assert.deepEqual(hit.before.planeBytes, hit.after.planeBytes);
   assert.equal(hit.afterBlanking, false);
+  assert.equal(hit.paletteWrite, hit.record.paletteWrite);
+  assert.deepEqual(hit.paletteWrite!.transfer, { kind: "output", port: 0x3c0, value: 0x17, paletteIndex: 0, before: 0x28, after: 0x17 });
   assert.deepEqual(egaRgb(renderEgaGraphicsFrame(ega).pixels[23 * 320 + 42]!, true), [255, 255, 255]);
 
   // A new request uses the current dot. Ordinary stops and checkpoint reset discard it.
@@ -78,7 +82,7 @@ test("a pixel stop ignores RGBI-equivalent palette writes and retains the instru
   debug.runUntilPixelChanges(42, 23); run();
   assert.equal(debug.stop?.kind, "pause"); assert.match(debug.stop.detail!, /left mode 0Dh/);
   assert.equal(debug.pixelHit, undefined); assert.equal(debug.pixelTarget, undefined);
-  debug.dispose();
+  palette.dispose(); debug.dispose();
 });
 
 test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin logo pixels", {

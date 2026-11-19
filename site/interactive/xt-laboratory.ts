@@ -4,6 +4,7 @@ import { createXtDiskFilesView } from "./xt-disk-files-view.js";
 import { decodeStoredXtCheckpoint, encodeStoredXtCheckpoint } from "./xt-checkpoint-storage.js";
 import { createXtDmaView } from "./xt-dma-view.js";
 import { createXtIoTrace } from "./xt-io-trace.js";
+import { createXtPaletteCapture } from "./xt-ega-palette.js";
 import { createXtIoView } from "./xt-io-view.js";
 import type { XtIoLabels } from "./xt-io-view.js";
 import { createCallStack } from "./call-stack-view.js";
@@ -85,6 +86,7 @@ function mount(root: HTMLElement): void {
     browse: (_address, location) => { showCode.browse(location); workspace.show("code"); },
   })!;
   const portTrace = createXtIoTrace();
+  let paletteCapture = createXtPaletteCapture(session.machine);
   const ioView = createXtIoView(root, portTrace, catalogue.cpu, guide.io,
     location => { showCode.browse(location); workspace.show("code"); },
     condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }), browseMemory);
@@ -107,7 +109,8 @@ function mount(root: HTMLElement): void {
   const debug = createXtDebugger(() => session.machine, undefined, dosCalls);
   const pixelInspector = ega ? createXtEgaPixelInspector(screen.closest<HTMLElement>("[data-workspace-panel]")!, debug, catalogue.cpu,
     (x, y) => act(() => { debug.runUntilPixelChanges(x, y); execution.run(); screen.focus(); }),
-    location => { showCode.browse(location); workspace.show("code"); }) : undefined;
+    location => { showCode.browse(location); workspace.show("code"); },
+    entry => { workspace.show("ports"); ioView.selectPaletteWrite(entry); }) : undefined;
   const showDos = createXtDosServicesView(instruction, guide.dos, dosCalls, browseMemory,
     () => { dosFileLinks.reset(); diskFiles.reset(); refresh("instruction"); },
     condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }), dosFileLinks,
@@ -147,7 +150,9 @@ function mount(root: HTMLElement): void {
     step() {
       const log = changeLog.current();
       const observed = log.recording ? observeBoundary() : undefined;
-      const record = log.capture(() => debug.capture(() => diskActivity.capture(() => session.step())), observed);
+      const step = () => diskActivity.capture(() => session.step());
+      const record = log.capture(() => debug.capture(() => paletteCapture && (portTrace.recording || debug.pixelTarget)
+        ? paletteCapture.capture(step) : step()), observed);
       portTrace.observe(record, session.machine.io.clock.ticks);
       sound.observe();
       watchHistory.observe(record, debug.watchpoints, log.memoryWrites(record));
@@ -304,6 +309,7 @@ function mount(root: HTMLElement): void {
     refresh();
   }
   function resetTools(): void {
+    paletteCapture?.dispose(); paletteCapture = createXtPaletteCapture(session.machine);
     unobserveSpeaker(); unobserveSpeaker = observeSpeaker(); intervals.clearStep();
     execution.reset(); debug.reset(); memory.reset(); showCode.reset(); changeLog.reset(); watchHistory.reset(); ioView.reset(); diskActivity.reset();
     dosFileLinks.reset(); diskFiles.reset(); diskActivityView.resetFilter();
