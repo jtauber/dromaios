@@ -223,8 +223,10 @@ changes**. The Screen panel stops after one repetition, links to the captured
 | Colour index | 0 | 1 + 8 = **9** |
 | Attribute palette → 5154 monitor | `$00` → black | `$39` → light blue, **#5555FF** |
 
-The Screen panel identifies the second byte of the word store at physical
-`$A0BCB`. In write mode 0, the driver supplies CPU byte `FFh`. The
+The Screen panel traces the second byte of the word from `A800:0013` to
+physical `$A0BCB`. Click **A800:0013** to select the off-screen source
+byte at `$A8013` in Memory. The `FFh` in Screen is the value captured
+when the driver read that byte. In write mode 0, the
 Sequencer enables planes 0 and 3 (`09h`), and the bit mask `FFh` lets
 all eight dots through. All four planes are enabled for display. In 200-line RGBI
 mode, palette output `39h` drives blue and intensity. **Eight dots
@@ -266,7 +268,7 @@ That dot is still black. The marker stays on the selected dot as you step.
       "title": "Draw the first Origin logo pixels",
       "execution": "9D27:1C1A",
       "prepare": "From the mode-setting call or its return, run to this checkpoint without pressing a key. The driver prepares the Origin logo off screen first.",
-      "observe": "Choose Inspect pixel (152,75), then Run until this pixel changes. REP MOVSW at 9D27:1C1A copies 00 FF from A800:0012 to A000:0BCA. In Screen, find the second CPU byte ($FF) at $A0BCB. Write mode 0, enabled planes $09 and bit mask $FF produce FF 00 00 FF. Eight dots turn light blue through index 9, palette output $39 and monitor colour #5555FF. IP still points at REP MOVSW, but CX is now 000A.",
+      "observe": "Choose Inspect pixel (152,75), then Run until this pixel changes. REP MOVSW at 9D27:1C1A copies 00 FF from A800:0012 to A000:0BCA. Follow A800:0013 from Screen to Memory to see where the second CPU byte ($FF) came from. At $A0BCB, write mode 0, enabled planes $09 and bit mask $FF produce FF 00 00 FF. Eight dots turn light blue through index 9, palette output $39 and monitor colour #5555FF. IP still points at REP MOVSW, but CX is now 000A.",
       "memory": "9EE8A", "file": "EGA.DRV", "fileRange": { "offset": 7194, "length": 2 },
       "expect": { "bytes": { "address": "9EE8A", "value": "F3 A5" },
         "registers": { "ds": "A800", "si": "0012", "es": "A000", "di": "0BCA", "cx": "000B" },

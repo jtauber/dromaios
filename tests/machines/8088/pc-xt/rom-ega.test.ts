@@ -129,7 +129,7 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
   assert.equal(debug.stop?.kind, "event");
   const band = debug.pixelHit!;
   assert.deepEqual([band.record.before.cs, band.record.before.ip, band.record.instruction?.bytes], [0x0c5f, 0x0151, [0xf3, 0xaa]]);
-  assert.deepEqual(band.store, { source: "CPU", write: {
+  assert.deepEqual(band.store, { source: "CPU", operand: { kind: "register", name: "AL", value: 9 }, write: {
     address: 0x1191, offset: 0x1191, value: 9, writeMode: 2, enabledPlanes: 15, bitMask: 255,
     before: [0, 0, 0, 0], after: [255, 0, 0, 255],
   } });

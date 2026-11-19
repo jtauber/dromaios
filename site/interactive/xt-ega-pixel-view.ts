@@ -1,6 +1,6 @@
 import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { describeXtPixel, describeXtPixelStore, dmaWritesXtVideo, egaPixelAt, xtEgaPixelReadout } from "./xt-ega-pixel.js";
-import type { Catalogue8088 } from "./8088-disassembly.js";
+import { logical8088, xtHex, type Catalogue8088 } from "./8088-disassembly.js";
 import type { XtPaletteEntry } from "./xt-ega-palette.js";
 import type { DebugLocation } from "./instruction-debugger.js";
 import { xtBoundaryEvent, xtHistoryAssembly } from "./xt-history.js";
@@ -8,7 +8,7 @@ import { xtDebugLocation, type createXtDebugger } from "./xt-debugger.js";
 
 export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<ReturnType<typeof createXtDebugger>, "pixelTarget" | "pixelHit">,
   cpu: Catalogue8088, run: (x: number, y: number) => void, browse: (location: DebugLocation) => void,
-  showPaletteWrite: (entry: XtPaletteEntry) => void) {
+  showPaletteWrite: (entry: XtPaletteEntry) => void, browseMemory: (address: number) => void) {
   const screen = panel.querySelector<HTMLElement>("[data-screen]")!;
   const canvas = screen.querySelector("canvas")!;
   const toggle = panel.querySelector<HTMLButtonElement>("[data-screen-inspect]")!;
@@ -21,6 +21,8 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
   const palette = result.querySelector<HTMLElement>("[data-pixel-palette]")!, paletteLink = palette.querySelector("button")!;
   const after = result.querySelector<HTMLElement>("[data-pixel-after]")!;
   const store = result.querySelector<HTMLElement>("[data-pixel-store]")!;
+  const read = store.querySelector<HTMLElement>("[data-pixel-read]")!, readLink = read.querySelector("button")!;
+  const transfer = store.querySelector<HTMLElement>("[data-pixel-transfer]")!;
   const help = panel.querySelector<HTMLElement>("#xt-input-help")!, typingHelp = help.textContent;
   let selected = { x: 160, y: 100 }, enabled = false;
   let pausedDisplay: IbmEga | undefined;
@@ -49,7 +51,15 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
       before.textContent = `Pixel (${hit.x},${hit.y}) · ${hit.afterBlanking ? "Before blanking" : "Before"} · ${describeXtPixel(hit.before)}`;
       after.textContent = `${hit.afterBlanking ? "Display re-enabled" : "After"} · ${describeXtPixel(hit.after)}`;
       store.hidden = !hit.store;
-      if (hit.store) store.textContent = describeXtPixelStore(hit.store);
+      if (hit.store) {
+        transfer.textContent = describeXtPixelStore(hit.store);
+        const operand = hit.store.operand;
+        read.hidden = operand?.kind !== "memory";
+        if (operand?.kind === "memory") {
+          readLink.textContent = logical8088(operand.segment, operand.offset);
+          readLink.title = `View source byte at $${xtHex(operand.address, 5)} in Memory`;
+        }
+      }
       palette.hidden = !hit.paletteWrite;
       if (hit.paletteWrite) paletteLink.textContent = `Trace palette[${hit.paletteWrite.transfer.paletteIndex}] write in Ports`;
     } else {
@@ -69,6 +79,10 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
   };
   until.onclick = () => { if (pausedDisplay && enabled) run(selected.x, selected.y); };
   writer.onclick = () => { if (debug.pixelHit) browse(xtDebugLocation(debug.pixelHit.record.before)); };
+  readLink.onclick = () => {
+    const operand = debug.pixelHit?.store?.operand;
+    if (operand?.kind === "memory") browseMemory(operand.address);
+  };
   paletteLink.onclick = () => { if (debug.pixelHit?.paletteWrite) showPaletteWrite(debug.pixelHit.paletteWrite); };
   canvas.addEventListener("click", event => {
     if (!enabled || !pausedDisplay) return;

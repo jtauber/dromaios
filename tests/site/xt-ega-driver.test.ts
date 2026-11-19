@@ -68,11 +68,32 @@ test("the watched dot follows a new CRTC start address and traces the matching b
   while (!debug.beforeStep()) debug.capture(() => stepTimedXtCpu(machine).record);
   const hit = debug.pixelHit!;
   assert.deepEqual([hit.record.before.ip, hit.after.colour], [0x2004, "#AA5500"]);
-  assert.deepEqual(hit.store, { source: "CPU", write: {
+  assert.deepEqual(hit.store, { source: "CPU", operand: { kind: "register", name: "AH", value: 9 }, write: {
     address: 2, offset: 2, value: 9, writeMode: 2, enabledPlanes: 15, bitMask: 0x40,
     before: [0, 0, 0, 0], after: [0x40, 0, 0, 0x40],
   } });
   debug.dispose();
+});
+
+test("MOVS traces the selected source byte through segment overrides, offset wrap and 20-bit bus wrap", () => {
+  for (const [opcode, segment, si, addresses, x, offset] of [
+    [0xa4, 0xffff, 0x0020, [0x00010], 0, 0x0020],
+    [0xa5, 0x2345, 0xffff, [0x3344f, 0x23450], 8, 0x0000],
+  ] as const) {
+    const { machine, reg } = planarMachine();
+    reg(0x3c0, 0x29, 6); reg(0x3c4, 2, 15); reg(0x3c4, 4, 4); reg(0x3ce, 5, 2); reg(0x3ce, 8, 255);
+    const start = machine.cpu.snapshot();
+    machine.cpu = new Cpu8088(machine.memory, { ...start, cs: 0, ip: 0x2000, ss: segment, si,
+      es: 0xa000, di: 0, cx: 2, flags: { ...start.flags, df: true } }, { ports: machine.ports });
+    [0x3e, 0x36, 0xf3, opcode].forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
+    // Both source bytes of the word are identical. Only their position distinguishes them.
+    for (const address of addresses) machine.ram.write(address, 9);
+    const debug = createXtDebugger(() => machine);
+    debug.runUntilPixelChanges(x, 0);
+    debug.capture(() => stepTimedXtCpu(machine).record);
+    assert.deepEqual(debug.pixelHit?.store?.operand, { kind: "memory", address: addresses.at(-1), segment, offset, value: 9 });
+    debug.dispose();
+  }
 });
 
 test("when DMA and the CPU write the same byte, the stop traces the write that changed the monitor colour", () => {
@@ -212,7 +233,7 @@ test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin lo
   neighbour.dispose();
   const hit = debug.pixelHit!;
   assert.equal(hit.record, paint);
-  assert.deepEqual(hit.store, { source: "CPU", write: {
+  assert.deepEqual(hit.store, { source: "CPU", operand: { kind: "memory", segment: 0xa800, offset: 0x13, address: 0xa8013, value: 255 }, write: {
     address: 0x0bcb, offset: 0x0bcb, value: 255, writeMode: 0, enabledPlanes: 9, bitMask: 255,
     before: [0, 0, 0, 0], after: [255, 0, 0, 255],
   } });

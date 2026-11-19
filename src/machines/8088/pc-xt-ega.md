@@ -215,8 +215,9 @@ The Screen result still links to the later output at `C000:1DB4`. The pixel
 watch retains the palette write even when general port recording is off.
 
 From that stop, select dot **(137,112)** and choose **Run until this pixel
-changes** again. When `REP STOSB` reaches `A000:1191`, its CPU byte is
-`09h`. Write mode 2 expands bits 0 and 3 into full bytes. The plane enable
+changes** again. When `REP STOSB` reaches `A000:1191`, Screen shows
+**AL = $09**, the accumulator byte captured before that repetition.
+Write mode 2 expands bits 0 and 3 into full bytes. The plane enable
 mask `0Fh` admits all four planes and the bit mask `FFh` admits all eight
 dots. The Screen panel shows `00 00 00 00 → FF 00 00 FF` in plane order.
 The selected dot changes from white to brown through reversed palette entry 9.
