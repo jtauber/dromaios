@@ -24,7 +24,7 @@ class XtRomTests(unittest.TestCase):
         tours = {t["id"]: t for t in ultima_walkthroughs(self.ultima)}
         driver = tours["ultima-v-ega-driver"]
         self.assertEqual(driver["adapter"], "ega")
-        self.assertEqual([s["address"] for s in driver["steps"]], ["9D273", "9DAE6", "9EE8A"])
+        self.assertEqual([s["address"] for s in driver["steps"]], ["9D273", "9DAE6", "9EBED", "9EE8A"])
         steps = tours["ultima-v"]["steps"]
         self.assertEqual([s["address"] for s in steps], ["13939", "0E45C", "150DE", "13966", "0E45C", "0E45C", "13966"])
         self.assertNotEqual(steps[3]["expect"], steps[-1]["expect"])
@@ -36,7 +36,8 @@ class XtRomTests(unittest.TestCase):
                        self.ultima.replace('"boundaryLimit": 34000000', '"boundaryLimit": 0'),
                        self.ultima.replace('"address": "9DAE6"', '"address": "9DAE7"'),
                        self.ultima.replace('"adapter": "ega"', '"adapter": "other"'),
-                       self.ultima.replace('"x": 152', '"x": 320'), self.ultima.replace('"pins": 0', '"pins": 64')]:
+                       self.ultima.replace('"x": 152', '"x": 320'), self.ultima.replace('"pins": 0', '"pins": 64'),
+                       self.ultima.replace('"plane": 0', '"plane": 4'), self.ultima.replace('"offset": "8013"', '"offset": "A8013"')]:
             with self.assertRaises(ValueError):
                 ultima_walkthroughs(source)
 

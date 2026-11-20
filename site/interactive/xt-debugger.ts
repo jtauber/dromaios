@@ -1,5 +1,6 @@
 import { xtIoTransfers } from "./xt-io-events.js";
 import { watchXtEgaPixel, type XtPixelChange } from "./xt-ega-pixel.js";
+import { createXtEgaPlaneWatches, planeByteLabel, type EgaPlaneStore } from "./xt-ega-plane-watch.js";
 import type { XtIoTransfer } from "./xt-io-events.js";
 import { validateXtEventStops, matchesXtEvent, matchesXtDosEvent, describeXtEvent, xtEventCondition } from "./xt-event-stops.js";
 import type { XtEventCondition, XtEventStop } from "./xt-event-stops.js";
@@ -69,6 +70,10 @@ function validate(points: readonly InstructionBreakpoint[], maximum: number, log
 /** Adapt XT boundaries and physical RAM stores to the shared stopping policy. */
 export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, dosCalls?: ReturnType<typeof createXtDosCalls>) {
   const policy = createInstructionDebugger(budget), writes = createRamWriteCapture(() => machine().ram);
+  const planeWatches = createXtEgaPlaneWatches(() => {
+    const board = machine(); return "ega" in board ? board.ega : undefined;
+  });
+  let planeHit: (EgaPlaneStore & { readonly record: Boundary; readonly dma: boolean }) | undefined;
   const location = () => xtDebugLocation(machine().cpu.snapshot());
   let watches: readonly InstructionBreakpoint[] = [], hit: XtWriteHit | undefined;
   let events: readonly XtEventStop[] = [], activeEvents: readonly XtEventStop[] = [], eventHit: XtEventHit | undefined;
@@ -81,9 +86,12 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
   }
   function clearHit(): void {
     hit = undefined; eventHit = undefined; dosHit = undefined; targetEvent = undefined; eventCondition = undefined;
-    endPixelWatch(); pixelHit = undefined;
+    endPixelWatch(); pixelHit = undefined; planeHit = undefined;
   }
   return {
+    get planeWatchpoints() { return planeWatches.values; },
+    setPlaneWatchpoints: planeWatches.set,
+    get planeHit() { return planeHit; },
     get pixelTarget(): { readonly x: number; readonly y: number } | undefined { return pixelWatch; },
     get pixelHit() { return pixelHit; },
     get eventStops() { return events; },
@@ -134,14 +142,23 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
     capture(step: () => Boundary): Boundary {
       try {
         pixelWatch?.beginBoundary();
-        const { record, write } = writes.capture(step);
+        const { record, write } = writes.capture(planeWatches.enabled ? () => planeWatches.capture(step) : step);
         if (record.outcome === "unsupported") policy.fail(xtDebugLocation(record.after), "Unsupported instruction.");
         else {
           const dosCall = dosCalls?.observe(record);
           observe8088Boundary(policy, record);
-          if (write) {
-            hit = { ...write, caller: xtDebugLocation(record.before), record };
-            policy.watchpoint(xtDebugLocation(record.after), describeXtWriteHit(hit));
+          if (write || planeWatches.store) {
+            const details = [], caller = xtDebugLocation(record.before);
+            if (write) {
+              hit = { ...write, caller, record }; details.push(describeXtWriteHit(hit));
+            }
+            if (planeWatches.store) {
+              const { plane, write } = planeWatches.store, physical = 0xa0000 + write.address;
+              const dma = record.dma?.direction === "disk-to-memory" && record.dma.address === physical;
+              planeHit = { plane, write, record, dma };
+              details.push(`${dma ? "DMA2 before" : "CPU at"} ${formatXtDebugAddress(caller)} wrote EGA ${planeByteLabel(plane, write.offset)} through $${hex(physical, 5)} · $${hex(write.before[plane]!, 2)} → $${hex(write.after[plane]!, 2)}.`);
+            }
+            policy.watchpoint(xtDebugLocation(record.after), details.join(" "));
           } else if (activeEvents.length || targetEvent) {
             const event = xtIoTransfers(record).find(event => targetEvent && matchesXtEvent(targetEvent, event) && (eventCondition?.() ?? true)
               || activeEvents.some(point => matchesXtEvent(point, event)));
@@ -178,8 +195,8 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
         throw cause;
       }
     },
-    reset(): void { policy.reset(); clearHit(); dosCalls?.reset(); writes.reconnect(); },
-    dispose(): void { endPixelWatch(); writes.dispose(); },
+    reset(): void { policy.reset(); clearHit(); dosCalls?.reset(); writes.reconnect(); planeWatches.reconnect(); },
+    dispose(): void { endPixelWatch(); writes.dispose(); planeWatches.dispose(); },
   };
 }
 

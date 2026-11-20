@@ -34,6 +34,7 @@ import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
 import { createXtScreen } from "./xt-screen.js";
 import { xtEgaPixelReadout } from "./xt-ega-pixel.js";
+import { planeByteLabel } from "./xt-ega-plane-watch.js";
 import { createXtEgaPixelInspector } from "./xt-ega-pixel-view.js";
 import { xtCheckpointKey } from "./xt-checkpoint.js";
 import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
@@ -168,7 +169,7 @@ function mount(root: HTMLElement): void {
   });
   const debugView = createXtDebuggerView(root, debug, {
     ramMaximum: session.machine.ram.size - 1, changed: refresh,
-    memory: browseMemory,
+    memory: browseMemory, code: location => { showCode.browse(location); workspace.show("code"); },
     labels: guide.labels, dos: guide.dos, history: address => watchView.select({ address }),
     watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
   });
@@ -200,6 +201,10 @@ function mount(root: HTMLElement): void {
         { label: "DMA / diskette", show: () => workspace.show("dma") },
         { label: "Port trace", show: () => workspace.show("ports") },
       ] : expect && "party" in expect ? [{ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) }] : [];
+      if (expect && "egaPlane" in expect && expect.egaPlane) {
+        const { plane, offset } = expect.egaPlane, byte = parseInt(offset, 16);
+        tools.push({ label: "Watch " + planeByteLabel(plane, byte), show: () => act(() => debugView.watchPlane(plane, byte)) });
+      }
       if (!pixel || !pixelInspector) return tools;
       return [...tools, {
         label: `Inspect pixel (${pixel.x},${pixel.y})`, available: () => pixelInspector.available,
@@ -207,8 +212,14 @@ function mount(root: HTMLElement): void {
       }];
     },
     readout: ({ expect }: XtCheckpoint) => {
-      const pixel = expect && "egaPixel" in expect && expect.egaPixel;
-      return pixel && "ega" in session.machine ? xtEgaPixelReadout(session.machine.ega, pixel.x, pixel.y) : undefined;
+      if (!expect || !("bytes" in expect) || !("ega" in session.machine)) return;
+      const { egaPlane, egaPixel } = expect, { ega } = session.machine, parts = [];
+      if (egaPlane) {
+        const offset = parseInt(egaPlane.offset, 16);
+        parts.push(`${planeByteLabel(egaPlane.plane, offset)} = $${hex(ega.planeByte(egaPlane.plane, offset), 2)}`);
+      }
+      if (egaPixel) parts.push(xtEgaPixelReadout(ega, egaPixel.x, egaPixel.y));
+      return parts.join(" · ");
     },
     description: (step: XtCheckpoint) => step.event ? describeXtEvent(step.event) : step.execution ?? step.address,
     position: (step: XtCheckpoint, location, available, running) => step.event && available

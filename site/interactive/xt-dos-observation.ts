@@ -7,6 +7,7 @@ export interface XtDosObservation {
   readonly bytes: { readonly address: string; readonly value: string };
   readonly registers?: Readonly<Partial<Record<Register, string>>>;
   readonly egaPixel?: { readonly x: number; readonly y: number; readonly index: number; readonly pins: number };
+  readonly egaPlane?: { readonly plane: number; readonly offset: string; readonly value: string };
   readonly screen?: { readonly contains: string; readonly lastLine: string };
 }
 
@@ -15,6 +16,10 @@ export function matchesXtDosObservation(expect: XtDosObservation, machine: XtMac
   const address = parseInt(expect.bytes.address, 16), bytes = expect.bytes.value.split(" ").map(b => parseInt(b, 16));
   if (address + bytes.length > ram.size || bytes.some((byte, i) => ram.read(address + i) !== byte)) return false;
   if (Object.entries(expect.registers ?? {}).some(([key, value]) => cpu[key as Register] !== parseInt(value, 16))) return false;
+  if (expect.egaPlane) {
+    const { plane, offset, value } = expect.egaPlane;
+    if (!("ega" in machine) || machine.ega.planeByte(plane, parseInt(offset, 16)) !== parseInt(value, 16)) return false;
+  }
   if (expect.egaPixel) {
     const { x, y, index, pins } = expect.egaPixel;
     const pixel = "ega" in machine && machine.ega.inspectGraphicsPixel(x, y);

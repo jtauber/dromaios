@@ -186,6 +186,7 @@ loader while the bytes are arriving; reading code doesn't execute it.
 | --- | --- | --- | --- |
 | Enter the EGA driver | `9D27:0003` | `+$0003: E9 62 08` | Cluster 262, sector 532, image `+$42803` |
 | Select 16-colour graphics | `9D27:0876` | `+$0876: CD 10` | Cluster 264, sector 536, image `+$43076` |
+| Prepare the off-screen logo byte | `9D27:197D` | `+$197D: 26 08 25` | Cluster 268, sector 544, image `+$4417D` |
 | Draw the first Origin logo pixels | `9D27:1C1A` | `+$1C1A: F3 A5` | Cluster 269, sector 546, image `+$4441A` |
 
 The far call at `0C6F:08C1` takes its destination from `DS:5350`
@@ -200,8 +201,16 @@ has to set the palette and draw; choosing the mode does not draw the logo.
 
 ### The first visible Origin logo pixel
 
-Run from the mode call to **Draw the first Origin logo pixels**, without
-pressing Space. The frame is still black. The driver has prepared a bitmap
+Run from the mode call to **Prepare the off-screen logo byte** without pressing
+Space. An earlier `OR ES:[DI],AL` at `9D27:19AA` has already set the upper
+four bits of the byte at `A800:0013`. Choose **Watch P0:$8013** and **Step**.
+At `9D27:197D`, `OR ES:[DI],AH` reads `F0h` and sets the lower four bits
+with `AH=0Fh`. All four planes receive `FFh`. The watchpoint reports the
+store after the instruction has completed at `9D27:1980`. The frame is
+still black because the CRTC is displaying page zero.
+
+Choose **Next** and **Run to checkpoint** to reach **Draw the first Origin
+logo pixels**. The driver has prepared a bitmap
 outside the displayed page and is copying it with `REP MOVSW`. The XT
 laboratory steps one repetition at a time. Earlier repetitions copied zeros;
 this one reads `00 FF` at `A800:0012` and writes them at `A000:0BCA`.
@@ -265,13 +274,24 @@ That dot is still black. The marker stays on the selected dot as you step.
       "expect": { "bytes": { "address": "9DAE6", "value": "CD 10" }, "registers": { "ax": "000D" } }
     },
     {
+      "title": "Prepare the off-screen logo byte",
+      "execution": "9D27:197D",
+      "prepare": "Run here from the mode-setting call or its return. The screen is black. P0:$8013 holds F0 from the earlier OR at 9D27:19AA.",
+      "observe": "Choose Watch P0:$8013 and Step. OR ES:[DI],AH combines F0 with AH=0F at A800:0013. The watch reports F0 → FF from 9D27:197D, with IP now 1980. Choose Next and Run to checkpoint to follow that byte into the first eight visible dots.",
+      "memory": "9EBED", "file": "EGA.DRV", "fileRange": { "offset": 6525, "length": 3 },
+      "expect": { "bytes": { "address": "9EBED", "value": "26 08 25" },
+        "registers": { "ax": "0FF0", "ds": "9B54", "es": "A800", "di": "0013", "si": "001C" },
+        "egaPlane": { "plane": 0, "offset": "8013", "value": "F0" } }
+    },
+    {
       "title": "Draw the first Origin logo pixels",
       "execution": "9D27:1C1A",
-      "prepare": "From the mode-setting call or its return, run to this checkpoint without pressing a key. The driver prepares the Origin logo off screen first.",
+      "prepare": "Run here from the off-screen write watchpoint. P0:$8013 still holds FF. The first visible pixels will use that byte.",
       "observe": "Choose Inspect pixel (152,75), then Run until this pixel changes. REP MOVSW at 9D27:1C1A copies 00 FF from A800:0012 to A000:0BCA. Follow A800:0013 from Screen to Memory to see where the second CPU byte ($FF) came from. At $A0BCB, write mode 0, enabled planes $09 and bit mask $FF produce FF 00 00 FF. Eight dots turn light blue through index 9, palette output $39 and monitor colour #5555FF. IP still points at REP MOVSW, but CX is now 000A.",
       "memory": "9EE8A", "file": "EGA.DRV", "fileRange": { "offset": 7194, "length": 2 },
       "expect": { "bytes": { "address": "9EE8A", "value": "F3 A5" },
         "registers": { "ds": "A800", "si": "0012", "es": "A000", "di": "0BCA", "cx": "000B" },
+        "egaPlane": { "plane": 0, "offset": "8013", "value": "FF" },
         "egaPixel": { "x": 152, "y": 75, "index": 0, "pins": 0 } }
     }
   ]

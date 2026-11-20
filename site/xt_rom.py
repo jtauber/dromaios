@@ -72,7 +72,8 @@ def ultima_walkthroughs(source):
 
 
 def _dos_observation(expect, ram_end, *, ega=False):
-    if not isinstance(expect, dict) or not {"bytes"} <= set(expect) <= {"bytes", "registers", "egaPixel" if ega else "screen"}:
+    allowed = {"bytes", "registers"} | ({"egaPixel", "egaPlane"} if ega else {"screen"})
+    if not isinstance(expect, dict) or not {"bytes"} <= set(expect) <= allowed:
         return False
     signature = expect["bytes"]
     if (not isinstance(signature, dict) or set(signature) != {"address", "value"}
@@ -84,6 +85,13 @@ def _dos_observation(expect, ram_end, *, ega=False):
     if (not isinstance(registers, dict) or not set(registers) <= {"ax", "cx", "dx", "ds", "es", "ss", "sp", "si", "di"}
             or not all(isinstance(v, str) and re.fullmatch(r"[0-9A-F]{4}", v) for v in registers.values())):
         return False
+    if "egaPlane" in expect:
+        watch = expect["egaPlane"]
+        if (not isinstance(watch, dict) or watch.keys() != {"plane", "offset", "value"}
+                or type(watch["plane"]) is not int or not 0 <= watch["plane"] <= 3
+                or not isinstance(watch["offset"], str) or not re.fullmatch(r"[0-9A-F]{4}", watch["offset"])
+                or not isinstance(watch["value"], str) or not re.fullmatch(r"[0-9A-F]{2}", watch["value"])):
+            return False
     if "egaPixel" in expect:
         pixel = expect["egaPixel"]
         bounds = {"x": 320, "y": 200, "index": 16, "pins": 64}

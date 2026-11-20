@@ -23,7 +23,7 @@ import { ultimaSteps } from "../helpers/ultima-v-guide.js";
 import { runInput } from "../machines/8088/pc-xt/rom-console.js";
 
 const steps = ultimaSteps<XtDosObservation>("ultima-v-ega-driver");
-const entry = steps[0]!, mode = steps[1]!, logo = steps[2]!;
+const entry = steps[0]!, mode = steps[1]!, prepare = steps[2]!, logo = steps[3]!;
 const { XT_BIOS_ROM, XT_BASIC_ROM, XT_EGA_ROM, XT_ULTIMA_EGA_PROGRAM } = process.env;
 
 test("a resized 4:3 monitor selects native EGA dots and excludes the surround", () => {
@@ -43,6 +43,37 @@ test("the EGA mode stop requires both the driver's INT instruction and the mode 
   assert.ok(match());
   state.ax = 0x0f00; assert.equal(match(), false);
   state.ax = 13; machine.ram.write(0x9dae7, 0x21); assert.equal(match(), false);
+});
+
+test("a plane watch follows physical storage across aperture changes and checkpoint restore", () => {
+  const session = createXtEgaSession(), debug = createXtDebugger(() => session.machine);
+  const watch = { space: "P2", address: 0x13, enabled: true };
+  debug.setPlaneWatchpoints([watch]);
+  const { machine } = session;
+  machine.ega.writePort(0x3c2, 3);
+  const reg = (port: number, i: number, v: number) => { session.machine.ega.writePort(port, i); session.machine.ega.writePort(port + 1, v); };
+  reg(0x3c4, 4, 4); reg(0x3ce, 8, 255); reg(0x3ce, 6, 12); // Planar CPU writes through B8000.
+  machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000, es: 0xb800, di: 0x13, ax: 0xf0 });
+  [0x26, 0x88, 0x05, 0xeb, 0xfb].forEach((v, i) => machine.ram.write(0x2000 + i, v)); // MOV ES:[DI],AL; JMP back.
+  const save = session.snapshot();
+  function step() { debug.step(); return debug.capture(() => stepTimedXtCpu(session.machine).record); }
+  const planeHit = () => debug.planeHit;
+  reg(0x3c4, 2, 1); step();
+  assert.equal(planeHit(), undefined); // Only P0 took the write.
+  step(); reg(0x3c4, 2, 4); step();
+  assert.deepEqual([debug.planeHit?.write.address, debug.planeHit?.write.offset], [0x18013, 0x13]);
+  assert.equal(debug.stop?.kind, "watchpoint");
+  step(); step(); assert.match(debug.stop!.detail!, /P2:\$0013 through \$B8013 · \$F0 → \$F0/);
+  session.restore(save); debug.reset(); assert.equal(debug.planeHit, undefined);
+  assert.deepEqual(debug.planeWatchpoints, [watch]);
+  reg(0x3c4, 2, 4); step(); assert.equal(debug.stop?.kind, "watchpoint");
+  assert.equal(session.machine.ega.planeByte(2, 0x13), 240);
+  debug.setPlaneWatchpoints([{ ...watch, enabled: false }]);
+  step(); step(); assert.equal(debug.planeHit, undefined);
+  for (const invalid of [{ ...watch, address: 0x10000 }, { ...watch, space: "P4" }]) {
+    assert.throws(() => debug.setPlaneWatchpoints([invalid]), RangeError);
+  }
+  debug.dispose();
 });
 
 function planarMachine() {
@@ -212,16 +243,42 @@ test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin lo
   const interrupt = capture();
   assert.deepEqual([interrupt.instruction?.bytes, interrupt.before.ax, interrupt.after.cs], [[0xcd, 0x10], 13, 0xc000]);
   while (!debug.beforeStep()) capture();
-  assert.equal(debug.stop?.kind, "over");
+  const stopKind = () => debug.stop?.kind;
+  assert.equal(stopKind(), "over");
   assert.deepEqual([machine.cpu.snapshot().cs, machine.cpu.snapshot().ip, machine.ram.read(0x449)], [0x9d27, 0x0878, 13]);
   // Start with a black frame. Between here and the stop, only a write to the
   // displayed page or a display register can light a dot (no blink in mode 0Dh).
   assertBlackPageZero(machine.ega);
+  debug.setPlaneWatchpoints([{ address: 0x8013, space: "P0", enabled: true }]);
+  const earlier = [];
+  do {
+    debug.runTo(parseXtDebugAddress(prepare.execution), { when: () => matchesXtDosObservation(prepare.expect, machine) });
+    while (!debug.beforeStep()) checkEarlierVideoWrite(machine.ega, capture());
+    const hit = debug.planeHit;
+    if (hit && hit.write.before[0] !== hit.write.after[0]) earlier.push([hit.record.before.cs, hit.record.before.ip, hit.write.before[0], hit.write.after[0]]);
+  } while (stopKind() === "watchpoint");
+  assert.equal(debug.stop?.kind, "target", prepare.title);
+  assert.deepEqual(earlier, [[0x9d27, 0x19aa, 0, 0xf0]]);
+  assert.equal(machine.ega.planeByte(0, 0x8013), 0xf0);
+  debug.step();
+  const offscreen = capture();
+  assert.equal(debug.stop?.kind, "watchpoint");
+  const prepared = debug.planeHit!;
+  assert.equal(prepared.record, offscreen);
+  assert.deepEqual([offscreen.before.cs, offscreen.before.ip, offscreen.before.ah, offscreen.after.ip], [0x9d27, 0x197d, 15, 0x1980]);
+  assert.deepEqual(offscreen.instruction?.bytes, [0x26, 0x08, 0x25]);
+  assert.deepEqual(offscreen.instruction.bytes, [...file.slice(prepare.fileRange!.offset, prepare.fileRange!.offset + 3)]);
+  assert.deepEqual(offscreen.instruction.bytes, [...disk.subarray(0x4417d, 0x44180)]);
+  assert.deepEqual(offscreen.accesses.slice(3), [{ kind: "read", address: 0xa8013, value: 0xf0 }, { kind: "write", address: 0xa8013, value: 255 }]);
+  assert.deepEqual(prepared.write, { address: 0x8013, offset: 0x8013, value: 255, writeMode: 0, enabledPlanes: 15, bitMask: 255,
+    before: [240, 240, 240, 240], after: [255, 255, 255, 255] });
+  assertBlackPageZero(machine.ega);
+  // Keep watching through the copy: any intervening store to the source plane byte must stop us.
   debug.runTo(parseXtDebugAddress(logo.execution), { when: () => matchesXtDosObservation(logo.expect, machine) });
   while (!debug.beforeStep()) checkEarlierVideoWrite(machine.ega, capture());
   assert.equal(debug.stop?.kind, "target");
   const before = machine.ega.snapshot();
-  assert.deepEqual([before.seq[2], before.gc[5], before.gc[8], before.attr[0x12]], [9, 0, 255, 15]);
+  assert.deepEqual([before.seq[2], before.gc[4], before.gc[5], before.gc[8], before.attr[0x12]], [9, 0, 0, 255, 15]);
   const selectedDot = () => xtEgaPixelReadout(machine.ega, 159, 75);
   assert.match(selectedDot(), /bit 0: 0 0 0 0 · index 0 · palette\[0\] = \$00 · #000000$/);
   const neighbour = createXtDebugger(() => machine);

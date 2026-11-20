@@ -201,6 +201,13 @@ export class IbmEga {
   read(address: number): number { return this.#read(address, true); }
   peek(address: number): number { return this.#read(address, false); }
 
+  /** Read one physical display-memory plane independently of the CPU aperture and its read latches. */
+  planeByte(plane: number, offset: number): number {
+    checkUnsigned("EGA plane", plane, 3);
+    checkUnsigned("EGA plane offset", offset, planeSize - 1);
+    return this.#planes[plane * planeSize + offset]!;
+  }
+
   #planeBytes(offset: number): number[] {
     return [0, 1, 2, 3].map(p => this.#planes[p * planeSize + offset]!);
   }

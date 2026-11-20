@@ -1,7 +1,9 @@
 import { createXtEventStopsView } from "./xt-event-stops-view.js";
 import { createBreakpointView } from "./breakpoint-view.js";
 import { createDebuggerStatus } from "./debugger-status-view.js";
-import { decodeXtBreakpoints, formatXtDebugAddress, parseXtDebugAddress } from "./xt-debugger.js";
+import { decodeXtBreakpoints, formatXtDebugAddress, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
+import { egaPlanes } from "./xt-ega-plane-watch.js";
+import type { DebugLocation } from "./instruction-debugger.js";
 import type { createXtDebugger } from "./xt-debugger.js";
 import { parseXtAddress } from "./xt-inspection.js";
 import { xtHex as hex } from "./8088-disassembly.js";
@@ -13,6 +15,7 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
   readonly ramMaximum: number;
   readonly changed: () => void;
   readonly memory: (address: number) => void;
+  readonly code: (location: DebugLocation) => void;
   readonly history: (address: number) => void;
   readonly watchesChanged: () => void;
   readonly labels: RomGuide["labels"];
@@ -26,6 +29,16 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
   const eventStops = createXtEventStopsView(root, {
     values: () => debug.eventStops, set: debug.setEventStops, changed: options.changed, dos: options.dos,
   });
+  const planes = createBreakpointView(root.querySelector("[data-xt-plane-watches]"), {
+    kind: "watchpoint", key: "dromaios:debugger:xt:ega:plane-watches", maximum: 0xffff,
+    spaces: egaPlanes.map(name => ({ value: name, label: name, accepts: () => true })),
+    formatAddress: p => `${p.space}:$${hex(p.address, 4)}`,
+    values: () => debug.planeWatchpoints, set: debug.setPlaneWatchpoints, changed: options.changed,
+  });
+  const planeWriter = root.querySelector<HTMLButtonElement>("[data-plane-writer]");
+  if (planeWriter) planeWriter.onclick = () => {
+    if (debug.planeHit && !debug.planeHit.dma) options.code(xtDebugLocation(debug.planeHit.record.before));
+  };
   const labels = options.labels.filter(label => label.scope === "workspace").flatMap(label =>
     Array.from({ length: label.bytes ?? 1 }, (_, byte) => ({ address: parseInt(label.address, 16) + byte,
       name: label.name + (byte ? "+1" : ""), description: label.description + (label.bytes === 2 ? ` (${byte ? "high" : "low"} byte)` : "") })));
@@ -52,8 +65,10 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
   const memory = root.querySelector<HTMLButtonElement>("[data-watchpoint-memory]")!;
   memory.onclick = () => { if (debug.hit) options.memory(debug.hit.address); };
   return {
+    watchPlane(plane: number, offset: number): void { planes?.add(offset, egaPlanes[plane]); },
     addEventStop: eventStops.add,
     refresh(running: boolean): void {
+      if (planeWriter) planeWriter.hidden = !debug.planeHit || debug.planeHit.dma;
       memory.hidden = !debug.hit;
       status.refresh(debug.stop, debug.request, running);
     },
