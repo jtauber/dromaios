@@ -20,6 +20,7 @@ test("EGA routes text and uploaded glyphs into distinct planes and restores the 
   const ega = new IbmEga();
   function reg(port: number, index: number, value: number) { ega.writePort(port, index); ega.writePort(port + 1, value); }
   assert.equal(ega.read(0x18000), 0xff);
+  assert.equal(ega.readPlaneAddress(0x18000), undefined);
   ega.writePort(0x3c2, 3);
   reg(0x3c4, 2, 3); reg(0x3c4, 4, 3); reg(0x3ce, 5, 0x10); reg(0x3ce, 6, 0x0e); reg(0x3ce, 8, 255);
   const writes: EgaMemoryWrite[] = [];
@@ -31,10 +32,18 @@ test("EGA routes text and uploaded glyphs into distinct planes and restores the 
     [0x18001, 0, 2, [65, 0, 0, 0], [65, 7, 0, 0]],
   ]);
   assert.deepEqual([ega.character(0, 0), ega.attribute(0, 0), ega.read(0x18001), ega.read(0)], [65, 7, 7, 255]);
+  reg(0x3ce, 4, 2);
+  assert.deepEqual(ega.readPlaneAddress(0x18012), { plane: 2, offset: 9 });
+  assert.deepEqual(ega.readPlaneAddress(0x18013), { plane: 3, offset: 9 });
+  assert.equal(ega.readPlaneAddress(0x12), undefined); // Outside the selected B8000 window.
   reg(0x3c4, 2, 4); reg(0x3c4, 4, 7); reg(0x3ce, 5, 0); reg(0x3ce, 6, 4); reg(0x3ce, 4, 2);
   ega.write(65 * 32 + 2, 0x5a);
   assert.equal(ega.glyph(65, 7, 2), 0x5a);
   ega.read(65 * 32 + 2); ega.peek(0); // Inspection must preserve the previous CPU read.
+  assert.deepEqual(ega.readPlaneAddress(0), { plane: 2, offset: 0 });
+  reg(0x3ce, 5, 8); // Colour comparison returns a match mask assembled from the planes.
+  assert.equal(ega.readPlaneAddress(0), undefined);
+  reg(0x3ce, 5, 0);
   const copy = new IbmEga(ega.snapshot());
   copy.writePort(0x3ce, 5); copy.writePort(0x3cf, 1); // Write the latch contents into another address.
   copy.write(0xffff, 0); assert.equal(copy.peek(0xffff), 0x5a);

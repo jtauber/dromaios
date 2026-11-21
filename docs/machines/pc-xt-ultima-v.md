@@ -203,7 +203,8 @@ has to set the palette and draw; choosing the mode does not draw the logo.
 
 Run from the mode call to **Prepare the off-screen logo byte** without pressing
 Space. An earlier `OR ES:[DI],AL` at `9D27:19AA` has already set the upper
-four bits of the byte at `A800:0013`. Choose **Watch P0:$8013** and **Step**.
+four bits of the byte at `A800:0013`. Save a checkpoint here to revisit the
+writer from the finished pixel. To observe the write now, choose **Watch P0:$8013** and **Step**.
 At `9D27:197D`, `OR ES:[DI],AH` reads `F0h` and sets the lower four bits
 with `AH=0Fh`. All four planes receive `FFh`. The watchpoint reports the
 store after the instruction has completed at `9D27:1980`. The frame is
@@ -242,6 +243,17 @@ mode, palette output `39h` drives blue and intensity. **Eight dots
 appear together**, x=152 through 159 on row 75; (152,75) is first in
 scan order. The rest of the 320 × 200 frame is still black. The PC remains
 at the repeat instruction; SI and DI advance by two and CX drops to ten.
+
+In Inspect Pixel, **Watch plane byte** arms a write watchpoint on the selected
+plane. At (152,75), choosing P3 watches `P3:$0BCB`, one of the two planes
+written by the copy. To follow the copy back to its source, choose **Watch
+source byte · P0:$8013** in the pixel trace. Restore the checkpoint saved at
+**Prepare the off-screen logo byte** and press **Run**. The debugger stops
+after `OR ES:[DI],AH` at `9D27:197D` and reports `$F0 → $FF`. **Browse
+writer in Disassembly** takes you to that instruction. If you restore at the
+return from the mode-setting call, press **Run** at each earlier write. The
+sixth sets the upper four bits at `9D27:19AA`, and the eighth completes the
+byte at `9D27:197D`.
 
 Click the rightmost blue dot at (159,75) to inspect bit 0 of the same four
 plane bytes. Press Right once to inspect bit 7 of the next byte at `$0BCC`.

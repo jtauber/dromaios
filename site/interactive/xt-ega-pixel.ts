@@ -1,4 +1,4 @@
-import type { EgaMemoryWrite, IbmEga } from "../../src/components/devices/ibm-ega.js";
+import type { EgaMemoryWrite, EgaPlaneByte, IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { egaRgb } from "../../src/machines/8088/pc-xt/video.js";
 import type { XtBoundary } from "./xt-session.js";
 import type { XtPaletteEntry } from "./xt-ega-palette.js";
@@ -26,7 +26,8 @@ function sample(ega: IbmEga, x: number, y: number) {
 type PixelSample = NonNullable<ReturnType<typeof sample>>;
 type StoreOperand =
   | { readonly kind: "register"; readonly name: "AL" | "AH"; readonly value: number }
-  | { readonly kind: "memory"; readonly segment: number; readonly offset: number; readonly address: number; readonly value: number };
+  | { readonly kind: "memory"; readonly segment: number; readonly offset: number; readonly address: number;
+      readonly value: number; readonly planeByte?: EgaPlaneByte };
 
 interface XtPixelStore {
   readonly write: EgaMemoryWrite;
@@ -66,7 +67,7 @@ export function describeXtPixelStore({ write, source, operand }: XtPixelStore): 
 }
 
 /** One MOVS/STOS step transfers one element. Use the position of the bus write to select its source byte. */
-function stringStoreOperand(record: XtBoundary, write: EgaMemoryWrite): StoreOperand | undefined {
+function stringStoreOperand(ega: IbmEga, record: XtBoundary, write: EgaMemoryWrite): StoreOperand | undefined {
   const bytes = record.instruction?.bytes;
   if (record.outcome !== "executed" || !bytes) return;
   const opcode = bytes[opcode8088Index(bytes)];
@@ -89,7 +90,9 @@ function stringStoreOperand(record: XtBoundary, write: EgaMemoryWrite): StoreOpe
   const offset = (record.before.si + lane) & 0xffff;
   // Subtract the known offset from the observed 20-bit address to recover the actual segment, including overrides.
   const segment = ((read.address - offset) & 0xfffff) >>> 4;
-  return { kind: "memory", address: read.address, segment, offset, value: read.value };
+  // MOVS cannot reprogram the EGA between the bus read and the end of this instruction.
+  const planeByte = inVideoMemory(read.address) ? ega.readPlaneAddress(read.address - 0xa0000) : undefined;
+  return { kind: "memory", address: read.address, segment, offset, value: read.value, ...(planeByte && { planeByte }) };
 }
 
 /** Attribute a visible change to the store that supplied its plane bits, including either byte of a word. */
@@ -104,7 +107,7 @@ function pixelStore(ega: IbmEga, writes: readonly EgaMemoryWrite[], record: XtBo
     if (colour(write.after) === after.colour && colour(write.before) !== after.colour) {
       // Channel 2 transfers its byte before the CPU runs, even if both write the same address.
       const dma = i === 0 && record.dma?.direction === "disk-to-memory" && record.dma.address === 0xa0000 + write.address;
-      return dma ? { write, source: "DMA2" } : { write, source: "CPU", operand: stringStoreOperand(record, write) };
+      return dma ? { write, source: "DMA2" } : { write, source: "CPU", operand: stringStoreOperand(ega, record, write) };
     }
   }
 }

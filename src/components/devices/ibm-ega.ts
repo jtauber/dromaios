@@ -26,6 +26,11 @@ export interface EgaMemoryWrite {
   readonly after: readonly number[];
 }
 
+export interface EgaPlaneByte {
+  readonly plane: number;
+  readonly offset: number;
+}
+
 export interface IbmEgaSnapshot {
   readonly misc: number;
   readonly seqIndex: number;
@@ -183,19 +188,32 @@ export class IbmEga {
     }
   }
 
-  #read(address: number, loadLatch: boolean): number {
+  #readIndex(address: number): number {
     const offset = this.#offset(address);
-    if (offset < 0) return 0xff;
+    if (offset < 0) return -1;
     const paired = Boolean(this.#gc[5]! & 0x10);
     const cell = (paired ? offset >>> 1 : offset) & 0xffff;
     const plane = paired ? (this.#gc[4]! & 2) | (offset & 1) : this.#gc[4]! & 3;
+    return plane * planeSize + cell;
+  }
+
+  /** Identify the single plane supplying a mode-0 CPU read, without loading the latches. */
+  readPlaneAddress(address: number): EgaPlaneByte | undefined {
+    const index = this.#readIndex(address);
+    if (index >= 0 && !(this.#gc[5]! & 8)) return { plane: index >>> 16, offset: index & 0xffff };
+  }
+
+  #read(address: number, loadLatch: boolean): number {
+    const index = this.#readIndex(address);
+    if (index < 0) return 0xff;
+    const cell = index & 0xffff;
     let match = 0xff;
     for (let p = 0; p < 4; p++) {
       const byte = this.#planes[p * planeSize + cell]!;
       if (loadLatch) this.#latch[p] = byte;
       if (this.#gc[7]! & (1 << p)) match &= this.#gc[2]! & (1 << p) ? byte : ~byte;
     }
-    return this.#gc[5]! & 8 ? match : this.#planes[plane * planeSize + cell]!;
+    return this.#gc[5]! & 8 ? match : this.#planes[index]!;
   }
 
   read(address: number): number { return this.#read(address, true); }

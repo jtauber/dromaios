@@ -111,7 +111,8 @@ function mount(root: HTMLElement): void {
   const pixelInspector = ega ? createXtEgaPixelInspector(screen.closest<HTMLElement>("[data-workspace-panel]")!, debug, catalogue.cpu,
     (x, y) => act(() => { debug.runUntilPixelChanges(x, y); execution.run(); screen.focus(); }),
     location => { showCode.browse(location); workspace.show("code"); },
-    entry => { workspace.show("ports"); ioView.selectPaletteWrite(entry); }, browseMemory) : undefined;
+    entry => { workspace.show("ports"); ioView.selectPaletteWrite(entry); }, browseMemory,
+    (plane, offset) => act(() => { debugView.watchPlane(plane, offset); workspace.show("debugger"); })) : undefined;
   const showDos = createXtDosServicesView(instruction, guide.dos, dosCalls, browseMemory,
     () => { dosFileLinks.reset(); diskFiles.reset(); refresh("instruction"); },
     condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }), dosFileLinks,

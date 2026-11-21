@@ -127,6 +127,24 @@ test("MOVS traces the selected source byte through segment overrides, offset wra
   }
 });
 
+test("a pixel trace keeps the plane selected for a MOVS read, including an odd/even source", () => {
+  const { machine, reg } = planarMachine();
+  reg(0x3c0, 0x29, 6); reg(0x3c4, 4, 4); reg(0x3ce, 8, 255);
+  reg(0x3c4, 2, 8); machine.ega.write(0x4009, 0xff);
+  reg(0x3ce, 4, 2); reg(0x3ce, 5, 0x10); // Odd CPU address selects P3 of the P2/P3 pair.
+  reg(0x3c4, 2, 9); // Destination writes enable P0 and P3.
+  machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000,
+    ds: 0xa800, si: 0x13, es: 0xa000, di: 0 });
+  machine.ram.write(0x2000, 0xa4);
+  const debug = createXtDebugger(() => machine);
+  debug.runUntilPixelChanges(0, 0);
+  debug.capture(() => stepTimedXtCpu(machine).record);
+  reg(0x3ce, 4, 0); reg(0x3ce, 5, 0);
+  assert.deepEqual(debug.pixelHit?.store?.operand, { kind: "memory", segment: 0xa800, offset: 0x13, address: 0xa8013,
+    value: 0xff, planeByte: { plane: 3, offset: 0x4009 } });
+  debug.dispose();
+});
+
 test("when DMA and the CPU write the same byte, the stop traces the write that changed the monitor colour", () => {
   const { machine, reg } = planarMachine();
   reg(0x3c0, 0x21, 7); reg(0x3c0, 0x23, 7); // Different plane bits, same grey.
@@ -290,7 +308,8 @@ test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin lo
   neighbour.dispose();
   const hit = debug.pixelHit!;
   assert.equal(hit.record, paint);
-  assert.deepEqual(hit.store, { source: "CPU", operand: { kind: "memory", segment: 0xa800, offset: 0x13, address: 0xa8013, value: 255 }, write: {
+  assert.deepEqual(hit.store, { source: "CPU", operand: { kind: "memory", segment: 0xa800, offset: 0x13,
+    address: 0xa8013, value: 255, planeByte: { plane: 0, offset: 0x8013 } }, write: {
     address: 0x0bcb, offset: 0x0bcb, value: 255, writeMode: 0, enabledPlanes: 9, bitMask: 255,
     before: [0, 0, 0, 0], after: [255, 0, 0, 255],
   } });

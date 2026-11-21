@@ -37,11 +37,16 @@
         {% if ega %}
         <button type="button" data-screen-inspect disabled aria-pressed="false" title="Select a dot while paused in 320 × 200 EGA graphics.">Inspect pixel</button>
         <button type="button" data-pixel-until hidden>Run until this pixel changes</button>
+        <span data-pixel-plane-controls hidden>
+          <select aria-label="Pixel plane" data-pixel-plane>{% for p in range(4) %}<option value="{{ p }}">P{{ p }}</option>{% endfor %}</select>
+          <button type="button" data-pixel-watch-plane>Watch plane byte</button>
+        </span>
         <span class="basic-readout" data-pixel-waiting hidden></span>
         <output class="lab-screen-inspector xt-pixel-readout" data-pixel-readout hidden></output>
         <div class="lab-screen-inspector xt-pixel-readout" data-pixel-result hidden>
           <div><button type="button" class="lab-memory-link" title="Browse this instruction in Disassembly" data-pixel-instruction></button></div>
           <span data-pixel-store hidden><span data-pixel-read hidden>Read <button type="button" class="lab-memory-link"></button> → </span><span data-pixel-transfer></span></span>
+          <div data-pixel-source-watch hidden><button type="button"></button></div>
           <span data-pixel-before></span><span data-pixel-after></span>
           <div data-pixel-palette hidden><button type="button" class="lab-memory-link"></button></div>
         </div>

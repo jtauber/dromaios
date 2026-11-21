@@ -1,5 +1,6 @@
 import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { describeXtPixel, describeXtPixelStore, dmaWritesXtVideo, egaPixelAt, xtEgaPixelReadout } from "./xt-ega-pixel.js";
+import { planeByteLabel } from "./xt-ega-plane-watch.js";
 import { logical8088, xtHex, type Catalogue8088 } from "./8088-disassembly.js";
 import type { XtPaletteEntry } from "./xt-ega-palette.js";
 import type { DebugLocation } from "./instruction-debugger.js";
@@ -8,13 +9,16 @@ import { xtDebugLocation, type createXtDebugger } from "./xt-debugger.js";
 
 export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<ReturnType<typeof createXtDebugger>, "pixelTarget" | "pixelHit">,
   cpu: Catalogue8088, run: (x: number, y: number) => void, browse: (location: DebugLocation) => void,
-  showPaletteWrite: (entry: XtPaletteEntry) => void, browseMemory: (address: number) => void) {
+  showPaletteWrite: (entry: XtPaletteEntry) => void, browseMemory: (address: number) => void,
+  watchPlane: (plane: number, offset: number) => void) {
   const screen = panel.querySelector<HTMLElement>("[data-screen]")!;
   const canvas = screen.querySelector("canvas")!;
   const toggle = panel.querySelector<HTMLButtonElement>("[data-screen-inspect]")!;
   const marker = screen.querySelector<HTMLElement>("[data-pixel-marker]")!;
   const readout = panel.querySelector<HTMLElement>("[data-pixel-readout]")!;
   const until = panel.querySelector<HTMLButtonElement>("[data-pixel-until]")!;
+  const planeControls = panel.querySelector<HTMLElement>("[data-pixel-plane-controls]")!;
+  const planeChoice = planeControls.querySelector("select")!, watchSelectedPlane = planeControls.querySelector("button")!;
   const waiting = panel.querySelector<HTMLElement>("[data-pixel-waiting]")!;
   const result = panel.querySelector<HTMLElement>("[data-pixel-result]")!;
   const writer = result.querySelector<HTMLButtonElement>("[data-pixel-instruction]")!, before = result.querySelector<HTMLElement>("[data-pixel-before]")!;
@@ -23,6 +27,7 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
   const store = result.querySelector<HTMLElement>("[data-pixel-store]")!;
   const read = store.querySelector<HTMLElement>("[data-pixel-read]")!, readLink = read.querySelector("button")!;
   const transfer = store.querySelector<HTMLElement>("[data-pixel-transfer]")!;
+  const sourceWatch = result.querySelector<HTMLElement>("[data-pixel-source-watch]")!, watchSource = sourceWatch.querySelector("button")!;
   const help = panel.querySelector<HTMLElement>("#xt-input-help")!, typingHelp = help.textContent;
   let selected = { x: 160, y: 100 }, enabled = false;
   let pausedDisplay: IbmEga | undefined;
@@ -31,7 +36,7 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
     const active = enabled && pausedDisplay !== undefined;
     const wasActive = !marker.hidden;
     if (active !== wasActive) {
-      marker.hidden = until.hidden = !active;
+      marker.hidden = until.hidden = planeControls.hidden = !active;
       toggle.setAttribute("aria-pressed", String(active));
       screen.classList.toggle("is-inspecting", active);
       help.textContent = active ? "Click a dot or use the arrow keys. Escape returns to typing." : typingHelp;
@@ -51,9 +56,12 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
       before.textContent = `Pixel (${hit.x},${hit.y}) · ${hit.afterBlanking ? "Before blanking" : "Before"} · ${describeXtPixel(hit.before)}`;
       after.textContent = `${hit.afterBlanking ? "Display re-enabled" : "After"} · ${describeXtPixel(hit.after)}`;
       store.hidden = !hit.store;
+      const operand = hit.store?.operand;
+      const source = operand?.kind === "memory" ? operand.planeByte : undefined;
+      sourceWatch.hidden = !source;
+      if (source) watchSource.textContent = "Watch source byte · " + planeByteLabel(source.plane, source.offset);
       if (hit.store) {
         transfer.textContent = describeXtPixelStore(hit.store);
-        const operand = hit.store.operand;
         read.hidden = operand?.kind !== "memory";
         if (operand?.kind === "memory") {
           readLink.textContent = logical8088(operand.segment, operand.offset);
@@ -78,6 +86,14 @@ export function createXtEgaPixelInspector(panel: HTMLElement, debug: Pick<Return
     enabled = !enabled; render(); screen.focus({ preventScroll: true });
   };
   until.onclick = () => { if (pausedDisplay && enabled) run(selected.x, selected.y); };
+  watchSelectedPlane.onclick = () => {
+    const dot = pausedDisplay?.inspectGraphicsPixel(selected.x, selected.y);
+    if (dot) watchPlane(Number(planeChoice.value), dot.offset);
+  };
+  watchSource.onclick = () => {
+    const operand = debug.pixelHit?.store?.operand;
+    if (operand?.kind === "memory" && operand.planeByte) watchPlane(operand.planeByte.plane, operand.planeByte.offset);
+  };
   writer.onclick = () => { if (debug.pixelHit) browse(xtDebugLocation(debug.pixelHit.record.before)); };
   readLink.onclick = () => {
     const operand = debug.pixelHit?.store?.operand;
