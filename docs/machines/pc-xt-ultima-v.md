@@ -373,18 +373,69 @@ same events by hand in the Debugger, use the addresses below.
 
 ### One EGA step in Iolo’s hut
 
-1. Use `0C6F:1D6C` as the execution breakpoint after exchanging disks.
-   When the game reaches this keyboard poll, the hut is drawn and the party
-   panel shows Elwood, Shamino and Iolo. DOS read `SAVED.GAM` into
-   `1BD3:55A6`. The live X and Y bytes at physical `215C6` and `215C7`
-   both read `0F` (15).
-2. Remove the execution breakpoint. Add a **RAM write watchpoint** at
-   `215C7`, click the screen, press Down once, and run. The instruction at
-   `0C6F:89EA` changes Y from `0F` to `10`. X stays `0F` and the location
-   byte stays `0D` (Iolo’s hut).
-3. Remove the watchpoint, add the `0C6F:1D6C` breakpoint again and choose **Run**. The command area reads **South**. The party is at (15,16)
-   and the room has scrolled up one tile. On the 320×200 browser canvas,
-   the 16×16 table tile at (112,88) appears at (112,72) after the step.
+At **Meet the party in Iolo’s hut** in the Journey Onward walkthrough, the
+game is polling the keyboard at `0C6F:1D6C`. Leave the writable Player disk
+mounted and choose **Session → Save snapshot** before pressing Down. Select
+**Ultima V · One step in Iolo’s hut** to follow the key through two instructions.
+
+1. **Update party Y.** With Inspect pixel off, click the screen, press and
+   release Down once, then choose **Run to checkpoint**. At `0C6F:89EA`,
+   `ADD [5897h],AL` adds 1 to `DS:5897` (physical `$215C7`). **Step** changes
+   Y from `$0F` to `$10`. X stays 15 and the location stays 13, Iolo’s hut.
+2. **Redraw the table tile.** Choose **Next → Run to checkpoint**. The party
+   is already at (15,16). Choose **Inspect pixel (123,77)** and **Run until
+   this pixel changes**. At `9D27:16CC`, `MOV ES:[DI+00C8h],DX` writes
+   to EGA plane 1. Its byte at `$0C17` changes from `$03` to `$DF`. Bit 4
+   turns on, taking the dot from red (index 4) to brown (index 6).
+
+The game calls `EGA.DRV` with tile number `$95` in BX. The driver multiplies
+by 128 to locate its 16×16 bitmap at `8CA3:4A80` in conventional RAM. Each
+row occupies eight bytes, four plane bytes for the left eight dots followed
+by four for the right eight. The driver selects each plane in turn and
+writes a word per row, advancing 40 display bytes per scan line. For the
+sixth row of plane 1 it reads `$DF` and `$FF` at `8CA3:4AA9` and
+`8CA3:4AAD` into DL and DH. The store writes them to `A000:0C17–0C18`
+on the displayed page.
+
+Run to the next keyboard poll at `0C6F:1D6C` to see the finished redraw.
+All 256 dots of tile `$95` have moved from (120,88) to (120,72) with the
+display start address still zero. The earlier 16×16 comparison at (112,88)
+also moves up intact. That sample spans the right half of the adjacent tile
+and the left half of tile `$95`. Restore the saved snapshot, turn off Inspect
+pixel if it is active, and repeat with one Down keypress.
+
+<details>
+<summary>Executable EGA hut walkthrough</summary>
+
+```json
+{
+  "id": "ultima-v-ega-hut",
+  "adapter": "ega",
+  "title": "Ultima V · One step in Iolo’s hut",
+  "setup": "Use Journey Onward through Meet the party in Iolo’s hut. At the keyboard poll (15,15), with the writable Player disk mounted, save a Session snapshot before pressing Down. Restore this snapshot for each replay.",
+  "steps": [
+    {
+      "title": "Update party Y",
+      "execution": "0C6F:89EA",
+      "prepare": "With Inspect pixel off, click the screen, press and release Down once, then run to this checkpoint.",
+      "observe": "Inspect party bytes, then Step. ADD [5897h],AL changes Y at $215C7 from 0F to 10. X at $215C6 stays 0F. Choose Next and Run to checkpoint with no further input.",
+      "expect": { "party": [13, 15, 15], "registers": { "ax": "0001", "ds": "1BD3" } }
+    },
+    {
+      "title": "Redraw the table tile",
+      "execution": "9D27:16CC",
+      "prepare": "Continue from Update party Y. This store draws row six of tile $95 at its new screen position on the plane 1 pass.",
+      "observe": "Choose Inspect pixel (123,77), then Run until this pixel changes. MOV ES:[DI+00C8h],DX writes DF FF from DX to A000:0C17–0C18. Plane 1 gains bit 4 at $0C17 and the dot turns brown. Run to 0C6F:1D6C to finish drawing the room.",
+      "expect": { "bytes": { "address": "9E93C", "value": "26 89 95 C8 00" },
+        "registers": { "ds": "8CA3", "si": "4A81", "es": "A000", "di": "0B4F", "dx": "FFDF" },
+        "egaPlane": { "plane": 1, "offset": "0C17", "value": "03" },
+        "egaPixel": { "x": 123, "y": 77, "index": 4, "pins": 4 } }
+    }
+  ]
+}
+```
+
+</details>
 
 The [ROM-backed EGA test](../../tests/machines/8088/pc-xt/rom-ega.test.ts)
 follows the Program disk’s tile reads, the failed save-file open, the Player

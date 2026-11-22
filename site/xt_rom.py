@@ -20,13 +20,19 @@ def _physical_address(text):
     return (segment * 16 + offset) & 0xfffff
 
 
+def _register_values(registers):
+    return (isinstance(registers, dict) and set(registers) <= {"ax", "cx", "dx", "ds", "es", "ss", "sp", "si", "di"}
+            and all(isinstance(v, str) and re.fullmatch(r"[0-9A-F]{4}", v) for v in registers.values()))
+
+
 def _ultima_observation(expect):
     if not isinstance(expect, dict):
         return False
     if set(expect) == {"missingFile"}:
         name = expect["missingFile"]
         return isinstance(name, str) and name.isascii() and bool(name)
-    if set(expect) not in ({"party"}, {"party", "partyRead"}) or expect.get("partyRead", True) is not True:
+    if (not {"party"} <= set(expect) <= {"party", "partyRead", "registers"}
+            or expect.get("partyRead", True) is not True or not _register_values(expect.get("registers", {}))):
         return False
     party = expect["party"]
     return isinstance(party, list) and len(party) == 3 and all(type(b) is int and 0 <= b <= 255 for b in party)
@@ -57,10 +63,13 @@ def _ultima_tour(tour):
                     or not isinstance(address, str) or not re.fullmatch(r"[0-9A-F]{5}", address)
                     or int(address, 16) + span["length"] > 0xA0000):
                 raise ValueError("Invalid file or memory range in the Ultima V walkthrough.")
-        if "bytes" in expect and (expect["bytes"]["address"] != step.get("memory")
-                                  or step.get("fileRange", {}).get("length") != len(expect["bytes"]["value"].split())
-                                  or step["address"] != step["memory"]):
-            raise ValueError("Driver checkpoint must link the instruction bytes in RAM and on disk.")
+        if "bytes" in expect:
+            signature = expect["bytes"]
+            if signature["address"] != step["address"]:
+                raise ValueError("The instruction signature must begin at the execution stop.")
+            if "file" in step and (step["memory"] != signature["address"]
+                                   or step["fileRange"]["length"] != len(signature["value"].split())):
+                raise ValueError("The linked file range must match the instruction bytes in RAM.")
     return tour
 
 
@@ -81,9 +90,7 @@ def _dos_observation(expect, ram_end, *, ega=False):
             or not isinstance(signature["value"], str) or not re.fullmatch(r"[0-9A-F]{2}( [0-9A-F]{2}){0,63}", signature["value"])
             or int(signature["address"], 16) + len(signature["value"].split()) > ram_end):
         return False
-    registers = expect.get("registers", {})
-    if (not isinstance(registers, dict) or not set(registers) <= {"ax", "cx", "dx", "ds", "es", "ss", "sp", "si", "di"}
-            or not all(isinstance(v, str) and re.fullmatch(r"[0-9A-F]{4}", v) for v in registers.values())):
+    if not _register_values(expect.get("registers", {})):
         return False
     if "egaPlane" in expect:
         watch = expect["egaPlane"]

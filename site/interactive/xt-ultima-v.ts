@@ -1,9 +1,10 @@
 import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-cpu.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { physical8088 } from "./8088-disassembly.js";
+import { matchesXtRegisters, type XtRegisterValues } from "./xt-dos-observation.js";
 
 export type UltimaObservation = { readonly missingFile: string }
-  | { readonly party: readonly [number, number, number]; readonly partyRead?: true };
+  | { readonly party: readonly [number, number, number]; readonly partyRead?: true; readonly registers?: XtRegisterValues };
 
 // DOS loads SAVED.GAM into 1BD3:55A6 in the audited CGA and EGA installations.
 const partyBuffer = physical8088(0x1bd3, 0x55a6);
@@ -21,6 +22,7 @@ export function matchesUltimaObservation(expect: UltimaObservation, cpu: Cpu8088
     return true;
   }
   if (expect.partyRead && (cpu.flags.cf || cpu.ax !== 4192 || physical8088(cpu.ds, cpu.dx) !== partyBuffer)) return false;
+  if (!matchesXtRegisters(expect.registers, cpu)) return false;
   const [location, x, y] = expect.party;
   return ram.read(ultimaPartyLocation) === location && ram.read(partyBuffer + 0x2f0) === x && ram.read(partyBuffer + 0x2f1) === y;
 }

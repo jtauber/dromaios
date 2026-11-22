@@ -1,11 +1,17 @@
 import type { XtMachine } from "./xt-session.js";
+import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-cpu.js";
 
 type Register = "ax" | "cx" | "dx" | "ds" | "es" | "ss" | "sp" | "si" | "di";
+export type XtRegisterValues = Readonly<Partial<Record<Register, string>>>;
+
+export function matchesXtRegisters(registers: XtRegisterValues | undefined, cpu: Cpu8088Snapshot): boolean {
+  return Object.entries(registers ?? {}).every(([key, value]) => cpu[key as Register] === parseInt(value, 16));
+}
 
 /** Guards for the chapter's audited DOS load layout, checked only at the selected stop. */
 export interface XtDosObservation {
   readonly bytes: { readonly address: string; readonly value: string };
-  readonly registers?: Readonly<Partial<Record<Register, string>>>;
+  readonly registers?: XtRegisterValues;
   readonly egaPixel?: { readonly x: number; readonly y: number; readonly index: number; readonly pins: number };
   readonly egaPlane?: { readonly plane: number; readonly offset: string; readonly value: string };
   readonly screen?: { readonly contains: string; readonly lastLine: string };
@@ -15,7 +21,7 @@ export function matchesXtDosObservation(expect: XtDosObservation, machine: XtMac
   const { ram } = machine;
   const address = parseInt(expect.bytes.address, 16), bytes = expect.bytes.value.split(" ").map(b => parseInt(b, 16));
   if (address + bytes.length > ram.size || bytes.some((byte, i) => ram.read(address + i) !== byte)) return false;
-  if (Object.entries(expect.registers ?? {}).some(([key, value]) => cpu[key as Register] !== parseInt(value, 16))) return false;
+  if (!matchesXtRegisters(expect.registers, cpu)) return false;
   if (expect.egaPlane) {
     const { plane, offset, value } = expect.egaPlane;
     if (!("ega" in machine) || machine.ega.planeByte(plane, parseInt(offset, 16)) !== parseInt(value, 16)) return false;

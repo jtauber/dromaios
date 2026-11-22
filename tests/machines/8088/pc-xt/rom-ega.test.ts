@@ -18,6 +18,7 @@ import { createXtIoTrace } from "../../../../site/interactive/xt-io-trace.js";
 import type { UltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import { ultimaSteps } from "../../../helpers/ultima-v-guide.js";
 import { ultimaVParty } from "./ultima-v-party.js";
+import { traceHutStep } from "./ultima-v-hut.js";
 import { dosTransfer } from "./dos-transfer.js";
 import { runInput, scanCodes, screen } from "./rom-console.js";
 
@@ -246,10 +247,10 @@ test("Ultima V selects EGA.DRV automatically and draws both reference menu strip
     waitForMap(m);
     assert.equal(sha256(record), "e4cf6298c3f04151669d7948330ce85f51edec2c0efc9eeabe6c3b3ac3e7b740");
     assert.deepEqual(party.position(), [13, 15, 15]);
-    const table = tile(m, 112, 88);
-    assert.notDeepEqual(table, tile(m, 112, 72));
-    party.move(0x50, 13, 15, 16);
-    assert.deepEqual(tile(m, 112, 72), table);
+    const table = tile(m, 120, 88);
+    assert.notDeepEqual(table, tile(m, 120, 72));
+    traceHutStep(m);
+    assert.deepEqual(tile(m, 120, 72), table);
 
     party.leaveHut();
     party.move(0x4d, 0, 46, 62);

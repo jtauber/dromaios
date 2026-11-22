@@ -8,6 +8,15 @@ import { xtCheckpointPosition } from "../../site/interactive/xt-rom-guide.js";
 
 const steps = ultimaSteps<UltimaObservation>("ultima-v");
 
+test("the hut Y stop distinguishes Down from Up at the same ADD instruction", () => {
+  const { ram, cpu } = createXtSession().machine;
+  const { expect } = ultimaSteps<UltimaObservation>("ultima-v-ega-hut")[0]!;
+  ram.write(0x215c3, 13); ram.write(0x215c6, 15); ram.write(0x215c7, 15);
+  const down = { ...cpu.snapshot(), ds: 0x1bd3, ax: 1 };
+  assert.ok(matchesUltimaObservation(expect, down, ram));
+  assert.equal(matchesUltimaObservation(expect, { ...down, ax: 0xffff }, ram), false);
+});
+
 test("the exchange checkpoint recognizes the missing save, including its terminating NUL", () => {
   const { ram, cpu } = createXtSession().machine;
   const state = { ...cpu.snapshot(), ax: 2, ds: 0x2000, dx: 0xffff, flags: { ...cpu.snapshot().flags, cf: true } };
