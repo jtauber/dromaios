@@ -10,7 +10,7 @@ import { runInput } from "./rom-console.js";
 /** Follow one Down make/break from the hut keyboard poll back to that same poll. */
 export function traceHutStep(m: ReturnType<typeof create8088PcXtEga>): void {
   const steps = ultimaSteps("ultima-v-ega-hut");
-  const move = steps[0]!, paint = steps[1]!;
+  const move = steps.find(step => step.title === "Update party Y")!, paint = steps.find(step => step.title === "Redraw the table tile")!;
   const start = parseXtDebugAddress(move.execution), destination = parseXtDebugAddress(paint.execution);
   const party = move.expect, draw = paint.expect;
   assert.ok("party" in party && "bytes" in draw);

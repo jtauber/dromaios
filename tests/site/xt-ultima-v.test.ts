@@ -2,15 +2,28 @@ import assert from "node:assert/strict";
 import { ultimaSteps } from "../helpers/ultima-v-guide.js";
 import { test } from "node:test";
 import { createXtSession } from "../../site/interactive/xt-session.js";
+import { matchesXtDosObservation } from "../../site/interactive/xt-dos-observation.js";
 import { matchesUltimaObservation } from "../../site/interactive/xt-ultima-v.js";
 import type { UltimaObservation } from "../../site/interactive/xt-ultima-v.js";
 import { xtCheckpointPosition } from "../../site/interactive/xt-rom-guide.js";
 
 const steps = ultimaSteps<UltimaObservation>("ultima-v");
 
+test("Prepare table tile stops on the packed byte before its in-place conversion", () => {
+  const m = createXtSession().machine;
+  const { expect } = ultimaSteps("ultima-v-ega-hut").find(step => step.title === "Prepare table tile")!;
+  assert.ok("bytes" in expect);
+  m.ram.write(0x9eac2, 0x88); m.ram.write(0x9eac3, 0x14); m.ram.write(0x914d9, 0x46);
+  const cpu = { ...m.cpu.snapshot(), ds: 0x8ca3, si: 0x4aa9, dx: 0xdf };
+  assert.ok(matchesXtDosObservation(expect, m, cpu));
+  assert.equal(matchesXtDosObservation(expect, m, { ...cpu, si: 0x4aa5 }), false);
+  m.ram.write(0x914d9, 0xdf);
+  assert.equal(matchesXtDosObservation(expect, m, cpu), false);
+});
+
 test("the hut Y stop distinguishes Down from Up at the same ADD instruction", () => {
   const { ram, cpu } = createXtSession().machine;
-  const { expect } = ultimaSteps<UltimaObservation>("ultima-v-ega-hut")[0]!;
+  const { expect } = ultimaSteps<UltimaObservation>("ultima-v-ega-hut").find(step => step.title === "Update party Y")!;
   ram.write(0x215c3, 13); ram.write(0x215c6, 15); ram.write(0x215c7, 15);
   const down = { ...cpu.snapshot(), ds: 0x1bd3, ax: 1 };
   assert.ok(matchesUltimaObservation(expect, down, ram));

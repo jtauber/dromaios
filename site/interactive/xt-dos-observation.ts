@@ -11,6 +11,7 @@ export function matchesXtRegisters(registers: XtRegisterValues | undefined, cpu:
 /** Guards for the chapter's audited DOS load layout, checked only at the selected stop. */
 export interface XtDosObservation {
   readonly bytes: { readonly address: string; readonly value: string };
+  readonly ramByte?: { readonly address: string; readonly value: string };
   readonly registers?: XtRegisterValues;
   readonly egaPixel?: { readonly x: number; readonly y: number; readonly index: number; readonly pins: number };
   readonly egaPlane?: { readonly plane: number; readonly offset: string; readonly value: string };
@@ -22,6 +23,10 @@ export function matchesXtDosObservation(expect: XtDosObservation, machine: XtMac
   const address = parseInt(expect.bytes.address, 16), bytes = expect.bytes.value.split(" ").map(b => parseInt(b, 16));
   if (address + bytes.length > ram.size || bytes.some((byte, i) => ram.read(address + i) !== byte)) return false;
   if (!matchesXtRegisters(expect.registers, cpu)) return false;
+  if (expect.ramByte) {
+    const operand = parseInt(expect.ramByte.address, 16);
+    if (operand >= ram.size || ram.read(operand) !== parseInt(expect.ramByte.value, 16)) return false;
+  }
   if (expect.egaPlane) {
     const { plane, offset, value } = expect.egaPlane;
     if (!("ega" in machine) || machine.ega.planeByte(plane, parseInt(offset, 16)) !== parseInt(value, 16)) return false;

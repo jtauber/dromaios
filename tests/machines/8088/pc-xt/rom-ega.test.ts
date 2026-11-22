@@ -19,6 +19,7 @@ import type { UltimaObservation } from "../../../../site/interactive/xt-ultima-v
 import { ultimaSteps } from "../../../helpers/ultima-v-guide.js";
 import { ultimaVParty } from "./ultima-v-party.js";
 import { traceHutStep } from "./ultima-v-hut.js";
+import { traceTableTile } from "./ultima-v-table-tile.js";
 import { dosTransfer } from "./dos-transfer.js";
 import { runInput, scanCodes, screen } from "./rom-console.js";
 
@@ -199,16 +200,7 @@ function journeyOnward(m: EgaXt, player: Uint8Array, onDiskByte?: (transfer: XtD
   runInput(m, scanCodes("\n"), { limit: 2_000_000, until: (_, { before, instruction }) =>
     before.ah === 0x3d && instruction?.bytes[0] === 0xcd && instruction.bytes[1] === 0x21
     && filenameAt(m, before.ds, before.dx) === "TILES.16" });
-  const tiles = createHash("sha256");
-  let length = 0;
-  while (length < 30_414) {
-    const { bytes } = dosTransfer(m, [], "read");
-    assert.ok(bytes.length, "Premature end of TILES.16");
-    tiles.update(bytes); length += bytes.length;
-  }
-  assert.equal(length, 30_414);
-  assert.equal(tiles.digest("hex"), "bc5d33bdb92a9f054cabf95fc34293d65b181e23eabf041a08edf88027ea4f83");
-  // The traced game takes another 2.4 million boundaries after the last tile read.
+  traceTableTile(m);
   runInput(m, [], { limit: 4_000_000, until: (_, { after }) =>
     after.cs === 0x0c6f && after.ip === 0x7249 && after.flags.cf && after.ax === 2 });
   const { ds, dx } = m.cpu.snapshot();

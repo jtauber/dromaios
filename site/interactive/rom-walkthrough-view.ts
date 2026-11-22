@@ -55,7 +55,14 @@ export function createRomWalkthrough(root: HTMLElement, guide: Pick<RomGuide, "r
       if (routine) actions.reference(parseInt(routine.address, 16));
     };
     inspections.replaceChildren(); inspectionControls = [];
-    for (const inspection of actions.inspect?.(step) ?? []) {
+    const links = [...(actions.inspect?.(step) ?? [])];
+    if (step.relatedCheckpoint) {
+      const index = selected().steps.findIndex(other => other.title === step.relatedCheckpoint);
+      if (index >= 0) links.push({ label: "View · " + step.relatedCheckpoint, show: () => {
+        checkpoints.selectedIndex = index; showCheckpoint();
+      } });
+    }
+    for (const inspection of links) {
       const button = document.createElement("button"); button.type = "button"; button.textContent = inspection.label;
       button.addEventListener("click", () => { if (inspection.available?.() ?? true) inspection.show(); });
       inspections.append(button); inspectionControls.push({ button, available: inspection.available });

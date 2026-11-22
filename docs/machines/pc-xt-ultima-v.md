@@ -371,12 +371,37 @@ same events by hand in the Debugger, use the addresses below.
 | Open the south door | The O command loads `SJOG.OVL`. Down selects the door, and the next Down walks through it. |
 | Leave for Britannia | The game opens `BRIT.DAT`, `OUTSUBS.OVL`, `BRIT.OOL` and `MAINOUT.OVL`, then reads the outdoor map from `BRIT.DAT`. |
 
+### Prepare the EGA table tile
+
+Leave the EGA Program disk mounted. At the title menu, select **Ultima V ·
+One step in Iolo’s hut → Prepare table tile**, press Enter on Journey Onward,
+and run to the checkpoint. This stop comes before the Player disk exchange.
+
+The four-byte size at the start of `TILES.16` says that the LZW stream
+expands to 65,536 bytes. The codes that emit tile `$95` span file offsets
+`$2064–209F` and use dictionary entries built earlier in the stream. The
+tile occupies offsets `$4A80–4AFF` in the expanded data (`$95 × 128 =
+$4A80`). At first, each byte holds two colour indices, the left pixel in the
+high nibble. Follow the left eight pixels of row six:
+
+| Stage | What to inspect |
+| --- | --- |
+| Program disk | **Files · TILES.16** selects offsets `$2075–2079` in sector 572 of the EGA Program image. Starting at bit 3 of the first byte, three 12-bit LZW codes (`$066`, `$046`, `$953`, least-significant bit first) supply the four packed bytes `66 46 67 66`. |
+| Packed pixels in RAM | The game expands those bytes at `8CA3:4AA8–4AAB`. Its `STOSB` at `0C6F:1528` writes the second byte, `$46`, using `ES:DI = 914D:0009`. That is the same physical byte, `$914D9`, that the driver addresses as `8CA3:4AA9`. The eight colours are 6, 6, 4, 6, 6, 7, 6, 6. |
+| Plane bytes in RAM | The driver converts each eight-pixel group in place, one byte per plane. Plane 1 takes bit 1 of each colour, leftmost first: `11011111 = $DF`. At **Prepare table tile**, `9D27:1852  MOV [SI],DL` (`88 14`) is about to store it. **Inspect memory → Step** changes `8CA3:4AA9` from `$46` to `$DF`. The finished group is `04 DF FF 00`. |
+
+Continue with **Journey Onward → Exchange the Program disk** without
+pressing Enter again. Insert the writable Player disk at that stop and run
+to **Meet the party in Iolo’s hut**. The [hut redraw](#one-ega-step-in-iolos-hut)
+uses this same byte to draw the table.
+
 ### One EGA step in Iolo’s hut
 
 At **Meet the party in Iolo’s hut** in the Journey Onward walkthrough, the
 game is polling the keyboard at `0C6F:1D6C`. Leave the writable Player disk
 mounted and choose **Session → Save snapshot** before pressing Down. Select
-**Ultima V · One step in Iolo’s hut** to follow the key through two instructions.
+**Ultima V · One step in Iolo’s hut → Update party Y** to follow the key
+through two instructions.
 
 1. **Update party Y.** With Inspect pixel off, click the screen, press and
    release Down once, then choose **Run to checkpoint**. At `0C6F:89EA`,
@@ -393,7 +418,8 @@ by 128 to locate its 16×16 bitmap at `8CA3:4A80` in conventional RAM. Each
 row occupies eight bytes, four plane bytes for the left eight dots followed
 by four for the right eight. The driver selects each plane in turn and
 writes a word per row, advancing 40 display bytes per scan line. For the
-sixth row of plane 1 it reads `$DF` and `$FF` at `8CA3:4AA9` and
+sixth row of plane 1 it reads [the prepared byte](#prepare-the-ega-table-tile)
+`$DF` and its neighbour `$FF` at `8CA3:4AA9` and
 `8CA3:4AAD` into DL and DH. The store writes them to `A000:0C17–0C18`
 on the displayed page.
 
@@ -412,8 +438,19 @@ pixel if it is active, and repeat with one Down keypress.
   "id": "ultima-v-ega-hut",
   "adapter": "ega",
   "title": "Ultima V · One step in Iolo’s hut",
-  "setup": "Use Journey Onward through Meet the party in Iolo’s hut. At the keyboard poll (15,15), with the writable Player disk mounted, save a Session snapshot before pressing Down. Restore this snapshot for each replay.",
+  "setup": "Start at the title menu with the EGA Program disk to see how the table tile is prepared. If you already have a hut snapshot at (15,15), restore it and start at Update party Y.",
   "steps": [
+    {
+      "title": "Prepare table tile",
+      "relatedCheckpoint": "Redraw the table tile",
+      "execution": "9D27:1852",
+      "prepare": "At the paused title menu with Journey Onward highlighted, click the screen, press Enter once and run to this checkpoint. Leave the Program disk mounted.",
+      "observe": "Files · TILES.16 selects the compressed source for eight pixels. Inspect memory and Step: MOV [SI],DL replaces packed $46 at 8CA3:4AA9 with plane 1 byte $DF. To follow it to Redraw the table tile, switch to Journey Onward → Exchange the Program disk and run without pressing Enter again. Insert the writable Player disk, run to Meet the party in Iolo’s hut, save a snapshot, then return here and select Update party Y.",
+      "memory": "914D9", "file": "TILES.16", "fileRange": { "offset": 8309, "length": 5 },
+      "expect": { "bytes": { "address": "9EAC2", "value": "88 14" },
+        "registers": { "ds": "8CA3", "si": "4AA9", "dx": "00DF" },
+        "ramByte": { "address": "914D9", "value": "46" } }
+    },
     {
       "title": "Update party Y",
       "execution": "0C6F:89EA",
@@ -423,11 +460,13 @@ pixel if it is active, and repeat with one Down keypress.
     },
     {
       "title": "Redraw the table tile",
+      "relatedCheckpoint": "Prepare table tile",
       "execution": "9D27:16CC",
-      "prepare": "Continue from Update party Y. This store draws row six of tile $95 at its new screen position on the plane 1 pass.",
+      "prepare": "Continue from Update party Y. DL holds the $DF written at Prepare table tile. This store draws row six of tile $95 at its new screen position on the plane 1 pass.",
       "observe": "Choose Inspect pixel (123,77), then Run until this pixel changes. MOV ES:[DI+00C8h],DX writes DF FF from DX to A000:0C17–0C18. Plane 1 gains bit 4 at $0C17 and the dot turns brown. Run to 0C6F:1D6C to finish drawing the room.",
       "expect": { "bytes": { "address": "9E93C", "value": "26 89 95 C8 00" },
         "registers": { "ds": "8CA3", "si": "4A81", "es": "A000", "di": "0B4F", "dx": "FFDF" },
+        "ramByte": { "address": "914D9", "value": "DF" },
         "egaPlane": { "plane": 1, "offset": "0C17", "value": "03" },
         "egaPixel": { "x": 123, "y": 77, "index": 4, "pins": 4 } }
     }
@@ -438,8 +477,10 @@ pixel if it is active, and repeat with one Down keypress.
 </details>
 
 The [ROM-backed EGA test](../../tests/machines/8088/pc-xt/rom-ega.test.ts)
-follows the Program disk’s tile reads, the failed save-file open, the Player
-disk’s party record and the redrawn tile. Set `XT_BIOS_ROM`, `XT_BASIC_ROM`,
+compares DOS’s reads with the FAT12 file. Its [tile check](../../tests/machines/8088/pc-xt/ultima-v-table-tile.ts)
+independently decompresses the file and compares all 128 packed bytes, then
+all 128 plane bytes, with guest RAM. After the disk exchange it follows the
+Player disk’s party record and the redrawn tile. Set `XT_BIOS_ROM`, `XT_BASIC_ROM`,
 `XT_EGA_ROM`, `XT_ULTIMA_EGA_PROGRAM` and `XT_ULTIMA_PLAYER` to the audited
 images. After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ega.test.js`.
 

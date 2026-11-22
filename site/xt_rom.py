@@ -44,9 +44,14 @@ def _ultima_tour(tour):
         raise ValueError("Invalid Ultima V walkthrough or adapter.")
     if not tour.get("steps") or not all(isinstance(tour.get(k), str) and tour[k].strip() for k in ("id", "title", "setup")):
         raise ValueError("The Ultima V walkthrough needs an introduction and checkpoints.")
+    titles = [step.get("title") for step in tour["steps"]]
     for step in tour["steps"]:
         if not all(isinstance(step.get(k), str) and step[k].strip() for k in ("title", "prepare", "observe")):
             raise ValueError("Each Ultima V checkpoint needs preparation and observations.")
+        if "relatedCheckpoint" in step:
+            related = step["relatedCheckpoint"]
+            if related == step["title"] or titles.count(related) != 1:
+                raise ValueError("A related checkpoint must name another stop in this walkthrough.")
         step["address"] = f"{_physical_address(step.get('execution')):05X}"
         if "boundaryLimit" in step and (type(step["boundaryLimit"]) is not int or not 1 <= step["boundaryLimit"] <= 40_000_000):
             raise ValueError("Invalid checkpoint execution limit.")
@@ -54,22 +59,25 @@ def _ultima_tour(tour):
         if not (_ultima_observation(expect) or _dos_observation(expect, 0xa0000, ega=tour.get("adapter") == "ega")):
             raise ValueError(f"Invalid guest observation at {step['execution']}.")
         if {"file", "fileRange", "memory"} & step.keys():
-            # A walkthrough may link a small file field to its counterpart in conventional RAM.
+            # Link the on-disk source to the instruction or data it supplies in RAM.
             span, address, name = step.get("fileRange"), step.get("memory"), step.get("file")
             if (not isinstance(span, dict) or set(span) != {"offset", "length"}
                     or type(span["offset"]) is not int or span["offset"] < 0
                     or type(span["length"]) is not int or not 1 <= span["length"] <= 32
                     or not isinstance(name, str) or not re.fullmatch(r"[A-Z0-9_]{1,8}(?:\.[A-Z0-9_]{1,3})?", name)
                     or not isinstance(address, str) or not re.fullmatch(r"[0-9A-F]{5}", address)
-                    or int(address, 16) + span["length"] > 0xA0000):
+                    or int(address, 16) + (1 if "ramByte" in expect else span["length"]) > 0xA0000):
                 raise ValueError("Invalid file or memory range in the Ultima V walkthrough.")
         if "bytes" in expect:
             signature = expect["bytes"]
             if signature["address"] != step["address"]:
                 raise ValueError("The instruction signature must begin at the execution stop.")
-            if "file" in step and (step["memory"] != signature["address"]
-                                   or step["fileRange"]["length"] != len(signature["value"].split())):
-                raise ValueError("The linked file range must match the instruction bytes in RAM.")
+            if "file" in step:
+                if "ramByte" in expect:
+                    if step["memory"] != expect["ramByte"]["address"]:
+                        raise ValueError("The memory link must point to the observed data byte.")
+                elif step["memory"] != signature["address"] or step["fileRange"]["length"] != len(signature["value"].split()):
+                    raise ValueError("The linked file range must match the instruction bytes in RAM.")
     return tour
 
 
@@ -81,7 +89,7 @@ def ultima_walkthroughs(source):
 
 
 def _dos_observation(expect, ram_end, *, ega=False):
-    allowed = {"bytes", "registers"} | ({"egaPixel", "egaPlane"} if ega else {"screen"})
+    allowed = {"bytes", "registers", "ramByte"} | ({"egaPixel", "egaPlane"} if ega else {"screen"})
     if not isinstance(expect, dict) or not {"bytes"} <= set(expect) <= allowed:
         return False
     signature = expect["bytes"]
@@ -92,6 +100,13 @@ def _dos_observation(expect, ram_end, *, ega=False):
         return False
     if not _register_values(expect.get("registers", {})):
         return False
+    if "ramByte" in expect:
+        byte = expect["ramByte"]
+        if (not isinstance(byte, dict) or byte.keys() != {"address", "value"}
+                or not isinstance(byte["address"], str) or not re.fullmatch(r"[0-9A-F]{5}", byte["address"])
+                or int(byte["address"], 16) >= ram_end
+                or not isinstance(byte["value"], str) or not re.fullmatch(r"[0-9A-F]{2}", byte["value"])):
+            return False
     if "egaPlane" in expect:
         watch = expect["egaPlane"]
         if (not isinstance(watch, dict) or watch.keys() != {"plane", "offset", "value"}

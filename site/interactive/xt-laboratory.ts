@@ -214,7 +214,8 @@ function mount(root: HTMLElement): void {
     },
     readout: ({ expect }: XtCheckpoint) => {
       if (!expect || !("bytes" in expect) || !("ega" in session.machine)) return;
-      const { egaPlane, egaPixel } = expect, { ega } = session.machine, parts = [];
+      const { ramByte, egaPlane, egaPixel } = expect, { ram, ega } = session.machine, parts = [];
+      if (ramByte) parts.push(`RAM $${ramByte.address} = $${hex(ram.read(parseInt(ramByte.address, 16)), 2)}`);
       if (egaPlane) {
         const offset = parseInt(egaPlane.offset, 16);
         parts.push(`${planeByteLabel(egaPlane.plane, offset)} = $${hex(ega.planeByte(egaPlane.plane, offset), 2)}`);
