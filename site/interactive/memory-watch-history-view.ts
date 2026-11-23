@@ -11,7 +11,7 @@ export function createMemoryWatchHistoryView<Write extends StorageWrite>(root: H
   options: {
     readonly assembly: (boundary: WatchBoundary) => string;
     readonly storageLabel: (write: Write) => string;
-    readonly browseCode: (location: DebugLocation) => string | undefined;
+    readonly browseCode: (location: DebugLocation, bytes: readonly number[]) => string | undefined;
     readonly browseMemory: (address: number) => void;
     readonly addressWidth?: number;
     readonly location?: (location: DebugLocation) => string;
@@ -40,7 +40,7 @@ export function createMemoryWatchHistoryView<Write extends StorageWrite>(root: H
       const assembly = entry.event ?? options.assembly(entry);
       const location = options.location?.(entry.caller) ?? addressText(entry.caller.address);
       const code = memoryLink(entry.caller.address, () => {
-        const notice = browseCode(entry.caller);
+        const notice = browseCode(entry.caller, entry.bytes);
         if (notice) status.textContent = notice;
       }, location);
       code.title = `Browse ${assembly} · observed ${entry.caller.space}`;

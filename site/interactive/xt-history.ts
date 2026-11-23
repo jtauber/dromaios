@@ -4,11 +4,12 @@ import type { XtMachine, stepXtSessionCpu } from "./xt-session.js";
 import { createChangeLog } from "./change-log.js";
 import type { DebugLocation } from "./instruction-debugger.js";
 import { createMemoryWatchHistory } from "./memory-watch-history.js";
-import type { MemoryRange } from "./memory-watch-history.js";
+import type { MemoryRange, WatchTransfer } from "./memory-watch-history.js";
 import { decode8088, xtHex as hex } from "./8088-disassembly.js";
 import type { Catalogue8088 } from "./8088-disassembly.js";
 import { xtDebugLocation, xtLogicalLocation } from "./xt-debugger.js";
 import type { XtStorageRegion } from "./xt-inspection.js";
+import { xtInstructionFetchCount } from "./xt-inspection.js";
 
 type Boundary = ReturnType<typeof stepXtSessionCpu>;
 export interface XtStorageWrite extends RamWrite { readonly storage: "ram" | "video" }
@@ -53,19 +54,39 @@ export function createXtChangeLog(machine: XtMachine, regions: readonly XtStorag
   }, capacity);
 }
 
-/** All configured RAM watches collect stores, independently of stopping and Changes recording. */
+/** A physical byte has one history even when both its read and write stops are configured. */
 export function createXtWatchHistory(capacity = 256) {
   const history = createMemoryWatchHistory<XtStorageWrite>(capacity);
+  let addresses = new Set<number>(), watches: MemoryRange[] = [];
   return { ...history,
-    observe(record: Boundary, watches: readonly MemoryRange[], writes: readonly XtStorageWrite[]): void {
-      if (record.outcome !== "executed" && record.outcome !== "accepted") return;
-      const event = xtBoundaryEvent(record);
-      // The DMA store precedes every CPU store; keep its attribution out of the instruction's writes.
-      const dmaWrite = record.dma?.direction === "disk-to-memory" && writes[0]?.storage === "ram" && writes[0].address === record.dma.address ? writes[0] : undefined;
-      if (dmaWrite) history.observe(() => ({ caller: xtDebugLocation(record.before), bytes: [], event: "DMA2 before CPU boundary" }), watches,
-        [{ address: dmaWrite.address, value: dmaWrite.after, kind: "write", storage: dmaWrite }]);
-      history.observe(() => ({ caller: xtDebugLocation(record.before), bytes: record.instruction?.bytes ?? [], ...(event && { event: `${event} · ${record.outcome}` }) }), watches,
-        writes.filter(write => write !== dmaWrite && write.storage === "ram").map(storage => ({ address: storage.address, value: storage.after, kind: "write" as const, storage })));
+    configure(writeWatches: readonly MemoryRange[], readWatches: readonly MemoryRange[]): void {
+      addresses = new Set([...writeWatches, ...readWatches].map(watch => watch.address));
+      watches = Array.from(addresses, address => ({ address }));
+      history.configure(watches);
+    },
+    observe(record: Boundary, writes: readonly XtStorageWrite[]): void {
+      if (!addresses.size || record.outcome === "unsupported") return;
+      // The RAM observer includes DMA before the CPU; the CPU access record contains only its own transfers.
+      const ram = writes.filter(write => write.storage === "ram" && addresses.has(write.address));
+      const dma = record.dma;
+      let nextWrite = 0;
+      if (dma?.direction === "disk-to-memory" && ram[0]?.address === dma.address) {
+        const storage = ram[nextWrite++]!;
+        history.observe(() => ({ caller: xtDebugLocation(record.before), bytes: [], event: "DMA2 before CPU boundary" }), watches,
+          [{ kind: "write", address: storage.address, value: storage.after, storage }]);
+      }
+      const transfers: WatchTransfer<XtStorageWrite>[] = [];
+      for (let i = xtInstructionFetchCount(record); i < record.accesses.length; i++) {
+        const access = record.accesses[i]!;
+        if (access.kind === "read" && addresses.has(access.address)) transfers.push(access);
+        if (access.kind === "write" && ram[nextWrite]?.address === access.address) {
+          transfers.push({ ...access, storage: ram[nextWrite++]! });
+        }
+      }
+      history.observe(() => {
+        const event = xtBoundaryEvent(record);
+        return { caller: xtDebugLocation(record.before), bytes: record.instruction?.bytes ?? [], ...(event && { event: `${event} · ${record.outcome}` }) };
+      }, watches, transfers);
     },
   };
 }

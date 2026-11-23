@@ -447,6 +447,17 @@ view-buffer byte changes from `$FF` to `$95`. **Show writer in Disassembly**
 opens the store while the CPU stays at `0C6F:5C99`. Continue to **Select
 table tile** to see the renderer read that byte back.
 
+To see the handoff in one run, restore the same hut snapshot. In **Debugger**,
+keep `268B9` in either watch list and uncheck its stop. Disable the `22529`
+stop too if you used it above. In the hut walkthrough select **Redraw the
+table tile**, press Down once on the screen, and choose **Run to checkpoint**.
+Open **History** for `268B9`. Among the 16 entries, `REP STOSB` first
+sets the byte to `$FF` and the store at `0C6F:5C97` replaces it with
+`$95`. The next reader, `CMP BYTE PTR [SI],0FFh` at `0C6F:5B90`, tests
+whether the cell still holds `$FF`. Several comparisons use the tile number
+before the renderer loads it into BL at `0C6F:570F`. Select any CS:IP to
+inspect its fetched instruction while the CPU stays at the redraw.
+
 The driver multiplies the tile number by 128 to locate its 16×16 bitmap
 at `8CA3:4A80` in conventional RAM. Each
 row occupies eight bytes, four plane bytes for the left eight dots followed

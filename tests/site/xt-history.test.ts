@@ -15,18 +15,19 @@ import { migrateXtWorkspace, xtWorkspaceKey } from "../../site/interactive/xt-wo
 import { xtCatalogue as catalogue, xtRomGuide as guide } from "./xt-inspection-fixture.js";
 import { flags } from "../components/cpus/8088/helpers.js";
 
-function fixture(bytes: readonly number[], state: Partial<Cpu8088State> = {}, capacity = 500) {
+function fixture(bytes: readonly number[], state: Partial<Cpu8088State> = {}, capacity = 256) {
   const session = createXtSession(), machine = session.machine;
   machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000, ss: 0x1000, sp: 0x8000,
     ax: 0x1234, ...state }, { ports: machine.ports });
   bytes.forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
-  const log = createXtChangeLog(machine, catalogue.storage, capacity), history = createXtWatchHistory(2), debug = createXtDebugger(() => machine);
+  const log = createXtChangeLog(machine, catalogue.storage, capacity), history = createXtWatchHistory(capacity), debug = createXtDebugger(() => machine);
   let previous: ReturnType<typeof stepXtSessionCpu> | undefined;
   const step = () => {
+    history.configure(debug.watchpoints, debug.readWatchpoints);
     const observed = log.recording ? observeXtBoundary(machine, previous?.after) : undefined;
     const record = log.capture(() => debug.capture(() => stepXtSessionCpu(machine, session.keyboard)), observed);
     previous = record;
-    history.observe(record, debug.watchpoints, log.memoryWrites(record)); return record;
+    history.observe(record, log.memoryWrites(record)); return record;
   };
   return { session, machine, log, history, debug, step };
 }
@@ -78,14 +79,14 @@ test("retained 8088 code uses its captured CS:IP for relative targets and distin
 });
 
 test("disabled XT watchpoints collect unchanged stores with recording paused and retain bounded history", () => {
-  const p = fixture([0xa2, 0, 4, 0xa2, 0, 4, 0xa2, 0, 4, 0x90]);
+  const p = fixture([0xa2, 0, 4, 0xa2, 0, 4, 0xa2, 0, 4, 0x90], {}, 2);
   const watch = { address: 0x400, enabled: false }; p.debug.setWatchpoints([watch]); p.log.recording = false;
   p.step(); p.step(); p.step();
   assert.deepEqual(p.log.entries(), []); assert.equal(p.debug.hit, undefined);
   assert.deepEqual(p.history.entries(watch).map(entry => [entry.sequence, entry.caller.address, entry.storage!.before, entry.storage!.after]), [[2, 0x2003, 0x34, 0x34], [3, 0x2006, 0x34, 0x34]]);
   assert.deepEqual(p.history.counts(watch), { captured: 3, discarded: 1 });
   p.log.clear(); assert.equal(p.history.counts(watch).captured, 3);
-  p.history.configure([]); p.history.configure([watch]); assert.equal(p.history.counts(watch).captured, 0);
+  p.history.configure([], []); p.history.configure([watch], []); assert.equal(p.history.counts(watch).captured, 0);
   p.log.recording = true; p.step(); assert.equal(p.log.entries()[0]!.sequence, 1);
   p.history.reset(); assert.deepEqual(p.history.entries(watch), []);
 });
@@ -103,7 +104,25 @@ test("REP records one native iteration at a time, including data writes that mod
   assert.equal(self.machine.ram.read(0x2000), 0x90);
 });
 
-test("CGA aliases log one physical storage change; RAM watches exclude video, reads, ports and host writes", () => {
+test("XT read and write lists share an ordered byte history even with both stops disabled", () => {
+  const p = fixture([0xfe, 0x07, 0xa0, 0, 0x20], { bx: 0x2000 }, 2); // INC BYTE PTR [BX]; MOV AL,[2000h]
+  const watch = { address: 0x2000, enabled: false };
+  p.debug.setReadWatchpoints([watch]); p.debug.setWatchpoints([watch]); p.log.recording = false;
+  p.step();
+  const [read, write] = p.history.entries(watch);
+  assert.deepEqual([read!.kind, read!.value, write!.kind, write!.storage!.before, write!.storage!.after],
+    ["read", 0xfe, "write", 0xfe, 0xff]);
+  assert.equal(read!.sequence, write!.sequence);
+  assert.deepEqual(write!.bytes, [0xfe, 0x07]); assert.equal(p.machine.ram.read(0x2000), 0xff);
+  assert.deepEqual([p.debug.stop, p.log.entries()], [undefined, []]);
+  p.debug.setWatchpoints([]); p.step();
+  assert.deepEqual(p.history.counts(watch), { captured: 3, discarded: 1 });
+  assert.deepEqual(p.history.entries(watch).map(e => [e.caller.space, e.kind, e.value]),
+    [["CS:IP 0000:2000", "write", 0xff], ["CS:IP 0000:2002", "read", 0xff]]);
+  p.history.configure([], []); assert.deepEqual(p.history.entries(watch), []);
+});
+
+test("XT history keeps CPU data reads distinct from fetches, ports, video writes and host edits", () => {
   const p = fixture([0xa2, 0x12, 0], { ds: 0xbc00 });
   p.machine.video.write(0x12, 0x11); const record = p.step();
   assert.deepEqual(p.log.memoryWrites(record), [{ storage: "video", address: 0xb8012, before: 0x11, after: 0x34 }]);
@@ -113,7 +132,12 @@ test("CGA aliases log one physical storage change; RAM watches exclude video, re
   q.debug.setWatchpoints([{ address: 0x400, enabled: false }, { address: 0x2000, enabled: false }]);
   q.machine.ram.write(0x400, 0x34); q.step(); q.step();
   assert.equal(q.log.entries().flatMap(entry => entry.changes).filter(change => change.kind === "memory").length, 0);
-  assert.deepEqual(q.history.entries({ address: 0x400 }), []); assert.deepEqual(q.history.entries({ address: 0x2000 }), []);
+  assert.deepEqual(q.history.entries({ address: 0x400 }).map(e => [e.kind, e.value]), [["read", 0x34]]);
+  assert.deepEqual(q.history.entries({ address: 0x2000 }), []);
+  const v = fixture([0xa0, 0x12, 0, 0xa2, 0x12, 0], { ds: 0xbc00 });
+  const alias = { address: 0xbc012, enabled: false };
+  v.machine.video.write(0x12, 0x81); v.debug.setReadWatchpoints([alias]); v.step(); v.step();
+  assert.deepEqual(v.history.entries(alias).map(e => [e.address, e.kind, e.value]), [[0xbc012, "read", 0x81]]);
 });
 
 test("interrupts and traps retain stack writes and boundary identity without inventing an instruction", () => {
@@ -128,10 +152,14 @@ test("interrupts and traps retain stack writes and boundary identity without inv
       p.machine.io.write(0xa0, 0x80); p.machine.io.setCheckErrors(true, false);
     }
     const watch = { address: 0x17ffe, enabled: true }; p.debug.setWatchpoints([watch]);
+    const vector = { address: 4 * ({ trap: 1, nmi: 2, intr: 9 })[source], enabled: false };
+    p.debug.setReadWatchpoints([vector]);
     const record = p.step(), entry = p.log.entries()[0]!;
     assert.equal(entry.instruction, undefined, source); assert.equal(entry.event, source.toUpperCase());
     assert.equal(entry.caller!.space, "CS:IP 0000:2000"); assert.equal(p.log.memoryWrites(record).length, 6);
     assert.match(p.history.entries(watch)[0]!.event!, new RegExp(source.toUpperCase()));
+    const vectorRead = p.history.entries(vector)[0]!;
+    assert.deepEqual([vectorRead.kind, vectorRead.bytes, vectorRead.event], ["read", [], p.history.entries(watch)[0]!.event]);
     assert.equal(p.debug.stop?.kind, "watchpoint");
   }
 });
@@ -185,12 +213,13 @@ test("BIOS labels identify the original IRQ1 buffer and IRQ0 tick writes in capt
     assert.fail("Original interrupt handler did not return");
   }
   for (const scan of [0x2a, 0x1e, 0xaa]) { assert.ok(io.offerScanCode(scan)); handler(); }
-  assert.equal(p.history.entries({ address: label("KB_BUFFER") })[0]!.storage!.after, 0x41);
-  assert.equal(p.history.entries({ address: label("BUFFER_TAIL") })[0]!.storage!.after, 0x20);
-  assert.equal(p.history.entries({ address: label("KB_FLAG") }).at(-1)!.storage!.after, 0);
+  const stores = (name: string) => p.history.entries({ address: label(name) }).filter(entry => entry.kind === "write");
+  assert.equal(stores("KB_BUFFER")[0]!.storage!.after, 0x41);
+  assert.equal(stores("BUFFER_TAIL")[0]!.storage!.after, 0x20);
+  assert.equal(stores("KB_FLAG").at(-1)!.storage!.after, 0);
   io.write(0x43, 0x36); io.write(0x40, 0); io.write(0x40, 0); io.advanceOscillatorTicks(12 * 65537);
   handler();
-  const tick = p.history.entries({ address: label("TIMER_LOW") })[0]!;
+  const tick = stores("TIMER_LOW")[0]!;
   assert.equal(tick.storage!.before, 0); assert.equal(tick.storage!.after, 1); assert.match(tick.caller.space!, /^CS:IP F000:/);
   assert.match(xtHistoryAssembly(catalogue.cpu, tick.caller, tick.bytes), /ADD|INC/);
 });

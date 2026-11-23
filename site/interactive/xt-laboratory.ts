@@ -131,7 +131,10 @@ function mount(root: HTMLElement): void {
   const watchView = createMemoryWatchHistoryView(root, watchHistory, {
     addressWidth: 5, location: formatXtDebugAddress, storageLabel: xtStorageLabel,
     assembly: entry => xtHistoryAssembly(catalogue.cpu, entry.caller, entry.bytes), browseMemory,
-    browseCode(location) { showCode.browse(location); workspace.show("code"); },
+    browseCode(location, bytes) {
+      workspace.show("code");
+      showCode.browse(location, bytes.length ? { address: location.address, bytes } : undefined);
+    },
   })!;
   const slots = [...root.querySelectorAll<HTMLElement>("[data-slot]")].map(panel => {
     const id = panel.dataset.slot as XtRomSlot;
@@ -157,7 +160,7 @@ function mount(root: HTMLElement): void {
         ? paletteCapture.capture(step) : step()), observed);
       portTrace.observe(record, session.machine.io.clock.ticks);
       sound.observe();
-      watchHistory.observe(record, debug.watchpoints, log.memoryWrites(record));
+      watchHistory.observe(record, log.memoryWrites(record));
       return record;
     }, canStep: () => session.ready && !loading,
     pauseBeforeStep: () => debug.beforeStep(() => observeBoundary().caller),
@@ -172,8 +175,12 @@ function mount(root: HTMLElement): void {
     ramMaximum: session.machine.ram.size - 1, changed: refresh,
     memory: browseMemory, selection: memory, code: (location, instruction) => { workspace.show("code"); showCode.browse(location, instruction); },
     labels: guide.labels, dos: guide.dos, history: address => watchView.select({ address }),
-    watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
+    watchesChanged: configureWatchHistory,
   });
+  function configureWatchHistory(): void {
+    watchHistory.configure(debug.watchpoints, debug.readWatchpoints); watchView.refresh();
+  }
+  configureWatchHistory(); // Include both lists restored from browser storage.
   memory.controls.addEventListener("input", debugView.refreshMemoryWatches);
   function browseMemory(address: number): void { memory.browse(address); workspace.show("memory"); }
   function guestCondition({ expect }: XtCheckpoint) {

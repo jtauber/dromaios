@@ -52,16 +52,19 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
       return "RAM $" + hex(point.address, 5) + (label ? " · " + label.name : "");
     },
     values: () => debug.watchpoints, set: debug.setWatchpoints, history: options.history,
-    changed: () => { options.watchesChanged(); refreshMemoryWatches(); },
+    changed: watchesChanged,
   })!;
   const reads = createBreakpointView(root.querySelector("[data-xt-read-watches]"), {
     kind: "watchpoint", key: "dromaios:debugger:xt:read-watchpoints", maximum: 0xfffff,
     parseAddress: text => ({ address: parseXtAddress(text) }), formatAddress: formatXtDebugAddress,
-    values: () => debug.readWatchpoints, set: debug.setReadWatchpoints, changed: options.changed,
+    values: () => debug.readWatchpoints, set: debug.setReadWatchpoints, changed: watchesChanged, history: options.history,
   })!;
   const watchReads = root.querySelector<HTMLButtonElement>("[data-memory-watch-reads]")!;
   const watchWrites = root.querySelector<HTMLButtonElement>("[data-memory-watch-writes]")!;
   const selected = root.querySelector<HTMLElement>("[data-memory-watch-address]")!;
+  function watchesChanged(): void {
+    options.watchesChanged(); refreshMemoryWatches();
+  }
   function refreshMemoryWatches(): void {
     const address = options.selection.inputAddress, text = address === undefined ? "" : "$" + hex(address, 5);
     watchReads.disabled = address === undefined;

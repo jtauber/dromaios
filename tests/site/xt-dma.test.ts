@@ -49,7 +49,8 @@ test("DMA records, watchpoints and history distinguish the DMA byte from a follo
     debug.setWatchpoints([{ address: 0x3000, enabled: true }]);
     debug.setReadWatchpoints([{ address: 0x3000, enabled: true }]); debug.run();
     const record = log.capture(() => debug.capture(() => stepXtSessionCpu(machine, keys)));
-    trace.observe(record, machine.io.clock.ticks); history.observe(record, debug.watchpoints, log.memoryWrites(record));
+    history.configure(debug.watchpoints, debug.readWatchpoints);
+    trace.observe(record, machine.io.clock.ticks); history.observe(record, log.memoryWrites(record));
     assert.deepEqual(trace.entries()[0]!.transfer, { kind: "dma", channel: 2, address: 0x3000,
       value: writing ? 0x71 : 0xa6, direction: writing ? "memory-to-disk" : "disk-to-memory", offset: 512, terminal: true, oscillatorTicks: 15 });
     assert.match(debug.hit!.detail, writing ? /^Instruction/ : /^DMA2/);
@@ -62,6 +63,21 @@ test("DMA records, watchpoints and history distinguish the DMA byte from a follo
     assert.equal(machine.io.disketteState().dma.terminal & 4, 4); // Inspection did not consume TC.
     log.dispose(); debug.dispose();
   }
+});
+
+test("the CPU reads the newly delivered DMA byte in the same boundary", () => {
+  const machine = fixture(), keys = new XtKeyboard();
+  [0xa0, 0x00, 0x30].forEach((byte, i) => machine.ram.write(0x2000 + i, byte)); // MOV AL,[3000h]
+  const log = createXtChangeLog(machine, xtCatalogue.storage), history = createXtWatchHistory(), watch = { address: 0x3000 };
+  history.configure([], [watch]); log.recording = false;
+  const record = log.capture(() => stepXtSessionCpu(machine, keys));
+  history.observe(record, log.memoryWrites(record));
+  assert.deepEqual(history.entries(watch).map(e => [e.kind, e.value, e.storage?.before, e.event, e.bytes]), [
+    ["write", 0xa6, 0x71, "DMA2 before CPU boundary", []],
+    ["read", 0xa6, undefined, undefined, [0xa0, 0x00, 0x30]],
+  ]);
+  assert.equal(record.after.al, 0xa6);
+  log.dispose();
 });
 
 test("DMA event stops work without recording and temporary requests expire or cancel", () => {

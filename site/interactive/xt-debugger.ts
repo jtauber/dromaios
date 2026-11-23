@@ -13,7 +13,7 @@ import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instr
 import type { DebugLocation, InstructionBreakpoint, RunToOptions } from "./instruction-debugger.js";
 import { parseMemoryAddress } from "./memory-window.js";
 import { createRamWriteCapture } from "./ram-write-capture.js";
-import { parseXtAddress, xtDebugLocation } from "./xt-inspection.js";
+import { parseXtAddress, xtDebugLocation, xtInstructionFetchCount } from "./xt-inspection.js";
 import type { XtMachine } from "./xt-session.js";
 
 export { xtDebugLocation } from "./xt-inspection.js";
@@ -33,8 +33,7 @@ export interface XtWriteHit extends XtMemoryWatchReport, RamWrite {
 }
 
 function watchedDataRead(record: Boundary, addresses: ReadonlySet<number>) {
-  // The 8088 records its instruction fetches first. Interrupt entry can have data reads without a fetch.
-  for (let i = record.instruction?.bytes.length ?? 0; i < record.accesses.length; i++) {
+  for (let i = xtInstructionFetchCount(record); i < record.accesses.length; i++) {
     const access = record.accesses[i]!;
     if (access.kind === "read" && addresses.has(access.address)) return access;
   }

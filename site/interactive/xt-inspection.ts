@@ -14,6 +14,11 @@ export interface XtBoundary {
   readonly before: { readonly cs: number; readonly ip: number };
   readonly instruction: FetchedInstruction | null;
 }
+
+/** The 8088 records each fetched byte before operand accesses. Interrupt entry has no fetch. */
+export function xtInstructionFetchCount(record: Pick<XtBoundary, "instruction">): number {
+  return record.instruction?.bytes.length ?? 0;
+}
 export interface XtStorageRegion {
   readonly start: number;
   readonly size: number;

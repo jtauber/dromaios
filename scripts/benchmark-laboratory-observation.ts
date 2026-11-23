@@ -161,7 +161,7 @@ measure("ultima-v/cga", 500_000, mode => {
         const observed = reuse && log.recording ? observeXtBoundary(machine, cpuState) : undefined;
         const record = log.capture(() => debug.capture(() => session.step()), observed);
         cpuState = record.after;
-        watches.observe(record, debug.watchpoints, log.memoryWrites(record));
+        watches.observe(record, log.memoryWrites(record));
       }
       sampler.advance(machine.io.clock.ticks, Number(machine.io.speakerLevel));
     },

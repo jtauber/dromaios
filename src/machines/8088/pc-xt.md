@@ -1337,19 +1337,23 @@ The log retains the newest 500 boundaries. **Record changes** pauses capture;
 Filters affect presentation only. Clear log restarts its numbering without
 clearing watched-memory history.
 
-In **Debugger**, each configured RAM write watch has a **History** button. Its
-checkbox controls stopping; both enabled and disabled watches retain their last
-256 writes, including unchanged values and interrupt stack writes. History
-continues with Changes recording paused, Live off, or the panel hidden. It
-excludes reads, CGA RAM, ROM, port I/O, and host edits. A failed boundary does
-not append a completed watch event. Removing a watch clears that watch's
-history. Clear all clears all retained watch events, leaving the watches set.
+In **Debugger**, **History** beside either a read watch or a write watch opens
+the same history for that physical address. Its latest 256 accesses appear in
+bus order. CPU data reads show the byte returned, including reads of ROM and
+video memory. Conventional RAM stores show the old and new bytes, even when
+they are equal. Interrupt entries identify their vector reads and stack writes.
+A disk-to-RAM DMA store appears before any CPU access in the same boundary.
+Instruction fetches, port I/O and host edits are excluded.
 
-A history entry links the written physical byte to Memory and the writer's
-captured CS:IP to Disassembly. Disassembly then browses current storage at that
-logical location; **Follow CS:IP** returns to the running CPU. The history's
-instruction text continues to use the original fetched bytes even if the
-program has since changed them.
+Uncheck a stop to keep recording through it. History continues with Changes
+recording paused, Live off, or the panel hidden. Removing the address from
+both lists drops its history. **Clear all**, reset, power-on and checkpoint
+restore clear the entries and keep the configured watches.
+
+Select an address in a row to open Memory. Select the instruction's CS:IP to
+open its captured bytes in Disassembly, even after self-modifying code.
+For DMA and external interrupt entry the link opens the interrupted PC in
+current storage. **Follow CS:IP** returns to the running CPU.
 
 The **BIOS data byte** selector uses the chapter's workspace labels below.
 These follow the original listing's keyboard and timer data area at segment
