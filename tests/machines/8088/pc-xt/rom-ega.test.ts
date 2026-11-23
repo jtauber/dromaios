@@ -9,7 +9,7 @@ import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.j
 import { renderEgaGraphicsFrame, renderEgaTextFrame } from "../../../../src/machines/8088/pc-xt/video.js";
 import { makeXtEgaBarsDisk } from "../../../../scripts/make-xt-ega-bars.js";
 import type { XtDisketteTransfer } from "../../../../src/machines/8088/pc-xt/io.js";
-import { inspectFat12, fat12FileRegions, readFat12File } from "../../../../site/interactive/fat12.js";
+import { inspectFat12, fat12FileRegions, fat12FileSectors, readFat12File } from "../../../../site/interactive/fat12.js";
 import { matchesUltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import { xtEgaPixelReadout } from "../../../../site/interactive/xt-ega-pixel.js";
 import { createXtDebugger } from "../../../../site/interactive/xt-debugger.js";
@@ -210,6 +210,32 @@ function journeyOnward(m: EgaXt, player: Uint8Array, onDiskByte?: (transfer: XtD
   return { party: ultimaVParty(m, party.base), record: party.bytes };
 }
 
+/** Follow DOS's open, seek and read on the Player disk before the game's first hut redraw. */
+function traceHutMapLoad(m: EgaXt, player: Uint8Array) {
+  const select = ultimaSteps("ultima-v-ega-hut").find(step => step.title === "Select table tile")!;
+  const volume = inspectFat12(player), entry = volume.entries.find(entry => entry.name === select.file)!;
+  const file = readFat12File(player, volume, entry);
+  runInput(m, [], { limit: 3_000_000, until: (_, { after }) =>
+    after.cs === 0x0c6f && after.ip === 0x7249 && !after.flags.cf && filenameAt(m, after.ds, after.dx) === entry.name });
+  const handle = m.cpu.snapshot().ax;
+  runInput(m, [], { until: (_, { after }) => after.cs === 0x0c6f && after.ip === 0x7263 });
+  const seek = m.cpu.snapshot();
+  assert.deepEqual([seek.bx, seek.flags.cf, seek.dx, seek.ax], [handle, false, 0, 0x3000]);
+
+  const cell = 15 * 32 + 17, offset = seek.ax + cell;
+  assert.deepEqual(select.fileRange, { offset, length: 1 });
+  const [sector] = fat12FileSectors(fat12FileRegions(volume, entry), offset, 1);
+  assert.equal(sector!.offset, 184 * 512 + 0x1f1);
+  const transfers: XtDisketteTransfer[] = [];
+  const map = dosTransfer(m, [], "read", 32 * 32, byte => {
+    if (byte.offset === sector!.offset) transfers.push(byte);
+  });
+  assert.equal(m.cpu.snapshot().bx, handle);
+  assert.equal(map.base, 0x22338);
+  assert.deepEqual(map.bytes, file.subarray(seek.ax, seek.ax + 1024));
+  assert.deepEqual(transfers.map(t => [t.direction, t.address, t.value]), [["disk-to-memory", map.base + cell, 0x95]]);
+}
+
 function waitForMap(m: EgaXt) {
   // At this keyboard poll the game has finished drawing the map.
   runInput(m, [], { limit: 6_000_000, until: (_, { after }) => after.cs === 0x0c6f && after.ip === 0x1d6c });
@@ -236,6 +262,7 @@ test("Ultima V selects EGA.DRV automatically and draws both reference menu strip
     const player = readFileSync(XT_ULTIMA_PLAYER!);
     assert.equal(sha256(player), "135c06d4193b1f01062b27d0f884e2045d0ea0dec667e88b281f0ef466bc9b7a");
     const { party, record } = journeyOnward(m, player);
+    traceHutMapLoad(m, player);
     waitForMap(m);
     assert.equal(sha256(record), "e4cf6298c3f04151669d7948330ce85f51edec2c0efc9eeabe6c3b3ac3e7b740");
     assert.deepEqual(party.position(), [13, 15, 15]);

@@ -400,21 +400,43 @@ uses this same byte to draw the table.
 At **Meet the party in Iolo’s hut** in the Journey Onward walkthrough, the
 game is polling the keyboard at `0C6F:1D6C`. Leave the writable Player disk
 mounted and choose **Session → Save snapshot** before pressing Down. Select
-**Ultima V · One step in Iolo’s hut → Update party Y** to follow the key
-through two instructions.
+**Ultima V · One step in Iolo’s hut → Update party Y** to follow one keypress
+through the move, tile selection and redraw.
 
 1. **Update party Y.** With Inspect pixel off, click the screen, press and
    release Down once, then choose **Run to checkpoint**. At `0C6F:89EA`,
    `ADD [5897h],AL` adds 1 to `DS:5897` (physical `$215C7`). **Step** changes
    Y from `$0F` to `$10`. X stays 15 and the location stays 13, Iolo’s hut.
-2. **Redraw the table tile.** Choose **Next → Run to checkpoint**. The party
+2. **Select table tile.** Choose **Next → Run to checkpoint**. **Files ·
+   DWELLING.DAT** shows the table at file offset `$31F1` on the Player disk.
+   **Inspect memory** shows the copy at `$268B9` that the drawing loop is
+   about to read. At `0C6F:570F`, **Step** executes
+   `MOV BL,[BX+SI+AB02h]`. The Registers panel shows BX changing from
+   `$0080` to `$0095`.
+3. **Redraw the table tile.** Choose **Next → Run to checkpoint**. The party
    is already at (15,16). Choose **Inspect pixel (123,77)** and **Run until
    this pixel changes**. At `9D27:16CC`, `MOV ES:[DI+00C8h],DX` writes
    to EGA plane 1. Its byte at `$0C17` changes from `$03` to `$DF`. Bit 4
    turns on, taking the dot from red (index 4) to brown (index 6).
 
-The game calls `EGA.DRV` with tile number `$95` in BX. The driver multiplies
-by 128 to locate its 16×16 bitmap at `8CA3:4A80` in conventional RAM. Each
+The table stays at (17,15) in the hut. DOS seeks to `$3000` in
+`DWELLING.DAT` and reads the 32×32 map into `1BD3:6608`. Row 15, column
+17 is `15 × 32 + 17 = $1F1` bytes into the map. DMA channel 2 delivers
+that file byte from sector 184, byte `$1F1`, to `1BD3:67F9` (physical
+`$22529`). When the party moves south, the table is now two cells east
+and one north of the party, at column 7, row 4 in the 11×11 view.
+
+The map lookup at `0C6F:5BC8` reads `$95` into AL. At `0C6F:5C97` the
+game copies it into the view at `1BD3:AB89`. At **Select table tile**,
+BX holds the view’s row offset (`4 × 32 = $80`) and SI holds column 7, so
+`AB02h + BX + SI` addresses that same cell. The game uses its value to
+index a second table. For this tile, `MOV AL,[BX+B11Eh]` at `0C6F:5715`
+also returns `$95`. The game pushes that number as a word. The drawing routine
+loads the argument into BX at `0C6F:10EE` and calls `9D27:0051` in
+`EGA.DRV` with screen cell (7,4), whose top-left pixel is (120,72).
+
+The driver multiplies the tile number by 128 to locate its 16×16 bitmap
+at `8CA3:4A80` in conventional RAM. Each
 row occupies eight bytes, four plane bytes for the left eight dots followed
 by four for the right eight. The driver selects each plane in turn and
 writes a word per row, advancing 40 display bytes per scan line. For the
@@ -455,14 +477,24 @@ pixel if it is active, and repeat with one Down keypress.
       "title": "Update party Y",
       "execution": "0C6F:89EA",
       "prepare": "With Inspect pixel off, click the screen, press and release Down once, then run to this checkpoint.",
-      "observe": "Inspect party bytes, then Step. ADD [5897h],AL changes Y at $215C7 from 0F to 10. X at $215C6 stays 0F. Choose Next and Run to checkpoint with no further input.",
+      "observe": "Inspect party bytes, then Step. ADD [5897h],AL changes Y at $215C7 from 0F to 10. X at $215C6 stays 0F. Choose Next and Run to checkpoint to see which map tile the game selects.",
       "expect": { "party": [13, 15, 15], "registers": { "ax": "0001", "ds": "1BD3" } }
+    },
+    {
+      "title": "Select table tile",
+      "execution": "0C6F:570F",
+      "prepare": "Continue from Update party Y with the Player disk mounted. Run to this checkpoint without pressing another key.",
+      "observe": "Files · DWELLING.DAT highlights $31F1, the table at (17,15) in the hut. DOS loaded it at $22529. Inspect memory shows its copy at $268B9 for screen cell (7,4). Step MOV BL,[BX+SI+AB02h] to see BX change from 0080 to 0095. The lookup at 0C6F:5715 maps $95 to $95 and the drawing routine passes it to EGA.DRV in BX. Choose Next and Run to checkpoint for the redraw.",
+      "memory": "268B9", "file": "DWELLING.DAT", "fileRange": { "offset": 12785, "length": 1 },
+      "expect": { "bytes": { "address": "11DFF", "value": "8A 98 02 AB" },
+        "registers": { "ds": "1BD3", "bx": "0080", "si": "0007", "di": "0004" },
+        "ramByte": { "address": "268B9", "value": "95" } }
     },
     {
       "title": "Redraw the table tile",
       "relatedCheckpoint": "Prepare table tile",
       "execution": "9D27:16CC",
-      "prepare": "Continue from Update party Y. DL holds the $DF written at Prepare table tile. This store draws row six of tile $95 at its new screen position on the plane 1 pass.",
+      "prepare": "Continue from Select table tile. DL holds the $DF written at Prepare table tile. This store draws row six of tile $95 at its new screen position on the plane 1 pass.",
       "observe": "Choose Inspect pixel (123,77), then Run until this pixel changes. MOV ES:[DI+00C8h],DX writes DF FF from DX to A000:0C17–0C18. Plane 1 gains bit 4 at $0C17 and the dot turns brown. Run to 0C6F:1D6C to finish drawing the room.",
       "expect": { "bytes": { "address": "9E93C", "value": "26 89 95 C8 00" },
         "registers": { "ds": "8CA3", "si": "4A81", "es": "A000", "di": "0B4F", "dx": "FFDF" },
@@ -479,8 +511,9 @@ pixel if it is active, and repeat with one Down keypress.
 The [ROM-backed EGA test](../../tests/machines/8088/pc-xt/rom-ega.test.ts)
 compares DOS’s reads with the FAT12 file. Its [tile check](../../tests/machines/8088/pc-xt/ultima-v-table-tile.ts)
 independently decompresses the file and compares all 128 packed bytes, then
-all 128 plane bytes, with guest RAM. After the disk exchange it follows the
-Player disk’s party record and the redrawn tile. Set `XT_BIOS_ROM`, `XT_BASIC_ROM`,
+all 128 plane bytes, with guest RAM. After the disk exchange it verifies
+the hut map read against the Player disk, then [follows the table byte](../../tests/machines/8088/pc-xt/ultima-v-hut.ts)
+through the drawing routine to the screen. Set `XT_BIOS_ROM`, `XT_BASIC_ROM`,
 `XT_EGA_ROM`, `XT_ULTIMA_EGA_PROGRAM` and `XT_ULTIMA_PLAYER` to the audited
 images. After building, run `node --test dist/tests/machines/8088/pc-xt/rom-ega.test.js`.
 

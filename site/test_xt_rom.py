@@ -27,9 +27,10 @@ class XtRomTests(unittest.TestCase):
         self.assertEqual([s["address"] for s in driver["steps"]], ["9D273", "9DAE6", "9EBED", "9EE8A"])
         hut = tours["ultima-v-ega-hut"]
         self.assertEqual(hut["adapter"], "ega")
-        self.assertEqual([s["address"] for s in hut["steps"]], ["9EAC2", "150DA", "9E93C"])
+        self.assertEqual([s["address"] for s in hut["steps"]], ["9EAC2", "150DA", "11DFF", "9E93C"])
         self.assertEqual(hut["steps"][0]["fileRange"], {"offset": 0x2075, "length": 5})
-        self.assertEqual(hut["steps"][2]["expect"]["egaPixel"], {"x": 123, "y": 77, "index": 4, "pins": 4})
+        self.assertEqual(hut["steps"][2]["fileRange"], {"offset": 0x31f1, "length": 1})
+        self.assertEqual(hut["steps"][3]["expect"]["egaPixel"], {"x": 123, "y": 77, "index": 4, "pins": 4})
         steps = tours["ultima-v"]["steps"]
         self.assertEqual([s["address"] for s in steps], ["13939", "0E45C", "150DE", "13966", "0E45C", "0E45C", "13966"])
         self.assertNotEqual(steps[3]["expect"], steps[-1]["expect"])

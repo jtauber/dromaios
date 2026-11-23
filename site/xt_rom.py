@@ -21,7 +21,7 @@ def _physical_address(text):
 
 
 def _register_values(registers):
-    return (isinstance(registers, dict) and set(registers) <= {"ax", "cx", "dx", "ds", "es", "ss", "sp", "si", "di"}
+    return (isinstance(registers, dict) and set(registers) <= {"ax", "bx", "cx", "dx", "ds", "es", "ss", "sp", "si", "di"}
             and all(isinstance(v, str) and re.fullmatch(r"[0-9A-F]{4}", v) for v in registers.values()))
 
 

@@ -21,6 +21,21 @@ test("Prepare table tile stops on the packed byte before its in-place conversion
   assert.equal(matchesXtDosObservation(expect, m, cpu), false);
 });
 
+test("Select table tile requires the staged table at the new screen cell", () => {
+  const m = createXtSession().machine;
+  const { expect } = ultimaSteps("ultima-v-ega-hut").find(step => step.title === "Select table tile")!;
+  assert.ok("bytes" in expect);
+  [0x8a, 0x98, 0x02, 0xab].forEach((byte, i) => m.ram.write(0x11dff + i, byte));
+  m.ram.write(0x268b9, 0x95);
+  const cpu = { ...m.cpu.snapshot(), ds: 0x1bd3, bx: 0x80, si: 7, di: 4 };
+  assert.ok(matchesXtDosObservation(expect, m, cpu));
+  for (const other of [{ bx: 0xa0, di: 5 }, { bx: 0xa0 }, { si: 6 }]) {
+    assert.equal(matchesXtDosObservation(expect, m, { ...cpu, ...other }), false);
+  }
+  m.ram.write(0x268b9, 0x94);
+  assert.equal(matchesXtDosObservation(expect, m, cpu), false);
+});
+
 test("the hut Y stop distinguishes Down from Up at the same ADD instruction", () => {
   const { ram, cpu } = createXtSession().machine;
   const { expect } = ultimaSteps<UltimaObservation>("ultima-v-ega-hut").find(step => step.title === "Update party Y")!;

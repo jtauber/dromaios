@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import type { Cpu8088Snapshot } from "../../../../src/components/cpus/generated/8088-cpu.js";
 import type { create8088PcXtEga } from "../../../../src/machines/generated/8088/pc-xt-ega.js";
 import { stepTimedXtCpu } from "../../../../src/machines/8088/pc-xt/interrupts.js";
 import { createXtDebugger, parseXtDebugAddress } from "../../../../site/interactive/xt-debugger.js";
@@ -7,8 +8,42 @@ import { matchesUltimaObservation } from "../../../../site/interactive/xt-ultima
 import { ultimaSteps } from "../../../helpers/ultima-v-guide.js";
 import { runInput } from "./rom-console.js";
 
+type EgaXt = ReturnType<typeof create8088PcXtEga>;
+
+/** Follow the selected map byte through the view buffer and into the driver's BX argument. */
+function traceTableSelection(m: EgaXt) {
+  const select = ultimaSteps("ultima-v-ega-hut").find(step => step.title === "Select table tile")!;
+  const { expect } = select;
+  assert.ok("bytes" in expect);
+  function executeAt(ip: number, when?: (cpu: Cpu8088Snapshot) => boolean) {
+    runInput(m, [], { limit: 1_000_000, until: (_, { after }) =>
+      after.cs === 0x0c6f && after.ip === ip && (!when || when(after)) });
+    return stepTimedXtCpu(m).record;
+  }
+
+  const map = executeAt(0x5bc8, cpu => cpu.bx === 0x67f9);
+  assert.deepEqual(map.accesses.at(-1), { kind: "read", address: 0x22529, value: 0x95 });
+  const stage = executeAt(0x5c97, cpu => cpu.si === 0xab89);
+  assert.deepEqual(stage.accesses.at(-1), { kind: "write", address: 0x268b9, value: map.after.al });
+  const load = executeAt(0x570f, cpu => matchesXtDosObservation(expect, m, cpu));
+  assert.equal(load.before.pc, parseXtDebugAddress(select.execution).address);
+  assert.deepEqual(load.accesses.at(-1), { kind: "read", address: 0x268b9, value: 0x95 });
+  assert.deepEqual([load.before.bx, load.after.bx], [0x0080, 0x0095]);
+
+  const translate = executeAt(0x5715);
+  assert.deepEqual(translate.accesses.at(-1), { kind: "read", address: 0x26ee3, value: 0x95 });
+  const push = executeAt(0x571b), argument = executeAt(0x10ee);
+  const stack = (push.after.ss << 4) + push.after.sp;
+  const word = [{ address: stack, value: 0x95 }, { address: stack + 1, value: 0 }];
+  assert.deepEqual(push.accesses.slice(-2), word.map(byte => ({ kind: "write", ...byte })));
+  assert.deepEqual(argument.accesses.slice(-2), word.map(byte => ({ kind: "read", ...byte })));
+  assert.deepEqual([translate.after.al, push.before.ax, argument.after.bx], [0x95, 0x95, 0x95]);
+  const call = executeAt(0x1107);
+  assert.deepEqual([call.after.cs, call.after.ip, call.after.bx, call.after.ax], [0x9d27, 0x0051, 0x95, 0x0407]);
+}
+
 /** Follow one Down make/break from the hut keyboard poll back to that same poll. */
-export function traceHutStep(m: ReturnType<typeof create8088PcXtEga>): void {
+export function traceHutStep(m: EgaXt): void {
   const steps = ultimaSteps("ultima-v-ega-hut");
   const move = steps.find(step => step.title === "Update party Y")!, paint = steps.find(step => step.title === "Redraw the table tile")!;
   const start = parseXtDebugAddress(move.execution), destination = parseXtDebugAddress(paint.execution);
@@ -23,6 +58,8 @@ export function traceHutStep(m: ReturnType<typeof create8088PcXtEga>): void {
     { kind: "read", address: 0x215c7, value: 15 }, { kind: "write", address: 0x215c7, value: 16 },
   ]);
   assert.deepEqual([0x215c3, 0x215c6, 0x215c7].map(address => m.ram.read(address)), [13, 15, 16]);
+
+  traceTableSelection(m);
 
   // Capture the two loads of DL and DH for this tile's plane 1 pass.
   const sourceReads: { address: number; value: number }[] = [];

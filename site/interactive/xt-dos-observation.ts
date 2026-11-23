@@ -1,7 +1,7 @@
 import type { XtMachine } from "./xt-session.js";
 import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-cpu.js";
 
-type Register = "ax" | "cx" | "dx" | "ds" | "es" | "ss" | "sp" | "si" | "di";
+type Register = "ax" | "bx" | "cx" | "dx" | "ds" | "es" | "ss" | "sp" | "si" | "di";
 export type XtRegisterValues = Readonly<Partial<Record<Register, string>>>;
 
 export function matchesXtRegisters(registers: XtRegisterValues | undefined, cpu: Cpu8088Snapshot): boolean {
