@@ -23,8 +23,12 @@ export interface XtEventHit {
   readonly caller: DebugLocation;
   readonly event: XtIoTransfer;
 }
-export interface XtWriteHit extends RamWrite {
+export interface XtMemoryWatchReport {
   readonly caller: DebugLocation;
+  readonly instruction: Boundary["instruction"];
+  readonly detail: string;
+}
+export interface XtWriteHit extends XtMemoryWatchReport, RamWrite {
   readonly record: Boundary;
 }
 
@@ -36,12 +40,20 @@ function watchedDataRead(record: Boundary, addresses: ReadonlySet<number>) {
   }
 }
 
-function describeRead(record: Boundary, address: number, value: number, cpu?: Catalogue8088): string {
+function boundaryName(record: Boundary, cpu?: Catalogue8088): string {
   const { cs, ip } = record.before, bytes = record.instruction?.bytes;
-  let reader = "Instruction";
-  if (!bytes) reader = ("source" in record ? record.source : record.interrupt?.source ?? "CPU").toUpperCase() + " entry";
-  else if (cpu) reader = decode8088(cpu, cs, ip, i => bytes[i]).assembly;
-  return `CS:IP ${logical8088(cs, ip)} · ${reader} read $${hex(value, 2)} from physical $${hex(address, 5)}.`;
+  if (!bytes) return ("source" in record ? record.source : record.interrupt?.source ?? "CPU").toUpperCase() + " entry";
+  return cpu ? decode8088(cpu, cs, ip, i => bytes[i]).assembly : "Instruction";
+}
+
+function writeReport(write: RamWrite, record: Boundary, caller: DebugLocation, cpu?: Catalogue8088): XtWriteHit {
+  const change = `wrote RAM $${hex(write.address, 5)}: $${hex(write.before, 2)} → $${hex(write.after, 2)}`;
+  const dma = record.dma;
+  if (dma?.direction === "disk-to-memory" && dma.address === write.address) {
+    return { ...write, caller, record, instruction: null, detail: `DMA2 ${change} from disk offset $${hex(dma.offset, 5)}.` };
+  }
+  return { ...write, caller, record, instruction: record.instruction,
+    detail: `${boundaryName(record, cpu)} at ${formatXtDebugAddress(caller)} ${change}.` };
 }
 
 /** Physical and logical locations come from the same captured CPU boundary. */
@@ -93,7 +105,7 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
   const location = () => xtDebugLocation(machine().cpu.snapshot());
   let watches: readonly InstructionBreakpoint[] = [], hit: XtWriteHit | undefined;
   let readWatches: readonly InstructionBreakpoint[] = [], readAddresses = new Set<number>();
-  let readHit: { address: number; value: number; caller: DebugLocation; detail: string } | undefined;
+  let readHit: (XtMemoryWatchReport & { address: number; value: number }) | undefined;
   let events: readonly XtEventStop[] = [], activeEvents: readonly XtEventStop[] = [], eventHit: XtEventHit | undefined;
   let dosHit: DosCall | undefined;
   let targetEvent: XtEventCondition | undefined;
@@ -175,11 +187,11 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
           if (read || write || planeWatches.store) {
             const details = [], caller = xtDebugLocation(record.before);
             if (read) {
-              const detail = describeRead(record, read.address, read.value, cpu);
-              readHit = { address: read.address, value: read.value, caller, detail }; details.push(detail);
+              const detail = `${caller.space} · ${boundaryName(record, cpu)} read $${hex(read.value, 2)} from physical $${hex(read.address, 5)}.`;
+              readHit = { address: read.address, value: read.value, caller, instruction: record.instruction, detail }; details.push(detail);
             }
             if (write) {
-              hit = { ...write, caller, record }; details.push(describeXtWriteHit(hit));
+              hit = writeReport(write, record, caller, cpu); details.push(hit.detail);
             }
             if (planeWatches.store) {
               const { plane, write } = planeWatches.store, physical = 0xa0000 + write.address;
@@ -227,11 +239,4 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
     reset(): void { policy.reset(); clearHit(); dosCalls?.reset(); writes.reconnect(); planeWatches.reconnect(); },
     dispose(): void { endPixelWatch(); writes.dispose(); planeWatches.dispose(); },
   };
-}
-
-export function describeXtWriteHit(hit: XtWriteHit): string {
-  const dma = hit.record.dma;
-  if (dma?.direction === "disk-to-memory" && dma.address === hit.address) return `DMA2 wrote RAM $${hex(hit.address, 5)}: $${hex(hit.before, 2)} → $${hex(hit.after, 2)} from disk offset $${hex(dma.offset, 5)}. Stopped after the complete CPU/board boundary.`;
-  const source = hit.record.instruction ? "Instruction" : "source" in hit.record ? hit.record.source.toUpperCase() + " entry" : "CPU boundary";
-  return `${source} at ${formatXtDebugAddress(hit.caller)} wrote RAM $${hex(hit.address, 5)}: $${hex(hit.before, 2)} → $${hex(hit.after, 2)}. Stopped after the complete CPU boundary.`;
 }

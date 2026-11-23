@@ -70,26 +70,33 @@ export function createMemoryInspector(panel: HTMLElement, storageKey: string, mo
     }
     output.replaceChildren(contents);
   }
-  function jump(value: number, scroll = true): void {
-    checkUnsigned("Memory address", value, size - 1);
-    const changed = address !== value; address = value; input.value = addressText(address);
-    input.setCustomValidity("");
+  function position(scroll = true): void {
     space.style.height = `${size / rowWidth * lineHeight()}px`;
     if (scroll) {
       scroller.scrollTop = Math.floor(address / rowWidth) * lineHeight();
       expectedScroll = lastScroll = scroller.scrollTop;
     }
-    draw(); if (changed) moved();
+    draw();
+  }
+  function jump(value: number, scroll = true): void {
+    checkUnsigned("Memory address", value, size - 1);
+    const changed = address !== value || input.value !== addressText(value);
+    address = value; input.value = addressText(address); input.setCustomValidity("");
+    position(scroll); if (changed) moved();
   }
   function browse(value: number, scroll = true): void { follow = "fixed"; modes.select(follow); jump(value, scroll); }
   if (options.selectOnClick) output.addEventListener("click", event => {
     const byte = (event.target as Element).closest<HTMLElement>("[data-memory-byte]");
     if (byte) browse(parseInt(byte.dataset.memoryByte!, 16), false);
   });
+  function inputAddress(): number {
+    const value = parseAddress(input.value);
+    checkUnsigned("Memory address", value, size - 1);
+    return value;
+  }
   function browseInput(): number | undefined {
     try {
-      const value = parseAddress(input.value);
-      checkUnsigned("Memory address", value, size - 1);
+      const value = inputAddress();
       browse(value);
       return value;
     } catch (error) { input.setCustomValidity((error as Error).message); input.reportValidity(); }
@@ -107,7 +114,7 @@ export function createMemoryInspector(panel: HTMLElement, storageKey: string, mo
   });
   new ResizeObserver(() => {
     const resized = height !== scroller.clientHeight; height = scroller.clientHeight;
-    if (resized && height > 0) jump(address); else draw();
+    if (resized && height > 0) position(); else draw();
   }).observe(scroller);
   // Captured images are immutable observations, shared by tools with independent histories.
   function refreshImage(captured: Int16Array, pc: number, pointers: Readonly<Record<string, number>> = {}): void {
@@ -119,11 +126,16 @@ export function createMemoryInspector(panel: HTMLElement, storageKey: string, mo
     }
     initialized = true;
     const destination = target();
-    if (first || destination !== undefined && destination !== address) jump(destination ?? address); else draw();
+    if (destination !== undefined && destination !== address) jump(destination);
+    else if (first) position(); else draw();
   }
   return {
     controls,
     get address() { return address; },
+    get inputAddress(): number | undefined {
+      if (input.value === addressText(address)) return address;
+      try { return inputAddress(); } catch { return undefined; }
+    },
     browse,
     applyAddress(): number | undefined { return input.value === addressText(address) ? address : browseInput(); },
     reset(): void { initialized = false; changed.clear(); },

@@ -1,5 +1,6 @@
 import { cpu8088StateDescription as fields } from "../../src/components/cpus/generated/8088-cpu.js";
 import type { Cpu8088Snapshot } from "../../src/components/cpus/generated/8088-cpu.js";
+import type { FetchedInstruction } from "../../src/components/cpus/execution-records.js";
 import { logical8088, physical8088, xtHex } from "./8088-disassembly.js";
 import { readXtStorage, xtCodeRows } from "./xt-inspection.js";
 import type { XtBoundary, XtCatalogue } from "./xt-inspection.js";
@@ -45,12 +46,13 @@ export function createXtRegisterView(panel: HTMLElement) {
 export function createXtCodeView(panel: HTMLElement, catalogue: XtCatalogue, annotations: ReturnType<typeof createXtRomAnnotations>, changed: () => void) {
   const body = panel.querySelector("tbody")!, status = panel.querySelector<HTMLElement>("[data-code-status]")!;
   const follow = panel.querySelector<HTMLButtonElement>("[data-code-follow]")!;
-  let browsing: { readonly cs: number; readonly ip: number } | undefined;
+  let browsing: { readonly cs: number; readonly ip: number; readonly instruction?: FetchedInstruction } | undefined;
   follow.onclick = () => { browsing = undefined; changed(); };
   function refresh(machine: XtMachine, state: Cpu8088Snapshot, records: readonly XtBoundary[]): void {
-    const rows = xtCodeRows(catalogue.cpu, browsing ?? state, address => readXtStorage(machine, catalogue.storage, address), browsing ? [] : records);
+    const rows = xtCodeRows(catalogue.cpu, browsing ?? state, address => readXtStorage(machine, catalogue.storage, address),
+      browsing ? [] : records, browsing?.instruction);
     body.replaceChildren(...rows.map(({ row, kind }) => {
-      if (browsing) kind = row.cs === state.cs && row.ip === state.ip ? "current" : "ahead";
+      if (browsing && kind !== "executed") kind = row.cs === state.cs && row.ip === state.ip ? "current" : "ahead";
       const tr = document.createElement("tr");
       const annotation = annotations.annotate(row, machine.bios.loaded);
       tr.classList.add("is-" + kind);
@@ -68,13 +70,14 @@ export function createXtCodeView(panel: HTMLElement, catalogue: XtCatalogue, ann
       return tr;
     }));
     follow.hidden = !browsing;
-    status.textContent = browsing ? `Browsing ${logical8088(browsing.cs, browsing.ip)} · current storage`
+    status.textContent = browsing ? `Browsing ${logical8088(browsing.cs, browsing.ip)} · ${browsing.instruction ? "captured instruction, following rows from current storage" : "current storage"}`
       : state.halted ? "Halted · CS:IP points past HLT" : state.waiting ? "Waiting for TEST" : "Following CS:IP";
   }
   return { refresh, reset(): void { browsing = undefined; },
-    browse(location: DebugLocation): void {
-      browsing = xtLogicalLocation(location);
-      if (!browsing) throw new Error("The captured code location has no valid CS:IP pair.");
+    browse(location: DebugLocation, instruction?: FetchedInstruction): void {
+      const logical = xtLogicalLocation(location);
+      if (!logical) throw new Error("The captured code location has no valid CS:IP pair.");
+      browsing = { ...logical, instruction };
       changed();
     },
   };

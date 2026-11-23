@@ -7,7 +7,7 @@ import { Cpu8088 } from "../../src/components/cpus/generated/8088-cpu.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { createXtSession, stepXtSessionCpu } from "../../site/interactive/xt-session.js";
 import { XtKeyboard } from "../../site/interactive/xt-keyboard.js";
-import { createXtDebugger, describeXtWriteHit, parseXtDebugAddress } from "../../site/interactive/xt-debugger.js";
+import { createXtDebugger, parseXtDebugAddress } from "../../site/interactive/xt-debugger.js";
 import { createXtIoTrace } from "../../site/interactive/xt-io-trace.js";
 import { createXtChangeLog, createXtWatchHistory } from "../../site/interactive/xt-history.js";
 import { encodeStoredXtCheckpoint, decodeStoredXtCheckpoint } from "../../site/interactive/xt-checkpoint-storage.js";
@@ -52,7 +52,8 @@ test("DMA records, watchpoints and history distinguish the DMA byte from a follo
     trace.observe(record, machine.io.clock.ticks); history.observe(record, debug.watchpoints, log.memoryWrites(record));
     assert.deepEqual(trace.entries()[0]!.transfer, { kind: "dma", channel: 2, address: 0x3000,
       value: writing ? 0x71 : 0xa6, direction: writing ? "memory-to-disk" : "disk-to-memory", offset: 512, terminal: true, oscillatorTicks: 15 });
-    assert.match(describeXtWriteHit(debug.hit!), writing ? /^Instruction/ : /^DMA2/);
+    assert.match(debug.hit!.detail, writing ? /^Instruction/ : /^DMA2/);
+    assert.equal(debug.hit!.instruction, writing ? record.instruction : null);
     assert.equal(debug.readHit, undefined); // The CPU only stores here, even when DMA reads the same byte.
     assert.deepEqual(history.entries({ address: 0x3000 }).map(e => e.event), writing ? [undefined] : ["DMA2 before CPU boundary", undefined]);
     assert.deepEqual(log.entries()[0]!.changes.filter(c => c.kind === "memory").map(c => c.target), writing ? ["RAM $03000"] : ["DMA2 · RAM $03000", "RAM $03000"]);

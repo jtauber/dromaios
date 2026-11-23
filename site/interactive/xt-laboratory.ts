@@ -117,7 +117,7 @@ function mount(root: HTMLElement): void {
     () => { dosFileLinks.reset(); diskFiles.reset(); refresh("instruction"); },
     condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }), dosFileLinks,
     link => { diskFiles.selectRange(link); diskMode("files"); workspace.show("dma"); });
-  const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", (): void => debugView.refreshReadWatch(), {
+  const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", (): void => debugView.refreshMemoryWatches(), {
     size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress, selectOnClick: true,
     followChoices: [
       { value: "pc", label: "CS:IP", title: "Follow CS:IP at its physical address" },
@@ -170,10 +170,11 @@ function mount(root: HTMLElement): void {
   });
   const debugView = createXtDebuggerView(root, debug, {
     ramMaximum: session.machine.ram.size - 1, changed: refresh,
-    memory: browseMemory, selection: memory, code: location => { showCode.browse(location); workspace.show("code"); },
+    memory: browseMemory, selection: memory, code: (location, instruction) => { workspace.show("code"); showCode.browse(location, instruction); },
     labels: guide.labels, dos: guide.dos, history: address => watchView.select({ address }),
     watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
   });
+  memory.controls.addEventListener("input", debugView.refreshMemoryWatches);
   function browseMemory(address: number): void { memory.browse(address); workspace.show("memory"); }
   function guestCondition({ expect }: XtCheckpoint) {
     return expect && (() => "bytes" in expect ? matchesXtDosObservation(expect, session.machine)

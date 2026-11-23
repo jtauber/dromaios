@@ -1071,16 +1071,20 @@ CS:IP, including a store of the same value. It stops after the complete CPU
 boundary, so both bytes of a word store or all six bytes of an interrupt frame
 are complete. REP stops after the watched element. External interrupt writes
 are identified as interrupt entry. **Show written byte in Memory** selects the
-captured address. These watches observe conventional RAM stores during CPU
-execution. Video, ROM, I/O, reads, and host edits are outside their scope.
+captured address. A disk-to-memory DMA transfer can also trigger the watch;
+its report identifies DMA channel 2 and the disk offset.
 
-**Watch reads** in Memory watches a physical byte selected by clicking the
-dump or entering an address. The first matching CPU data read in a boundary
-reports its address, the byte returned, and the instruction that read it.
+In **Memory**, select a byte by clicking the dump or entering its address.
+**Watch writes** toggles its RAM write watch. **Watch reads** can be used
+independently across the full physical address space. The first matching CPU
+data read in a boundary reports its address, the byte returned, and the
+instruction that read it.
 Interrupt vector reads identify the interrupt entry. The CPU finishes that
 boundary before pausing. Instruction fetches, DMA and inspector reads do
-not trigger the watch. Toggle the selected byte again to disable its watch
-or manage the list under **Debugger → CPU data read watchpoints**.
+not trigger the read watch. **Show reader in Disassembly** and **Show writer
+in Disassembly** open the instruction's captured bytes at the original CS:IP.
+Subsequent rows show current storage. Interrupt entry and DMA transfers have
+their own reports. Both watch lists can also be edited in **Debugger**.
 
 Each list holds up to 64 enabled or disabled stops and is remembered separately
 from machine checkpoints. Reset, fresh power-on, and checkpoint restoration

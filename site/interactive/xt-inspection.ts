@@ -43,7 +43,7 @@ export function readXtStorage(machine: XtMachine, regions: readonly XtStorageReg
 }
 
 export function xtCodeRows(cpu: Catalogue8088, state: { readonly cs: number; readonly ip: number },
-  read: (physical: number) => number | undefined, records: readonly XtBoundary[]) {
+  read: (physical: number) => number | undefined, records: readonly XtBoundary[], captured?: FetchedInstruction) {
   const rows: { row: Row8088; kind: "executed" | "current" | "ahead" }[] = [];
   for (let i = records.length - 1; i >= 0 && rows.length < 3; i--) {
     const { before, instruction } = records[i]!;
@@ -51,8 +51,10 @@ export function xtCodeRows(cpu: Catalogue8088, state: { readonly cs: number; rea
   }
   let ip = state.ip;
   for (let i = 0; i < 10; i++) {
-    const row = decode8088(cpu, state.cs, ip, index => read(physical8088(state.cs, ip + index)));
-    rows.push({ row, kind: i === 0 ? "current" : "ahead" });
+    const instruction = i === 0 ? captured : undefined;
+    const row = decode8088(cpu, state.cs, ip, instruction
+      ? index => instruction.bytes[index] : index => read(physical8088(state.cs, ip + index)));
+    rows.push({ row, kind: instruction ? "executed" : i === 0 ? "current" : "ahead" });
     if (!row.complete) break;
     ip = (ip + row.bytes.length) & 0xffff;
   }

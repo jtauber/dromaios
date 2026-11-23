@@ -271,6 +271,18 @@ test("XT data watches skip fetches even when the same physical byte is then read
   assert.equal(p.debug.stop?.kind, "target"); assert.equal(p.debug.readHit, undefined);
 });
 
+test("XT read and write watches identify the same instruction when it modifies its own opcode", () => {
+  const p = fixture([0xfe, 0x07], { bx: 0x2000 }); // INC BYTE PTR [BX]
+  p.debug.setReadWatchpoints([point("2000")]); p.debug.setWatchpoints([point("2000")]);
+  p.run();
+  const read = p.debug.readHit!, write = p.debug.hit!;
+  assert.equal(p.execution.steps, 1);
+  assert.deepEqual([read.value, write.before, write.after, p.machine.ram.read(0x2000)], [0xfe, 0xfe, 0xff, 0xff]);
+  assert.deepEqual(read.caller, write.caller);
+  assert.deepEqual(read.instruction?.bytes, [0xfe, 0x07]); assert.equal(write.instruction, read.instruction);
+  assert.match(read.detail, /INC BYTE PTR \[BX\]/); assert.match(write.detail, /INC BYTE PTR \[BX\]/);
+});
+
 test("an XT interrupt watch reports its caller after the complete six-byte frame", () => {
   const p = fixture([0x90]);
   for (const [port, value] of [[0x20, 0x13], [0x21, 8], [0x21, 9], [0x21, 0xfd], [0x63, 0x99], [0x61, 0x4c]]) p.machine.ports.writePort(port!, value!);
@@ -280,6 +292,7 @@ test("an XT interrupt watch reports its caller after the complete six-byte frame
   assert.ok(p.machine.io.offerScanCode(0x1e)); p.debug.setWatchpoints([point("17FFE")]);
   p.debug.setReadWatchpoints([point("25"), point("24")]); p.runTo("3000");
   assert.equal(p.debug.readHit?.address, 0x24); assert.match(p.debug.readHit!.detail, /INTR entry/);
+  assert.equal(p.debug.readHit!.instruction, null); assert.equal(p.debug.hit!.instruction, null);
   assert.equal(p.execution.steps, 1); assert.equal(p.debug.stop?.kind, "watchpoint");
   assert.equal(p.debug.hit?.record.instruction, null); assert.match(p.debug.stop!.detail!, /INTR entry.*CS:IP 0000:2000/);
   assert.equal(p.machine.cpu.snapshot().sp, 0x7ffa); assert.equal(p.machine.cpu.snapshot().ip, 0x3000);

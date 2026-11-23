@@ -94,6 +94,9 @@ test("XT disassembly keeps fetched history when the instruction rewrites its own
   const rows = xtCodeRows(cpu, record.after, address => machine.ram.read(address), [record]);
   assert.equal(rows[0]!.kind, "executed"); assert.deepEqual(rows[0]!.row.bytes, [0xc6, 0x06, 0, 0, 0x90]);
   assert.equal(rows[1]!.kind, "current"); assert.equal(rows[1]!.row.ip, 5);
+  const browsed = xtCodeRows(cpu, record.before, address => machine.ram.read(address), [], record.instruction!);
+  assert.deepEqual(browsed[0], rows[0]);
+  assert.deepEqual(browsed[1]!.row, rows[1]!.row);
 });
 
 test("XT layouts gain the inspectors once while preserving existing tabs and hidden panels", () => {

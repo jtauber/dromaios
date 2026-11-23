@@ -438,8 +438,14 @@ loads the argument into BX at `0C6F:10EE` and calls `9D27:0051` in
 To catch the original map read yourself, enter `22529` in Memory and choose
 **Watch reads**. Restore the hut snapshot at (15,15), press Down once on the
 screen and choose **Run**. Memory identifies `0C6F:5BC8 MOV AL,[BX]` and
-the `$95` read from `$22529`. Execution is paused at `0C6F:5BCA`, with
-that byte already in AL. Continue to **Select table tile** from here.
+the `$95` read from `$22529`. **Show reader in Disassembly** opens the load
+while the CPU stays paused at `0C6F:5BCA`, with the tile number in AL.
+
+Now enter `268B9` in Memory, choose **Watch writes**, and choose **Run**.
+The same Down keypress takes you to `0C6F:5C97 MOV [SI],AL`, where the
+view-buffer byte changes from `$FF` to `$95`. **Show writer in Disassembly**
+opens the store while the CPU stays at `0C6F:5C99`. Continue to **Select
+table tile** to see the renderer read that byte back.
 
 The driver multiplies the tile number by 128 to locate its 16×16 bitmap
 at `8CA3:4A80` in conventional RAM. Each

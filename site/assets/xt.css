@@ -3,7 +3,7 @@
 .xt-laboratory [data-pointers] { margin-top: 12px; }
 .xt-laboratory .lab-memory-address input { width: 96px; }
 .xt-laboratory [data-memory-byte] { cursor: pointer; }
-.xt-laboratory [data-memory-watch-reads][aria-pressed=true] { color: #ffcf66; border-color: #ffcf66; }
+.xt-laboratory :is([data-memory-watch-reads], [data-memory-watch-writes])[aria-pressed=true] { color: #ffcf66; border-color: #ffcf66; }
 .xt-laboratory [data-workspace-panel=debugger] h2 { font-size: 13px; margin: 14px 0 6px; }
 .xt-laboratory [data-workspace-panel=debugger] input:not([type=checkbox]) { width: 170px; }
 .xt-laboratory [data-run-to-form], .xt-laboratory [data-bios-byte-controls] { align-items: end; }
