@@ -29,7 +29,9 @@ test("trace conditions retain exact port/value or source/vector; INTA selects en
 });
 
 test("event preferences validate bounds, reject malformed/duplicate input, and detach accepted entries", () => {
+  const access = { kind: "access", cs: 0x0c6f, ip: 0x570f, direction: "read", address: 0x268b9, enabled: true } as const;
   const points: XtEventStop[] = [{ kind: "input", port: 0, value: 0, enabled: false },
+    access,
     { kind: "output", port: 0xffff, value: 0xff, enabled: true }, { kind: "interrupt", vector: 0, enabled: true }, { kind: "iret", enabled: true },
     { kind: "dos", phase: "call", function: 0, enabled: true }, { kind: "dos", phase: "return", function: 255, enabled: false },
     { kind: "dos", phase: "error", enabled: true }];
@@ -39,6 +41,7 @@ test("event preferences validate bounds, reject malformed/duplicate input, and d
     [{ kind: "dos", enabled: true }], [{ kind: "dos", phase: "success", enabled: true }],
     [{ kind: "dos", phase: "call", function: "3F", enabled: true }], [{ kind: "dos", phase: "error", function: 256, enabled: true }],
     [{ kind: "dma", address: 0x100000, enabled: true }], [{ kind: "dma", address: "3000", enabled: true }],
+    ...[{ cs: -1 }, { ip: 0x10000 }, { direction: "fetch" }, { address: 0x100000 }].map(invalid => [{ ...access, ...invalid }]),
     [{ kind: "input", port: -1, enabled: true }], [{ kind: "output", port: 0x10000, enabled: true }],
     [{ kind: "input", port: 1.5, enabled: true }], [{ kind: "input", port: "60", enabled: true }],
     [{ kind: "input", port: 0x60, value: 0x100, enabled: true }], [{ kind: "interrupt", vector: -1, enabled: true }],
@@ -47,4 +50,16 @@ test("event preferences validate bounds, reject malformed/duplicate input, and d
     assert.deepEqual(decodeXtEventStops(JSON.stringify(value)), []);
   }
   assert.deepEqual(decodeXtEventStops("not JSON"), []);
+});
+
+test("an instruction access condition keeps the logical caller, physical byte and direction across replays", () => {
+  const condition = { kind: "access", cs: 0xc6f, ip: 0x570f, address: 0x268b9, direction: "read" } as const;
+  const observed = { ...condition, value: 0x95 };
+  assert.deepEqual(xtEventCondition(observed), condition);
+  assert.equal(describeXtEvent(condition), "CS:IP 0C6F:570F · READ $268B9");
+  assert.ok(matchesXtEvent(condition, { ...observed, value: 0 }));
+  for (const different of [{ cs: 0xc70, ip: 0x56ff }, { direction: "write" }, { address: 0x268ba }] as const) {
+    assert.equal(matchesXtEvent(condition, { ...observed, ...different }), false);
+  }
+  assert.equal(matchesXtEvent(condition, { kind: "iret", target }), false);
 });

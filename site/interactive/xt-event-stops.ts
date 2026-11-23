@@ -1,16 +1,28 @@
 import type { XtIoTransfer, XtInterruptSource } from "./xt-io-events.js";
-import { xtHex as hex } from "./8088-disassembly.js";
+import { logical8088, xtHex as hex } from "./8088-disassembly.js";
 import { dosReportsErrors, type DosCall } from "./xt-dos-services.js";
+import { xtInstructionFetchCount } from "./xt-inspection.js";
+import type { XtBoundary } from "./xt-session.js";
 
 export type XtDosCondition = { readonly kind: "dos"; readonly phase: "call" | "return" | "error"; readonly function?: number; readonly filename?: string };
+export interface XtAccessCondition {
+  readonly kind: "access";
+  readonly cs: number;
+  readonly ip: number;
+  readonly direction: "read" | "write";
+  readonly address: number;
+}
+type XtAccessEvent = XtAccessCondition & { readonly value: number };
+export type XtObservedEvent = XtIoTransfer | XtAccessEvent;
 export type XtEventCondition = { readonly kind: "dma"; readonly address?: number }
   | { readonly kind: "input" | "output"; readonly port: number; readonly value?: number }
   | { readonly kind: "interrupt"; readonly source?: XtInterruptSource; readonly vector?: number }
-  | { readonly kind: "iret" } | XtDosCondition;
+  | { readonly kind: "iret" } | XtDosCondition | XtAccessCondition;
 export type XtEventStop = XtEventCondition & { readonly enabled: boolean };
 export const xtInterruptSources: readonly XtInterruptSource[] = ["intr", "nmi", "software", "trap", "divide-error"];
 
 export function xtEventStopKey(point: XtEventCondition): string {
+  if (point.kind === "access") return `access:${point.cs}:${point.ip}:${point.direction}:${point.address}`;
   if (point.kind === "dos") return `dos:${point.phase}:${point.function ?? ""}:${point.filename?.toUpperCase() ?? ""}`;
   if (point.kind === "iret") return point.kind;
   if (point.kind === "dma") return `dma:${point.address ?? ""}`;
@@ -29,6 +41,12 @@ export function validateXtEventStops(values: readonly XtEventStop[]): readonly X
     if (point.kind === "input" || point.kind === "output") {
       if (!byte(point.port, 0xffff) || point.value !== undefined && !byte(point.value)) throw new RangeError("Use a port from 0000–FFFF and an optional byte from 00–FF.");
       condition = { kind: point.kind, port: point.port, ...(point.value !== undefined && { value: point.value }) };
+    } else if (point.kind === "access") {
+      const { cs, ip, direction, address } = point;
+      if (!byte(cs, 0xffff) || !byte(ip, 0xffff) || !byte(address, 0xfffff) || (direction !== "read" && direction !== "write")) {
+        throw new RangeError("An access stop needs an exact CS:IP, physical address and read or write direction.");
+      }
+      condition = { kind: "access", cs, ip, direction, address };
     } else if (point.kind === "interrupt") {
       if (point.source !== undefined && !xtInterruptSources.includes(point.source) || point.vector !== undefined && !byte(point.vector)) throw new RangeError("Use an interrupt source and an optional vector from 00–FF.");
       condition = { kind: point.kind, ...(point.source !== undefined && { source: point.source }), ...(point.vector !== undefined && { vector: point.vector }) };
@@ -54,7 +72,21 @@ export function decodeXtEventStops(saved: string | null): readonly XtEventStop[]
   catch { return []; }
 }
 
-export function matchesXtEvent(point: XtEventCondition, event: XtIoTransfer): boolean {
+/** Only CPU operand accesses have an originating instruction. DMA is captured separately. */
+export function* xtInstructionAccesses(record: XtBoundary): Iterable<XtAccessEvent> {
+  if (!record.instruction) return;
+  const { cs, ip } = record.before;
+  for (let i = xtInstructionFetchCount(record); i < record.accesses.length; i++) {
+    const access = record.accesses[i]!;
+    if (access.kind === "read" || access.kind === "write") {
+      yield { kind: "access", cs, ip, direction: access.kind, address: access.address, value: access.value };
+    }
+  }
+}
+
+export function matchesXtEvent(point: XtEventCondition, event: XtObservedEvent): boolean {
+  if (point.kind === "access") return event.kind === "access" && point.cs === event.cs && point.ip === event.ip
+    && point.address === event.address && point.direction === event.direction;
   if (point.kind === "dos") return false;
   if (point.kind === "dma") return event.kind === "dma" && (point.address === undefined || point.address === event.address);
   if (point.kind === "input" || point.kind === "output") return point.kind === event.kind && "port" in event
@@ -73,7 +105,11 @@ export function matchesXtDosEvent(point: XtEventCondition, call: DosCall): boole
 }
 
 /** INTA selects its completed INTR entry, rather than pausing midway through the saved frame. */
-export function xtEventCondition(event: XtIoTransfer): XtEventCondition {
+export function xtEventCondition(event: XtObservedEvent): XtEventCondition {
+  if (event.kind === "access") {
+    const { cs, ip, direction, address } = event;
+    return { kind: "access", cs, ip, direction, address };
+  }
   if (event.kind === "dma") return { kind: "dma", address: event.address };
   if ("port" in event) return { kind: event.kind, port: event.port, value: event.value };
   if (event.kind === "acknowledge") return { kind: "interrupt", source: "intr", vector: event.value };
@@ -82,6 +118,7 @@ export function xtEventCondition(event: XtIoTransfer): XtEventCondition {
 }
 
 export function describeXtEvent(point: XtEventCondition): string {
+  if (point.kind === "access") return `CS:IP ${logical8088(point.cs, point.ip)} · ${point.direction.toUpperCase()} $${hex(point.address, 5)}`;
   if (point.kind === "dos") return `DOS ${point.phase} · INT 21h · ${point.function === undefined ? "any described service" : "AH=$" + hex(point.function, 2)}${point.filename === undefined ? "" : " · " + JSON.stringify(point.filename)}`;
   if (point.kind === "iret") return "IRET";
   if (point.kind === "dma") return `DMA2 · ${point.address === undefined ? "any RAM byte" : "RAM $" + hex(point.address, 5)}`;

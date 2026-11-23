@@ -458,6 +458,12 @@ whether the cell still holds `$FF`. Several comparisons use the tile number
 before the renderer loads it into BL at `0C6F:570F`. Select any CS:IP to
 inspect its fetched instruction while the CPU stays at the redraw.
 
+On the `0C6F:570F READ $268B9` row choose **Stop on this access**. Restore
+the hut snapshot, press Down once, and choose **Run**. The earlier comparisons
+complete. The debugger stops at `0C6F:5713`, immediately after the load read
+`$95` from `$268B9`. In Registers, BX now holds `$0095`. You can disable
+or remove this condition under **Event stops**.
+
 The driver multiplies the tile number by 128 to locate its 16×16 bitmap
 at `8CA3:4A80` in conventional RAM. Each
 row occupies eight bytes, four plane bytes for the left eight dots followed

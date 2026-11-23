@@ -80,6 +80,23 @@ test("the CPU reads the newly delivered DMA byte in the same boundary", () => {
   log.dispose();
 });
 
+test("an instruction-qualified store stop excludes DMA before the same CS:IP", () => {
+  for (const cpuWrites of [false, true]) {
+    const machine = fixture(), debug = createXtDebugger(() => machine);
+    if (!cpuWrites) machine.ram.write(0x2000, 0x90); // NOP after the DMA store
+    debug.setEventStops([{ kind: "access", cs: 0, ip: 0x2000, direction: "write", address: 0x3000, enabled: true }]);
+    debug.run();
+    const record = debug.capture(() => stepXtSessionCpu(machine, new XtKeyboard()));
+    assert.equal(record.dma?.value, 0xa6);
+    if (cpuWrites) {
+      const event = debug.eventHit?.event;
+      assert.ok(event?.kind === "access");
+      assert.equal(event.value, 0x99);
+    } else assert.equal(debug.stop, undefined);
+    debug.dispose();
+  }
+});
+
 test("DMA event stops work without recording and temporary requests expire or cancel", () => {
   const machine = fixture(), debug = createXtDebugger(() => machine, 2), keys = new XtKeyboard();
   debug.runToEvent({ kind: "dma", address: 0x3000 });

@@ -1,9 +1,8 @@
 import { xtIoTransfers } from "./xt-io-events.js";
 import { watchXtEgaPixel, type XtPixelChange } from "./xt-ega-pixel.js";
 import { createXtEgaPlaneWatches, planeByteLabel, type EgaPlaneStore } from "./xt-ega-plane-watch.js";
-import type { XtIoTransfer } from "./xt-io-events.js";
-import { validateXtEventStops, matchesXtEvent, matchesXtDosEvent, describeXtEvent, xtEventCondition } from "./xt-event-stops.js";
-import type { XtEventCondition, XtEventStop } from "./xt-event-stops.js";
+import { validateXtEventStops, matchesXtEvent, matchesXtDosEvent, describeXtEvent, xtEventCondition, xtInstructionAccesses } from "./xt-event-stops.js";
+import type { XtAccessCondition, XtEventCondition, XtEventStop, XtObservedEvent } from "./xt-event-stops.js";
 import type { DosCall, createXtDosCalls } from "./xt-dos-services.js";
 import { observe8088Boundary } from "./8088-debugger.js";
 import type { RamWrite } from "../../src/components/memory/ram.js";
@@ -21,7 +20,7 @@ export { xtDebugLocation } from "./xt-inspection.js";
 type Target = Pick<InstructionBreakpoint, "address" | "space">;
 export interface XtEventHit {
   readonly caller: DebugLocation;
-  readonly event: XtIoTransfer;
+  readonly event: XtObservedEvent;
 }
 export interface XtMemoryWatchReport {
   readonly caller: DebugLocation;
@@ -106,6 +105,7 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
   let readWatches: readonly InstructionBreakpoint[] = [], readAddresses = new Set<number>();
   let readHit: (XtMemoryWatchReport & { address: number; value: number }) | undefined;
   let events: readonly XtEventStop[] = [], activeEvents: readonly XtEventStop[] = [], eventHit: XtEventHit | undefined;
+  let accessStops: readonly XtAccessCondition[] = [];
   let dosHit: DosCall | undefined;
   let targetEvent: XtEventCondition | undefined;
   let eventCondition: (() => boolean) | undefined;
@@ -117,6 +117,18 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
     hit = undefined; readHit = undefined; eventHit = undefined; dosHit = undefined; targetEvent = undefined; eventCondition = undefined;
     endPixelWatch(); pixelHit = undefined; planeHit = undefined;
   }
+  function stoppedEvent(record: Boundary): XtObservedEvent | undefined {
+    const matches = (event: XtObservedEvent) => targetEvent && matchesXtEvent(targetEvent, event) && (eventCondition?.() ?? true)
+      || (event.kind === "access" ? accessStops : activeEvents).some(point => matchesXtEvent(point, event));
+    if (activeEvents.length || targetEvent && targetEvent.kind !== "access") {
+      const event = xtIoTransfers(record).find(matches);
+      if (event) return event;
+    }
+    const atCaller = (point: XtAccessCondition) => point.cs === record.before.cs && point.ip === record.before.ip;
+    if (accessStops.some(atCaller) || targetEvent?.kind === "access" && atCaller(targetEvent)) {
+      for (const access of xtInstructionAccesses(record)) if (matches(access)) return access;
+    }
+  }
   return {
     get planeWatchpoints() { return planeWatches.values; },
     setPlaneWatchpoints: planeWatches.set,
@@ -127,7 +139,10 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
     get eventHit() { return eventHit; },
     get dosHit() { return dosHit; },
     setEventStops(points: readonly XtEventStop[]): void {
-      events = validateXtEventStops(points); activeEvents = events.filter(point => point.enabled);
+      events = validateXtEventStops(points);
+      const enabled = events.filter(point => point.enabled);
+      activeEvents = enabled.filter(point => point.kind !== "access");
+      accessStops = enabled.filter(point => point.kind === "access");
     },
     get frames() { return policy.frames; },
     get trackingNote() { return policy.trackingNote; },
@@ -199,12 +214,14 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
               details.push(`${dma ? "DMA2 before" : "CPU at"} ${formatXtDebugAddress(caller)} wrote EGA ${planeByteLabel(plane, write.offset)} through $${hex(physical, 5)} · $${hex(write.before[plane]!, 2)} → $${hex(write.after[plane]!, 2)}.`);
             }
             policy.watchpoint(xtDebugLocation(record.after), details.join(" "));
-          } else if (activeEvents.length || targetEvent) {
-            const event = xtIoTransfers(record).find(event => targetEvent && matchesXtEvent(targetEvent, event) && (eventCondition?.() ?? true)
-              || activeEvents.some(point => matchesXtEvent(point, event)));
+          } else if (activeEvents.length || accessStops.length || targetEvent) {
+            const event = stoppedEvent(record);
             if (event) {
               eventHit = { caller: xtDebugLocation(record.before), event };
-              policy.event(xtDebugLocation(record.after), `${describeXtEvent(xtEventCondition(event))} ${event.kind === "dma" ? "before the CPU boundary at" : "from"} ${formatXtDebugAddress(eventHit.caller)}. Stopped after the complete CPU/board boundary.`);
+              const detail = event.kind === "access"
+                ? `${describeXtEvent(event)} = $${hex(event.value, 2)} · ${boundaryName(record, cpu)}.`
+                : `${describeXtEvent(xtEventCondition(event))} ${event.kind === "dma" ? "before the CPU boundary at" : "from"} ${formatXtDebugAddress(eventHit.caller)}. Stopped after the complete CPU/board boundary.`;
+              policy.event(xtDebugLocation(record.after), detail);
             } else if (dosCall) {
               const condition = targetEvent && matchesXtDosEvent(targetEvent, dosCall) && (eventCondition?.() ?? true) ? targetEvent
                 : activeEvents.find(point => matchesXtDosEvent(point, dosCall));

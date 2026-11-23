@@ -37,7 +37,7 @@ import { xtEgaPixelReadout } from "./xt-ega-pixel.js";
 import { planeByteLabel } from "./xt-ega-plane-watch.js";
 import { createXtEgaPixelInspector } from "./xt-ega-pixel-view.js";
 import { xtCheckpointKey } from "./xt-checkpoint.js";
-import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation } from "./xt-debugger.js";
+import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation, xtLogicalLocation } from "./xt-debugger.js";
 import { createXtDebuggerView } from "./xt-debugger-view.js";
 import { previewXtInstruction } from "./xt-instruction-preview.js";
 import { createXtInstructionView } from "./xt-instruction-view.js";
@@ -134,6 +134,11 @@ function mount(root: HTMLElement): void {
     browseCode(location, bytes) {
       workspace.show("code");
       showCode.browse(location, bytes.length ? { address: location.address, bytes } : undefined);
+    },
+    stopOnAccess(entry): void {
+      const logical = xtLogicalLocation(entry.caller);
+      if (!logical) throw new Error("The captured instruction has no valid CS:IP.");
+      debugView.addEventStop({ kind: "access", ...logical, direction: entry.kind, address: entry.address });
     },
   })!;
   const slots = [...root.querySelectorAll<HTMLElement>("[data-slot]")].map(panel => {

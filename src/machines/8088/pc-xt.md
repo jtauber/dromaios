@@ -1355,6 +1355,14 @@ open its captured bytes in Disassembly, even after self-modifying code.
 For DMA and external interrupt entry the link opens the interrupted PC in
 current storage. **Follow CS:IP** returns to the running CPU.
 
+Choose **Stop on this access** on an instruction row to replay that read or
+write. The debugger matches the instruction’s exact CS:IP, the physical byte
+address and the direction. The value may differ on the next run. Execution
+pauses after the instruction boundary and reports the byte transferred.
+Manage the condition under **Event stops**. It survives checkpoint restore
+and removal of the original memory watch. Leave broader watches unchecked
+to run through earlier accesses to the same byte.
+
 The **BIOS data byte** selector uses the chapter's workspace labels below.
 These follow the original listing's keyboard and timer data area at segment
 `0040` (appendix A, pages A-3–A-4). Word labels offer their low and high bytes

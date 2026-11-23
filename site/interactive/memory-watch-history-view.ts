@@ -1,5 +1,5 @@
 import type { StorageWrite } from "./change-log.js";
-import type { MemoryRange, WatchBoundary, createMemoryWatchHistory } from "./memory-watch-history.js";
+import type { MemoryRange, WatchAccess, WatchBoundary, createMemoryWatchHistory } from "./memory-watch-history.js";
 import type { DebugLocation } from "./instruction-debugger.js";
 import { memoryLink } from "./memory-link.js";
 
@@ -13,6 +13,7 @@ export function createMemoryWatchHistoryView<Write extends StorageWrite>(root: H
     readonly storageLabel: (write: Write) => string;
     readonly browseCode: (location: DebugLocation, bytes: readonly number[]) => string | undefined;
     readonly browseMemory: (address: number) => void;
+    readonly stopOnAccess?: (entry: WatchAccess<Write>) => void;
     readonly addressWidth?: number;
     readonly location?: (location: DebugLocation) => string;
   }) {
@@ -50,7 +51,20 @@ export function createMemoryWatchHistoryView<Write extends StorageWrite>(root: H
       detail.textContent = `#${entry.sequence} · ${assembly}` + (entry.storage
         ? ` · ${options.storageLabel(entry.storage)}`
         : entry.kind === "write" ? " · bus value; no physical RAM write observed" : " · captured bus value");
-      row.append(title, detail); output.append(row);
+      row.append(title, detail);
+      const stopOnAccess = options.stopOnAccess;
+      if (stopOnAccess && entry.bytes.length && !entry.event) {
+        const stop = document.createElement("button");
+        stop.type = "button"; stop.textContent = "Stop on this access";
+        stop.onclick = () => {
+          try {
+            stopOnAccess(entry);
+            status.textContent = `Event stop enabled for ${location} · ${entry.kind.toUpperCase()} ${addressText(entry.address)}.`;
+          } catch (cause) { status.textContent = (cause as Error).message; }
+        };
+        row.append(stop);
+      }
+      output.append(row);
     }
     if (!entries.length) output.textContent = "No retained accesses to this range. Add the watch before running to capture its use.";
   }

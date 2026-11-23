@@ -55,6 +55,42 @@ test("guarded event targets wait for matching guest state and leave persistent s
   p.debug.dispose();
 });
 
+test("a history stop passes other readers and survives restore without a memory watch", () => {
+  const p = fixture([0x80, 0x3f, 0xff, 0x8a, 0x1f, 0x90], { bx: 0x400 }); // CMP [BX],FFh; MOV BL,[BX]
+  const stop = { kind: "access", cs: 0, ip: 0x2003, direction: "read", address: 0x400, enabled: true } as const;
+  const saved = p.machine.snapshot();
+  p.debug.setEventStops([stop]);
+  for (const value of [0x95, 0x73]) {
+    p.replace(saved); p.machine.ram.write(0x400, value); p.run();
+    assert.equal(p.execution.steps, 2); assert.equal(p.debug.stop?.kind, "event");
+    assert.deepEqual([p.machine.cpu.snapshot().ip, p.machine.cpu.snapshot().bl], [0x2005, value]);
+    assert.deepEqual(p.debug.eventHit?.event, { kind: "access", cs: 0, ip: 0x2003, direction: "read", address: 0x400, value });
+  }
+  for (const change of [{ cs: 1, ip: 0x1ff3 }, { address: 0x401 }, { address: 0x2004 }, { direction: "write" }, { enabled: false }] as const) {
+    p.replace(saved); p.debug.setEventStops([{ ...stop, ...change }]); p.runTo("2005");
+    assert.equal(p.debug.stop?.kind, "target"); assert.equal(p.debug.eventHit, undefined);
+  }
+});
+
+test("a store stop matches the second byte of a word and pauses after the whole instruction", () => {
+  const p = fixture([0xa3, 0xff, 0xff], { ds: 0x1000, ax: 0x1234 });
+  p.debug.setEventStops([{ kind: "access", cs: 0, ip: 0x2000, direction: "write", address: 0x10000, enabled: true }]);
+  p.run();
+  assert.equal(p.debug.stop?.kind, "event");
+  assert.deepEqual([p.machine.cpu.snapshot().ip, p.machine.ram.read(0x1ffff), p.machine.ram.read(0x10000)], [0x2003, 0x34, 0x12]);
+  assert.match(p.debug.stop!.detail!, /CS:IP 0000:2000 · WRITE \$10000 = \$12/);
+});
+
+test("matching access stops report the first CPU transfer in bus order", () => {
+  const p = fixture([0xfe, 0x07], { bx: 0x400 }); // INC BYTE PTR [BX]
+  const stop = { kind: "access", cs: 0, ip: 0x2000, address: 0x400, enabled: true } as const;
+  p.debug.setEventStops([{ ...stop, direction: "write" }, { ...stop, direction: "read" }]);
+  p.run();
+  const event = p.debug.eventHit?.event;
+  assert.ok(event?.kind === "access");
+  assert.deepEqual([event.direction, event.value, p.machine.ram.read(0x400)], ["read", 0, 1]);
+});
+
 test("XT Step over and Step out follow nested near/far calls with exact logical returns", () => {
   const p = fixture([0xe8, 0x0d, 0, 0x90]); // CALL 2010; NOP
   put(p.machine, 0x2010, [0x9a, 0, 0x30, 0, 1, 0xc3]); // CALL 0100:3000; RET
