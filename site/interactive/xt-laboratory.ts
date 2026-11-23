@@ -107,7 +107,7 @@ function mount(root: HTMLElement): void {
   const readStorage = (address: number) => readXtStorage(session.machine, catalogue.storage, address);
   const dosFileLinks = createXtDosFileLinks(() => session.machine.io, diskActivity);
   const dosCalls = createXtDosCalls(guide.dos, readStorage, dosFileLinks.observe);
-  const debug = createXtDebugger(() => session.machine, undefined, dosCalls);
+  const debug = createXtDebugger(() => session.machine, undefined, dosCalls, catalogue.cpu);
   const pixelInspector = ega ? createXtEgaPixelInspector(screen.closest<HTMLElement>("[data-workspace-panel]")!, debug, catalogue.cpu,
     (x, y) => act(() => { debug.runUntilPixelChanges(x, y); execution.run(); screen.focus(); }),
     location => { showCode.browse(location); workspace.show("code"); },
@@ -117,8 +117,8 @@ function mount(root: HTMLElement): void {
     () => { dosFileLinks.reset(); diskFiles.reset(); refresh("instruction"); },
     condition => act(() => { debugView.addEventStop(condition); workspace.show("debugger"); }), dosFileLinks,
     link => { diskFiles.selectRange(link); diskMode("files"); workspace.show("dma"); });
-  const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", undefined, {
-    size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress,
+  const memory = createMemoryInspector(memoryPanel, "dromaios:inspectors:xt:memory", (): void => debugView.refreshReadWatch(), {
+    size: 0x100000, initialAddress: 0xffff0, parseAddress: parseXtAddress, selectOnClick: true,
     followChoices: [
       { value: "pc", label: "CS:IP", title: "Follow CS:IP at its physical address" },
       { value: "sp", label: "SS:SP", title: "Follow SS:SP at its physical address" },
@@ -170,7 +170,7 @@ function mount(root: HTMLElement): void {
   });
   const debugView = createXtDebuggerView(root, debug, {
     ramMaximum: session.machine.ram.size - 1, changed: refresh,
-    memory: browseMemory, code: location => { showCode.browse(location); workspace.show("code"); },
+    memory: browseMemory, selection: memory, code: location => { showCode.browse(location); workspace.show("code"); },
     labels: guide.labels, dos: guide.dos, history: address => watchView.select({ address }),
     watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
   });

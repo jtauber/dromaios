@@ -7,6 +7,7 @@ import type { Cpu8088State } from "../../src/components/cpus/generated/8088-cpu.
 import { createXtDebugger, decodeXtBreakpoints, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation } from "../../site/interactive/xt-debugger.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
 import { debuggerStatus } from "../../site/interactive/debugger-status.js";
+import { xtCatalogue } from "./xt-inspection-fixture.js";
 import { decodeWorkspaceState, encodeWorkspaceState } from "../../site/interactive/workspace/state.js";
 import { groups } from "../../site/interactive/workspace/layout.js";
 import { migrateXtWorkspace, xtWorkspaceKey } from "../../site/interactive/xt-workspace.js";
@@ -21,7 +22,7 @@ function fixture(bytes: readonly number[], state: Partial<Cpu8088State> = {}, bu
   machine.cpu = new Cpu8088(machine.memory, { ...machine.cpu.snapshot(), cs: 0, ip: 0x2000, ss: 0x1000, sp: 0x8000,
     ax: 0x1234, ...state }, { ports: machine.ports });
   bytes.forEach((byte, i) => machine.ram.write(0x2000 + i, byte));
-  const debug = createXtDebugger(() => machine, budget), jobs: (() => void)[] = [];
+  const debug = createXtDebugger(() => machine, budget, undefined, xtCatalogue.cpu), jobs: (() => void)[] = [];
   const step = () => debug.capture(() => stepTimedXtCpu(machine).record);
   function observe(): ReturnType<typeof observeXtBoundary> {
     return observeXtBoundary(machine, execution.records.at(-1)?.after);
@@ -242,13 +243,43 @@ test("RAM watches exclude reads, ROM/video/port writes, host edits, and disabled
   for (const address of ["A0000", "B8000", "FFFF0"]) assert.throws(() => q.debug.setWatchpoints([point(address)]), /9FFFF/);
 });
 
+test("XT read watches survive restore and identify the instruction and byte in the hut map lookup", () => {
+  const p = fixture([], { cs: 0x0c6f, ip: 0x5bc8, ds: 0x1bd3, bx: 0x67f9 });
+  const pc = p.machine.cpu.snapshot().pc;
+  put(p.machine, pc, [0x8a, 0x07, 0x90]); put(p.machine, 0x22529, [0x95]);
+  const saved = p.machine.snapshot();
+  p.debug.setReadWatchpoints([{ address: 0x22529, enabled: true }]);
+  for (let replay = 0; replay < 2; replay++) {
+    p.replace(saved);
+    assert.equal(p.debug.readHit, undefined);
+    p.run();
+    const hit = p.debug.readHit!;
+    assert.equal(p.debug.stop?.kind, "watchpoint");
+    assert.deepEqual([hit.caller.space, hit.address, hit.value], ["CS:IP 0C6F:5BC8", 0x22529, 0x95]);
+    assert.match(hit.detail, /0C6F:5BC8.*MOV AL,\s*(?:BYTE PTR )?\[BX\].*\$95.*\$22529/);
+    assert.deepEqual([p.machine.cpu.snapshot().ip, p.machine.cpu.snapshot().al], [0x5bca, 0x95]);
+  }
+});
+
+test("XT data watches skip fetches even when the same physical byte is then read as an operand", () => {
+  const p = fixture([0x90, 0xa0, 0x00, 0x20, 0x90]); // NOP; MOV AL,[2000h]; NOP
+  p.debug.setReadWatchpoints([point("2000"), point("2002")]); p.run();
+  assert.equal(p.execution.steps, 2);
+  assert.deepEqual([p.debug.readHit?.address, p.debug.readHit?.value], [0x2000, 0x90]);
+  p.replace();
+  p.debug.setReadWatchpoints([point("2000", false), point("2004")]); p.runTo("2005");
+  assert.equal(p.debug.stop?.kind, "target"); assert.equal(p.debug.readHit, undefined);
+});
+
 test("an XT interrupt watch reports its caller after the complete six-byte frame", () => {
   const p = fixture([0x90]);
   for (const [port, value] of [[0x20, 0x13], [0x21, 8], [0x21, 9], [0x21, 0xfd], [0x63, 0x99], [0x61, 0x4c]]) p.machine.ports.writePort(port!, value!);
   [0, 0x30, 0, 0].forEach((byte, i) => p.machine.ram.write(0x24 + i, byte));
   const state = p.machine.cpu.snapshot();
   p.machine.cpu = new Cpu8088(p.machine.memory, { ...state, flags: { ...state.flags, if: true } }, { ports: p.machine.ports });
-  assert.ok(p.machine.io.offerScanCode(0x1e)); p.debug.setWatchpoints([point("17FFE")]); p.runTo("3000");
+  assert.ok(p.machine.io.offerScanCode(0x1e)); p.debug.setWatchpoints([point("17FFE")]);
+  p.debug.setReadWatchpoints([point("25"), point("24")]); p.runTo("3000");
+  assert.equal(p.debug.readHit?.address, 0x24); assert.match(p.debug.readHit!.detail, /INTR entry/);
   assert.equal(p.execution.steps, 1); assert.equal(p.debug.stop?.kind, "watchpoint");
   assert.equal(p.debug.hit?.record.instruction, null); assert.match(p.debug.stop!.detail!, /INTR entry.*CS:IP 0000:2000/);
   assert.equal(p.machine.cpu.snapshot().sp, 0x7ffa); assert.equal(p.machine.cpu.snapshot().ip, 0x3000);

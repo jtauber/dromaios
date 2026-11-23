@@ -472,7 +472,7 @@ requires returned `CF=1` on a service whose declared result kind is `status`,
 `handle`, `count`, or `position`; raw carry on print or child-status calls is not an error
 indication. Termination supports call stops only. These conditions can
 interrupt Run, Step over, and Step out. Resume advances from the stopped
-boundary without matching the same event again. RAM write watches take
+boundary without matching the same event again. Memory watchpoints take
 priority over raw I/O/interrupt events, which take priority over DOS stops;
 DOS observations are still captured when another condition wins.
 
@@ -1073,6 +1073,14 @@ are complete. REP stops after the watched element. External interrupt writes
 are identified as interrupt entry. **Show written byte in Memory** selects the
 captured address. These watches observe conventional RAM stores during CPU
 execution. Video, ROM, I/O, reads, and host edits are outside their scope.
+
+**Watch reads** in Memory watches a physical byte selected by clicking the
+dump or entering an address. The first matching CPU data read in a boundary
+reports its address, the byte returned, and the instruction that read it.
+Interrupt vector reads identify the interrupt entry. The CPU finishes that
+boundary before pausing. Instruction fetches, DMA and inspector reads do
+not trigger the watch. Toggle the selected byte again to disable its watch
+or manage the list under **Debugger → CPU data read watchpoints**.
 
 Each list holds up to 64 enabled or disabled stops and is remembered separately
 from machine checkpoints. Reset, fresh power-on, and checkpoint restoration

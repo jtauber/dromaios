@@ -21,10 +21,17 @@ function traceTableSelection(m: EgaXt) {
     return stepTimedXtCpu(m).record;
   }
 
-  const map = executeAt(0x5bc8, cpu => cpu.bx === 0x67f9);
-  assert.deepEqual(map.accesses.at(-1), { kind: "read", address: 0x22529, value: 0x95 });
+  // Watch the map cell and discover its reader before the later tile-selection stop.
+  const debug = createXtDebugger(() => m);
+  debug.setReadWatchpoints([{ address: 0x22529, enabled: true }]);
+  debug.runTo(parseXtDebugAddress(select.execution));
+  while (!debug.beforeStep()) debug.capture(() => stepTimedXtCpu(m).record);
+  const read = debug.readHit;
+  assert.ok(read);
+  assert.deepEqual([read.caller.space, read.address, read.value, m.cpu.snapshot().al], ["CS:IP 0C6F:5BC8", 0x22529, 0x95, 0x95]);
+  debug.dispose();
   const stage = executeAt(0x5c97, cpu => cpu.si === 0xab89);
-  assert.deepEqual(stage.accesses.at(-1), { kind: "write", address: 0x268b9, value: map.after.al });
+  assert.deepEqual(stage.accesses.at(-1), { kind: "write", address: 0x268b9, value: read.value });
   const load = executeAt(0x570f, cpu => matchesXtDosObservation(expect, m, cpu));
   assert.equal(load.before.pc, parseXtDebugAddress(select.execution).address);
   assert.deepEqual(load.accesses.at(-1), { kind: "read", address: 0x268b9, value: 0x95 });

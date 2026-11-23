@@ -7,6 +7,7 @@ interface MemoryInspectorOptions {
   readonly size?: number;
   readonly initialAddress?: number;
   readonly parseAddress?: (text: string) => number;
+  readonly selectOnClick?: boolean;
   readonly followChoices?: readonly { readonly value: string; readonly label: string; readonly title: string }[];
 }
 
@@ -69,22 +70,31 @@ export function createMemoryInspector(panel: HTMLElement, storageKey: string, mo
     }
     output.replaceChildren(contents);
   }
-  function jump(value: number): void {
+  function jump(value: number, scroll = true): void {
     checkUnsigned("Memory address", value, size - 1);
     const changed = address !== value; address = value; input.value = addressText(address);
     input.setCustomValidity("");
     space.style.height = `${size / rowWidth * lineHeight()}px`;
-    scroller.scrollTop = Math.floor(address / rowWidth) * lineHeight();
-    expectedScroll = lastScroll = scroller.scrollTop; draw(); if (changed) moved();
+    if (scroll) {
+      scroller.scrollTop = Math.floor(address / rowWidth) * lineHeight();
+      expectedScroll = lastScroll = scroller.scrollTop;
+    }
+    draw(); if (changed) moved();
   }
-  form.addEventListener("submit", event => {
-    event.preventDefault();
+  function browse(value: number, scroll = true): void { follow = "fixed"; modes.select(follow); jump(value, scroll); }
+  if (options.selectOnClick) output.addEventListener("click", event => {
+    const byte = (event.target as Element).closest<HTMLElement>("[data-memory-byte]");
+    if (byte) browse(parseInt(byte.dataset.memoryByte!, 16), false);
+  });
+  function browseInput(): number | undefined {
     try {
       const value = parseAddress(input.value);
       checkUnsigned("Memory address", value, size - 1);
-      follow = "fixed"; modes.select(follow); jump(value);
+      browse(value);
+      return value;
     } catch (error) { input.setCustomValidity((error as Error).message); input.reportValidity(); }
-  });
+  }
+  form.addEventListener("submit", event => { event.preventDefault(); browseInput(); });
   input.addEventListener("input", () => input.setCustomValidity(""));
   scroller.addEventListener("scroll", () => {
     // Layout changes can clamp scrollTop before ResizeObserver has run.
@@ -114,7 +124,8 @@ export function createMemoryInspector(panel: HTMLElement, storageKey: string, mo
   return {
     controls,
     get address() { return address; },
-    browse(value: number): void { follow = "fixed"; modes.select(follow); jump(value); },
+    browse,
+    applyAddress(): number | undefined { return input.value === addressText(address) ? address : browseInput(); },
     reset(): void { initialized = false; changed.clear(); },
     refresh(read: (address: number) => number | undefined, pc: number, pointers: Readonly<Record<string, number>> = {}): void {
       refreshImage(captureMemory(read, size), pc, pointers);

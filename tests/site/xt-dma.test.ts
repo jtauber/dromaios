@@ -46,12 +46,14 @@ test("DMA records, watchpoints and history distinguish the DMA byte from a follo
   for (const writing of [false, true]) {
     const machine = fixture(writing), keys = new XtKeyboard(), trace = createXtIoTrace(); trace.recording = true;
     const debug = createXtDebugger(() => machine), log = createXtChangeLog(machine, xtCatalogue.storage), history = createXtWatchHistory();
-    debug.setWatchpoints([{ address: 0x3000, enabled: true }]); debug.run();
+    debug.setWatchpoints([{ address: 0x3000, enabled: true }]);
+    debug.setReadWatchpoints([{ address: 0x3000, enabled: true }]); debug.run();
     const record = log.capture(() => debug.capture(() => stepXtSessionCpu(machine, keys)));
     trace.observe(record, machine.io.clock.ticks); history.observe(record, debug.watchpoints, log.memoryWrites(record));
     assert.deepEqual(trace.entries()[0]!.transfer, { kind: "dma", channel: 2, address: 0x3000,
       value: writing ? 0x71 : 0xa6, direction: writing ? "memory-to-disk" : "disk-to-memory", offset: 512, terminal: true, oscillatorTicks: 15 });
     assert.match(describeXtWriteHit(debug.hit!), writing ? /^Instruction/ : /^DMA2/);
+    assert.equal(debug.readHit, undefined); // The CPU only stores here, even when DMA reads the same byte.
     assert.deepEqual(history.entries({ address: 0x3000 }).map(e => e.event), writing ? [undefined] : ["DMA2 before CPU boundary", undefined]);
     assert.deepEqual(log.entries()[0]!.changes.filter(c => c.kind === "memory").map(c => c.target), writing ? ["RAM $03000"] : ["DMA2 · RAM $03000", "RAM $03000"]);
     assert.equal(machine.ram.read(0x3000), 0x99);

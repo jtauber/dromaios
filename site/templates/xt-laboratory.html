@@ -160,6 +160,9 @@
     <section class="lab-tool lab-tool-memory" data-workspace-panel="memory" data-panel-title="Memory" data-panel-live="true">
       <div class="lab-panel-body">
         <div class="lab-memory-scroll" data-memory-scroll><div class="lab-memory-space" data-memory-space><pre data-memory-output aria-label="Observed XT memory"></pre></div></div>
+        <div class="basic-controls"><button type="button" data-memory-watch-reads aria-pressed="false">Watch reads</button>
+          <span class="lab-hint" data-memory-watch-address></span></div>
+        <p class="basic-readout" data-memory-read-hit role="status" hidden></p>
         <p class="lab-hint">Physical 00000–FFFFF · enter hex or segment:offset · -- means no storage</p>
       </div>
     </section>
@@ -177,6 +180,11 @@
       <div data-xt-watchpoints>
         <h2>RAM write watchpoints<span data-stop-count></span></h2>
         <form class="basic-controls"><input name="address" aria-label="RAM watchpoint address" placeholder="00417 or 0040:0017" spellcheck="false" maxlength="32"><button type="submit">Add watchpoint</button></form>
+        <div data-stop-rows></div><p class="basic-message" data-stop-status role="status"></p>
+      </div>
+      <div data-xt-read-watches>
+        <h2>CPU data read watchpoints<span data-stop-count></span></h2>
+        <form class="basic-controls"><input name="address" aria-label="Read watchpoint address" placeholder="Physical or segment:offset" maxlength="32" spellcheck="false"><button type="submit">Add read watchpoint</button></form>
         <div data-stop-rows></div><p class="basic-message" data-stop-status role="status"></p>
       </div>
       {% if ega %}<div data-xt-plane-watches>

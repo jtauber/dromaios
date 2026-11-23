@@ -435,6 +435,12 @@ also returns `$95`. The game pushes that number as a word. The drawing routine
 loads the argument into BX at `0C6F:10EE` and calls `9D27:0051` in
 `EGA.DRV` with screen cell (7,4), whose top-left pixel is (120,72).
 
+To catch the original map read yourself, enter `22529` in Memory and choose
+**Watch reads**. Restore the hut snapshot at (15,15), press Down once on the
+screen and choose **Run**. Memory identifies `0C6F:5BC8 MOV AL,[BX]` and
+the `$95` read from `$22529`. Execution is paused at `0C6F:5BCA`, with
+that byte already in AL. Continue to **Select table tile** from here.
+
 The driver multiplies the tile number by 128 to locate its 16×16 bitmap
 at `8CA3:4A80` in conventional RAM. Each
 row occupies eight bytes, four plane bytes for the left eight dots followed

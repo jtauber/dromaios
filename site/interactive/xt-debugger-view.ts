@@ -15,6 +15,7 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
   readonly ramMaximum: number;
   readonly changed: () => void;
   readonly memory: (address: number) => void;
+  readonly selection: { readonly address: number; applyAddress(): number | undefined };
   readonly code: (location: DebugLocation) => void;
   readonly history: (address: number) => void;
   readonly watchesChanged: () => void;
@@ -51,6 +52,23 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
     },
     values: () => debug.watchpoints, set: debug.setWatchpoints, changed: options.watchesChanged, history: options.history,
   })!;
+  const reads = createBreakpointView(root.querySelector("[data-xt-read-watches]"), {
+    kind: "watchpoint", key: "dromaios:debugger:xt:read-watchpoints", maximum: 0xfffff,
+    parseAddress: text => ({ address: parseXtAddress(text) }), formatAddress: formatXtDebugAddress,
+    values: () => debug.readWatchpoints, set: debug.setReadWatchpoints, changed: options.changed,
+  })!;
+  const watchReads = root.querySelector<HTMLButtonElement>("[data-memory-watch-reads]")!;
+  const selected = root.querySelector<HTMLElement>("[data-memory-watch-address]")!;
+  const readResult = root.querySelector<HTMLElement>("[data-memory-read-hit]")!;
+  function refreshReadWatch(): void {
+    const address = options.selection.address, text = "$" + hex(address, 5);
+    watchReads.setAttribute("aria-pressed", String(reads.at(address)?.enabled ?? false));
+    if (selected.textContent !== text) selected.textContent = text;
+  }
+  watchReads.onclick = () => {
+    const address = options.selection.applyAddress();
+    if (address !== undefined) reads.toggle(address);
+  };
   const choice = root.querySelector<HTMLSelectElement>("[data-bios-byte]")!;
   const description = root.querySelector<HTMLElement>("[data-bios-byte-description]")!;
   for (const label of labels) choice.add(new Option(`${label.name} · ${hex(label.address, 5)}`, String(label.address)));
@@ -65,9 +83,14 @@ export function createXtDebuggerView(root: HTMLElement, debug: ReturnType<typeof
   const memory = root.querySelector<HTMLButtonElement>("[data-watchpoint-memory]")!;
   memory.onclick = () => { if (debug.hit) options.memory(debug.hit.address); };
   return {
+    refreshReadWatch,
     watchPlane(plane: number, offset: number): void { planes?.add(offset, egaPlanes[plane]); },
     addEventStop: eventStops.add,
     refresh(running: boolean): void {
+      refreshReadWatch();
+      const detail = debug.readHit?.detail ?? "";
+      readResult.hidden = !detail;
+      if (readResult.textContent !== detail) readResult.textContent = detail;
       if (planeWriter) planeWriter.hidden = !debug.planeHit || debug.planeHit.dma;
       memory.hidden = !debug.hit;
       status.refresh(debug.stop, debug.request, running);

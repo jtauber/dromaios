@@ -8,7 +8,7 @@ import type { DosCall, createXtDosCalls } from "./xt-dos-services.js";
 import { observe8088Boundary } from "./8088-debugger.js";
 import type { RamWrite } from "../../src/components/memory/ram.js";
 import type { XtBoundary as Boundary } from "./xt-session.js";
-import { logical8088, physical8088, xtHex as hex } from "./8088-disassembly.js";
+import { decode8088, logical8088, physical8088, xtHex as hex, type Catalogue8088 } from "./8088-disassembly.js";
 import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instruction-debugger.js";
 import type { DebugLocation, InstructionBreakpoint, RunToOptions } from "./instruction-debugger.js";
 import { parseMemoryAddress } from "./memory-window.js";
@@ -26,6 +26,22 @@ export interface XtEventHit {
 export interface XtWriteHit extends RamWrite {
   readonly caller: DebugLocation;
   readonly record: Boundary;
+}
+
+function watchedDataRead(record: Boundary, addresses: ReadonlySet<number>) {
+  // The 8088 records its instruction fetches first. Interrupt entry can have data reads without a fetch.
+  for (let i = record.instruction?.bytes.length ?? 0; i < record.accesses.length; i++) {
+    const access = record.accesses[i]!;
+    if (access.kind === "read" && addresses.has(access.address)) return access;
+  }
+}
+
+function describeRead(record: Boundary, address: number, value: number, cpu?: Catalogue8088): string {
+  const { cs, ip } = record.before, bytes = record.instruction?.bytes;
+  let reader = "Instruction";
+  if (!bytes) reader = ("source" in record ? record.source : record.interrupt?.source ?? "CPU").toUpperCase() + " entry";
+  else if (cpu) reader = decode8088(cpu, cs, ip, i => bytes[i]).assembly;
+  return `CS:IP ${logical8088(cs, ip)} · ${reader} read $${hex(value, 2)} from physical $${hex(address, 5)}.`;
 }
 
 /** Physical and logical locations come from the same captured CPU boundary. */
@@ -62,13 +78,13 @@ function validate(points: readonly InstructionBreakpoint[], maximum: number, log
   if (points.length > 64 || points.some(point => !Number.isInteger(point.address) || point.address < 0 || point.address > maximum
     || typeof point.enabled !== "boolean" || point.space !== undefined && (!logical || !acceptsLogicalSpace(point.space, point.address)))
     || new Set(points.map(point => `${point.address}:${point.space ?? ""}`)).size !== points.length) {
-    throw new RangeError(`Use at most 64 distinct ${logical ? "physical addresses or CS:IP pairs" : "RAM addresses"} within 00000–${hex(maximum, 5)}.`);
+    throw new RangeError(`Use at most 64 distinct ${logical ? "physical addresses or CS:IP pairs" : "physical addresses"} within 00000–${hex(maximum, 5)}.`);
   }
   return points.map(({ address, space, enabled }) => ({ address, ...(space !== undefined && { space }), enabled }));
 }
 
 /** Adapt XT boundaries and physical RAM stores to the shared stopping policy. */
-export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, dosCalls?: ReturnType<typeof createXtDosCalls>) {
+export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, dosCalls?: ReturnType<typeof createXtDosCalls>, cpu?: Catalogue8088) {
   const policy = createInstructionDebugger(budget), writes = createRamWriteCapture(() => machine().ram);
   const planeWatches = createXtEgaPlaneWatches(() => {
     const board = machine(); return "ega" in board ? board.ega : undefined;
@@ -76,6 +92,8 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
   let planeHit: (EgaPlaneStore & { readonly record: Boundary; readonly dma: boolean }) | undefined;
   const location = () => xtDebugLocation(machine().cpu.snapshot());
   let watches: readonly InstructionBreakpoint[] = [], hit: XtWriteHit | undefined;
+  let readWatches: readonly InstructionBreakpoint[] = [], readAddresses = new Set<number>();
+  let readHit: { address: number; value: number; caller: DebugLocation; detail: string } | undefined;
   let events: readonly XtEventStop[] = [], activeEvents: readonly XtEventStop[] = [], eventHit: XtEventHit | undefined;
   let dosHit: DosCall | undefined;
   let targetEvent: XtEventCondition | undefined;
@@ -85,7 +103,7 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
     pixelWatch?.dispose(); pixelWatch = undefined;
   }
   function clearHit(): void {
-    hit = undefined; eventHit = undefined; dosHit = undefined; targetEvent = undefined; eventCondition = undefined;
+    hit = undefined; readHit = undefined; eventHit = undefined; dosHit = undefined; targetEvent = undefined; eventCondition = undefined;
     endPixelWatch(); pixelHit = undefined; planeHit = undefined;
   }
   return {
@@ -108,6 +126,12 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
     get stop() { return policy.stop; },
     get request() { return policy.request; },
     get hit() { return hit; },
+    get readHit() { return readHit; },
+    get readWatchpoints() { return readWatches; },
+    setReadWatchpoints(points: readonly InstructionBreakpoint[]): void {
+      readWatches = validate(points, 0xfffff);
+      readAddresses = new Set(readWatches.filter(point => point.enabled).map(point => point.address));
+    },
     setBreakpoints(points: readonly InstructionBreakpoint[]): void { policy.setBreakpoints(validate(points, 0xfffff, true)); },
     setWatchpoints(points: readonly InstructionBreakpoint[]): void {
       watches = validate(points, machine().ram.size - 1);
@@ -147,8 +171,13 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
         else {
           const dosCall = dosCalls?.observe(record);
           observe8088Boundary(policy, record);
-          if (write || planeWatches.store) {
+          const read = readAddresses.size ? watchedDataRead(record, readAddresses) : undefined;
+          if (read || write || planeWatches.store) {
             const details = [], caller = xtDebugLocation(record.before);
+            if (read) {
+              const detail = describeRead(record, read.address, read.value, cpu);
+              readHit = { address: read.address, value: read.value, caller, detail }; details.push(detail);
+            }
             if (write) {
               hit = { ...write, caller, record }; details.push(describeXtWriteHit(hit));
             }
