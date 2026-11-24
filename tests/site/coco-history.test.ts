@@ -20,7 +20,8 @@ function fixture(bytes: readonly number[], capacity = 500) {
     const observed = observeCocoBoundary(machine, previous?.after);
     const record = log.capture(() => debug.capture(() => stepCoco(machine), observed.caller), observed);
     previous = record;
-    history.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record)); return record;
+    const transfers = history.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record));
+    debug.observeAccesses(record, observed.caller, transfers); return record;
   };
   return { machine, log, history, debug, step };
 }
@@ -151,6 +152,18 @@ test("RAM history never records fetches, device/ROM writes or host writes as CPU
   assert.equal(writes, 1); assert.equal(p.machine.pias.snapshot().pia0.cra, 5);
   assert.deepEqual(p.history.entries(watch), []); assert.deepEqual(p.history.entries({ address: 0x2000 }), []);
   assert.equal(p.log.entries().flatMap(entry => entry.changes).filter(change => change.kind === "memory").length, 0);
+});
+
+test("an instruction access stop ignores the same store from another PC and matches unchanged RAM without a watch", () => {
+  const p = fixture([0xc6, 0x60, 0xf7, 4, 0, 0xf7, 4, 0]);
+  const point = { caller: { address: 0x2005, space: "ram" }, kind: "write" as const, address: 0x400, enabled: true };
+  p.debug.accessStops.set([point]); p.log.recording = false;
+  assert.deepEqual(p.debug.accessStops.decode(JSON.stringify([{ ...point, kind: "read" }])), []);
+  p.step(); p.step();
+  assert.equal(p.machine.ram.read(0x400), 0x60); assert.equal(p.debug.stop?.kind, undefined);
+  p.step();
+  assert.equal(p.debug.hit?.caller.address, 0x2005); assert.equal(p.debug.hit?.before, 0x60); assert.equal(p.debug.hit?.after, 0x60);
+  assert.equal(p.debug.stop?.kind, "event");
 });
 
 test("partial failures retain completed RAM effects, while reset and disposal discard stale observations", () => {

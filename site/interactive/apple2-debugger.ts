@@ -2,6 +2,9 @@ import type { Cpu6502StepRecord } from "../../src/components/cpus/generated/6502
 import type { createApple2Session } from "./apple2-session.js";
 import type { DebugLocation, DebugStep } from "./instruction-debugger.js";
 import type { InstructionCatalogue } from "./apple2-explorer.js";
+import { createMappedAccessStops } from "./mapped-access-stops.js";
+
+export const createApple2AccessStops = () => createMappedAccessStops(["ram", "device", "rom", "lc-upper", "lc-bank1", "lc-bank2"], ["read", "write"]);
 
 type Machine = ReturnType<typeof createApple2Session>["machine"];
 

@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { instructionCatalogue6502 } from "../../site/6502-instruction-catalogue.js";
-import { apple2AccessHit, decodeApple2AccessStops, describeApple2Access, validateApple2AccessStops } from "../../site/interactive/apple2-access-stops.js";
-import { apple2DebugLocation } from "../../site/interactive/apple2-debugger.js";
+import { apple2DebugLocation, createApple2AccessStops } from "../../site/interactive/apple2-debugger.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
 import { createApple2WatchHistory } from "../../site/interactive/apple2-watch-history.js";
 import { readRomFile } from "../../site/interactive/rom-file.js";
@@ -16,17 +15,21 @@ const keyRead = { caller, address: 0xc000, kind: "read" as const, enabled: true 
 
 test("access stops match the mapped caller, direction and exact byte, independently of the value", () => {
   const read = { kind: "read" as const, address: 0xc000, value: 0x42 }, write = { ...read, kind: "write" as const };
-  const points = decodeApple2AccessStops(JSON.stringify([{ ...keyRead, value: 0xc1, bytes: [0x2c, 0, 0xc0] }]));
+  const stops = createApple2AccessStops();
+  const points = stops.decode(JSON.stringify([{ ...keyRead, value: 0xc1, bytes: [0x2c, 0, 0xc0] }]));
   assert.deepEqual(points, [keyRead]);
-  assert.equal(apple2AccessHit(points, caller, [write, read]), read);
-  assert.equal(apple2AccessHit([{ ...keyRead, kind: "write" }], caller, [read, write]), write);
-  assert.equal(apple2AccessHit(points, { ...caller, address: 0xfd26 }, [read]), undefined);
-  assert.equal(apple2AccessHit(points, { ...caller, space: "lc-upper" }, [read]), undefined);
-  assert.equal(apple2AccessHit(points, caller, [{ ...read, address: 0xc001 }, write]), undefined);
-  assert.equal(apple2AccessHit([{ ...keyRead, enabled: false }], caller, [read]), undefined);
+  stops.set(points);
+  assert.equal(stops.match(caller, [write, read]), read);
+  assert.equal(stops.match({ ...caller, address: 0xfd26 }, [read]), undefined);
+  assert.equal(stops.match({ ...caller, space: "lc-upper" }, [read]), undefined);
+  assert.equal(stops.match(caller, [{ ...read, address: 0xc001 }, write]), undefined);
+  stops.set([{ ...keyRead, kind: "write" }]);
+  assert.equal(stops.match(caller, [read, write]), write);
+  stops.set([{ ...keyRead, enabled: false }]);
+  assert.equal(stops.match(caller, [read]), undefined);
   for (const invalid of [null, [keyRead, keyRead], [{ ...keyRead, caller: { address: 0xfd21 } }],
     [{ ...keyRead, kind: "fetch" }], [{ ...keyRead, address: -1 }]]) {
-    assert.deepEqual(decodeApple2AccessStops(JSON.stringify(invalid)), []);
+    assert.deepEqual(stops.decode(JSON.stringify(invalid)), []);
   }
 });
 
@@ -47,8 +50,9 @@ test("restoring KEYIN2 with A queued repeats the ROM read; identical Language Ca
   history.observe(session.step(), origin, [keyboard], []);
   const [entry] = history.entries(keyboard);
   assert.ok(entry); assert.deepEqual(entry.bytes, [0x2c, 0, 0xc0]);
-  assert.equal(entry.value, 0xc1); assert.equal(describeApple2Access(entry), "$FD21 (rom) · READ $C000");
-  const stops = validateApple2AccessStops([{ ...entry, enabled: true }]);
+  const stops = createApple2AccessStops();
+  assert.equal(entry.value, 0xc1); assert.equal(stops.describe(entry), "$FD21 (rom) · READ $C000");
+  stops.set([{ ...entry, enabled: true }]);
 
   for (const mapping of ["rom", "lc-upper"]) {
     session.restore(saved); history.reset();
@@ -65,7 +69,7 @@ test("restoring KEYIN2 with A queued repeats the ROM read; identical Language Ca
     assert.deepEqual(transfers, [{ kind: "read", address: 0xc000, value: 0xc1 }]);
     assert.equal(record.after.pc, 0xfd24); assert.equal(session.pendingInput, 0);
     assert.equal(machine.keyboard.snapshot().strobe, true);
-    assert.deepEqual(apple2AccessHit(stops, before, transfers), mapping === "rom" ? transfers[0] : undefined);
+    assert.deepEqual(stops.match(before, transfers), mapping === "rom" ? transfers[0] : undefined);
     assert.equal(history.entries(keyboard).length, 0, "The originating watch is no longer installed");
   }
 });

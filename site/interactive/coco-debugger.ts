@@ -6,8 +6,10 @@ import type { DebugLocation } from "./instruction-debugger.js";
 import { observeCocoRoms } from "./coco-rom-guide.js";
 import { cocoHex as hex, readCocoStorage } from "./coco-inspection.js";
 import type { Catalogue6809 } from "./6809-catalogue.js";
-import { decode6809 } from "./6809-disassembly.js";
+import { decode6809, decodeCaptured6809 } from "./6809-disassembly.js";
 import { create6809DebugObserver } from "./6809-debugger.js";
+import { createMappedAccessStops } from "./mapped-access-stops.js";
+import type { CocoWriteAccess } from "./coco-watch-history.js";
 import { createRamWriteCapture } from "./ram-write-capture.js";
 
 export interface CocoAddressStop { readonly address: number; readonly enabled: boolean }
@@ -37,6 +39,7 @@ export function decodeCocoAddressStops(saved: string | null, maximum: number): r
 /** Shared execution policy, with completed physical RAM stores observed only during a CPU boundary. */
 export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809, budget = 2_000_000) {
   const policy = createInstructionDebugger(budget), observer = create6809DebugObserver(policy, catalogue);
+  const accessStops = createMappedAccessStops(["ram", "upper RAM", "rom", "cartridge", "unavailable"], ["write"]);
   const writes = createRamWriteCapture(() => machine().ram);
   let watches: readonly CocoAddressStop[] = [], hit: CocoWriteHit | undefined;
   const location = (address?: number) => cocoDebugLocation(machine(), address);
@@ -48,6 +51,16 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
     return points.map(({ address, enabled }) => ({ address, enabled }));
   }
   return {
+    accessStops,
+    observeAccesses(record: Boundary, caller: DebugLocation, transfers: readonly CocoWriteAccess[]): void {
+      if (record.outcome !== "executed" || !record.instruction || policy.stop?.kind === "error") return;
+      const access = accessStops.match(caller, transfers);
+      if (!access) return;
+      hit = { ...access.storage, caller, record };
+      const { address, bytes } = record.instruction;
+      const assembly = decodeCaptured6809(address, bytes, catalogue).assembly;
+      policy.event(location(record.after.pc), `${accessStops.describe({ caller, ...access })} = $${hex(access.value, 2)} · ${assembly}.`);
+    },
     get breakpoints(): readonly CocoAddressStop[] { return policy.breakpoints; },
     get watchpoints() { return watches; },
     get stop() { return policy.stop; },

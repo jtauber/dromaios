@@ -130,7 +130,7 @@
         <p class="lab-hint">Sound enables clocked audio during Normal Run. Try <code>SOUND 128,2</code> in Color BASIC, or <code>PLAY "T4O3L8V15CEGP8V7C"</code> with Extended BASIC. Pause and Unlimited are silent.</p>
         <p id="coco-keys" class="lab-hint">Click the screen to type or paste one line. Enter submits; Backspace edits; Escape or Ctrl-C sends Break; Home sends Clear. Host key repeat is ignored. Leaving the window pauses and releases queued keys.</p>
         <p class="lab-hint">Reset CPU preserves RAM and device settings. Fresh power-on clears them, keeps the installed ROMs, and leaves the mounted tape stopped at its current position. Normal targets the declared CPU clock rate; Unlimited runs as fast as the browser allows. Clocks include waiting time. Mark clock measures an interval; Step, Step over, and Step out report their clocks separately.</p>
-        <p class="lab-hint">Run to address executes normally and pauses before the next boundary at that PC, or after 2,000,000 boundaries. Breakpoints and RAM write watchpoints can stop it earlier. Run, Step, Pause, reset, and leaving the window cancel the target.</p>
+        <p class="lab-hint">Run to address executes normally and pauses before the next boundary at that PC, or after 2,000,000 boundaries. Enabled debugger stops can pause it earlier. Run, Step, Pause, reset, and leaving the window cancel the target.</p>
       </details>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="debugger" data-panel-title="Debugger" data-panel-live="true">
@@ -144,6 +144,7 @@
         <p class="lab-hint">$0000–${{ maximum }} · {% if kind == 'breakpoint' %}Stops before the CPU boundary at this PC. Run crosses the breakpoint that just stopped once; a later visit stops again.{% else %}Stops after a complete instruction or interrupt entry writes this RAM byte, even when its value stays the same. Addresses refer to physical RAM; upper-half watches are inactive with 32 KiB. ROM and device writes do not match.{% endif %}</p>
       </section>
       {% endfor %}
+      {% include "instruments/instruction-access-stops.html" %}
       <p class="lab-hint">Stops are remembered in this browser, separately from snapshots. Step crosses the current breakpoint. Reset and Restore clear the stop report and keep configured stops. Click a circle in Disassembly to toggle a breakpoint.</p>
       {% with watch_history_help='Oldest first. Captures physical RAM writes to every configured watch, even with stopping disabled, Live off, or Changes recording paused. Unchanged writes and interrupt entry are included; reads, ROM, and device writes are excluded. Removing a watch clears its history. Reset, power-on, restoration, and ROM replacement clear all history. Links browse current storage.' %}
         {% include "instruments/watch-history.html" %}
@@ -223,7 +224,7 @@
       <p data-walkthrough-position class="lab-hint" role="status"></p>
       <h3>What to observe</h3><p data-walkthrough-observe></p>
       <p data-coco-routine-reference class="lab-hint"></p>
-      <p class="lab-hint">Selecting a checkpoint only changes the guide. Run stops before its address, or after 2,000,000 boundaries. Breakpoints and RAM write watchpoints can stop it earlier; see Execution or Debugger for the reason. Reaching an address does not verify the setup. Step and Run remain in Execution.</p>
+      <p class="lab-hint">Selecting a checkpoint only changes the guide. Run stops before its address, or after 2,000,000 boundaries. Enabled debugger stops can pause it earlier; see Execution or Debugger for the reason. Reaching an address does not verify the setup. Step and Run remain in Execution.</p>
       <p><a href="{{ calc_url(coco_url) }}#follow-pset-into-graphics-ram" target="_blank" rel="noopener">Read the walkthrough and program ↗</a></p>
     </section>
     <section class="lab-tool lab-panel-body" data-workspace-panel="states" data-panel-title="Snapshot">

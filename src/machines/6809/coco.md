@@ -1353,7 +1353,7 @@ of window focus cancel the target. An error or an unserviceable wait also ends
 the request. A matching PC is not a promise that an ordinary instruction will
 run next: Instruction still explains any pending interrupt or wait boundary.
 
-**Debugger** provides persistent PC breakpoints and RAM write watchpoints.
+**Debugger** provides PC breakpoints, RAM write watchpoints, and instruction access stops.
 Breakpoints cover `$0000–$FFFF` and stop before the next CPU boundary, including
 before interrupt arbitration or consumption of queued keyboard input. The
 circles in Disassembly toggle the same breakpoints as the address list. Run
@@ -1361,7 +1361,8 @@ crosses the breakpoint that just stopped execution once; a later visit stops
 again. Step crosses the current breakpoint and completes one native boundary.
 Breakpoints added at the current PC stop the next Run immediately.
 
-Write watchpoints cover physical RAM `$0000–$7FFF`. They observe completed
+Write watchpoints cover physical RAM (`$0000–$7FFF` with 32 KiB and
+`$0000–$FFFF` with 64 KiB). They observe completed
 stores, including stores that leave the byte unchanged, without another CPU
 bus read. ROM writes, device writes, reads, instruction previews, and host
 snapshot restoration cannot trigger them. A match stops **after the complete
@@ -1372,10 +1373,14 @@ values. It names the instruction address or interrupt source, distinguishing
 interrupt entry from executing an opcode at the interrupted PC. **View writer**
 and **View written RAM** browse the captured addresses without executing.
 
-Both kinds of stop interrupt Run to address, guided checkpoints, and Step
-over/out, cancelling the temporary request. Execution and Debugger show the reason. A failed boundary
+From a watch's History, **Stop on this access** remembers the instruction PC,
+its memory mapping, and the physical RAM byte it wrote. The value can change
+on replay. Removing the watch clears its history and leaves the access stop
+armed. Interrupt entries appear in history and have no instruction to select.
+
+Enabled stops interrupt Run to address, guided checkpoints, and Step over/out. Execution and Debugger show the reason. A failed boundary
 reports its error rather than claiming a successfully completed watchpoint;
-any partial machine effects remain visible. Configure at most 64 addresses in
+any partial machine effects remain visible. Configure at most 64 stops in
 each list. Enable/disable and remove controls work independently of the panel's
 visibility. Preferences are remembered locally, separately from snapshots and
 Apple II debugger settings. Reset, fresh power-on, ROM changes, and successful
@@ -1387,7 +1392,7 @@ selected tab, collapsed state, and deliberately hidden tools.
 instructions and pending interrupt boundaries take one step. **Step out** follows
 the most recently observed call or interrupt frame. Both use the same shared
 policy and controls as the Apple II laboratory, retain the 2,000,000-boundary
-limit, and can be interrupted by breakpoints, watchpoints, Pause, or errors.
+limit, and can be interrupted by debugger stops, Pause, or errors.
 Neither changes the PC or inserts a return.
 
 **Call stack**, initially a tab beside System Stack, lists only observed calls
@@ -1495,11 +1500,18 @@ To try the shared debugger, save a snapshot at `$A07D` before its JSR. **Step
 over** should stop at `$A080`, with S back at `$03D7` and every text cell cleared
 to `$60`. Restore the snapshot, Step into the call, then open **Call stack**:
 its entry is `$A928` and its continuation is `$A080`. **Step out** reaches the
-same complete machine state as Step over. Disable unrelated breakpoints and
-watchpoints for this exercise; either can deliberately stop the run earlier.
+same complete machine state as Step over. Disable unrelated debugger stops for this exercise.
 Add a RAM write watch at `$0400`, turn its stop toggle off, and repeat the call.
 Its History should retain the store at `$A92F` from `$00` to `$60`, even with
 Changes recording paused. The code and RAM links browse `$A92F` and `$0400`.
+
+Choose **Stop on this access** beside that write, remove the original RAM
+watch, restore the `$A07D` snapshot, and press **Run**. Color BASIC's
+`STB ,X+` writes `$60` (a blank) to physical RAM `$0400`. The debugger
+stops at `$A931` with X advanced to `$0401`. Leave the access stop enabled
+and run to `$A344`. The remaining screen-clear stores pass because they
+address other cells. At `$A342`, `STA ,X+` writes `$43` (the C in the
+startup banner) to `$0400` and runs through because it has a different PC.
 
 
 ## Try bitmap graphics
@@ -1636,8 +1648,7 @@ Labels are landmarks, not inferred routine boundaries. Clicking a label browses
 memory without executing; selecting a checkpoint changes only the guide.
 **Run to checkpoint** uses the same bounded execution as Run to address.
 Reaching an address does not establish that the setup was followed.
-Disable unrelated breakpoints and RAM write watchpoints before following the
-seven checkpoints in order; an enabled stop can interrupt the tour earlier.
+Disable unrelated debugger stops before following the seven checkpoints in order.
 
 For the pixel walkthrough, load both ROMs and enter this program one line at a
 time at the BASIC prompt. It deliberately draws only one pixel, so the byte

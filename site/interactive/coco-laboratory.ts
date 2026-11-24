@@ -7,8 +7,10 @@ import { createCocoDiskView } from "./coco-disk-view.js";
 import { createCocoChangeLog } from "./coco-change-log.js";
 import { createChangeLogView } from "./change-log-view.js";
 import { createCocoWatchHistory } from "./coco-watch-history.js";
+import { mappedLocationText } from "./mapped-access-stops.js";
+import { createEventStopList } from "./event-stop-list.js";
 import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
-import { decode6809 } from "./6809-disassembly.js";
+import { decodeCaptured6809 } from "./6809-disassembly.js";
 import { createCallStack } from "./call-stack-view.js";
 import { createDebuggerStepControls } from "./debugger-step-controls.js";
 import { cocoDebugLocation, observeCocoBoundary } from "./coco-debugger.js";
@@ -95,11 +97,13 @@ function mountCoco(root: HTMLElement): void {
     browse(logical);
   }
   const debug = createCocoDebugger(() => session.machine, catalogue);
-  const assembly = (address: number, bytes: readonly number[]) => decode6809(index => bytes[(index - address) & 0xffff], address, catalogue).assembly;
+  const assembly = (address: number, bytes: readonly number[]) => decodeCaptured6809(address, bytes, catalogue).assembly;
   const changeLog = createChangeLogView(root, () => session.machine, createCocoChangeLog,
     instruction => assembly(instruction.address, instruction.bytes))!;
   const watchHistory = createCocoWatchHistory();
+  const stopList = createEventStopList(at("access-stops"), { ...debug.accessStops, storageKey: "dromaios:debugger:coco:access:1" });
   const watchView = createMemoryWatchHistoryView(root, watchHistory, {
+    stopOnAccess: stopList.add, location: mappedLocationText,
     assembly: entry => assembly(entry.caller.address, entry.bytes), storageLabel: () => "RAM",
     browseMemory: browseRam,
     browseCode(location) {
@@ -131,7 +135,8 @@ function mountCoco(root: HTMLElement): void {
       const observed = observeBoundary(), log = changeLog.current();
       const record = log.capture(() => debug.capture(() => session.step(), observed.caller), observed);
       sound.observe();
-      watchHistory.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record));
+      const transfers = watchHistory.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record));
+      debug.observeAccesses(record, observed.caller, transfers);
       return record;
     },
     canStep: () => session.ready && !selecting,

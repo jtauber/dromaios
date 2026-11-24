@@ -41,6 +41,11 @@ function indexedOperand(bytes: readonly (number | undefined)[], registers: reado
   return postbyte & 16 ? `[${operand}]` : operand;
 }
 
+/** Decode bytes captured during execution, even if the code has since been overwritten or remapped. */
+export function decodeCaptured6809(address: number, bytes: readonly number[], catalogue: Catalogue6809): Decoded6809 {
+  return decode6809(index => bytes[(index - address) & 0xffff], address, catalogue);
+}
+
 /** Decode instruction storage only. No register reads, pointer chasing, or execution. */
 export function decode6809(read: (address: number) => number | undefined, address: number, catalogue: Catalogue6809): Decoded6809 {
   checkUnsigned("Disassembly address", address, 0xffff);
