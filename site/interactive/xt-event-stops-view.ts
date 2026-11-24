@@ -1,3 +1,4 @@
+import { createEventStopList } from "./event-stop-list.js";
 import { decodeXtEventStops, describeXtEvent, xtEventStopKey, xtInterruptSources } from "./xt-event-stops.js";
 import type { XtEventCondition, XtEventStop } from "./xt-event-stops.js";
 import { dosReportsErrors, type DosServices } from "./xt-dos-services.js";
@@ -15,7 +16,7 @@ export function createXtEventStopsView(root: HTMLElement, options: {
   const port = at<HTMLInputElement>("port"), value = at<HTMLInputElement>("value"), vector = at<HTMLInputElement>("vector");
   const address = at<HTMLInputElement>("address"), filename = at<HTMLInputElement>("dos-filename");
   const phase = at<HTMLSelectElement>("dos-phase"), service = at<HTMLSelectElement>("dos-service");
-  const status = at("status"), output = at("rows"), key = "dromaios:debugger:xt:events:1";
+  const status = at("status");
   for (const name of xtInterruptSources) source.add(new Option(name.toUpperCase(), name));
   function services(): void {
     const selected = service.value;
@@ -25,36 +26,9 @@ export function createXtEventStopsView(root: HTMLElement, options: {
     service.value = [...service.options].some(option => option.value === selected) ? selected : "";
   }
   phase.onchange = services; services();
-  try { options.set(decodeXtEventStops(localStorage.getItem(key))); }
-  catch { status.textContent = "Browser storage is unavailable; these stops work for this visit."; }
-  function render(): void {
-    output.replaceChildren();
-    const points = options.values();
-    at("count").textContent = ` (${points.filter(point => point.enabled).length}/${points.length})`;
-    for (const point of points) {
-      const row = document.createElement("div"), label = document.createElement("label"), enabled = document.createElement("input"), remove = document.createElement("button");
-      const name = describeXtEvent(point);
-      row.className = "lab-breakpoint-row"; enabled.type = "checkbox"; enabled.checked = point.enabled;
-      enabled.setAttribute("aria-label", `Enable event stop ${name}`);
-      enabled.onchange = () => save(points.map(item => item === point ? { ...point, enabled: enabled.checked } : item));
-      label.append(enabled, name); remove.type = "button"; remove.textContent = "×";
-      remove.setAttribute("aria-label", `Remove event stop ${name}`);
-      remove.onclick = () => save(points.filter(item => item !== point));
-      row.append(label, remove); output.append(row);
-    }
-    if (!points.length) output.textContent = "No event stops.";
-  }
-  function save(points: readonly XtEventStop[]): void {
-    options.set(points);
-    try { localStorage.setItem(key, JSON.stringify(options.values())); status.textContent = ""; }
-    catch { status.textContent = "These stops work for this visit, but could not be saved."; }
-    render(); options.changed();
-  }
-  function add(condition: XtEventCondition): void {
-    const points = options.values(), existing = points.find(point => xtEventStopKey(point) === xtEventStopKey(condition));
-    save(existing ? points.map(point => point === existing ? { ...point, enabled: true } : point)
-      : [...points, { ...condition, enabled: true }]);
-  }
+  const { add } = createEventStopList<XtEventCondition>(root, {
+    ...options, storageKey: "dromaios:debugger:xt:events:1", key: xtEventStopKey, describe: describeXtEvent, decode: decodeXtEventStops,
+  });
   function fields(): void {
     const isPort = kind.value === "input" || kind.value === "output";
     at("dma-fields").hidden = kind.value !== "dma"; address.disabled = kind.value !== "dma";
@@ -77,6 +51,6 @@ export function createXtEventStopsView(root: HTMLElement, options: {
         ...(value.value.trim() && { value: parseMemoryAddress(value.value, 0xff) }) });
     } catch (cause) { status.textContent = (cause as Error).message; }
   };
-  fields(); render();
+  fields();
   return { add };
 }

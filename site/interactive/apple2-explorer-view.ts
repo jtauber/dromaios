@@ -22,6 +22,9 @@ import { createApple2DeviceHistoryView } from "./apple2-device-history-view.js";
 import { createApple2DiskActivityView } from "./apple2-disk-activity-view.js";
 import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
 import { createApple2WatchHistory } from "./apple2-watch-history.js";
+import { createEventStopList } from "./event-stop-list.js";
+import { apple2AccessHit, apple2AccessKey, decodeApple2AccessStops, describeApple2Access, validateApple2AccessStops } from "./apple2-access-stops.js";
+import type { Apple2AccessCondition } from "./apple2-access-stops.js";
 import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
 import { disassemble6502 } from "./apple2-explorer.js";
 import { apple2RamRegions } from "./apple2-inspection.js";
@@ -78,7 +81,15 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     address => navigation.browse("memory", address));
   const diskActivity = createApple2DiskActivityView(root, catalogue.instructions, browseCode, navigation.browseDiskSector);
   const watchHistory = createApple2WatchHistory(catalogue.instructions);
+  const stopPanel = optional("access-stops");
+  let accessStops: ReturnType<typeof decodeApple2AccessStops> = [];
+  const stopList = stopPanel && createEventStopList<Apple2AccessCondition>(stopPanel, {
+    storageKey: "dromaios:debugger:apple2:access:1", key: apple2AccessKey, describe: describeApple2Access, decode: decodeApple2AccessStops,
+    values: () => accessStops, set: points => { accessStops = validateApple2AccessStops(points); },
+  });
   const watchView = createMemoryWatchHistoryView(root, watchHistory, {
+    stopOnAccess: stopList?.add,
+    location: caller => `$${hex(caller.address)} (${caller.space})`,
     assembly: entry => disassemble6502(entry.caller.address, entry.bytes, catalogue.instructions),
     storageLabel: write => apple2RamRegions.find(region => region.part === write.region)!.label,
     browseCode, browseMemory: address => navigation.browse("memory", address),
@@ -131,9 +142,16 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
     observe(record: Cpu6502StepRecord, before: DebugLocation, watches: readonly MemoryWatch[], changes: readonly Apple2MemoryChange[], writes: readonly Apple2MemoryChange[]): void {
       if (reads) reads.observe(machine()!, record, writes);
       devices?.observe(record, before, machine()!.clock.ticks);
-      watchHistory.observe(record, before, watches, writes);
+      const transfers = watchHistory.observe(record, before, watches, writes);
       const after = apple2DebugLocation(machine()!, record.after.pc);
       debuggerState.observe(apple2DebugStep(record, before, after, catalogue.instructions));
+      const access = apple2AccessHit(accessStops, before, transfers);
+      if (access) {
+        const routine = romRoutine(before.address, before.space === "rom", catalogue.routines);
+        const assembly = disassemble6502(before.address, record.instruction.bytes, catalogue.instructions);
+        debuggerState.event(after, `${describeApple2Access({ caller: before, ...access })} = $${hex(access.value, 2)} · ${routine ? routine.name + " · " : ""}${assembly}.`);
+        return;
+      }
       const hit = apple2Watchpoint(watches, record, catalogue.instructions, changes);
       if (hit) debuggerState.watchpoint(after, describeApple2Watchpoint(hit, record.instruction.address));
     },

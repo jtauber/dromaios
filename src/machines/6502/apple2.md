@@ -658,6 +658,15 @@ its character, the keyboard strobe is set, flags reflect BIT, and PC has passed
 the branch. Restore, then repeat those steps; the same results should appear.
 A reload followed by Restore must reproduce the same continuation.
 
+To catch the read on replay, watch `$C000` before stepping. In Watches, open
+its History and choose **Stop on this access** beside the ROM read at `$FD21`.
+Restore the state with A queued and press Run. The debugger pauses at `$FD24`
+after `BIT $C000` reads `$C1`. The stop remembers the instruction mapping,
+read or write direction, and addressed byte. The same instruction at `$FD21`
+in Language Card RAM can read the keyboard without hitting this ROM stop.
+Access stops survive Restore, removing the original watch, and a browser
+reload. Disable or remove them in Watches.
+
 ## Drawing with Applesoft
 
 At the Applesoft prompt, type `NEW` to clear the earlier program, then enter

@@ -77,6 +77,10 @@
       <div data-watch-rows></div>
       <p class="lab-hint">R: data read · W: bus write · Δ: changed RAM, in any bank. Stops happen after the instruction, even with Live or recording off. Fetches do not trigger R. All toggles off: observe without stopping.</p>
       <p class="lab-hint">Words are low byte first; their stops cover either byte. Click a word value to browse it as an address. Values follow current mapping; highlights compare displayed samples. Inspectors never read devices.</p>
+      <section data-access-stops>
+        <h2>Instruction access stops<span data-event-count></span></h2>
+        <div data-event-rows></div><p data-event-status class="lab-hint" role="status"></p>
+      </section>
       {% with watch_history_help='Oldest first. Captured only while an address is watched; instruction fetches excluded. Hidden panels, Live off, and paused Changes recording do not stop capture. Resets, restoration, media changes, and register/RAM edits clear history. Links browse current storage.' %}
         {% include "instruments/watch-history.html" %}
       {% endwith %}
