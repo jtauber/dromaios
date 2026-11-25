@@ -45,6 +45,10 @@ class CocoRomTests(unittest.TestCase):
             lambda r: r["extended"]["walkthroughs"][0].update(id="reset-text"),
             lambda r: r["extended"]["walkthroughs"][0]["steps"][0].update(routine="RESET"),
             lambda r: r["extended"]["walkthroughs"][0]["steps"][0].update(address="9362"),
+            lambda r: r["firmware"]["walkthroughs"][1]["steps"][0]["after"].update(pc="8000"),
+            lambda r: r["firmware"]["walkthroughs"][1]["steps"][0]["after"]["register"].update(value="152"),
+            lambda r: r["firmware"]["walkthroughs"][1]["steps"][1]["after"]["register"].update(value="048"),
+            lambda r: r["firmware"]["walkthroughs"][1]["steps"][2]["after"]["access"].update(value="480"),
         ]
         for index, mutate in enumerate(mutations):
             record = json.loads(json.dumps(self.record)); mutate(record)

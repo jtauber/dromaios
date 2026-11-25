@@ -147,8 +147,10 @@ extra bus reads. Step over/out and Call stack share their tools with Apple II;
 CoCo's version-6 layout adds Call stack beside System Stack without reopening
 other hidden panels.
 
-The CoCo chapter also owns checksum-bound ROM annotations and two laboratory
-walkthroughs. `rom_annotations.py`, `rom-reference.ts`, `rom-guide.ts`, and
+The CoCo chapter also owns checksum-bound ROM annotations and laboratory
+walkthroughs. The keyboard walkthrough follows H through a PIA read, its
+ASCII decode, and the screen store. Its stops match registers and bus transfers
+from the completed instruction. `rom_annotations.py`, `rom-reference.ts`, `rom-guide.ts`, and
 `rom-walkthrough-view.ts` serve both Apple II and CoCo; each machine supplies its
 memory bounds, CPU catalogue, and normal run/browse actions. CoCo comments are
 checked against 6809 instruction shapes at publication time and against actual

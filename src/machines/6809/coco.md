@@ -1527,6 +1527,28 @@ address other cells. At `$A342`, `STA ,X+` writes `$43` (the C in the
 startup banner) to `$0400` and runs through because it has a different PC.
 
 
+### Follow one H from the keyboard to the screen
+
+In **ROM walkthrough**, choose **Color BASIC: one H from keyboard to screen**.
+Start with 32 KiB, Color BASIC only, and an empty cartridge socket. Choose
+**Fresh power-on** and leave the keyboard alone. In Execution, run to `$A220`
+and **Save snapshot**. BASIC has printed `OK` and recorded the idle rows for
+column 0 at `$0152`. It needs that earlier sample to recognize a new press.
+
+Focus the CoCo screen and press **H** once, without Enter. Choose **Run to
+checkpoint** for each stop, using **Next** between stops. Each pause comes
+just after the instruction in the table, so its result is already visible.
+
+| Stop | Instruction | What to look for |
+| --- | --- | --- |
+| Read keyboard row | `$A23A LDA ,U` | Column 0 is selected. H pulls row 1 low, so the PIA returns `$FD` at `$FF00`. The previous sample at `$0152` was `$FF`. |
+| Decode H | `$A201 ORB #$40` | Row 1, column 0 gives key number 8 (row × 8 + column). Setting bit 6 changes B from `$08` to `$48`, ASCII H. |
+| Echo H | `$A342 STA ,X+` | After a second scan confirms the press, BASIC accepts H into the input line. The display routine writes `$48` to `$0460`, the first cell on the fourth row, and advances X to `$0461`. |
+
+To replay any one stop, restore the same snapshot, press **H** once on the
+screen, select the stop, and run to it. A blank cursor write and an idle
+keyboard read both pass through.
+
 ## Try bitmap graphics
 
 Color BASIC lacks Extended BASIC's high-resolution drawing commands, but
@@ -1757,6 +1779,16 @@ previous stop report is cleared.
         "description": "Fills the text screen with blank characters and initializes the cursor pointer."
       },
       {
+        "address": "A1CB",
+        "name": "SCAN_KEYBOARD",
+        "description": "Scans the keyboard matrix column by column and debounces a newly pressed key before returning its character code."
+      },
+      {
+        "address": "A30A",
+        "name": "DISPLAY_CHAR",
+        "description": "Handles control characters and stores printable characters at the text cursor."
+      },
+      {
         "address": "B267",
         "name": "CLOSE_PAREN",
         "description": "Checks the closing parenthesis in a BASIC expression."
@@ -1863,6 +1895,21 @@ previous stop report is cleared.
         "text": "Call CLEAR_TEXT; the return address $A080 is pushed on S."
       },
       {
+        "address": "A201",
+        "bytes": "CA 40",
+        "text": "Set bit 6 of the matrix key number in B. For row 1, column 0, $08 becomes ASCII H ($48)."
+      },
+      {
+        "address": "A23A",
+        "bytes": "A6 C4",
+        "text": "Read the active-low keyboard rows at PIA0 port A. H alone in column 0 gives $FD."
+      },
+      {
+        "address": "A342",
+        "bytes": "A7 80",
+        "text": "Write the character in A to the text cell at X, then advance X to the next cell."
+      },
+      {
         "address": "A928",
         "bytes": "C6 60",
         "text": "Choose the blank character used to clear text RAM."
@@ -1911,6 +1958,37 @@ previous stop report is cleared.
             "prepare": "Run to this checkpoint.",
             "observe": "All text bytes $0400\u2013$05FF are $60. Step pulls $A080 from S and resumes the caller.",
             "routine": "CLEAR_TEXT"
+          }
+        ]
+      },
+      {
+        "id": "keyboard-echo",
+        "title": "Color BASIC: one H from keyboard to screen",
+        "setup": "Select 32 KiB, use Color BASIC only, and eject any cartridge. Fresh power-on with no keys queued. In Execution, run to A220 and Save snapshot. Click the CoCo screen and press H once without Enter. Run the stops in order, or restore the snapshot and press H again to replay any one stop.",
+        "steps": [
+          {
+            "title": "Read keyboard row",
+            "address": "A23A",
+            "after": { "pc": "A23C", "register": { "name": "x", "value": "0152" }, "access": { "kind": "read", "address": "FF00", "value": "FD" } },
+            "prepare": "Run to this checkpoint with H queued. BASIC selects column 0 by driving $FE on PIA0 port B.",
+            "observe": "LDA ,U read $FD from $FF00 into A. Row 1 is low. X points to the previous sample at $0152, where BASIC still remembers $FF.",
+            "routine": "SCAN_KEYBOARD"
+          },
+          {
+            "title": "Decode H",
+            "address": "A201",
+            "after": { "pc": "A203", "register": { "name": "b", "value": "48" } },
+            "prepare": "Continue with the same keypress. BASIC compares the two row samples and finds the newly pressed key at row 1, column 0.",
+            "observe": "ORB #$40 changed B from matrix index $08 to character code $48. BASIC will sample the rows again to confirm the press.",
+            "routine": "SCAN_KEYBOARD"
+          },
+          {
+            "title": "Echo H",
+            "address": "A342",
+            "after": { "pc": "A344", "access": { "kind": "write", "address": "0460", "value": "48" } },
+            "prepare": "Continue from the decode. BASIC confirms the press, appends H to the input line, and calls the display routine.",
+            "observe": "STA ,X+ wrote $48 over the blank at $0460. H is visible below OK. X now points to $0461.",
+            "routine": "DISPLAY_CHAR"
           }
         ]
       }

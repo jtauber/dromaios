@@ -112,9 +112,9 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
       policy.over(location(), decoded?.complete ? decoded.shape?.stack?.flow : undefined);
     },
     out(): void { hit = undefined; policy.out(location()); },
-    runTo(address: number, space?: "rom"): void {
+    runTo(address: number, space?: "rom", when?: () => boolean): void {
       if (!Number.isInteger(address) || address < 0 || address > 0xffff) throw new RangeError("Use a 16-bit target address.");
-      hit = undefined; policy.runTo(location(), address, space);
+      hit = undefined; policy.runTo(location(), address, space, { when });
     },
     pause(detail?: string): void { policy.pause(location(), detail); },
     beforeStep(caller = location()): boolean { return policy.beforeStep(caller); },

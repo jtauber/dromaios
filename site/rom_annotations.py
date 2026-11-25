@@ -8,7 +8,7 @@ def within(ranges, address, end=None):
 
 
 def validate_rom_annotations(record, firmware, *, rom_ranges, ram_end, hardware_ranges, instruction_bytes,
-                             address_digits=4, execution_address=None):
+                             address_digits=4, execution_address=None, validate_after=None):
     address_pattern = rf"[0-9A-F]{{{address_digits}}}"
     if not isinstance(record, dict) or set(record) != {"sha256", "regions", "routines", "labels", "notes", "walkthroughs"} or record["sha256"] != firmware["sha256"]:
         raise ValueError("ROM annotations must identify the machine's declared firmware.")
@@ -106,6 +106,9 @@ def validate_rom_annotations(record, firmware, *, rom_ranges, ram_end, hardware_
             fields = {"title", "address", "prepare", "observe", "routine"}
             if execution_address is not None:
                 fields.add("execution")
+            if validate_after and isinstance(step, dict) and "after" in step:
+                validate_after(step["after"], rom_address)
+                step = {key: value for key, value in step.items() if key != "after"}
             if (not isinstance(step, dict) or set(step) != fields
                     or not all(isinstance(value, str) and value.strip() for value in step.values())
                     or not rom_address(step["address"]) or step["routine"] not in routine_names

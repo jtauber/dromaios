@@ -18,8 +18,9 @@ import { createDebuggerStepControls } from "./debugger-step-controls.js";
 import { cocoDebugLocation, observeCocoBoundary } from "./coco-debugger.js";
 import { romImages } from "../../src/machines/generated/6809/coco-disk.js";
 import { createRomWalkthrough } from "./rom-walkthrough-view.js";
-import { createCocoRomAnnotations, observeCocoRoms, cocoWalkthroughAvailable } from "./coco-rom-guide.js";
-import type { CocoRomGuides } from "./coco-rom-guide.js";
+import { createCocoRomAnnotations, observeCocoRoms, cocoWalkthroughAvailable, cocoCheckpointReached } from "./coco-rom-guide.js";
+import type { CocoCheckpoint, CocoRomGuides } from "./coco-rom-guide.js";
+import { romCheckpointPosition } from "./rom-guide.js";
 import { createCocoSession } from "./coco-session.js";
 import { cocoScreenKey, cocoTextInput } from "./coco-input.js";
 import { cocoHex, readCocoStorage } from "./coco-inspection.js";
@@ -137,6 +138,7 @@ function mountCoco(root: HTMLElement): void {
     // Every host reset/replacement calls changedMachine(), which clears execution records.
     return observeCocoBoundary(session.machine, execution.records.at(-1)?.after);
   }
+  let lastCaller: DebugLocation | undefined;
   const execution = createExecutionController({
     step() {
       const observed = observeBoundary(), log = changeLog.current();
@@ -144,6 +146,7 @@ function mountCoco(root: HTMLElement): void {
       sound.observe();
       const transfers = watchHistory.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record), debug.readWatchpoints);
       debug.observeAccesses(record, observed.caller, transfers);
+      lastCaller = observed.caller;
       return record;
     },
     canStep: () => session.ready && !selecting,
@@ -177,22 +180,30 @@ function mountCoco(root: HTMLElement): void {
     session.configureMemory(button.dataset.cocoRam === "64" ? 64 : 32); changedMachine();
     try { localStorage.setItem(memoryKey, String(session.memorySize)); } catch { /* Keep this visit's choice. */ }
   }));
+  const reached = (step: CocoCheckpoint) => cocoCheckpointReached(step, lastCaller, execution.records.at(-1));
   const walkthrough = createRomWalkthrough(root, {
     routines: Object.values(guides).flatMap(guide => guide.routines),
     walkthroughs: Object.values(guides).flatMap(guide => guide.walkthroughs),
   }, {
     available: tour => cocoWalkthroughAvailable(tour, guides, observeCocoRoms(session.machine)),
-    runTo: address => runTo(parseInt(address, 16), "rom"),
+    runTo: (address, step: CocoCheckpoint) => runTo(parseInt(step.after?.pc ?? address, 16), "rom",
+      step.after ? () => reached(step) : undefined),
+    position(step: CocoCheckpoint, location, available, running) {
+      if (!step.after || !available || !location) return romCheckpointPosition(step, location, available, running);
+      if (running) return `Waiting for ${step.title} at $${step.address} in ROM.`;
+      return reached(step) ? `${step.title} observed at $${step.address} in ROM. PC is now $${step.after.pc}.`
+        : `Paused at $${cocoHex(location.address)} (${location.space}). Waiting for ${step.title} at $${step.address} in ROM.`;
+    },
     browse: address => { code.browse(address); workspace.show("code"); },
     reference: address => {
       const entry = annotations.reference.at(address)!;
       at("coco-routine-reference").textContent = `$${entry.address} · ${entry.name}: ${entry.description}`;
     },
   })!;
-  function runTo(address: number, space?: "rom"): void {
+  function runTo(address: number, space?: "rom", when?: () => boolean): void {
     if (!session.ready || selecting || execution.running || execution.error !== undefined) return;
     targetInput.value = cocoHex(address); targetInput.setCustomValidity("");
-    debug.runTo(address, space); message.textContent = ""; execution.run();
+    debug.runTo(address, space, when); message.textContent = ""; execution.run();
   }
 
   function shouldUpdate(id: string): boolean {

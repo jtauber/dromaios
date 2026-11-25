@@ -2,17 +2,18 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { createCocoRomAnnotations, observeCocoRoms, cocoWalkthroughAvailable } from "../../site/interactive/coco-rom-guide.js";
-import type { CocoRomGuides } from "../../site/interactive/coco-rom-guide.js";
+import { createCocoRomAnnotations, observeCocoRoms, cocoWalkthroughAvailable, cocoCheckpointReached } from "../../site/interactive/coco-rom-guide.js";
+import type { CocoCheckpoint, CocoRomGuides } from "../../site/interactive/coco-rom-guide.js";
 import { decode6809, address6809Operand } from "../../site/interactive/6809-disassembly.js";
 import { code6809Rows } from "../../site/interactive/6809-code.js";
-import { catalogue6809 as catalogue } from "./6809-inspection-fixture.js";
+import { catalogue6809 as catalogue, state6809 } from "./6809-inspection-fixture.js";
+import { preview6809 } from "../../site/interactive/6809-instruction-preview.js";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
 import { readCocoStorage, cocoScreenText } from "../../site/interactive/coco-inspection.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { previewCocoInstruction } from "../../site/interactive/coco-instruction-preview.js";
 import { createExecutionTarget } from "../../site/interactive/execution-target.js";
-import { createCocoDebugger } from "../../site/interactive/coco-debugger.js";
+import { createCocoDebugger, cocoDebugLocation } from "../../site/interactive/coco-debugger.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/6809/coco.js";
 import { renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
@@ -70,6 +71,75 @@ test("mapping observations and guide selection never read devices or relabel a h
   const snapshot = observeCocoRoms(machine);
   machine.sam.write(0x1f, 0);
   assert.equal(snapshot.firmware, false); assert.equal(observeCocoRoms(machine).mapped(0xa027), false);
+});
+
+test("the keyboard row stop distinguishes the captured data read from a fetch or a debounce read", () => {
+  const step: CocoCheckpoint = guides.firmware.walkthroughs.find(tour => tour.id === "keyboard-echo")!.steps[0]!;
+  const bytes = new Uint8Array(65536);
+  bytes.set([0xa6, 0xc4], 0xa23a); bytes[0xff00] = 0xfd;
+  const sample = (x: number) => preview6809(state6809({ pc: 0xa23a, u: 0xff00, x }), address => bytes[address], catalogue, () => "ram").record;
+  const caller = { address: 0xa23a, space: "rom" }, read = sample(0x152);
+  assert.ok(cocoCheckpointReached(step, caller, read));
+  assert.ok(!cocoCheckpointReached(step, caller, sample(0)));
+  assert.ok(!cocoCheckpointReached(step, { ...caller, space: "upper RAM" }, read));
+  assert.ok(!cocoCheckpointReached({ ...step, after: { ...step.after!, access: { kind: "read", address: "A23A", value: "A6" } } }, caller, read));
+  bytes[0xff00] = 0xff;
+  assert.ok(!cocoCheckpointReached(step, caller, sample(0x152)));
+});
+
+test("one H reaches the row read, ASCII decode and echo, together and separately from the idle checkpoint", {
+  skip: !process.env.COCO_ROM && "Set COCO_ROM to Color BASIC 1.3.",
+}, async () => {
+  const firmware = await RomImage.verify(readFileSync(process.env.COCO_ROM!), romImages.firmware,
+    async bytes => createHash("sha256").update(bytes).digest("hex"));
+  const session = createCocoSession(firmware);
+  for (let i = 0; session.machine.cpu.snapshot().pc !== 0xa220; i++) { assert.ok(i < 300_000); session.step(); }
+  const idle = session.snapshot();
+  assert.equal(session.machine.ram.read(0x152), 0xff);
+  assert.match(cocoScreenText(session.machine), /OK$/);
+  const tour = guides.firmware.walkthroughs.find(tour => tour.id === "keyboard-echo")!;
+  const stops: readonly CocoCheckpoint[] = tour.steps;
+  assert.deepEqual(stops.map(step => step.title), ["Read keyboard row", "Decode H", "Echo H"]);
+  const debug = createCocoDebugger(() => session.machine, catalogue);
+  let last: ReturnType<typeof session.step> | undefined, caller: ReturnType<typeof cocoDebugLocation> | undefined;
+  function replay(key: string): void {
+    session.restore(idle); debug.reset(); last = caller = undefined;
+    session.send(cocoTextInput(key));
+  }
+  function advance() {
+    caller = cocoDebugLocation(session.machine);
+    last = debug.capture(() => session.step(), caller);
+    return last;
+  }
+  function runTo(step: CocoCheckpoint) {
+    debug.runTo(parseInt(step.after!.pc, 16), "rom", () => cocoCheckpointReached(step, caller, last));
+    for (let i = 0; !debug.beforeStep(); i++) { assert.ok(i < 8_000, step.title); advance(); }
+    assert.equal(debug.stop?.kind, "target");
+    assert.equal(cocoCheckpointReached(step, { address: last!.before.pc, space: "ram" }, last), false);
+    return last!;
+  }
+  replay("H");
+  const read = runTo(stops[0]!);
+  assert.deepEqual([read.before.pc, read.after.pc, read.after.x, read.after.a], [0xa23a, 0xa23c, 0x0152, 0xfd]);
+  assert.deepEqual(read.accesses.slice(2), [{ kind: "read", address: 0xff00, value: 0xfd }]);
+  const decode = runTo(stops[1]!);
+  assert.deepEqual([decode.before.pc, decode.instruction?.bytes, decode.before.b, decode.after.b], [0xa201, [0xca, 0x40], 8, 0x48]);
+  const echo = runTo(stops[2]!);
+  assert.deepEqual([echo.before.pc, echo.before.x, echo.after.x], [0xa342, 0x460, 0x461]);
+  assert.deepEqual(echo.accesses.slice(2), [{ kind: "write", address: 0x460, value: 0x48 }]);
+  assert.match(cocoScreenText(session.machine), /OK\nH$/);
+  for (const [index, expected] of [read, decode, echo].entries()) {
+    replay("H"); assert.deepEqual(runTo(stops[index]!), expected);
+  }
+  // I pulls down the same row in the next column and uses the same decode and echo instructions.
+  replay("I");
+  for (let i = 0; i < 8_000; i++) {
+    const record = advance();
+    assert.ok(stops.every(step => !cocoCheckpointReached(step, caller, record)));
+    if (record.before.pc === 0xa342) break;
+  }
+  assert.match(cocoScreenText(session.machine), /OK\nI$/);
+  debug.dispose();
 });
 
 const needsRoms = !(process.env.COCO_ROM && process.env.COCO_EXTENDED_ROM) && "Set COCO_ROM and COCO_EXTENDED_ROM for the guided real-ROM checks.";

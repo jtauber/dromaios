@@ -1,13 +1,38 @@
 import { cocoMemorySupported } from "../../src/machines/6809/coco/memory.js";
 import type { Coco } from "../../src/machines/6809/coco/runtime.js";
 import { createRomNotes } from "./rom-guide.js";
-import type { RomGuide, RomWalkthrough } from "./rom-guide.js";
+import type { RomCheckpoint, RomGuide, RomWalkthrough } from "./rom-guide.js";
+import type { Boundary6809 } from "./6809-instruction-preview.js";
+import type { DebugLocation } from "./instruction-debugger.js";
+import { dataReads6809 } from "./6809-encoding.js";
 import { createRomReference } from "./rom-reference.js";
 import type { MemoryLabel } from "./rom-reference.js";
 import type { Decoded6809 } from "./6809-disassembly.js";
 import { address6809Operand } from "./6809-disassembly.js";
 
 export type CocoRomGuides = Readonly<Record<"firmware" | "extended", RomGuide>>;
+
+export interface CocoCheckpoint extends RomCheckpoint {
+  readonly after?: {
+    readonly pc: string;
+    readonly register?: { readonly name: "a" | "b" | "dp" | "d" | "x" | "y" | "u" | "s"; readonly value: string };
+    readonly access?: { readonly kind: "read" | "write"; readonly address: string; readonly value: string };
+  };
+}
+
+/** Match a completed ROM instruction using its captured registers and bus activity. */
+export function cocoCheckpointReached(step: CocoCheckpoint, caller?: DebugLocation, record?: Boundary6809): boolean {
+  const result = step.after;
+  if (!result || caller?.space !== "rom" || record?.outcome !== "executed"
+      || record.instruction?.address !== parseInt(step.address, 16) || record.after.pc !== parseInt(result.pc, 16)) return false;
+  const register = result.register;
+  if (register && record.after[register.name] !== parseInt(register.value, 16)) return false;
+  const access = result.access;
+  if (!access) return true;
+  const transfers = access.kind === "read" ? dataReads6809(record) : record.accesses;
+  return transfers.some(item => item.kind === access.kind && item.address === parseInt(access.address, 16)
+    && item.value === parseInt(access.value, 16));
+}
 
 /** Exact ROM identities are enforced at loading; capture mapping with the inspected bytes. */
 export function observeCocoRoms(machine: Coco) {
