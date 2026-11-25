@@ -1,3 +1,5 @@
+import type { MemoryAccess } from "../../src/components/cpus/memory-access.js";
+import type { Boundary6809 } from "./6809-instruction-preview.js";
 import type { Catalogue6809 } from "./6809-catalogue.js";
 import type { InstructionShape } from "./instruction-shape.js";
 
@@ -24,4 +26,13 @@ export function captured6809Shape(bytes: readonly number[], catalogue: Catalogue
   if (!shape?.supported || bytes.length < shape.length) return undefined;
   for (let index = 0; index < shape.length; index++) if (bytes[index] === undefined) return undefined;
   return shape;
+}
+
+export type DataRead6809 = MemoryAccess & { readonly kind: "read" };
+
+/** The 6809 fetches the complete encoding before data transfers. An interrupt entry fetches no instruction bytes. */
+export function dataReads6809(record: Boundary6809): readonly DataRead6809[] {
+  if (record.outcome !== "executed" && record.outcome !== "accepted") return [];
+  const fetches = record.instruction?.bytes.length ?? 0;
+  return record.accesses.filter((access, index): access is DataRead6809 => index >= fetches && access.kind === "read");
 }

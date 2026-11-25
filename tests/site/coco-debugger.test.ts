@@ -43,6 +43,7 @@ test("RAM watchpoints stop after unchanged stores and after every byte of a mult
   const p = fixture([0xb7, 0x12, 0x10, 0xb7, 0x12, 0x10, 0xfd, 0x30, 0, 0x12]);
   p.debug.setWatchpoints([{ address: 0x1210, enabled: true }]); p.run();
   assert.equal(p.execution.steps, 1); assert.equal(p.machine.cpu.snapshot().pc, 0x2003);
+  assert.equal(p.debug.hit?.kind, "write");
   assert.equal(p.debug.hit?.address, 0x1210); assert.equal(p.debug.hit?.before, 0); assert.equal(p.debug.hit?.after, 0x20);
   assert.match(p.debug.stop!.detail!, /Instruction \$2000 wrote RAM \$1210: \$00 → \$20/);
   p.run(); assert.equal(p.execution.steps, 2);
@@ -165,7 +166,7 @@ test("64 KiB watchpoints use physical RAM while instruction locations follow P1 
   assert.deepEqual(machine.snapshot(), before, "preview uses the banked map without writing live RAM");
   assert.ok(preview);
   debug.run(); const record = debug.capture(() => stepCoco(machine));
-  assert.equal(debug.hit?.address, 0x9234); assert.equal(debug.hit?.after, 42);
+  assert.equal(debug.hit?.kind, "write"); assert.equal(debug.hit?.address, 0x9234); assert.equal(debug.hit?.after, 42);
   assert.equal(machine.ram.read(0x1234), 0); assert.equal(debug.stop?.kind, "watchpoint");
   machine.sam.write(0x1f, 0);
   assert.deepEqual(cocoDebugLocation(machine, 0xa000), { address: 0xa000, space: "ram" });

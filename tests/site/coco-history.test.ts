@@ -20,7 +20,7 @@ function fixture(bytes: readonly number[], capacity = 500) {
     const observed = observeCocoBoundary(machine, previous?.after);
     const record = log.capture(() => debug.capture(() => stepCoco(machine), observed.caller), observed);
     previous = record;
-    const transfers = history.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record));
+    const transfers = history.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record), debug.readWatchpoints);
     debug.observeAccesses(record, observed.caller, transfers); return record;
   };
   return { machine, log, history, debug, step };
@@ -158,11 +158,11 @@ test("an instruction access stop ignores the same store from another PC and matc
   const p = fixture([0xc6, 0x60, 0xf7, 4, 0, 0xf7, 4, 0]);
   const point = { caller: { address: 0x2005, space: "ram" }, kind: "write" as const, address: 0x400, enabled: true };
   p.debug.accessStops.set([point]); p.log.recording = false;
-  assert.deepEqual(p.debug.accessStops.decode(JSON.stringify([{ ...point, kind: "read" }])), []);
+  assert.deepEqual(p.debug.accessStops.decode(JSON.stringify([{ ...point, kind: "fetch" }])), []);
   p.step(); p.step();
   assert.equal(p.machine.ram.read(0x400), 0x60); assert.equal(p.debug.stop?.kind, undefined);
   p.step();
-  assert.equal(p.debug.hit?.caller.address, 0x2005); assert.equal(p.debug.hit?.before, 0x60); assert.equal(p.debug.hit?.after, 0x60);
+  assert.equal(p.debug.hit?.kind, "write"); assert.equal(p.debug.hit?.caller.address, 0x2005); assert.equal(p.debug.hit?.before, 0x60); assert.equal(p.debug.hit?.after, 0x60);
   assert.equal(p.debug.stop?.kind, "event");
 });
 
@@ -175,4 +175,46 @@ test("partial failures retain completed RAM effects, while reset and disposal di
   p.machine.ram.write(0x2100, 0x12); const record = p.log.capture(() => stepCoco(p.machine));
   p.log.reset(); assert.deepEqual(p.log.entries(), []); assert.deepEqual(p.log.memoryWrites(record), []);
   p.log.dispose(); p.log.capture(() => stepCoco(p.machine)); assert.deepEqual(p.log.entries(), []);
+});
+
+test("interrupt vector reads retain their source and cannot trip an instruction-qualified stop", () => {
+  const p = fixture([0x12]);
+  const watch = { address: 0xfff6, enabled: false };
+  p.debug.setReadWatchpoints([watch]);
+  p.debug.accessStops.set([{ caller: { address: 0x2000, space: "ram" }, address: watch.address, kind: "read", enabled: true }]);
+  const state = p.machine.cpu.snapshot();
+  p.machine.cpu = new Cpu6809(p.machine.memory, { ...state, flags: { ...state.flags, f: false } });
+  p.machine.pias.write(0x21, 5); p.machine.pias.setCarrierDetect(false);
+  const record = p.step();
+  assert.equal(record.outcome, "accepted"); assert.equal(p.debug.stop, undefined);
+  const [entry] = p.history.reads.entries(watch);
+  assert.ok(entry); assert.equal(entry.event, "FIRQ · accepted"); assert.deepEqual(entry.bytes, []);
+  assert.equal(entry.value, record.accesses.find(access => access.address === watch.address)!.value);
+});
+
+test("read history separates prefix and operand fetches from a data read of the same byte, even with recording off", () => {
+  const p = fixture([0x10, 0x8e, 0x20, 0x04, 0xa6, 0x84]); // LDY #$2004; LDA ,X
+  p.machine.cpu = new Cpu6809(p.machine.memory, { ...p.machine.cpu.snapshot(), x: 0x2004 });
+  p.log.recording = false;
+  const watch = { address: 0x2004, enabled: false };
+  const code = Array.from({ length: 6 }, (_, i) => ({ address: 0x2000 + i, enabled: false }));
+  p.debug.setReadWatchpoints(code); p.debug.setWatchpoints([watch]);
+  p.step(); p.step();
+  assert.equal(p.debug.stop, undefined);
+  for (const part of code) {
+    assert.deepEqual(p.history.reads.entries(part).map(e => [e.kind, e.caller.address, e.value]),
+      part.address === watch.address ? [["read", 0x2004, 0xa6]] : []);
+  }
+  assert.deepEqual(p.history.entries(watch), []);
+});
+
+test("read watchpoints stop on an indexed indirect pointer byte and complete the load before pausing", () => {
+  const p = fixture([0xa6, 0x9f, 0x30, 0]); // LDA [$3000]
+  p.machine.ram.write(0x3000, 0x12); p.machine.ram.write(0x3001, 0x34); p.machine.ram.write(0x1234, 0x55);
+  const addresses = [0x1234, 0x3001, 0x3000].map(address => ({ address, enabled: true }));
+  p.debug.setReadWatchpoints(addresses); p.debug.run();
+  p.step();
+  assert.equal(p.debug.stop?.kind, "watchpoint"); assert.equal(p.debug.hit?.address, 0x3000);
+  assert.equal(p.machine.cpu.snapshot().a, 0x55);
+  assert.deepEqual(addresses.map(watch => p.history.reads.entries(watch)[0]?.value), [0x55, 0x34, 0x12]);
 });

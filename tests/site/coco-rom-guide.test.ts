@@ -142,6 +142,7 @@ test("the chapter's PSET checkpoints reach the declared states and write exactly
       let count = 0;
       while (!debug.beforeStep()) { assert.ok(count++ < 100_000); debug.capture(() => resumed.step()); }
       assert.equal(debug.stop?.kind, "watchpoint");
+      assert.equal(debug.hit?.kind, "write");
       assert.deepEqual([debug.hit?.record.instruction?.address, debug.hit?.address, debug.hit?.before, debug.hit?.after], [0x9386, 0x1210, 0, 0x20]);
       assert.deepEqual(resumed.snapshot(), session.snapshot());
       resumed.restore(saved); debug.reset(); debug.step();

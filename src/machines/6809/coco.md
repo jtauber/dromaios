@@ -1353,7 +1353,7 @@ of window focus cancel the target. An error or an unserviceable wait also ends
 the request. A matching PC is not a promise that an ordinary instruction will
 run next: Instruction still explains any pending interrupt or wait boundary.
 
-**Debugger** provides PC breakpoints, RAM write watchpoints, and instruction access stops.
+**Debugger** provides PC breakpoints, CPU data read watchpoints, RAM write watchpoints, and instruction access stops.
 Breakpoints cover `$0000–$FFFF` and stop before the next CPU boundary, including
 before interrupt arbitration or consumption of queued keyboard input. The
 circles in Disassembly toggle the same breakpoints as the address list. Run
@@ -1373,8 +1373,13 @@ values. It names the instruction address or interrupt source, distinguishing
 interrupt entry from executing an opcode at the interrupted PC. **View writer**
 and **View written RAM** browse the captured addresses without executing.
 
+Read watchpoints use the 6809's logical address. History shows the byte returned
+by RAM, ROM, or a device on the original bus read. Indexed-indirect pointer
+reads, stack pulls, and interrupt vector reads count. Opcode, postbyte, and
+operand fetches are excluded. A disabled read watch still records reads.
+
 From a watch's History, **Stop on this access** remembers the instruction PC,
-its memory mapping, and the physical RAM byte it wrote. The value can change
+its memory mapping, the direction, and the addressed byte. The value can change
 on replay. Removing the watch clears its history and leaves the access stop
 armed. Interrupt entries appear in history and have no instruction to select.
 
@@ -1490,6 +1495,14 @@ or locations shared by every BASIC version.
    rows. With no keys queued or held, A is `$FF`. The PIAs panel shows the
    resolved inputs; inspecting it did not itself perform the read. Resume with
    Run and type `PRINT 2+3` followed by Enter to finish at BASIC's `5` and `OK`.
+
+To replay the keyboard read, run to `$A23A` with no queued keys and save a
+snapshot. Add a **CPU data read watchpoint** for `$FF00`, then Step. Its
+History shows `LDA ,U` reading `$FF`. Choose **Stop on this access**, remove
+the read watch, restore the snapshot, and Run. Execution pauses at `$A23C`
+with A equal to `$FF`. Restore once more, type **H** on the CoCo screen
+while paused, then Run. Column 0 is selected (`$FE` on port B). H grounds
+row 1, so the same instruction reads `$FD` into A.
 
 The [walkthrough test](../../../tests/site/coco-walkthrough.test.ts) follows
 these stops through the real ROM and independently checks the pointers, return

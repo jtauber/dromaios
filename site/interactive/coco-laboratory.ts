@@ -1,3 +1,5 @@
+import type { DebugLocation } from "./instruction-debugger.js";
+import type { WatchBoundary } from "./memory-watch-history.js";
 import { cocoMemorySupported, cocoRamAddress } from "../../src/machines/6809/coco/memory.js";
 import { createCocoCartridgeView } from "./coco-cartridge-view.js";
 import { createMachineSound } from "./machine-sound-view.js";
@@ -102,21 +104,26 @@ function mountCoco(root: HTMLElement): void {
     instruction => assembly(instruction.address, instruction.bytes))!;
   const watchHistory = createCocoWatchHistory();
   const stopList = createEventStopList(at("access-stops"), { ...debug.accessStops, storageKey: "dromaios:debugger:coco:access:1" });
-  const watchView = createMemoryWatchHistoryView(root, watchHistory, {
+  const historyOptions = {
     stopOnAccess: stopList.add, location: mappedLocationText,
-    assembly: entry => assembly(entry.caller.address, entry.bytes), storageLabel: () => "RAM",
-    browseMemory: browseRam,
-    browseCode(location) {
+    assembly: (entry: WatchBoundary) => assembly(entry.caller.address, entry.bytes), storageLabel: () => "RAM",
+    browseCode(location: DebugLocation) {
       if (cocoDebugLocation(session.machine, location.address).space !== location.space) {
         return `Cannot browse $${cocoHex(location.address)}: its observed ${location.space} mapping is no longer visible.`;
       }
       code.browse(location.address); workspace.show("code");
     },
-  })!;
+  };
+  const watchView = createMemoryWatchHistoryView(at("coco-watchpoints"), watchHistory, { ...historyOptions, browseMemory: browseRam })!;
+  const readView = createMemoryWatchHistoryView(at("coco-read-watches"), watchHistory.reads, { ...historyOptions, browseMemory: browse })!;
   const debugView = createCocoDebuggerView(root, debug, {
-    changed: () => code.refreshBreakpoints(), memory: browseRam,
+    changed: () => code.refreshBreakpoints(), memory: browseRam, logicalMemory: browse,
+    readHistory: address => readView.select({ address }),
     history: address => watchView.select({ address }),
-    watchesChanged: () => { watchHistory.configure(debug.watchpoints); watchView.refresh(); },
+    watchesChanged: () => {
+      watchHistory.configure(debug.watchpoints); watchView.refresh();
+      watchHistory.reads.configure(debug.readWatchpoints); readView.refresh();
+    },
     code: address => { code.browse(address); workspace.show("code"); },
   });
   const code = create6809CodeView(at("coco-code"), catalogue, { address: () => inspectors.memory.address, browse }, debugView);
@@ -135,7 +142,7 @@ function mountCoco(root: HTMLElement): void {
       const observed = observeBoundary(), log = changeLog.current();
       const record = log.capture(() => debug.capture(() => session.step(), observed.caller), observed);
       sound.observe();
-      const transfers = watchHistory.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record));
+      const transfers = watchHistory.observe(record, observed.caller, debug.watchpoints, log.memoryWrites(record), debug.readWatchpoints);
       debug.observeAccesses(record, observed.caller, transfers);
       return record;
     },
@@ -230,7 +237,7 @@ function mountCoco(root: HTMLElement): void {
     debugView.refresh(running);
     intervals.refresh({ running, unavailable: selecting, stop: execution.error ? "error" : debug.stop?.kind });
     if (shouldUpdate("log")) changeLog.refresh();
-    if (shouldUpdate("debugger")) watchView.refresh();
+    if (shouldUpdate("debugger")) { watchView.refresh(); readView.refresh(); }
     stepControls(step.disabled, debug.canStepOut);
     if (shouldUpdate("calls")) calls?.refresh(debug.frames, debug.trackingNote, address => cocoDebugLocation(session.machine, address));
     const record = execution.records.at(-1);

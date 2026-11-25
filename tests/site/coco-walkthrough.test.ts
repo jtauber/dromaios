@@ -92,3 +92,44 @@ test("a stop armed from Color BASIC's screen-clear history survives restoring th
   assert.equal(session.machine.ram.read(0x400), 0x43);
   log.dispose(); debug.dispose();
 });
+
+test("replaying Color BASIC's keyboard read samples the PIA once and catches both idle and pressed rows", {
+  skip: !process.env.COCO_ROM && "Set COCO_ROM to the selected Color BASIC 1.3 image.",
+}, async () => {
+  const firmware = await RomImage.verify(readFileSync(process.env.COCO_ROM!), romImages.firmware,
+    async bytes => createHash("sha256").update(bytes).digest("hex"));
+  const session = createCocoSession(firmware), debug = createCocoDebugger(() => session.machine, catalogue6809);
+  for (let limit = 500_000; session.machine.cpu.snapshot().pc !== 0xa23a; limit--) {
+    assert.ok(limit > 0, "Boot must reach the keyboard scan"); session.step();
+  }
+  const checkpoint = session.snapshot(), history = createCocoWatchHistory(), watch = { address: 0xff00, enabled: true };
+  assert.equal(checkpoint.hardware.pias.pia0.orb, 0xfe);
+  function sample() {
+    const { machine } = session, before = observeCocoBoundary(machine);
+    let samples = 0;
+    const read = machine.pias.read.bind(machine.pias);
+    machine.pias.read = offset => { if (offset === 0) samples++; return read(offset); };
+    const record = debug.capture(() => session.step(), before.caller);
+    history.observe(record, before.caller, [], [], debug.readWatchpoints);
+    assert.equal(samples, 1);
+    assert.equal(record.after.pc, 0xa23c);
+    return record.after.a;
+  }
+  debug.setReadWatchpoints([watch]); assert.equal(sample(), 0xff);
+  assert.equal(debug.stop?.kind, "watchpoint");
+  const [entry] = history.reads.entries(watch);
+  assert.ok(entry); assert.deepEqual(entry.caller, { space: "rom", address: 0xa23a });
+  assert.deepEqual([entry.kind, entry.address, entry.value], ["read", 0xff00, 0xff]);
+  debug.accessStops.set([{ ...entry, enabled: true }]); debug.setReadWatchpoints([]);
+  for (const key of [undefined, "H"] as const) {
+    session.restore(checkpoint); history.reset(); debug.reset();
+    if (key) session.send([[key]]);
+    debug.run();
+    const value = sample();
+    assert.equal(value, key ? 0xfd : 0xff); assert.equal(debug.stop?.kind, "event");
+    assert.match(debug.stop?.detail ?? "", key ? /READ \$FF00 = \$FD · LDA ,U/ : /READ \$FF00 = \$FF · LDA ,U/);
+    assert.equal(debug.hit?.kind, "read"); assert.equal(debug.hit?.address, 0xff00);
+    assert.deepEqual(history.reads.entries(watch), []);
+  }
+  debug.dispose();
+});

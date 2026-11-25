@@ -136,19 +136,25 @@
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="debugger" data-panel-title="Debugger" data-panel-live="true">
       <p class="basic-readout" data-debugger-status role="status"></p>
       <div class="basic-controls" data-watchpoint-navigation hidden><button type="button" data-watchpoint-code disabled>View writer</button><button type="button" data-watchpoint-memory disabled>View written RAM</button></div>
-      {% for kind, title, maximum, example in [('breakpoint', 'Breakpoints', 'FFFF', '9386'), ('watchpoint', 'RAM write watchpoints', 'FFFF', '1210')] %}
-      <section data-coco-{{ kind }}s>
+      {% for section, title, example, action in [('breakpoints', 'Breakpoints', '9386', 'Add breakpoint'), ('watchpoints', 'RAM write watchpoints', '1210', 'Add watchpoint'), ('read-watches', 'CPU data read watchpoints', 'FF00', 'Add read watch')] %}
+      <section data-coco-{{ section }}>
         <h2>{{ title }}</h2>
-        <form class="lab-watch-form"><label>Address (hex)<input name="address" aria-label="{{ title }} address" maxlength="6" size="6" placeholder="{{ example }}" required autocomplete="off" spellcheck="false"></label><button type="submit">Add {{ kind }}</button></form>
+        <form class="lab-watch-form"><label>Address (hex)<input name="address" aria-label="{{ title }} address" maxlength="6" size="6" placeholder="{{ example }}" required autocomplete="off" spellcheck="false"></label><button type="submit">{{ action }}</button></form>
         <div data-stop-rows></div><p data-stop-status class="lab-hint" role="status"></p>
-        <p class="lab-hint">$0000–${{ maximum }} · {% if kind == 'breakpoint' %}Stops before the CPU boundary at this PC. Run crosses the breakpoint that just stopped once; a later visit stops again.{% else %}Stops after a complete instruction or interrupt entry writes this RAM byte, even when its value stays the same. Addresses refer to physical RAM; upper-half watches are inactive with 32 KiB. ROM and device writes do not match.{% endif %}</p>
+        <p class="lab-hint">$0000–$FFFF · {% if section == 'breakpoints' %}Stops before the CPU boundary at this PC. Run crosses the breakpoint that just stopped once; a later visit stops again.{% elif section == 'read-watches' %}Stops after the CPU reads this logical address as data, including RAM, ROM, devices and interrupt vectors. Instruction fetches are excluded.{% else %}Stops after a complete instruction or interrupt entry writes this RAM byte, even when its value stays the same. Addresses refer to physical RAM; upper-half watches are inactive with 32 KiB. ROM and device writes do not match.{% endif %}</p>
+      {% if section == 'watchpoints' %}
+        {% with watch_history_help='Oldest first. Captures physical RAM writes to every configured watch, even with stopping disabled, Live off, or Changes recording paused. Unchanged writes and interrupt entry are included; reads, ROM, and device writes are excluded. Removing a watch clears its history. Reset, power-on, restoration, and ROM replacement clear all history. Links browse current storage.' %}
+          {% include "instruments/watch-history.html" %}
+        {% endwith %}
+      {% elif section == 'read-watches' %}
+        {% with watch_history_help='Oldest first. Captures CPU data reads while the address is watched, including when its stop is disabled. Values come from completed bus reads. Clear, restore, or remove the watch to clear its history.' %}
+          {% include "instruments/watch-history.html" %}
+        {% endwith %}
+      {% endif %}
       </section>
       {% endfor %}
       {% include "instruments/instruction-access-stops.html" %}
       <p class="lab-hint">Stops are remembered in this browser, separately from snapshots. Step crosses the current breakpoint. Reset and Restore clear the stop report and keep configured stops. Click a circle in Disassembly to toggle a breakpoint.</p>
-      {% with watch_history_help='Oldest first. Captures physical RAM writes to every configured watch, even with stopping disabled, Live off, or Changes recording paused. Unchanged writes and interrupt entry are included; reads, ROM, and device writes are excluded. Removing a watch clears its history. Reset, power-on, restoration, and ROM replacement clear all history. Links browse current storage.' %}
-        {% include "instruments/watch-history.html" %}
-      {% endwith %}
     </section>
     <section class="lab-tool lab-tool-registers lab-panel-body" data-workspace-panel="registers" data-panel-title="Registers" data-panel-heading="Motorola 6809" data-panel-live="true">
       <div class="lab-registers" data-coco-registers></div><div class="lab-flags" data-coco-flags></div>
