@@ -27,10 +27,19 @@ class XtRomTests(unittest.TestCase):
         self.assertEqual([s["address"] for s in driver["steps"]], ["9D273", "9DAE6", "9EBED", "9EE8A"])
         hut = tours["ultima-v-ega-hut"]
         self.assertEqual(hut["adapter"], "ega")
-        self.assertEqual([s["address"] for s in hut["steps"]], ["9EAC2", "150DA", "11DFF", "9E93C"])
+        self.assertEqual([s["address"] for s in hut["steps"]], ["9EAC2", "150DA", "122B8", "12387", "11DFF", "9E93C"])
+        self.assertEqual([s["title"] for s in hut["steps"][1:]], [
+            "Update party Y", "Read the hut map cell", "Copy the tile into the view", "Select table tile", "Redraw the table tile"])
         self.assertEqual(hut["steps"][0]["fileRange"], {"offset": 0x2075, "length": 5})
-        self.assertEqual(hut["steps"][2]["fileRange"], {"offset": 0x31f1, "length": 1})
-        self.assertEqual(hut["steps"][3]["expect"]["egaPixel"], {"x": 123, "y": 77, "index": 4, "pins": 4})
+        read, write, select, redraw = hut["steps"][2:]
+        for step, direction, ip, address in [(read, "read", 0x5bc8, 0x22529), (write, "write", 0x5c97, 0x268b9)]:
+            self.assertEqual(step["event"], {"kind": "access", "cs": 0x0c6f, "ip": ip, "direction": direction, "address": address, "value": 0x95})
+            self.assertEqual(step["memory"], f"{address:05X}")
+            self.assertEqual(step["expect"]["party"], [13, 15, 16])
+        for step in [read, select]:
+            self.assertEqual(step["file"], "DWELLING.DAT")
+            self.assertEqual(step["fileRange"], {"offset": 0x31f1, "length": 1})
+        self.assertEqual(redraw["expect"]["egaPixel"], {"x": 123, "y": 77, "index": 4, "pins": 4})
         steps = tours["ultima-v"]["steps"]
         self.assertEqual([s["address"] for s in steps], ["13939", "0E45C", "150DE", "13966", "0E45C", "0E45C", "13966"])
         self.assertNotEqual(steps[3]["expect"], steps[-1]["expect"])
@@ -43,6 +52,9 @@ class XtRomTests(unittest.TestCase):
                        self.ultima.replace('"address": "9DAE6"', '"address": "9DAE7"'),
                        self.ultima.replace('"address": "9E93C"', '"address": "9E93D"'),
                        self.ultima.replace('"memory": "914D9"', '"memory": "914DA"'),
+                       self.ultima.replace('"memory": "268B9", "access"', '"memory": "A0000", "access"'),
+                       self.ultima.replace('"direction": "read", "value": "95"', '"direction": "fetch", "value": "95"'),
+                       self.ultima.replace('"direction": "write", "value": "95"', '"direction": "write", "value": "195"'),
                        self.ultima.replace('"value": "46"', '"value": "046"'),
                        self.ultima.replace('"relatedCheckpoint": "Prepare table tile"', '"relatedCheckpoint": "Missing tile"'),
                        self.ultima.replace('"adapter": "ega"', '"adapter": "other"'),

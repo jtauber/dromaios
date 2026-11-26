@@ -401,19 +401,24 @@ At **Meet the party in Iolo’s hut** in the Journey Onward walkthrough, the
 game is polling the keyboard at `0C6F:1D6C`. Leave the writable Player disk
 mounted and choose **Session → Save snapshot** before pressing Down. Select
 **Ultima V · One step in Iolo’s hut → Update party Y** to follow one keypress
-through the move, tile selection and redraw.
+through all five stops. After the first stop, choose **Next → Run to checkpoint**
+each time. The game continues processing the original Down keypress.
 
 1. **Update party Y.** With Inspect pixel off, click the screen, press and
    release Down once, then choose **Run to checkpoint**. At `0C6F:89EA`,
    `ADD [5897h],AL` adds 1 to `DS:5897` (physical `$215C7`). **Step** changes
    Y from `$0F` to `$10`. X stays 15 and the location stays 13, Iolo’s hut.
-2. **Select table tile.** Choose **Next → Run to checkpoint**. **Files ·
-   DWELLING.DAT** shows the table at file offset `$31F1` on the Player disk.
-   **Inspect memory** shows the copy at `$268B9` that the drawing loop is
+2. **Read the hut map cell.** At `0C6F:5BC8`, `MOV AL,[BX]` reads tile
+   `$95` from `$22529`. The lab pauses just after the read. **Files ·
+   DWELLING.DAT** shows the same byte at file offset `$31F1`.
+3. **Copy the tile into the view.** At `0C6F:5C97`, `MOV [SI],AL` writes
+   `$95` to `$268B9`. **Inspect memory** shows the table in column 7,
+   row 4 of the view buffer, where it will appear after the move.
+4. **Select table tile.** **Inspect memory** shows the copy at `$268B9` that the drawing loop is
    about to read. At `0C6F:570F`, **Step** executes
    `MOV BL,[BX+SI+AB02h]`. The Registers panel shows BX changing from
    `$0080` to `$0095`.
-3. **Redraw the table tile.** Choose **Next → Run to checkpoint**. The party
+5. **Redraw the table tile.** The party
    is already at (15,16). Choose **Inspect pixel (123,77)** and **Run until
    this pixel changes**. At `9D27:16CC`, `MOV ES:[DI+00C8h],DX` writes
    to EGA plane 1. Its byte at `$0C17` changes from `$03` to `$DF`. Bit 4
@@ -515,13 +520,30 @@ pixel if it is active, and repeat with one Down keypress.
       "title": "Update party Y",
       "execution": "0C6F:89EA",
       "prepare": "With Inspect pixel off, click the screen, press and release Down once, then run to this checkpoint.",
-      "observe": "Inspect party bytes, then Step. ADD [5897h],AL changes Y at $215C7 from 0F to 10. X at $215C6 stays 0F. Choose Next and Run to checkpoint to see which map tile the game selects.",
+      "observe": "Inspect party bytes. ADD [5897h],AL will change Y at $215C7 from 0F to 10. X at $215C6 stays 0F. Choose Next and Run to checkpoint to follow the map read for this move.",
       "expect": { "party": [13, 15, 15], "registers": { "ax": "0001", "ds": "1BD3" } }
+    },
+    {
+      "title": "Read the hut map cell",
+      "execution": "0C6F:5BC8",
+      "prepare": "Continue from Update party Y. The party moves south to (15,16). The table stays at (17,15) on the hut map.",
+      "observe": "MOV AL,[BX] just read tile $95 from DS:BX = 1BD3:67F9. PC is now 0C6F:5BCA and AL holds $95. Files · DWELLING.DAT shows the source byte at file offset $31F1. Inspect memory shows the loaded map cell at $22529.",
+      "memory": "22529", "access": { "direction": "read", "value": "95" },
+      "file": "DWELLING.DAT", "fileRange": { "offset": 12785, "length": 1 },
+      "expect": { "party": [13, 15, 16] }
+    },
+    {
+      "title": "Copy the tile into the view",
+      "execution": "0C6F:5C97",
+      "prepare": "Continue from the map read. The game copies the tile in AL into the buffer that describes the visible part of the hut.",
+      "observe": "MOV [SI],AL just stored $95 at DS:SI = 1BD3:AB89. PC is now 0C6F:5C99. Inspect memory shows $95 at $268B9, the view cell for column 7, row 4. The drawing loop will read this copy at the next stop.",
+      "memory": "268B9", "access": { "direction": "write", "value": "95" },
+      "expect": { "party": [13, 15, 16] }
     },
     {
       "title": "Select table tile",
       "execution": "0C6F:570F",
-      "prepare": "Continue from Update party Y with the Player disk mounted. Run to this checkpoint without pressing another key.",
+      "prepare": "Continue from Copy the tile into the view. The drawing loop is about to read the view cell that now holds $95.",
       "observe": "Files · DWELLING.DAT highlights $31F1, the table at (17,15) in the hut. DOS loaded it at $22529. Inspect memory shows its copy at $268B9 for screen cell (7,4). Step MOV BL,[BX+SI+AB02h] to see BX change from 0080 to 0095. The lookup at 0C6F:5715 maps $95 to $95 and the drawing routine passes it to EGA.DRV in BX. Choose Next and Run to checkpoint for the redraw.",
       "memory": "268B9", "file": "DWELLING.DAT", "fileRange": { "offset": 12785, "length": 1 },
       "expect": { "bytes": { "address": "11DFF", "value": "8A 98 02 AB" },

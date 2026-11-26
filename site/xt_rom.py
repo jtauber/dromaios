@@ -58,14 +58,27 @@ def _ultima_tour(tour):
         expect = step.get("expect")
         if not (_ultima_observation(expect) or _dos_observation(expect, 0xa0000, ega=tour.get("adapter") == "ega")):
             raise ValueError(f"Invalid guest observation at {step['execution']}.")
-        if {"file", "fileRange", "memory"} & step.keys():
+        address = step.get("memory")
+        if {"file", "fileRange", "memory", "access"} & step.keys():
+            if not isinstance(address, str) or not re.fullmatch(r"[0-9A-F]{5}", address) or int(address, 16) >= 0xa0000:
+                raise ValueError("The Ultima V memory link must identify a byte in conventional RAM.")
+        has_access = "access" in step
+        if has_access:
+            access = step.pop("access")
+            if (not isinstance(access, dict) or set(access) != {"direction", "value"}
+                    or access["direction"] not in ("read", "write")
+                    or not isinstance(access["value"], str) or not re.fullmatch(r"[0-9A-F]{2}", access["value"])):
+                raise ValueError("An Ultima V access stop needs a read or write direction and a hex byte.")
+            cs, ip = (int(part, 16) for part in step["execution"].split(":"))
+            step["event"] = {"kind": "access", "cs": cs, "ip": ip, "address": int(address, 16),
+                             "direction": access["direction"], "value": int(access["value"], 16)}
+        if {"file", "fileRange"} & step.keys() or ("memory" in step and not has_access):
             # Link the on-disk source to the instruction or data it supplies in RAM.
-            span, address, name = step.get("fileRange"), step.get("memory"), step.get("file")
+            span, name = step.get("fileRange"), step.get("file")
             if (not isinstance(span, dict) or set(span) != {"offset", "length"}
                     or type(span["offset"]) is not int or span["offset"] < 0
                     or type(span["length"]) is not int or not 1 <= span["length"] <= 32
                     or not isinstance(name, str) or not re.fullmatch(r"[A-Z0-9_]{1,8}(?:\.[A-Z0-9_]{1,3})?", name)
-                    or not isinstance(address, str) or not re.fullmatch(r"[0-9A-F]{5}", address)
                     or int(address, 16) + (1 if "ramByte" in expect else span["length"]) > 0xA0000):
                 raise ValueError("Invalid file or memory range in the Ultima V walkthrough.")
         if "bytes" in expect:

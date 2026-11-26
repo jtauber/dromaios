@@ -205,17 +205,22 @@ function mount(root: HTMLElement): void {
     available: tour => tour.id !== "hello-com" || !ega,
     runTo: (text, step) => act(() => runTo(text, step)),
     browse: (address, step) => { showCode.browse({ address, space: "CS:IP " + step.execution }); workspace.show("code"); },
-    inspect: ({ expect, memory: address, file, fileRange }: XtCheckpoint) => {
+    inspect: ({ expect, event, memory: address, file, fileRange }: XtCheckpoint) => {
       const pixel = expect && "egaPixel" in expect && expect.egaPixel;
       const tools = file ? [
         { label: "Files · " + file, show: () => { workspace.show("dma"); diskMode("files"); diskFiles.select(file, fileRange); } },
-        { label: "Inspect memory", show: () => browseMemory(parseInt(address!, 16)) },
-        { label: "Instruction", show: () => workspace.show("instruction") },
-      ] : address ? [
-        { label: "Inspect sector buffer", show: () => browseMemory(parseInt(address, 16)) },
-        { label: "DMA / diskette", show: () => workspace.show("dma") },
-        { label: "Port trace", show: () => workspace.show("ports") },
-      ] : expect && "party" in expect ? [{ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) }] : [];
+      ] : [];
+      if (event?.kind === "access") {
+        tools.push({ label: "Inspect memory", show: () => browseMemory(event.address) });
+      } else if (file && address) {
+        tools.push({ label: "Inspect memory", show: () => browseMemory(parseInt(address, 16)) },
+          { label: "Instruction", show: () => workspace.show("instruction") });
+      } else if (address) {
+        tools.push({ label: "Inspect sector buffer", show: () => browseMemory(parseInt(address, 16)) },
+          { label: "DMA / diskette", show: () => workspace.show("dma") }, { label: "Port trace", show: () => workspace.show("ports") });
+      } else if (expect && "party" in expect) {
+        tools.push({ label: "Inspect party bytes", show: () => browseMemory(ultimaPartyLocation) });
+      }
       if (expect && "egaPlane" in expect && expect.egaPlane) {
         const { plane, offset } = expect.egaPlane, byte = parseInt(offset, 16);
         tools.push({ label: "Watch " + planeByteLabel(plane, byte), show: () => act(() => debugView.watchPlane(plane, byte)) });
