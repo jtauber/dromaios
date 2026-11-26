@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { instructionCatalogue6502 } from "../../site/6502-instruction-catalogue.js";
 import { apple2DebugLocation, createApple2AccessStops } from "../../site/interactive/apple2-debugger.js";
+import { accessStopHistoryActions } from "../../site/interactive/mapped-access-stops.js";
 import { createApple2Session } from "../../site/interactive/apple2-session.js";
 import { createApple2WatchHistory } from "../../site/interactive/apple2-watch-history.js";
 import { readRomFile } from "../../site/interactive/rom-file.js";
@@ -33,6 +34,27 @@ test("access stops match the mapped caller, direction and exact byte, independen
   }
 });
 
+test("any-byte and exact-byte stops coexist and survive saving, including reads or writes of zero", () => {
+  const stops = createApple2AccessStops();
+  const actions = accessStopHistoryActions(point => stops.set([...stops.values(), { ...point, enabled: true }]));
+  const zero = { ...keyRead, value: 0 }, other = { ...zero, value: 0x42 };
+  actions.stopOnAccess(zero); actions.stopOnValue(zero); actions.stopOnValue(other);
+  const saved = stops.decode(JSON.stringify(stops.values()));
+  assert.deepEqual(saved.map(point => point.expectedValue), [undefined, 0, 0x42]);
+  assert.equal(new Set(saved.map(stops.key)).size, 3);
+  assert.equal(stops.describe(saved[1]!), "$FD21 (rom) · READ $C000 = $00");
+  assert.throws(() => actions.stopOnValue(zero), /distinct/);
+  for (const kind of ["read", "write"] as const) {
+    stops.set(saved.map(point => ({ ...point, kind, enabled: point.expectedValue === 0 })));
+    const first = { ...other, kind }, second = { ...zero, kind };
+    assert.equal(stops.match(caller, [first]), undefined);
+    assert.equal(stops.match(caller, [first, second]), second);
+  }
+  for (const expectedValue of [-1, 256, 1.5, null, "C1"]) {
+    assert.deepEqual(stops.decode(JSON.stringify([{ ...keyRead, expectedValue }])), []);
+  }
+});
+
 const romPath = process.env.APPLE2_ROM;
 test("restoring KEYIN2 with A queued repeats the ROM read; identical Language Card code reads the key without a hit", {
   skip: romPath === undefined ? "Set APPLE2_ROM to the selected local firmware" : false,
@@ -44,6 +66,7 @@ test("restoring KEYIN2 with A queued repeats the ROM read; identical Language Ca
   for (let remaining = 1_000_000; session.machine.cpu.snapshot().pc !== 0xfd21; remaining--) {
     assert.ok(remaining > 0, "Boot must reach KEYIN2"); session.step();
   }
+  const idle = session.snapshot();
   session.send([65]);
   const saved = session.snapshot(), keyboard = { address: 0xc000, label: "KBD" };
   const origin = apple2DebugLocation(session.machine);
@@ -52,7 +75,29 @@ test("restoring KEYIN2 with A queued repeats the ROM read; identical Language Ca
   assert.ok(entry); assert.deepEqual(entry.bytes, [0x2c, 0, 0xc0]);
   const stops = createApple2AccessStops();
   assert.equal(entry.value, 0xc1); assert.equal(stops.describe(entry), "$FD21 (rom) · READ $C000");
-  stops.set([{ ...entry, enabled: true }]);
+  accessStopHistoryActions(point => stops.set([{ ...point, enabled: true }])).stopOnValue(entry);
+
+  session.restore(idle); history.reset();
+  let idleReads = 0;
+  for (let i = 0; idleReads < 3; i++) {
+    assert.ok(i < 20_000, "KEYIN2 must keep polling");
+    const before = apple2DebugLocation(session.machine), record = session.step();
+    const transfers = history.observe(record, before, [], []);
+    assert.equal(stops.match(before, transfers), undefined);
+    if (before.address === 0xfd21) {
+      assert.equal(transfers[0]!.address, 0xc000); assert.ok(transfers[0]!.value < 0x80); idleReads++;
+    }
+  }
+  session.send([65]);
+  for (let i = 0; ; i++) {
+    assert.ok(i < 20_000, "A should reach the armed ROM read");
+    const before = apple2DebugLocation(session.machine), record = session.step();
+    const match = stops.match(before, history.observe(record, before, [], []));
+    if (match) {
+      assert.deepEqual(before, caller); assert.equal(record.after.pc, 0xfd24);
+      assert.equal(match.value, 0xc1); break;
+    }
+  }
 
   for (const mapping of ["rom", "lc-upper"]) {
     session.restore(saved); history.reset();

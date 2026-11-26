@@ -14,6 +14,7 @@ export function createMemoryWatchHistoryView<Write extends StorageWrite>(root: H
     readonly browseCode: (location: DebugLocation, bytes: readonly number[]) => string | undefined;
     readonly browseMemory: (address: number) => void;
     readonly stopOnAccess?: (entry: WatchAccess<Write>) => void;
+    readonly stopOnValue?: (entry: WatchAccess<Write>) => void;
     readonly addressWidth?: number;
     readonly location?: (location: DebugLocation) => string;
   }) {
@@ -52,17 +53,25 @@ export function createMemoryWatchHistoryView<Write extends StorageWrite>(root: H
         ? ` · ${options.storageLabel(entry.storage)}`
         : entry.kind === "write" ? " · bus value; no physical RAM write observed" : " · captured bus value");
       row.append(title, detail);
-      const stopOnAccess = options.stopOnAccess;
+      const { stopOnAccess, stopOnValue } = options;
       if (stopOnAccess && entry.bytes.length && !entry.event) {
-        const stop = document.createElement("button");
-        stop.type = "button"; stop.textContent = "Stop on this access";
-        stop.onclick = () => {
-          try {
-            stopOnAccess(entry);
-            status.textContent = `Event stop enabled for ${location} · ${entry.kind.toUpperCase()} ${addressText(entry.address)}.`;
-          } catch (cause) { status.textContent = (cause as Error).message; }
+        const stopButton = (label: string, add: (entry: WatchAccess<Write>) => void, condition = "") => {
+          const button = document.createElement("button");
+          button.type = "button"; button.textContent = label;
+          button.onclick = () => {
+            try {
+              add(entry);
+              status.textContent = `Event stop enabled for ${location} · ${entry.kind.toUpperCase()} ${addressText(entry.address)}${condition}.`;
+            } catch (cause) { status.textContent = (cause as Error).message; }
+          };
+          return button;
         };
-        row.append(stop);
+        if (stopOnValue) {
+          const group = document.createElement("div"), byte = "$" + hex(entry.value, 2);
+          group.className = "basic-controls"; group.setAttribute("role", "group"); group.setAttribute("aria-label", "Stop on this access");
+          group.append("Stop on this access", stopButton("Any value", stopOnAccess), stopButton(`This value (${byte})`, stopOnValue, ` = ${byte}`));
+          row.append(group);
+        } else row.append(stopButton("Stop on this access", stopOnAccess));
       }
       output.append(row);
     }

@@ -652,17 +652,22 @@ especially to states containing disk images. Clearing this site's browser data
 removes the states. Incompatible future machine versions are rejected rather
 than partially restored.
 
-A repeatable ROM experiment: stop at KEYIN2 (`FD21`), type A while paused, and
-save before executing BIT. Step twice, then Compare: the queue has delivered
+Stop at KEYIN2 (`FD21`) with no key queued and save a state named **Idle**.
+Type A while paused and save a second state named **A queued** before
+executing BIT. Step twice, then Compare: the queue has delivered
 its character, the keyboard strobe is set, flags reflect BIT, and PC has passed
 the branch. Restore, then repeat those steps; the same results should appear.
 A reload followed by Restore must reproduce the same continuation.
 
 To catch the read on replay, watch `$C000` before stepping. In Watches, open
-its History and choose **Stop on this access** beside the ROM read at `$FD21`.
-Restore the state with A queued and press Run. The debugger pauses at `$FD24`
+its History. Under **Stop on this access** beside the ROM read at `$FD21`,
+choose **This value ($C1)**. **Any value** also catches idle keyboard polls.
+Remove the original `$C000` watch, restore **A queued**, and press Run.
+The debugger pauses at `$FD24`
 after `BIT $C000` reads `$C1`. The stop remembers the instruction mapping,
-read or write direction, and addressed byte. The same instruction at `$FD21`
+read or write direction, addressed byte, and selected value. To try it live,
+restore **Idle** and Run. The monitor keeps polling until you
+press A on the screen. The same instruction at `$FD21`
 in Language Card RAM can read the keyboard without hitting this ROM stop.
 Access stops survive Restore, removing the original watch, and a browser
 reload. Disable or remove them in Watches.

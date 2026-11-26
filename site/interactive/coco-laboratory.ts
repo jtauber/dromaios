@@ -9,7 +9,7 @@ import { createCocoDiskView } from "./coco-disk-view.js";
 import { createCocoChangeLog } from "./coco-change-log.js";
 import { createChangeLogView } from "./change-log-view.js";
 import { createCocoWatchHistory } from "./coco-watch-history.js";
-import { mappedLocationText } from "./mapped-access-stops.js";
+import { accessStopHistoryActions, mappedLocationText } from "./mapped-access-stops.js";
 import { createEventStopList } from "./event-stop-list.js";
 import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
 import { decodeCaptured6809 } from "./6809-disassembly.js";
@@ -106,7 +106,7 @@ function mountCoco(root: HTMLElement): void {
   const watchHistory = createCocoWatchHistory();
   const stopList = createEventStopList(at("access-stops"), { ...debug.accessStops, storageKey: "dromaios:debugger:coco:access:1" });
   const historyOptions = {
-    stopOnAccess: stopList.add, location: mappedLocationText,
+    ...accessStopHistoryActions(stopList.add), location: mappedLocationText,
     assembly: (entry: WatchBoundary) => assembly(entry.caller.address, entry.bytes), storageLabel: () => "RAM",
     browseCode(location: DebugLocation) {
       if (cocoDebugLocation(session.machine, location.address).space !== location.space) {

@@ -9,6 +9,7 @@ import { cocoScreenText, readCocoStorage } from "../../site/interactive/coco-ins
 import { create6809MemoryObservation } from "../../site/interactive/6809-memory.js";
 import { createCocoDebugger, observeCocoBoundary } from "../../site/interactive/coco-debugger.js";
 import { createCocoWatchHistory } from "../../site/interactive/coco-watch-history.js";
+import { accessStopHistoryActions } from "../../site/interactive/mapped-access-stops.js";
 import { createCocoChangeLog } from "../../site/interactive/coco-change-log.js";
 import { catalogue6809 } from "./6809-inspection-fixture.js";
 import { createExecutionTarget } from "../../site/interactive/execution-target.js";
@@ -131,5 +132,26 @@ test("replaying Color BASIC's keyboard read samples the PIA once and catches bot
     assert.equal(debug.hit?.kind, "read"); assert.equal(debug.hit?.address, 0xff00);
     assert.deepEqual(history.reads.entries(watch), []);
   }
+  // Capture the pressed sample, then arm its value and remove the address watch.
+  session.restore(checkpoint); history.reset(); debug.reset(); debug.accessStops.set([]);
+  debug.setReadWatchpoints([watch]); session.send([["H"]]); assert.equal(sample(), 0xfd);
+  const [pressed] = history.reads.entries(watch); assert.ok(pressed);
+  accessStopHistoryActions(point => debug.accessStops.set([{ ...point, enabled: true }])).stopOnValue(pressed);
+  debug.setReadWatchpoints([]); history.reset(); session.restore(checkpoint); debug.reset();
+  let idleReads = 0;
+  debug.runTo(0xa220, "rom");
+  for (let i = 0; !debug.beforeStep(); i++) {
+    assert.ok(i < 100_000);
+    const record = debug.capture(() => session.step());
+    if (record.instruction?.address === 0xa23a) {
+      assert.equal(record.after.a, 0xff); idleReads++;
+    }
+  }
+  assert.ok(idleReads >= 3); assert.equal(debug.stop?.kind, "target");
+  session.send([["H"]]); debug.run();
+  for (let i = 0; !debug.beforeStep(); i++) { assert.ok(i < 50_000); debug.capture(() => session.step()); }
+  assert.equal(debug.stop?.kind, "event"); assert.equal(debug.stop?.location.address, 0xa23c);
+  assert.match(debug.stop?.detail ?? "", /\$A23A \(rom\) · READ \$FF00 = \$FD · LDA ,U/);
+  assert.equal(session.machine.cpu.snapshot().a, 0xfd);
   debug.dispose();
 });

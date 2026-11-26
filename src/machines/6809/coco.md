@@ -1379,8 +1379,9 @@ reads, stack pulls, and interrupt vector reads count. Opcode, postbyte, and
 operand fetches are excluded. A disabled read watch still records reads.
 
 From a watch's History, **Stop on this access** remembers the instruction PC,
-its memory mapping, the direction, and the addressed byte. The value can change
-on replay. Removing the watch clears its history and leaves the access stop
+its memory mapping, the direction, and the addressed byte. **Any value** catches
+every matching access. **This value** also requires the byte shown in that row
+(the stored byte for a write). Removing the watch clears its history and leaves the access stop
 armed. Interrupt entries appear in history and have no instruction to select.
 
 Enabled stops interrupt Run to address, guided checkpoints, and Step over/out. Execution and Debugger show the reason. A failed boundary
@@ -1498,11 +1499,17 @@ or locations shared by every BASIC version.
 
 To replay the keyboard read, run to `$A23A` with no queued keys and save a
 snapshot. Add a **CPU data read watchpoint** for `$FF00`, then Step. Its
-History shows `LDA ,U` reading `$FF`. Choose **Stop on this access**, remove
+History shows `LDA ,U` reading `$FF`. Under **Stop on this access**, choose **Any value**, remove
 the read watch, restore the snapshot, and Run. Execution pauses at `$A23C`
 with A equal to `$FF`. Restore once more, type **H** on the CoCo screen
 while paused, then Run. Column 0 is selected (`$FE` on port B). H grounds
 row 1, so the same instruction reads `$FD` into A.
+
+To stop only on the pressed sample, remove the any-value stop. Restore the
+snapshot, watch `$FF00` again, queue H, and Step. In History, choose **This
+value ($FD)** and remove the read watch. Restore with no key queued and run
+to `$A220`. The idle `$FF` reads pass. Press H on the screen and Run. The
+debugger stops at `$A23C` after the read that put `$FD` in A.
 
 The [walkthrough test](../../../tests/site/coco-walkthrough.test.ts) follows
 these stops through the real ROM and independently checks the pointers, return
@@ -1518,7 +1525,7 @@ Add a RAM write watch at `$0400`, turn its stop toggle off, and repeat the call.
 Its History should retain the store at `$A92F` from `$00` to `$60`, even with
 Changes recording paused. The code and RAM links browse `$A92F` and `$0400`.
 
-Choose **Stop on this access** beside that write, remove the original RAM
+Choose **Any value** under **Stop on this access** beside that write, remove the original RAM
 watch, restore the `$A07D` snapshot, and press **Run**. Color BASIC's
 `STB ,X+` writes `$60` (a blank) to physical RAM `$0400`. The debugger
 stops at `$A931` with X advanced to `$0401`. Leave the access stop enabled

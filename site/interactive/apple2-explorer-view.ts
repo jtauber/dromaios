@@ -23,7 +23,7 @@ import { createApple2DiskActivityView } from "./apple2-disk-activity-view.js";
 import type { Apple2HardwareCatalogue } from "./apple2-hardware.js";
 import { createApple2WatchHistory } from "./apple2-watch-history.js";
 import { createEventStopList } from "./event-stop-list.js";
-import { mappedLocationText } from "./mapped-access-stops.js";
+import { accessStopHistoryActions, mappedLocationText } from "./mapped-access-stops.js";
 import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
 import { disassemble6502 } from "./apple2-explorer.js";
 import { apple2RamRegions } from "./apple2-inspection.js";
@@ -84,7 +84,7 @@ export function createApple2Explorer(root: HTMLElement, machine: () => Machine |
   const accessStops = createApple2AccessStops();
   const stopList = stopPanel && createEventStopList(stopPanel, { ...accessStops, storageKey: "dromaios:debugger:apple2:access:1" });
   const watchView = createMemoryWatchHistoryView(root, watchHistory, {
-    stopOnAccess: stopList?.add,
+    ...(stopList && accessStopHistoryActions(stopList.add)),
     location: mappedLocationText,
     assembly: entry => disassemble6502(entry.caller.address, entry.bytes, catalogue.instructions),
     storageLabel: write => apple2RamRegions.find(region => region.part === write.region)!.label,
