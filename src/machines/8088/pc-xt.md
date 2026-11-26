@@ -1355,10 +1355,10 @@ open its captured bytes in Disassembly, even after self-modifying code.
 For DMA and external interrupt entry the link opens the interrupted PC in
 current storage. **Follow CS:IP** returns to the running CPU.
 
-Choose **Stop on this access** on an instruction row to replay that read or
-write. The debugger matches the instruction’s exact CS:IP, the physical byte
-address and the direction. The value may differ on the next run. Execution
-pauses after the instruction boundary and reports the byte transferred.
+Under **Stop on this access** on an instruction row, **Any value** matches
+the instruction’s CS:IP, the physical byte address and the direction.
+**This value** also matches the byte read or written in that row. Execution
+pauses after the instruction and reports the transferred byte.
 Manage the condition under **Event stops**. It survives checkpoint restore
 and removal of the original memory watch. Leave broader watches unchecked
 to run through earlier accesses to the same byte.

@@ -226,7 +226,7 @@
       <p class="lab-hint">Watches stop after a write to RAM 00000–9FFFF, including unchanged values. Segment:offset entries select a physical RAM byte.</p>
       <p class="basic-message" data-debugger-status></p>
       <button type="button" data-watchpoint-memory hidden>Show written byte in Memory</button>
-      {% with watch_history_help='Each address in either watch list keeps its latest 256 CPU data reads and conventional RAM writes, oldest first. Uncheck a stop to keep recording through it. History runs even with Live or Changes recording off. Instruction links open the fetched bytes. Stop on this access adds an Event stop for that instruction, direction and physical byte. Interrupt entry and DMA2 stores identify their source. Removing the address from both lists clears its history. Reset, power-on and checkpoint restore clear all entries.' %}
+      {% with watch_history_help='Each address in either watch list keeps its latest 256 CPU data reads and conventional RAM writes, oldest first. Uncheck a stop to keep recording through it. History runs even with Live or Changes recording off. Instruction links open the fetched bytes. Stop on this access matches the instruction, direction and physical address. Choose This value to match the captured byte too. Interrupt entry and DMA2 stores identify their source. Removing the address from both lists clears its history. Reset, power-on and checkpoint restore clear all entries.' %}
         {% include "instruments/watch-history.html" %}
       {% endwith %}
     </section>

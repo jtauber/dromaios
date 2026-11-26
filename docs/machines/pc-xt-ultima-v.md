@@ -441,6 +441,14 @@ screen and choose **Run**. Memory identifies `0C6F:5BC8 MOV AL,[BX]` and
 the `$95` read from `$22529`. **Show reader in Disassembly** opens the load
 while the CPU stays paused at `0C6F:5BCA`, with the tile number in AL.
 
+In **Debugger**, open **History** for the `22529` read watch. On the
+`0C6F:5BC8` row choose **This value ($95)**, then remove the read watch.
+Restore the hut snapshot, press Down once, and Run. The event stop reports
+`0C6F:5BC8 · READ $22529 = $95`. In a control replay with only the map
+byte changed to `$94` in a copy of the snapshot, History records the same
+read returning `$94`. The `$95` stop lets it through, and the game stores
+`$94` in the view buffer at `$268B9`.
+
 Now enter `268B9` in Memory, choose **Watch writes**, and choose **Run**.
 The same Down keypress takes you to `0C6F:5C97 MOV [SI],AL`, where the
 view-buffer byte changes from `$FF` to `$95`. **Show writer in Disassembly**
@@ -448,8 +456,8 @@ opens the store while the CPU stays at `0C6F:5C99`. Continue to **Select
 table tile** to see the renderer read that byte back.
 
 To see the handoff in one run, restore the same hut snapshot. In **Debugger**,
-keep `268B9` in either watch list and uncheck its stop. Disable the `22529`
-stop too if you used it above. In the hut walkthrough select **Redraw the
+keep `268B9` in either watch list and uncheck its stop. Disable any read watch
+or event stop you armed for `22529`. In the hut walkthrough select **Redraw the
 table tile**, press Down once on the screen, and choose **Run to checkpoint**.
 Open **History** for `268B9`. Among the 16 entries, `REP STOSB` first
 sets the byte to `$FF` and the store at `0C6F:5C97` replaces it with
@@ -458,7 +466,8 @@ whether the cell still holds `$FF`. Several comparisons use the tile number
 before the renderer loads it into BL at `0C6F:570F`. Select any CS:IP to
 inspect its fetched instruction while the CPU stays at the redraw.
 
-On the `0C6F:570F READ $268B9` row choose **Stop on this access**. Restore
+On the `0C6F:570F READ $268B9` row choose **Any value** under **Stop on this
+access**. Restore
 the hut snapshot, press Down once, and choose **Run**. The earlier comparisons
 complete. The debugger stops at `0C6F:5713`, immediately after the load read
 `$95` from `$268B9`. In Registers, BX now holds `$0095`. You can disable

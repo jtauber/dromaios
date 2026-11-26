@@ -219,7 +219,7 @@ export function createXtDebugger(machine: () => XtMachine, budget = 2_000_000, d
             if (event) {
               eventHit = { caller: xtDebugLocation(record.before), event };
               const detail = event.kind === "access"
-                ? `${describeXtEvent(event)} = $${hex(event.value, 2)} · ${boundaryName(record, cpu)}.`
+                ? `${describeXtEvent(event)} · ${boundaryName(record, cpu)}.`
                 : `${describeXtEvent(xtEventCondition(event))} ${event.kind === "dma" ? "before the CPU boundary at" : "from"} ${formatXtDebugAddress(eventHit.caller)}. Stopped after the complete CPU/board boundary.`;
               policy.event(xtDebugLocation(record.after), detail);
             } else if (dosCall) {

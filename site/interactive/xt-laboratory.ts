@@ -54,6 +54,7 @@ import { describeXtEvent, matchesXtEvent } from "./xt-event-stops.js";
 import { createXtChangeLog, createXtWatchHistory, xtHistoryAssembly, xtStorageLabel } from "./xt-history.js";
 import { createChangeLogView } from "./change-log-view.js";
 import { createMemoryWatchHistoryView } from "./memory-watch-history-view.js";
+import { accessStopHistoryActions } from "./mapped-access-stops.js";
 
 for (const root of document.querySelectorAll<HTMLElement>("[data-xt-laboratory]")) mount(root);
 
@@ -135,11 +136,11 @@ function mount(root: HTMLElement): void {
       workspace.show("code");
       showCode.browse(location, bytes.length ? { address: location.address, bytes } : undefined);
     },
-    stopOnAccess(entry): void {
-      const logical = xtLogicalLocation(entry.caller);
+    ...accessStopHistoryActions(({ caller, kind, address, expectedValue }) => {
+      const logical = xtLogicalLocation(caller);
       if (!logical) throw new Error("The captured instruction has no valid CS:IP.");
-      debugView.addEventStop({ kind: "access", ...logical, direction: entry.kind, address: entry.address });
-    },
+      debugView.addEventStop({ kind: "access", ...logical, direction: kind, address, value: expectedValue });
+    }),
   })!;
   const slots = [...root.querySelectorAll<HTMLElement>("[data-slot]")].map(panel => {
     const id = panel.dataset.slot as XtRomSlot;

@@ -74,7 +74,7 @@ test("a history stop passes other readers and survives restore without a memory 
 
 test("a store stop matches the second byte of a word and pauses after the whole instruction", () => {
   const p = fixture([0xa3, 0xff, 0xff], { ds: 0x1000, ax: 0x1234 });
-  p.debug.setEventStops([{ kind: "access", cs: 0, ip: 0x2000, direction: "write", address: 0x10000, enabled: true }]);
+  p.debug.setEventStops([{ kind: "access", cs: 0, ip: 0x2000, direction: "write", address: 0x10000, value: 0x12, enabled: true }]);
   p.run();
   assert.equal(p.debug.stop?.kind, "event");
   assert.deepEqual([p.machine.cpu.snapshot().ip, p.machine.ram.read(0x1ffff), p.machine.ram.read(0x10000)], [0x2003, 0x34, 0x12]);
@@ -295,6 +295,21 @@ test("XT read watches survive restore and identify the instruction and byte in t
     assert.match(hit.detail, /0C6F:5BC8.*MOV AL,\s*(?:BYTE PTR )?\[BX\].*\$95.*\$22529/);
     assert.deepEqual([p.machine.cpu.snapshot().ip, p.machine.cpu.snapshot().al], [0x5bca, 0x95]);
   }
+});
+
+test("a hut tile value stop reports the $95 load and runs past the same instruction reading $94", () => {
+  const p = fixture([], { cs: 0x0c6f, ip: 0x5bc8, ds: 0x1bd3, bx: 0x67f9 });
+  put(p.machine, p.machine.cpu.snapshot().pc, [0x8a, 0x07, 0x90]); // MOV AL,[BX]; NOP
+  p.machine.ram.write(0x22529, 0x95);
+  const saved = p.machine.snapshot();
+  p.debug.setEventStops([{ kind: "access", cs: 0x0c6f, ip: 0x5bc8, direction: "read", address: 0x22529, value: 0x95, enabled: true }]);
+  p.replace(saved); p.runTo("0C6F:5BCB");
+  assert.equal(p.debug.stop?.kind, "event"); assert.deepEqual([p.machine.cpu.snapshot().ip, p.machine.cpu.snapshot().al], [0x5bca, 0x95]);
+  assert.match(p.debug.stop!.detail!, /0C6F:5BC8 · READ \$22529 = \$95 · MOV AL,\s*(?:BYTE PTR )?\[BX\]/);
+  p.replace(saved); p.machine.ram.write(0x22529, 0x94); p.runTo("0C6F:5BCB");
+  assert.equal(p.debug.stop?.kind, "target"); assert.equal(p.debug.eventHit, undefined);
+  assert.deepEqual([p.machine.cpu.snapshot().ip, p.machine.cpu.snapshot().al], [0x5bcb, 0x94]);
+  p.debug.dispose();
 });
 
 test("XT data watches skip fetches even when the same physical byte is then read as an operand", () => {

@@ -11,6 +11,7 @@ export interface XtAccessCondition {
   readonly ip: number;
   readonly direction: "read" | "write";
   readonly address: number;
+  readonly value?: number;
 }
 type XtAccessEvent = XtAccessCondition & { readonly value: number };
 export type XtObservedEvent = XtIoTransfer | XtAccessEvent;
@@ -22,7 +23,7 @@ export type XtEventStop = XtEventCondition & { readonly enabled: boolean };
 export const xtInterruptSources: readonly XtInterruptSource[] = ["intr", "nmi", "software", "trap", "divide-error"];
 
 export function xtEventStopKey(point: XtEventCondition): string {
-  if (point.kind === "access") return `access:${point.cs}:${point.ip}:${point.direction}:${point.address}`;
+  if (point.kind === "access") return `access:${point.cs}:${point.ip}:${point.direction}:${point.address}:${point.value ?? ""}`;
   if (point.kind === "dos") return `dos:${point.phase}:${point.function ?? ""}:${point.filename?.toUpperCase() ?? ""}`;
   if (point.kind === "iret") return point.kind;
   if (point.kind === "dma") return `dma:${point.address ?? ""}`;
@@ -42,11 +43,12 @@ export function validateXtEventStops(values: readonly XtEventStop[]): readonly X
       if (!byte(point.port, 0xffff) || point.value !== undefined && !byte(point.value)) throw new RangeError("Use a port from 0000–FFFF and an optional byte from 00–FF.");
       condition = { kind: point.kind, port: point.port, ...(point.value !== undefined && { value: point.value }) };
     } else if (point.kind === "access") {
-      const { cs, ip, direction, address } = point;
+      const { cs, ip, direction, address, value } = point;
       if (!byte(cs, 0xffff) || !byte(ip, 0xffff) || !byte(address, 0xfffff) || (direction !== "read" && direction !== "write")) {
         throw new RangeError("An access stop needs an exact CS:IP, physical address and read or write direction.");
       }
-      condition = { kind: "access", cs, ip, direction, address };
+      if (value !== undefined && !byte(value)) throw new RangeError("An access stop value must be a byte from 00–FF.");
+      condition = { kind: "access", cs, ip, direction, address, ...(value !== undefined && { value }) };
     } else if (point.kind === "interrupt") {
       if (point.source !== undefined && !xtInterruptSources.includes(point.source) || point.vector !== undefined && !byte(point.vector)) throw new RangeError("Use an interrupt source and an optional vector from 00–FF.");
       condition = { kind: point.kind, ...(point.source !== undefined && { source: point.source }), ...(point.vector !== undefined && { vector: point.vector }) };
@@ -86,7 +88,7 @@ export function* xtInstructionAccesses(record: XtBoundary): Iterable<XtAccessEve
 
 export function matchesXtEvent(point: XtEventCondition, event: XtObservedEvent): boolean {
   if (point.kind === "access") return event.kind === "access" && point.cs === event.cs && point.ip === event.ip
-    && point.address === event.address && point.direction === event.direction;
+    && point.address === event.address && point.direction === event.direction && (point.value === undefined || point.value === event.value);
   if (point.kind === "dos") return false;
   if (point.kind === "dma") return event.kind === "dma" && (point.address === undefined || point.address === event.address);
   if (point.kind === "input" || point.kind === "output") return point.kind === event.kind && "port" in event
@@ -118,7 +120,8 @@ export function xtEventCondition(event: XtObservedEvent): XtEventCondition {
 }
 
 export function describeXtEvent(point: XtEventCondition): string {
-  if (point.kind === "access") return `CS:IP ${logical8088(point.cs, point.ip)} · ${point.direction.toUpperCase()} $${hex(point.address, 5)}`;
+  if (point.kind === "access") return `CS:IP ${logical8088(point.cs, point.ip)} · ${point.direction.toUpperCase()} $${hex(point.address, 5)}`
+    + (point.value === undefined ? "" : ` = $${hex(point.value, 2)}`);
   if (point.kind === "dos") return `DOS ${point.phase} · INT 21h · ${point.function === undefined ? "any described service" : "AH=$" + hex(point.function, 2)}${point.filename === undefined ? "" : " · " + JSON.stringify(point.filename)}`;
   if (point.kind === "iret") return "IRET";
   if (point.kind === "dma") return `DMA2 · ${point.address === undefined ? "any RAM byte" : "RAM $" + hex(point.address, 5)}`;
