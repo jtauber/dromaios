@@ -30,6 +30,7 @@ import { create6809InstructionView } from "./6809-instruction-view.js";
 import { previewCocoInstruction } from "./coco-instruction-preview.js";
 import { createCocoScreen } from "./coco-screen-view.js";
 import { createCocoInspectors } from "./coco-inspector-view.js";
+import { createCocoStateComparisonView } from "./coco-state-comparison-view.js";
 import { createCheckpointView } from "./checkpoint-view.js";
 import { cocoSavedCheckpoints } from "./coco-saved-state.js";
 import { readRomFile } from "./rom-file.js";
@@ -91,10 +92,13 @@ function mountCoco(root: HTMLElement): void {
   const catalogue: Catalogue6809 = JSON.parse(at("coco-instructions").textContent!);
   const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root, () => refreshPanels(["screen"]));
   function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
-  function browseRam(address: number): void {
+  function browseRam(address: number): string | undefined {
     const logical = cocoRamAddress(session.machine, address) === address ? address
       : address >= 0x8000 && cocoRamAddress(session.machine, address - 0x8000) === address ? address - 0x8000 : undefined;
-    if (logical === undefined) { message.textContent = `Physical RAM $${cocoHex(address)} is not visible in the current CPU map.`; return; }
+    if (logical === undefined) {
+      const reason = `Physical RAM $${cocoHex(address)} is not visible in the current CPU map.`;
+      message.textContent = reason; return reason;
+    }
     browse(logical);
   }
   const debug = createCocoDebugger(() => session.machine, catalogue);
@@ -268,7 +272,7 @@ function mountCoco(root: HTMLElement): void {
     refresh();
   }
   function changedMachine(): void {
-    joysticks.reset();
+    comparison.clear(); joysticks.reset();
     intervals.clearStep(); changeLog.reset(); watchHistory.reset(); execution.reset(); debug.reset(); inspectors.reset(); }
   function installRom(id: RomSlot, verified: RomFile): void {
     const firmware = id === "firmware" ? verified : roms.firmware;
@@ -362,9 +366,11 @@ function mountCoco(root: HTMLElement): void {
   document.addEventListener("visibilitychange", () => { if (document.hidden) releaseFocus(); });
   window.addEventListener("pagehide", releaseFocus);
 
-  const checkpoints = createCheckpointView(root.querySelector<HTMLElement>('[data-workspace-panel="states"]')!,
+  const snapshotPanel = root.querySelector<HTMLElement>('[data-workspace-panel="states"]')!;
+  const comparison = createCocoStateComparisonView(snapshotPanel, () => session.machine, browseRam);
+  const checkpoints = createCheckpointView(snapshotPanel,
     cocoSavedCheckpoints(() => localStorage, session.machine.clock.hertz!), {
-      capture: () => session.snapshot(),
+      comparison, capture: () => session.snapshot(),
       restore(state) { session.restore(state); changedMachine(); message.textContent = ""; },
       refresh,
     });

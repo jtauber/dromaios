@@ -7,6 +7,7 @@ import { romImages } from "../../src/machines/generated/6809/coco.js";
 import { cocoDisplayMode, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
 import { readCocoTapeCas } from "../../src/components/devices/coco-tape-cas.js";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
+import { compareCocoStates } from "../../site/interactive/coco-state-comparison.js";
 import { cocoSavedCheckpoints } from "../../site/interactive/coco-saved-state.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { cocoScreenText } from "../../site/interactive/coco-inspection.js";
@@ -86,12 +87,22 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   const frames: { raster: Uint8Array; address: number }[] = [];
   for (const [x, y, address] of [[5, 5, 0x0a22], [58, 5, 0x0a39], [58, 58, 0x17d9]] as const) {
     session.restore(await checkpoints().restore("Playing")); controls.reset();
-    const restored = session.snapshot(); controls.poll([standardGamepad([1, 1], [0])]);
+    const restored = session.snapshot();
+    assert.deepEqual(compareCocoStates(playing.hardware, restored.hardware), { cpu: [], pages: [], byteCount: 0 });
+    controls.poll([standardGamepad([1, 1], [0])]);
     assert.deepEqual(session.snapshot(), restored, "restoration hands ownership back to the saved controls");
     controls.select("gamepad", "right"); controls.setActive(true); controls.poll([standardGamepad()]);
     controls.poll([standardGamepad([x === 5 ? -0.875 : 0.875, y === 5 ? -0.875 : 0.875])]); frame();
     assert.deepEqual(ramBytes(0x15a, 2), Uint8Array.of(x, y), "the ROM measures the physical joystick");
     assert.equal(word(0x1e22), address, "game chooses the paddle's video RAM address");
+    if (x === 58 && y === 58) {
+      const compared = compareCocoStates(playing.hardware, session.snapshot().hardware);
+      const changed = new Map(compared.pages.flatMap(page => page.bytes.map(byte => [byte.address, byte] as const)));
+      assert.equal(playing.hardware.cpu.pc, pc(), "both captures stop at the same frame boundary");
+      for (const [location, before, after] of [
+        [0x015a, 0, 58], [0x015b, 0, 58], [0x1e22, 0x0a, 0x17], [0x1e23, 0x20, 0xd9], [0x17d9, 0x10, 0x11],
+      ] as const) assert.deepEqual(changed.get(location), { address: location, before, after });
+    }
     frames.push({ raster: renderCocoFrame(session.machine), address });
   }
   for (let i = 1; i < frames.length; i++) {

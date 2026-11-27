@@ -234,8 +234,11 @@
       <p><a href="{{ calc_url(coco_url) }}#follow-one-h-from-the-keyboard-to-the-screen" target="_blank" rel="noopener">Follow H from keyboard to screen ↗</a> · <a href="{{ calc_url(coco_url) }}#follow-pset-into-graphics-ram" target="_blank" rel="noopener">Follow PSET into graphics RAM ↗</a></p>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="states" data-panel-title="Snapshot">
-      {% include "checkpoint-controls.html" %}
-      <p class="lab-hint">Pause to save. Each checkpoint keeps the RAM capacity, cartridge, disk, tape and queued input. Restore with the same ROMs loaded.</p>
+      {% with compare_checkpoints=true %}{% include "checkpoint-controls.html" %}{% endwith %}
+      <p class="lab-hint">Pause to save. Each checkpoint keeps the RAM capacity, cartridge, disk, tape and queued input. Restore with the same ROMs loaded. Compare shows saved → current values for registers, flags and physical RAM. Select a changed address to open Memory.</p>
+      <p class="lab-hint" data-comparison-summary role="status"></p>
+      <div class="lab-state-differences" data-comparison-differences></div>
+      <p class="basic-message" data-comparison-message role="status"></p>
     </section>
   </div>
 </main>

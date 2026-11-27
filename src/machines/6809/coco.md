@@ -524,6 +524,19 @@ Use Color BASIC 1.3 and Extended Color BASIC 1.1. In the laboratory:
    and joystick positions return together. Select **Keyboard** and **Right**,
    then Run, focus the screen and steer the paddle with the arrow keys.
 
+To compare two paddle positions at the same instruction, run to `$2A0B`
+during play and save a named checkpoint there. This is just after the paddle
+draw and before the next ball update. Restore it and choose **Compare with
+current state** in **Snapshot**. The counts should all be zero. Set the right
+joystick’s X and Y sliders to 58, Step once to leave the stop, and run to
+`$2A0B` again. Compare with the same checkpoint. In physical RAM page
+`$0100–$01FF`, the ROM readings at `$015A–$015B` are now `3A 3A` (58, 58).
+In page `$1E00–$1EFF`, the word at `$1E22–$1E23` points to the paddle at
+`$17D9`. Expand the video RAM pages to see which bytes changed in the draw.
+From the first playable frame, the byte at `$17D9` changes from `10` to `11`.
+Its low bit draws the rightmost dot of that byte, at pixel (207,142). Select
+the address to inspect it in Memory.
+
 Normal speed plays the game’s sound. Unlimited mutes it. The game uses
 256×192 one-bit graphics. Its opening green/black
 scene keeps its direct colours. After the first brick hit selects black/buff,
@@ -1344,6 +1357,15 @@ checkpoints acquire empty devices and ROM sockets as described under
 [Snapshots and acceptance](#snapshots-and-acceptance). Failed restoration
 preserves the current session, and failed saving preserves the previous checkpoint.
 Layout and Live choices are not machine state.
+
+**Compare with current state** takes a paused reading of the 6809 registers,
+condition-code flags and installed RAM. The left value is saved and the right
+value is the reading taken when you clicked Compare. D is represented by its
+two accumulators, A and B. RAM differences are grouped by physical page,
+including RAM hidden by the SAM. A link opens the byte under the current CPU
+mapping or reports that it is hidden. If the two RAM capacities differ, the
+report identifies the address range they share. Compare again after stepping
+to take a new reading.
 
 **Run to address**, in Execution, accepts a hexadecimal PC and runs normal
 machine boundaries until that PC is reached. It pauses **before** the next
