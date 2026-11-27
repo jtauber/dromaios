@@ -1,6 +1,8 @@
 .coco-laboratory .lab-tool-screen .lab-panel-body { grid-template-rows: minmax(120px, 1fr) auto; }
 .coco-screen { position: relative; width: min(100cqw, calc(100cqh * 4 / 3)); aspect-ratio: 4 / 3; background: #001800; overflow: hidden; border: 1px solid #40563e; }
 .coco-screen canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.coco-screen.is-inspecting { cursor: crosshair; }
+.coco-laboratory [data-pixel-inspector] { flex-basis: 100%; }
 .coco-screen.scanlines::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 50%, #0003 50%); background-size: 100% calc(100% / 192); }
 .coco-screen-notice { position: absolute; inset: 0; display: grid; place-items: center; color: #9ac39a; font: 13px/1.4 var(--mono); padding: 20px; text-align: center; }
 .coco-laboratory .coco-inline { display: flex; align-items: center; gap: 5px; }

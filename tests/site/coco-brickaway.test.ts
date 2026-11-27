@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/6809/coco.js";
-import { cocoDisplayMode, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
+import { cocoDisplayMode, inspectCocoPixel, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
 import { readCocoTapeCas } from "../../src/components/devices/coco-tape-cas.js";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
 import { createCocoDebugger } from "../../site/interactive/coco-debugger.js";
@@ -122,8 +122,11 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   }
 
   const debug = createCocoDebugger(() => session.machine, catalogue6809);
-  debug.setWatchpoints([{ address: 0x17d9, enabled: true }]);
+  const dot = inspectCocoPixel(session.machine, 207, 142)!;
+  assert.deepEqual(dot, { address: 0x17d9, bit: 0, byte: 0x11 });
+  debug.setWatchpoints([{ address: dot.address, enabled: true }]);
   session.restore(await checkpoints().restore("Playing")); debug.reset();
+  assert.deepEqual(inspectCocoPixel(session.machine, 207, 142), { ...dot, byte: 0x10 });
   const paddlePixel = () => renderCocoFrame(session.machine)[142 * 256 + 207];
   assert.equal(paddlePixel(), 8, "the dot is black in the saved frame");
   session.machine.pias.setJoystickPosition("right", 58, 58);
@@ -137,6 +140,7 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   assert.deepEqual(hit.record.instruction, { address: 0x26a3, bytes: [0xa7, 0x84] });
   assert.deepEqual([hit.address, hit.before, hit.after, pc()], [0x17d9, 0x10, 0x11, 0x26a5]);
   assert.equal(paddlePixel(), 0, "the store lights the dot green");
+  assert.deepEqual(inspectCocoPixel(session.machine, 207, 142), dot);
   debug.dispose();
 
   function firstBrick(batch: number) {

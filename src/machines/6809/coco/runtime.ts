@@ -104,6 +104,15 @@ export function cocoDisplayMode(machine: Coco): CocoDisplayMode {
 /** Display interpretation only; it is not retained in the machine snapshot. */
 export type CocoVideoSignal = "direct" | "composite" | "composite-reversed";
 
+/** The SAM selects a physical byte. RG6 shifts its eight dots out most significant bit first. */
+export function inspectCocoPixel(machine: Coco, x: number, y: number) {
+  const mode = cocoDisplayMode(machine);
+  if (mode.kind !== "bitmap" || mode.width !== 256 || mode.height !== 192 || mode.bitsPerPixel !== 1) return;
+  if (!Number.isInteger(x) || x < 0 || x >= mode.width || !Number.isInteger(y) || y < 0 || y >= mode.height) return;
+  const address = cocoDisplayAddress(machine, y, Math.floor(x / 8));
+  return { address, bit: 7 - x % 8, byte: machine.ram.read(address) };
+}
+
 /** Capture the active raster from physical RAM; never perform CPU-bus or PIA reads. */
 export function renderCocoFrame(machine: Coco, signal: CocoVideoSignal = "direct"): Uint8Array {
   const mode = cocoDisplayMode(machine), pixels = new Uint8Array(256 * 192);

@@ -29,6 +29,7 @@ import { create6809CodeView } from "./6809-code-view.js";
 import { create6809InstructionView } from "./6809-instruction-view.js";
 import { previewCocoInstruction } from "./coco-instruction-preview.js";
 import { createCocoScreen } from "./coco-screen-view.js";
+import { createCocoPixelInspector } from "./coco-pixel-view.js";
 import { createCocoInspectors } from "./coco-inspector-view.js";
 import { createCocoStateComparisonView } from "./coco-state-comparison-view.js";
 import { createCheckpointView } from "./checkpoint-view.js";
@@ -129,6 +130,7 @@ function mountCoco(root: HTMLElement): void {
     },
     code: address => { code.browse(address); workspace.show("code"); },
   });
+  const pixelInspector = createCocoPixelInspector(root, debugView.watchWrites);
   const code = create6809CodeView(at("coco-code"), catalogue, { address: () => inspectors.memory.address, browse }, debugView);
   const calls = createCallStack(root, {
     stackName: "S", stackWidth: 4,
@@ -264,7 +266,8 @@ function mountCoco(root: HTMLElement): void {
     if (shouldUpdate("code")) code.refresh(address => readCocoStorage(session.machine, address), state, execution.records, annotations.observe(mapping));
     if (shouldUpdate("instruction")) instruction(cocoMemorySupported(session.machine)
       ? previewCocoInstruction(session.machine, catalogue) : "Unsupported SAM memory configuration.");
-    if (shouldUpdate("screen")) display.refresh(session.machine);
+    const image = shouldUpdate("screen") ? display.refresh(session.machine) : undefined;
+    pixelInspector.refresh(image && !running && !unavailable ? { machine: session.machine, image } : undefined);
   }
   function action(work: () => void): void {
     try { work(); message.textContent = ""; }
@@ -337,7 +340,7 @@ function mountCoco(root: HTMLElement): void {
   reset.addEventListener("click", () => action(() => { session.reset(); changedMachine(); }));
   power.addEventListener("click", () => action(() => { session.powerOn(); changedMachine(); }));
   screen.addEventListener("keydown", event => {
-    if (checkpoints.busy) return;
+    if (checkpoints.busy || pixelInspector.handleKey(event)) return;
     try {
       if (joysticks.keyDown(event)) { event.preventDefault(); return; }
       const keys = cocoScreenKey(event); if (!keys) return;
@@ -349,7 +352,7 @@ function mountCoco(root: HTMLElement): void {
   });
   screen.addEventListener("keyup", event => { if (joysticks.keyUp(event)) event.preventDefault(); });
   screen.addEventListener("paste", event => {
-    event.preventDefault(); if (checkpoints.busy) return;
+    event.preventDefault(); if (checkpoints.busy || pixelInspector.active) return;
     action(() => session.send(cocoTextInput(event.clipboardData?.getData("text/plain") ?? "")));
   });
   at<HTMLInputElement>("coco-scanlines").addEventListener("change", event => {

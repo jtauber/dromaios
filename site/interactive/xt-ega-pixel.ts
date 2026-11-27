@@ -4,12 +4,11 @@ import type { XtBoundary } from "./xt-session.js";
 import type { XtPaletteEntry } from "./xt-ega-palette.js";
 import { xtHex } from "./8088-disassembly.js";
 import { opcode8088Index } from "./8088-encoding.js";
+import { rasterPixelAt } from "./raster-pixel.js";
 
 /** Map a click on the stretched 4:3 picture to its native mode 0Dh raster. */
 export function egaPixelAt(rect: { left: number; top: number; width: number; height: number }, clientX: number, clientY: number) {
-  const x = Math.floor((clientX - rect.left) * 320 / rect.width);
-  const y = Math.floor((clientY - rect.top) * 200 / rect.height);
-  if (x >= 0 && x < 320 && y >= 0 && y < 200) return { x, y };
+  return rasterPixelAt(rect, clientX, clientY, 320, 200);
 }
 
 function monitorColour(ega: IbmEga, pins: number): string {

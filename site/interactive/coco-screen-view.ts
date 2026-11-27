@@ -23,7 +23,7 @@ export function createCocoScreen(root: HTMLElement, changed: () => void) {
   composite.addEventListener("click", () => { useComposite = true; changed(); });
   swap.addEventListener("click", () => { reverse = !reverse; changed(); });
   return {
-    refresh(machine: Coco): void {
+    refresh(machine: Coco): ImageData | undefined {
       direct.setAttribute("aria-pressed", String(!useComposite));
       composite.setAttribute("aria-pressed", String(useComposite));
       swap.setAttribute("aria-pressed", String(reverse));
@@ -48,6 +48,7 @@ export function createCocoScreen(root: HTMLElement, changed: () => void) {
       const description = useComposite && machine.vdg.artifactMode(machine.pias.videoPins)
         ? ` · Composite${reverse ? " · swapped" : ""}` : "";
       status.textContent = cocoDisplayStatus(machine) + description;
+      return image;
     },
   };
 }

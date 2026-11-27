@@ -243,6 +243,7 @@
 .lab-tool-trace pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 11px; }
 .lab-tool-screen .lab-panel-body { height: 100%; display: grid; grid-template-rows: minmax(120px, 1fr) auto auto; gap: 6px; }
 .lab-display-area { container-type: size; display: grid; place-items: center; min-width: 0; min-height: 0; }
+.lab-pixel-marker { position: absolute; width: 13px; height: 13px; transform: translate(-50%, -50%); border: 1px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #000, inset 0 0 0 1px #000; pointer-events: none; }
 .lab-display-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
 .lab-display-footer .apple2-display-options { margin-left: auto; }
 /* Fit the 4:3 screen plus its surround's 10px padding and 1px border into the available area. */

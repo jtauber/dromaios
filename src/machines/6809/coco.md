@@ -543,6 +543,18 @@ just after `$26A3  A7 84  STA ,X`. X points to `$17D9` and A holds `$11`.
 The store changes `$10` to `$11`, lighting that one dot green. **View writer**
 in Debugger opens the store in Disassembly. The next instruction is at `$26A5`.
 
+You can also start from the picture. Pause in Brickaway’s 256×192 one-bit
+mode, choose **Inspect pixel** in Screen, and click the paddle dot at
+(207,142). The arrow keys move the marker one dot at a time. The SAM display
+starts at `$0600`, so row 142, byte 25 is at `$0600 + 142 × 32 + 25 = $17D9`.
+The VDG takes bit 7 first, making x = 207 the last dot in that byte, bit 0.
+Choose **Watch writes** in Screen, restore **Brickaway playing** at the first
+playable frame, set both right joystick sliders to 58, and Run. The marker
+returns at the stop and the displayed bit changes from 0 (black) to 1 (green).
+The watch covers all eight bits in the physical byte. In the black/buff colour
+set, the composite RGB readout reflects the neighbouring dot as well.
+Press Escape with the screen focused to return to typing.
+
 Normal speed plays the game’s sound. Unlimited mutes it. The game uses
 256×192 one-bit graphics. Its opening green/black
 scene keeps its direct colours. After the first brick hit selects black/buff,

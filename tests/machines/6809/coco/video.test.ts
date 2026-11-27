@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create6809Coco } from "../../../../src/machines/generated/6809/coco.js";
 import { create6809Coco64 } from "../../../../src/machines/generated/6809/coco64.js";
-import { cocoDisplayMode, renderCocoFrame, stepCoco } from "../../../../src/machines/6809/coco/runtime.js";
+import { cocoDisplayMode, inspectCocoPixel, renderCocoFrame, stepCoco } from "../../../../src/machines/6809/coco/runtime.js";
 import type { Coco } from "../../../../src/machines/6809/coco/runtime.js";
 import { cocoDisplayStatus, cocoScreenText } from "../../../../site/interactive/coco-inspection.js";
 
@@ -20,6 +20,23 @@ function configure(machine: Coco, v: number, pins: number, page = 0): void {
   machine.pias.write(0x23, 4); machine.pias.write(0x22, pins);
 }
 const storedByte = (address: number): number => (address * 73 ^ (address >>> 5)) & 255;
+
+test("RG6 inspection follows the displayed physical byte and counts bits from the right", () => {
+  const machine = create6809Coco({ firmware: null, extended: null });
+  configure(machine, 6, 0xf0, 0x3f); // $7E00 wraps into low RAM at line 16.
+  machine.memory.read = () => { throw new Error("Inspection must not read the CPU bus"); };
+  for (const [x, y, address, bit] of [[0, 0, 0x7e00, 7], [7, 0, 0x7e00, 0], [8, 0, 0x7e01, 7],
+    [0, 16, 0, 7], [255, 191, 0x15ff, 0]] as const) {
+    machine.ram.write(address, 1 << bit);
+    assert.deepEqual(inspectCocoPixel(machine, x, y), { address, bit, byte: 1 << bit });
+    assert.equal(renderCocoFrame(machine)[y * 256 + x], 0, "the inspected bit lights the rendered green dot");
+  }
+  for (const [x, y] of [[-1, 0], [256, 0], [0, 192], [1.5, 0]] as const) assert.equal(inspectCocoPixel(machine, x, y), undefined);
+  configure(machine, 6, 0xe0); // 128 × 192 colour graphics uses the same SAM mode.
+  assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
+  configure(machine, 0, 0);
+  assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
+});
 
 test("SG8/12/24 preserve VDG character phase, mixed text, colours and physical RAM wrapping", () => {
   // Tandy's mode table and Motorola's B glyph; neither oracle calls the device views.

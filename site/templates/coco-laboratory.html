@@ -93,19 +93,26 @@
         <div class="lab-display-area">
           <div class="coco-screen scanlines" data-coco-screen tabindex="0" role="region" aria-label="CoCo display and keyboard" aria-describedby="coco-keys">
             <canvas width="256" height="192" data-coco-canvas aria-hidden="true"></canvas>
+            <span class="lab-pixel-marker" data-pixel-marker hidden aria-hidden="true"></span>
             <pre class="visually-hidden" data-coco-text aria-label="CoCo screen text"></pre>
             <div class="coco-screen-notice" data-screen-notice>Preparing display…</div>
           </div>
         </div>
         <div class="lab-display-footer"><p class="basic-readout" data-display-status></p>
           <div class="coco-display-options">
+            <button type="button" data-screen-inspect aria-pressed="false" disabled title="Pause in 256 × 192 one-bit graphics to select a dot. Click or use arrow keys. Escape returns to typing.">Inspect pixel</button>
             <div class="coco-signal" role="group" aria-label="Display signal">
               <button type="button" data-coco-signal="direct" aria-pressed="false" title="Show the VDG's individual dots and direct colours">Direct</button>
               <button type="button" data-coco-signal="composite" aria-pressed="true" title="Approximate NTSC artifact colours in high-resolution black/buff graphics">Composite</button>
             </div>
             <button type="button" data-coco-phase aria-pressed="false" title="Exchange blue and orange/red artifact colours" disabled>Swap colours</button>
             <label class="coco-inline"><input type="checkbox" data-coco-scanlines checked> Scanlines</label>
-          </div></div>
+          </div>
+          <div class="lab-screen-inspector" data-pixel-inspector hidden>
+            <output id="coco-pixel-reading"></output>
+            <div class="basic-controls"><button type="button">Watch writes</button><span data-pixel-message role="status"></span></div>
+          </div>
+        </div>
       </div>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll lab-machine-controls" data-workspace-panel="execution" data-panel-title="Execution">
