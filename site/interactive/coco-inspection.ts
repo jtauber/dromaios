@@ -5,6 +5,12 @@ import { checkUnsigned } from "../../src/components/validation.js";
 
 export const cocoHex = (value: number, width = 4): string => value.toString(16).toUpperCase().padStart(width, "0");
 
+// Presentation colours, including the VDG's two-dot composite approximation.
+export const cocoMonitorColours = [
+  0x00dc00, 0xffff00, 0x3030ff, 0xff3030, 0xffffc8, 0x00ffff, 0xff00ff,
+  0xff8c00, 0x000000, 0x003c00, 0x462300, 0x3050ff, 0xff7030,
+] as const;
+
 /** Observable storage only. Unpopulated sockets and I/O have no inspectable byte. */
 export function readCocoStorage(machine: Coco, address: number): number | undefined {
   checkUnsigned("Memory address", address, 0xffff);

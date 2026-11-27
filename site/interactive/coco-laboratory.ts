@@ -91,7 +91,11 @@ function mountCoco(root: HTMLElement): void {
   const guides: CocoRomGuides = JSON.parse(at("coco-rom-guides").textContent!);
   const annotations = createCocoRomAnnotations(guides);
   const catalogue: Catalogue6809 = JSON.parse(at("coco-instructions").textContent!);
-  const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse), display = createCocoScreen(root, () => refreshPanels(["screen"]));
+  const inspectors = createCocoInspectors(root, () => code.memoryMoved(), browse);
+  const display = createCocoScreen(root, () => {
+    if (debug.pixelTarget) { debug.pause("Pixel run cancelled on display signal change."); execution.stop(); }
+    refreshPanels(["screen"]);
+  });
   function browse(address: number): void { inspectors.memory.browse(address); workspace.show("memory"); }
   function browseRam(address: number): string | undefined {
     const logical = cocoRamAddress(session.machine, address) === address ? address
@@ -130,7 +134,10 @@ function mountCoco(root: HTMLElement): void {
     },
     code: address => { code.browse(address); workspace.show("code"); },
   });
-  const pixelInspector = createCocoPixelInspector(root, debugView.watchWrites);
+  const pixelInspector = createCocoPixelInspector(root, debug, {
+    watchWrites: debugView.watchWrites, browseCode: historyOptions.browseCode,
+    run: (x, y) => action(() => { debug.runUntilPixelChanges(x, y, display.signal); execution.run(); screen.focus(); }),
+  });
   const code = create6809CodeView(at("coco-code"), catalogue, { address: () => inspectors.memory.address, browse }, debugView);
   const calls = createCallStack(root, {
     stackName: "S", stackWidth: 4,
@@ -267,7 +274,7 @@ function mountCoco(root: HTMLElement): void {
     if (shouldUpdate("instruction")) instruction(cocoMemorySupported(session.machine)
       ? previewCocoInstruction(session.machine, catalogue) : "Unsupported SAM memory configuration.");
     const image = shouldUpdate("screen") ? display.refresh(session.machine) : undefined;
-    pixelInspector.refresh(image && !running && !unavailable ? { machine: session.machine, image } : undefined);
+    pixelInspector.refresh(image && !running && !unavailable ? { machine: session.machine, image, runnable: !run.disabled } : undefined);
   }
   function action(work: () => void): void {
     try { work(); message.textContent = ""; }

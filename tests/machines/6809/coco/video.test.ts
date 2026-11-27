@@ -28,7 +28,7 @@ test("RG6 inspection follows the displayed physical byte and counts bits from th
   for (const [x, y, address, bit] of [[0, 0, 0x7e00, 7], [7, 0, 0x7e00, 0], [8, 0, 0x7e01, 7],
     [0, 16, 0, 7], [255, 191, 0x15ff, 0]] as const) {
     machine.ram.write(address, 1 << bit);
-    assert.deepEqual(inspectCocoPixel(machine, x, y), { address, bit, byte: 1 << bit });
+    assert.deepEqual(inspectCocoPixel(machine, x, y), { address, bit, byte: 1 << bit, colour: 0 });
     assert.equal(renderCocoFrame(machine)[y * 256 + x], 0, "the inspected bit lights the rendered green dot");
   }
   for (const [x, y] of [[-1, 0], [256, 0], [0, 192], [1.5, 0]] as const) assert.equal(inspectCocoPixel(machine, x, y), undefined);

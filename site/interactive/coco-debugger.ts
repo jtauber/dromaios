@@ -1,10 +1,10 @@
 import { cocoMemorySupported, cocoRamAddress } from "../../src/machines/6809/coco/memory.js";
-import type { Coco, stepCoco } from "../../src/machines/6809/coco/runtime.js";
+import { inspectCocoPixel, type Coco, type CocoVideoSignal, type stepCoco } from "../../src/machines/6809/coco/runtime.js";
 import type { RamWrite } from "../../src/components/memory/ram.js";
 import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instruction-debugger.js";
 import type { DebugLocation } from "./instruction-debugger.js";
 import { observeCocoRoms } from "./coco-rom-guide.js";
-import { cocoHex as hex, readCocoStorage } from "./coco-inspection.js";
+import { cocoHex as hex, cocoMonitorColours, readCocoStorage } from "./coco-inspection.js";
 import type { Catalogue6809 } from "./6809-catalogue.js";
 import { decode6809, decodeCaptured6809 } from "./6809-disassembly.js";
 import { create6809DebugObserver } from "./6809-debugger.js";
@@ -21,6 +21,15 @@ export interface CocoWriteHit extends RamWrite {
   readonly record: Boundary;
 }
 interface CocoReadHit extends DataRead6809 { readonly caller: DebugLocation; readonly record: Boundary }
+type Pixel = NonNullable<ReturnType<typeof inspectCocoPixel>>;
+interface PixelTarget { x: number; y: number; signal: CocoVideoSignal; previous: Pixel }
+interface CocoPixelHit {
+  x: number; y: number; before: Pixel; after: Pixel; caller: DebugLocation; instruction: string; transition: string;
+}
+
+function describePixel(dot: Pixel): string {
+  return `RAM $${hex(dot.address)} = $${hex(dot.byte, 2)} · bit ${dot.bit} = ${dot.byte >> dot.bit & 1} · #${hex(cocoMonitorColours[dot.colour]!, 6)}`;
+}
 
 export function cocoDebugLocation(machine: Coco, address = machine.cpu.snapshot().pc): DebugLocation {
   const mapping = observeCocoRoms(machine);
@@ -46,7 +55,21 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
   const writes = createRamWriteCapture(() => machine().ram);
   let watches: readonly CocoAddressStop[] = [], hit: CocoWriteHit | CocoReadHit | undefined;
   let readWatches: readonly CocoAddressStop[] = [], readAddresses = new Set<number>();
+  let pixelTarget: PixelTarget | undefined, pixelHit: CocoPixelHit | undefined;
+  function clearHits(): void { hit = undefined; pixelTarget = undefined; pixelHit = undefined; }
   const location = (address?: number) => cocoDebugLocation(machine(), address);
+  function observePixel(target: PixelTarget, record: Boundary, caller: DebugLocation, at: DebugLocation): void {
+    const { x, y, previous: before } = target, after = inspectCocoPixel(machine(), x, y, target.signal);
+    if (!after) {
+      if (!policy.stop) policy.pause(at, "Pixel run ended when the CoCo left 256 × 192 one-bit graphics.");
+    } else if (before.colour !== after.colour) {
+      const instruction = record.instruction ? decodeCaptured6809(caller.address, record.instruction.bytes, catalogue).assembly
+        : "source" in record ? `${record.source.toUpperCase()} entry` : record.outcome;
+      const transition = `${describePixel(before)} → ${describePixel(after)}`;
+      pixelHit = { x, y, before, after, caller, instruction, transition };
+      if (!policy.stop) policy.event(at, `Pixel (${x},${y}) changed at $${hex(caller.address)} (${instruction}). ${transition}.`);
+    } else target.previous = after;
+  }
   function validate(points: readonly CocoAddressStop[], maximum: number): readonly CocoAddressStop[] {
     if (points.length > 64 || points.some(point => !Number.isInteger(point.address) || point.address < 0 || point.address > maximum
       || typeof point.enabled !== "boolean") || new Set(points.map(point => point.address)).size !== points.length) {
@@ -83,6 +106,8 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
     get stop() { return policy.stop; },
     get request() { return policy.request; },
     get hit() { return hit; },
+    get pixelTarget(): { readonly x: number; readonly y: number } | undefined { return pixelTarget; },
+    get pixelHit() { return pixelHit; },
     get readWatchpoints() { return readWatches; },
     setReadWatchpoints(points: readonly CocoAddressStop[]): void {
       readWatches = validate(points, 0xffff);
@@ -96,13 +121,13 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
       watches = validate(points, 0xffff);
       writes.watch(watches.filter(point => point.enabled).map(point => point.address));
     },
-    run(): void { hit = undefined; policy.run(location()); },
+    run(): void { clearHits(); policy.run(location()); },
     step(): void {
-      hit = undefined; policy.step(location());
+      clearHits(); policy.step(location());
       policy.beforeStep(location()); // Manual Step crosses the current breakpoint once.
     },
     over(): void {
-      hit = undefined;
+      clearHits();
       const selected = machine(), state = selected.cpu.snapshot();
       const disk = selected.cartridge?.inserted() ? undefined : selected.disk;
       const external = disk?.halted || disk?.inspect().nmi_pending && state.nmiArmed
@@ -111,30 +136,46 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
         ? decode6809(address => readCocoStorage(selected, address), state.pc, catalogue) : undefined;
       policy.over(location(), decoded?.complete ? decoded.shape?.stack?.flow : undefined);
     },
-    out(): void { hit = undefined; policy.out(location()); },
+    out(): void { clearHits(); policy.out(location()); },
     runTo(address: number, space?: "rom", when?: () => boolean): void {
       if (!Number.isInteger(address) || address < 0 || address > 0xffff) throw new RangeError("Use a 16-bit target address.");
-      hit = undefined; policy.runTo(location(), address, space, { when });
+      clearHits(); policy.runTo(location(), address, space, { when });
     },
-    pause(detail?: string): void { policy.pause(location(), detail); },
-    beforeStep(caller = location()): boolean { return policy.beforeStep(caller); },
+    runUntilPixelChanges(x: number, y: number, signal: CocoVideoSignal): void {
+      const previous = inspectCocoPixel(machine(), x, y, signal);
+      if (!previous) throw new Error("Select a dot in 256 × 192 one-bit graphics first.");
+      clearHits(); pixelTarget = { x, y, signal, previous };
+      policy.stepUntil(location(), () => undefined); // Use the same boundary budget as Run to address.
+    },
+    pause(detail?: string): void { pixelTarget = undefined; policy.pause(location(), detail); },
+    beforeStep(caller = location()): boolean {
+      const stopped = policy.beforeStep(caller);
+      if (stopped) pixelTarget = undefined;
+      return stopped;
+    },
     capture(step: () => Boundary, caller = location()): Boundary {
       try {
         const { record, write } = writes.capture(step);
         const after = location(record.after.pc);
         observer.observe(record, caller, after);
-        if (policy.stop?.kind === "error" || stopOnRead(record, caller, after)) return record;
-        if (write) {
-          hit = { kind: "write", ...write, caller, record };
-          policy.watchpoint(after, describeCocoWriteHit(hit, catalogue));
-        } else if (policy.request === "step") policy.beforeStep(after);
+        if (policy.stop?.kind === "error") { pixelTarget = undefined; return record; }
+        if (!stopOnRead(record, caller, after)) {
+          if (write) {
+            hit = { kind: "write", ...write, caller, record };
+            policy.watchpoint(after, describeCocoWriteHit(hit, catalogue));
+          } else if (policy.request === "step") policy.beforeStep(after);
+        }
+        if (pixelTarget) {
+          observePixel(pixelTarget, record, caller, after);
+          if (policy.stop) pixelTarget = undefined;
+        }
         return record;
       } catch (cause) {
-        hit = undefined; observer.reset(); policy.fail(location(), cause instanceof Error ? cause.message : String(cause));
+        clearHits(); observer.reset(); policy.fail(location(), cause instanceof Error ? cause.message : String(cause));
         throw cause;
       }
     },
-    reset(): void { policy.reset(); observer.reset(); hit = undefined; writes.reconnect(); },
+    reset(): void { policy.reset(); observer.reset(); clearHits(); writes.reconnect(); },
     dispose: writes.dispose,
   };
 }

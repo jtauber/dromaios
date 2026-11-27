@@ -83,9 +83,8 @@ export type CocoDisplayMode = { readonly kind: "text" } | {
   readonly bitsPerPixel: number;
 };
 
-/** Decode the VDG geometry and require the matching SAM address sequence. */
-export function cocoDisplayMode(machine: Coco): CocoDisplayMode {
-  requireMemoryProfile(machine);
+/** Decode the VDG geometry when the SAM supplies the matching address sequence. */
+function decodeDisplayMode(machine: Coco): CocoDisplayMode | undefined {
   const { sam, vdg } = machine, pins = machine.pias.videoPins;
   if (vdg.alphaMode(pins)) {
     if (sam.displayBytesPerRow() === 32 && vdg.internalText(pins)) {
@@ -98,19 +97,28 @@ export function cocoDisplayMode(machine: Coco): CocoDisplayMode {
       return { kind: "bitmap", width, height, bitsPerPixel };
     }
   }
-  throw new RangeError(`Unsupported CoCo display configuration: SAM V=${sam.videoMode().toString(2).padStart(3, "0")}, VDG pins=$${pins.toString(16).toUpperCase().padStart(2, "0")}.`);
+}
+
+export function cocoDisplayMode(machine: Coco): CocoDisplayMode {
+  requireMemoryProfile(machine);
+  const mode = decodeDisplayMode(machine);
+  if (mode) return mode;
+  const { sam, pias } = machine;
+  throw new RangeError(`Unsupported CoCo display configuration: SAM V=${sam.videoMode().toString(2).padStart(3, "0")}, VDG pins=$${pias.videoPins.toString(16).toUpperCase().padStart(2, "0")}.`);
 }
 
 /** Display interpretation only; it is not retained in the machine snapshot. */
 export type CocoVideoSignal = "direct" | "composite" | "composite-reversed";
 
 /** The SAM selects a physical byte. RG6 shifts its eight dots out most significant bit first. */
-export function inspectCocoPixel(machine: Coco, x: number, y: number) {
-  const mode = cocoDisplayMode(machine);
-  if (mode.kind !== "bitmap" || mode.width !== 256 || mode.height !== 192 || mode.bitsPerPixel !== 1) return;
+export function inspectCocoPixel(machine: Coco, x: number, y: number, signal: CocoVideoSignal = "direct") {
+  const mode = cocoMemorySupported(machine) ? decodeDisplayMode(machine) : undefined;
+  if (mode?.kind !== "bitmap" || mode.width !== 256 || mode.height !== 192 || mode.bitsPerPixel !== 1) return;
   if (!Number.isInteger(x) || x < 0 || x >= mode.width || !Number.isInteger(y) || y < 0 || y >= mode.height) return;
   const address = cocoDisplayAddress(machine, y, Math.floor(x / 8));
-  return { address, bit: 7 - x % 8, byte: machine.ram.read(address) };
+  const byte = machine.ram.read(address), dot = x % 8;
+  const palette = bitmapPalette(machine, signal);
+  return { address, bit: 7 - dot, byte, colour: palette.at(byte, palette.paired ? dot >> 1 : dot) };
 }
 
 /** Capture the active raster from physical RAM; never perform CPU-bus or PIA reads. */
@@ -140,19 +148,25 @@ function renderAlpha(machine: Coco, pixels: Uint8Array): void {
   }
 }
 
+function bitmapPalette({ pias, vdg }: Coco, signal: CocoVideoSignal) {
+  const pins = pias.videoPins;
+  if (signal !== "direct" && vdg.artifactMode(pins)) {
+    return { paired: true, at: (byte: number, pair: number) => vdg.artifactPairColour(byte, pair, signal === "composite-reversed") };
+  }
+  return { paired: false, at: (byte: number, pixel: number) => vdg.graphicsColour(byte, pixel, pins) };
+}
+
 function renderBitmap(machine: Coco, mode: Extract<CocoDisplayMode, { kind: "bitmap" }>, pixels: Uint8Array, signal: CocoVideoSignal): void {
-  const { ram, sam, vdg } = machine, pins = machine.pias.videoPins;
-  const artifacts = signal !== "direct" && vdg.artifactMode(pins);
-  const pixelWidth = artifacts ? 2 : 256 / mode.width, pixelHeight = 192 / mode.height;
-  const pixelsPerByte = artifacts ? 4 : 8 / mode.bitsPerPixel;
+  const { ram, sam } = machine, palette = bitmapPalette(machine, signal);
+  const pixelWidth = palette.paired ? 2 : 256 / mode.width, pixelHeight = 192 / mode.height;
+  const pixelsPerByte = palette.paired ? 4 : 8 / mode.bitsPerPixel;
   for (let row = 0; row < mode.height; row++) {
     const start = row * pixelHeight * 256;
     for (let column = 0; column < sam.displayBytesPerRow(); column++) {
       const byte = ram.read(cocoDisplayAddress(machine, row, column));
       for (let pixel = 0; pixel < pixelsPerByte; pixel++) {
         const x = (column * pixelsPerByte + pixel) * pixelWidth;
-        const colour = artifacts ? vdg.artifactPairColour(byte, pixel, signal === "composite-reversed")
-          : vdg.graphicsColour(byte, pixel, pins);
+        const colour = palette.at(byte, pixel);
         pixels.fill(colour, start + x, start + x + pixelWidth);
       }
     }

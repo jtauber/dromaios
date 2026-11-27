@@ -555,6 +555,20 @@ The watch covers all eight bits in the physical byte. In the black/buff colour
 set, the composite RGB readout reflects the neighbouring dot as well.
 Press Escape with the screen focused to return to typing.
 
+To stop on the visible change itself, restore the same checkpoint, set the
+right joystick to (58,58), select (207,142), and choose **Run until this
+pixel changes**. Screen shows the instruction at `$26A3` alongside the
+byte, bit, and monitor colour immediately before and after its store.
+Select the instruction to open Disassembly. This one-shot run follows the
+screen coordinate through display-page changes and also works with Live off.
+An earlier debugger stop or leaving the one-bit mode ends the run.
+
+In black/buff composite graphics, consider pixel (0,0) when the first
+screen byte changes from `$01` to `$41`. Bit 7 stays clear. Its neighbour,
+bit 6, turns on, so the VDG model interprets the pair as `01` and the dot
+changes from black to blue. **Swap colours** makes the same pair orange-red.
+In **Direct**, pixel (0,0) stays black through that store.
+
 Normal speed plays the game’s sound. Unlimited mutes it. The game uses
 256×192 one-bit graphics. Its opening green/black
 scene keeps its direct colours. After the first brick hit selects black/buff,

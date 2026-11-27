@@ -108,9 +108,13 @@
             <button type="button" data-coco-phase aria-pressed="false" title="Exchange blue and orange/red artifact colours" disabled>Swap colours</button>
             <label class="coco-inline"><input type="checkbox" data-coco-scanlines checked> Scanlines</label>
           </div>
+          <span class="basic-readout" data-pixel-waiting hidden></span>
           <div class="lab-screen-inspector" data-pixel-inspector hidden>
             <output id="coco-pixel-reading"></output>
-            <div class="basic-controls"><button type="button">Watch writes</button><span data-pixel-message role="status"></span></div>
+            <div class="basic-controls"><button type="button" data-pixel-until>Run until this pixel changes</button>
+              <button type="button" data-pixel-watch>Watch writes</button><span data-pixel-message role="status"></span></div>
+            <div data-pixel-hit hidden><button type="button" class="lab-memory-link" data-pixel-instruction title="Show this instruction in Disassembly"></button>
+              <span data-pixel-transition></span></div>
           </div>
         </div>
       </div>

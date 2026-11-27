@@ -1,17 +1,25 @@
 import { inspectCocoPixel, type Coco } from "../../src/machines/6809/coco/runtime.js";
 import { cocoHex } from "./coco-inspection.js";
 import { rasterPixelAt } from "./raster-pixel.js";
+import type { createCocoDebugger } from "./coco-debugger.js";
+import type { DebugLocation } from "./instruction-debugger.js";
 
-interface PausedCocoFrame { machine: Coco; image: ImageData }
+interface PausedCocoFrame { machine: Coco; image: ImageData; runnable: boolean }
 
 /** Keep the selected dot across steps and restores. Report the colour of the actual rendered frame. */
-export function createCocoPixelInspector(root: HTMLElement, watchWrites: (address: number) => void) {
+export function createCocoPixelInspector(root: HTMLElement, debug: Pick<ReturnType<typeof createCocoDebugger>, "pixelTarget" | "pixelHit">,
+  actions: { watchWrites(address: number): void; run(x: number, y: number): void; browseCode(caller: DebugLocation): string | undefined }) {
   const screen = root.querySelector<HTMLElement>("[data-coco-screen]")!, canvas = screen.querySelector("canvas")!;
   const marker = screen.querySelector<HTMLElement>("[data-pixel-marker]")!;
   const toggle = root.querySelector<HTMLButtonElement>("[data-screen-inspect]")!;
   const panel = root.querySelector<HTMLElement>("[data-pixel-inspector]")!;
   const readout = panel.querySelector<HTMLOutputElement>("output")!;
-  const watch = panel.querySelector<HTMLButtonElement>("button")!;
+  const watch = panel.querySelector<HTMLButtonElement>("[data-pixel-watch]")!;
+  const until = panel.querySelector<HTMLButtonElement>("[data-pixel-until]")!;
+  const waiting = root.querySelector<HTMLElement>("[data-pixel-waiting]")!;
+  const result = panel.querySelector<HTMLElement>("[data-pixel-hit]")!;
+  const writer = result.querySelector<HTMLButtonElement>("[data-pixel-instruction]")!;
+  const transition = result.querySelector<HTMLElement>("[data-pixel-transition]")!;
   const notice = panel.querySelector<HTMLElement>("[data-pixel-message]")!;
   let paused: PausedCocoFrame | undefined;
   let enabled = false, x = 128, y = 96, address: number | undefined;
@@ -19,6 +27,7 @@ export function createCocoPixelInspector(root: HTMLElement, watchWrites: (addres
   function render(): void {
     const dot = paused && inspectCocoPixel(paused.machine, x, y);
     const active = enabled && dot !== undefined;
+    until.disabled = !active || !paused?.runnable;
     if (!active || dot.address !== address) notice.textContent = "";
     address = active ? dot.address : undefined;
     toggle.disabled = !dot; toggle.setAttribute("aria-pressed", String(active));
@@ -32,7 +41,15 @@ export function createCocoPixelInspector(root: HTMLElement, watchWrites: (addres
     const detail = `(${x},${y}) · RAM $${cocoHex(dot.address)} = $${cocoHex(dot.byte, 2)}`
       + ` · bit ${dot.bit} = ${dot.byte >> dot.bit & 1} · RGB(${rgb.join(", ")})`;
     if (readout.textContent !== detail) readout.textContent = detail;
+    const hit = debug.pixelHit;
+    result.hidden = !hit || hit.x !== x || hit.y !== y;
+    if (hit && !result.hidden) {
+      writer.textContent = `$${cocoHex(hit.caller.address)}  ${hit.instruction}`;
+      transition.textContent = hit.transition;
+    }
   }
+  until.onclick = () => { if (address !== undefined && paused?.runnable) actions.run(x, y); };
+  writer.onclick = () => { if (debug.pixelHit) notice.textContent = actions.browseCode(debug.pixelHit.caller) ?? ""; };
   toggle.onclick = () => { enabled = !enabled; render(); screen.focus({ preventScroll: true }); };
   canvas.addEventListener("click", event => {
     if (address === undefined) return;
@@ -42,13 +59,16 @@ export function createCocoPixelInspector(root: HTMLElement, watchWrites: (addres
   watch.onclick = () => {
     if (address === undefined) return;
     try {
-      watchWrites(address);
+      actions.watchWrites(address);
       notice.textContent = `Watching writes to physical RAM $${cocoHex(address)}.`;
     } catch (cause) { notice.textContent = (cause as Error).message; }
   };
   return {
     get active() { return address !== undefined; },
     refresh(frame?: PausedCocoFrame): void {
+      const target = debug.pixelTarget;
+      if (target && waiting.hidden) waiting.textContent = `Waiting for pixel (${target.x},${target.y}) to change…`;
+      waiting.hidden = !target;
       if (!frame && !paused) return;
       paused = frame; render();
     },

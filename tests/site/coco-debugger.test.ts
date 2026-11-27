@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { create6809Coco64 } from "../../src/machines/generated/6809/coco64.js";
 import { create6809Coco } from "../../src/machines/generated/6809/coco.js";
 import { Cpu6809 } from "../../src/components/cpus/generated/6809-cpu.js";
-import { stepCoco } from "../../src/machines/6809/coco/runtime.js";
+import { renderCocoFrame, stepCoco, type Coco } from "../../src/machines/6809/coco/runtime.js";
 import { createCocoDebugger, cocoDebugLocation, decodeCocoAddressStops, observeCocoBoundary } from "../../site/interactive/coco-debugger.js";
 import { createExecutionController } from "../../site/interactive/execution-controller.js";
 import { previewCocoInstruction } from "../../site/interactive/coco-instruction-preview.js";
@@ -37,6 +37,46 @@ test("CoCo breakpoints stop before a large batch, continue once, and stop again 
   assert.equal(p.machine.cpu.snapshot().pc, 0x2001);
   p.debug.setBreakpoints([{ address: 0x2000, enabled: false }]); p.runTo(0x2001);
   assert.equal(p.execution.steps, 3); assert.equal(p.debug.stop?.kind, "target");
+});
+
+function blackBuffGraphics({ sam, pias }: Coco): void {
+  sam.write(3, 0); sam.write(5, 0); // V=6, display base $0000.
+  pias.write(0x23, 0); pias.write(0x22, 0xf8); pias.write(0x23, 4); pias.write(0x22, 0xf8);
+}
+
+test("pixel stops follow the displayed pair in composite and the selected bit in direct video", () => {
+  const program = [0x86, 1, 0xb7, 0, 0, 0x86, 0x41, 0xb7, 0, 0, 0x86, 0xc1, 0xb7, 0, 0];
+  for (const signal of ["direct", "composite", "composite-reversed"] as const) {
+    const p = fixture(program); blackBuffGraphics(p.machine);
+    assert.equal(renderCocoFrame(p.machine, signal)[0], 8);
+    p.debug.runUntilPixelChanges(0, 0, signal); p.execution.run(); p.jobs.shift()!();
+    const hit = p.debug.pixelHit;
+    assert.ok(hit); assert.equal(hit.instruction, "STA $0000"); assert.equal(p.debug.stop?.kind, "event");
+    const direct = signal === "direct", colour = direct ? 4 : signal === "composite" ? 11 : 12;
+    assert.equal(hit.caller.address, direct ? 0x200c : 0x2007);
+    assert.deepEqual(hit.before, { address: 0, bit: 7, byte: direct ? 0x41 : 1, colour: 8 });
+    assert.deepEqual(hit.after, { address: 0, bit: 7, byte: direct ? 0xc1 : 0x41, colour });
+    assert.equal(renderCocoFrame(p.machine, signal)[0], colour); assert.equal(p.debug.pixelTarget, undefined);
+    p.single(); assert.equal(p.debug.pixelHit, undefined);
+  }
+});
+
+test("pixel runs follow SAM display-page changes and stop cleanly on a mode change, breakpoint, or limit", () => {
+  const p = fixture([0xb7, 0xff, 0xc7, 0xb7, 0xff, 0xc4]); // Set F0, then clear V2.
+  blackBuffGraphics(p.machine); p.machine.ram.write(0x200, 0x80);
+  p.debug.runUntilPixelChanges(0, 0, "direct"); p.execution.run(); p.jobs.shift()!();
+  assert.equal(p.debug.pixelHit?.before.address, 0); assert.equal(p.debug.pixelHit?.after.address, 0x200);
+  p.debug.runUntilPixelChanges(0, 0, "direct"); p.execution.run(); p.jobs.shift()!();
+  assert.equal(p.debug.stop?.kind, "pause"); assert.match(p.debug.stop?.detail ?? "", /left 256/);
+  assert.equal(p.debug.pixelHit, undefined); assert.equal(p.execution.error, undefined);
+  assert.throws(() => p.debug.runUntilPixelChanges(0, 0, "direct"), /Select a dot/);
+
+  const loop = fixture([0x12, 0x20, 0xfd], 5); blackBuffGraphics(loop.machine);
+  loop.debug.setBreakpoints([{ address: 0x2001, enabled: true }]);
+  loop.debug.runUntilPixelChanges(0, 0, "direct"); loop.execution.run(); loop.jobs.shift()!();
+  assert.equal(loop.debug.stop?.kind, "breakpoint"); assert.equal(loop.debug.pixelTarget, undefined);
+  loop.debug.setBreakpoints([]); loop.debug.runUntilPixelChanges(0, 0, "direct"); loop.execution.run(); loop.jobs.shift()!();
+  assert.equal(loop.debug.stop?.kind, "limit"); assert.equal(loop.debug.pixelTarget, undefined);
 });
 
 test("RAM watchpoints stop after unchanged stores and after every byte of a multi-byte store", () => {

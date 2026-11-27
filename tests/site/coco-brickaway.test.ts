@@ -123,24 +123,35 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
 
   const debug = createCocoDebugger(() => session.machine, catalogue6809);
   const dot = inspectCocoPixel(session.machine, 207, 142)!;
-  assert.deepEqual(dot, { address: 0x17d9, bit: 0, byte: 0x11 });
-  debug.setWatchpoints([{ address: dot.address, enabled: true }]);
-  session.restore(await checkpoints().restore("Playing")); debug.reset();
-  assert.deepEqual(inspectCocoPixel(session.machine, 207, 142), { ...dot, byte: 0x10 });
-  const paddlePixel = () => renderCocoFrame(session.machine)[142 * 256 + 207];
-  assert.equal(paddlePixel(), 8, "the dot is black in the saved frame");
-  session.machine.pias.setJoystickPosition("right", 58, 58);
-  debug.run();
-  for (let i = 0; !debug.beforeStep(); i++) {
-    assert.ok(i < 100_000, "expected the first paddle store");
-    debug.capture(() => session.step());
+  assert.deepEqual(dot, { address: 0x17d9, bit: 0, byte: 0x11, colour: 0 });
+  for (const stop of ["write", "pixel"]) {
+    debug.setWatchpoints(stop === "write" ? [{ address: dot.address, enabled: true }] : []);
+    session.restore(await checkpoints().restore("Playing")); debug.reset();
+    const black = { ...dot, byte: 0x10, colour: 8 };
+    assert.deepEqual(inspectCocoPixel(session.machine, 207, 142), black);
+    const paddlePixel = () => renderCocoFrame(session.machine)[142 * 256 + 207];
+    assert.equal(paddlePixel(), 8, "the dot is black in the saved frame");
+    session.machine.pias.setJoystickPosition("right", 58, 58);
+    if (stop === "write") debug.run(); else debug.runUntilPixelChanges(207, 142, "composite");
+    let record;
+    for (let i = 0; !debug.beforeStep(); i++) {
+      assert.ok(i < 100_000, "expected the first paddle store");
+      record = debug.capture(() => session.step());
+    }
+    assert.deepEqual(record?.instruction, { address: 0x26a3, bytes: [0xa7, 0x84] });
+    assert.equal(pc(), 0x26a5);
+    if (stop === "write") {
+      const hit = debug.hit;
+      assert.ok(hit?.kind === "write");
+      assert.deepEqual([hit.address, hit.before, hit.after], [0x17d9, 0x10, 0x11]);
+    } else {
+      const hit = debug.pixelHit;
+      assert.equal(hit?.instruction, "STA ,X"); assert.equal(hit.caller.address, 0x26a3);
+      assert.deepEqual(hit.before, black); assert.deepEqual(hit.after, dot);
+    }
+    assert.equal(paddlePixel(), 0, "the store lights the dot green");
+    assert.deepEqual(inspectCocoPixel(session.machine, 207, 142), dot);
   }
-  const hit = debug.hit;
-  assert.ok(hit?.kind === "write");
-  assert.deepEqual(hit.record.instruction, { address: 0x26a3, bytes: [0xa7, 0x84] });
-  assert.deepEqual([hit.address, hit.before, hit.after, pc()], [0x17d9, 0x10, 0x11, 0x26a5]);
-  assert.equal(paddlePixel(), 0, "the store lights the dot green");
-  assert.deepEqual(inspectCocoPixel(session.machine, 207, 142), dot);
   debug.dispose();
 
   function firstBrick(batch: number) {
