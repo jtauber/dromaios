@@ -537,6 +537,12 @@ From the first playable frame, the byte at `$17D9` changes from `10` to `11`.
 Its low bit draws the rightmost dot of that byte, at pixel (207,142). Select
 the address to inspect it in Memory.
 
+Choose **Watch writes** beside `$17D9`, restore the first playable frame,
+set both right joystick sliders to 58 again, and Run. The debugger stops
+just after `$26A3  A7 84  STA ,X`. X points to `$17D9` and A holds `$11`.
+The store changes `$10` to `$11`, lighting that one dot green. **View writer**
+in Debugger opens the store in Disassembly. The next instruction is at `$26A5`.
+
 Normal speed plays the game’s sound. Unlimited mutes it. The game uses
 256×192 one-bit graphics. Its opening green/black
 scene keeps its direct colours. After the first brick hit selects black/buff,
@@ -1363,7 +1369,9 @@ condition-code flags and installed RAM. The left value is saved and the right
 value is the reading taken when you clicked Compare. D is represented by its
 two accumulators, A and B. RAM differences are grouped by physical page,
 including RAM hidden by the SAM. A link opens the byte under the current CPU
-mapping or reports that it is hidden. If the two RAM capacities differ, the
+mapping or reports that it is hidden. **Watch writes** arms a stop on the
+physical byte. It stays armed when you restore a checkpoint or change the SAM
+mapping. If the two RAM capacities differ, the
 report identifies the address range they share. Compare again after stepping
 to take a new reading.
 

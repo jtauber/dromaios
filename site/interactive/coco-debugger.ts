@@ -126,7 +126,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
         if (policy.stop?.kind === "error" || stopOnRead(record, caller, after)) return record;
         if (write) {
           hit = { kind: "write", ...write, caller, record };
-          policy.watchpoint(after, describeCocoWriteHit(hit));
+          policy.watchpoint(after, describeCocoWriteHit(hit, catalogue));
         } else if (policy.request === "step") policy.beforeStep(after);
         return record;
       } catch (cause) {
@@ -139,8 +139,9 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
   };
 }
 
-export function describeCocoWriteHit(hit: CocoWriteHit): string {
-  const source = hit.record.instruction ? `Instruction $${hex(hit.record.instruction.address)}`
+function describeCocoWriteHit(hit: CocoWriteHit, catalogue: Catalogue6809): string {
+  const instruction = hit.record.instruction;
+  const source = instruction ? `$${hex(instruction.address)} (${decodeCaptured6809(instruction.address, instruction.bytes, catalogue).assembly})`
     : `${"source" in hit.record ? hit.record.source.toUpperCase() : "CPU"} ${hit.record.outcome} at PC $${hex(hit.caller.address)}`;
   return `${source} wrote RAM $${hex(hit.address)}: $${hex(hit.before, 2)} → $${hex(hit.after, 2)}. Stopped after the complete boundary.`;
 }

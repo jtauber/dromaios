@@ -367,7 +367,7 @@ function mountCoco(root: HTMLElement): void {
   window.addEventListener("pagehide", releaseFocus);
 
   const snapshotPanel = root.querySelector<HTMLElement>('[data-workspace-panel="states"]')!;
-  const comparison = createCocoStateComparisonView(snapshotPanel, () => session.machine, browseRam);
+  const comparison = createCocoStateComparisonView(snapshotPanel, () => session.machine, { browseRam, watchWrites: debugView.watchWrites });
   const checkpoints = createCheckpointView(snapshotPanel,
     cocoSavedCheckpoints(() => localStorage, session.machine.clock.hertz!), {
       comparison, capture: () => session.snapshot(),

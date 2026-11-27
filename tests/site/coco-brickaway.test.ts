@@ -7,6 +7,7 @@ import { romImages } from "../../src/machines/generated/6809/coco.js";
 import { cocoDisplayMode, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
 import { readCocoTapeCas } from "../../src/components/devices/coco-tape-cas.js";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
+import { createCocoDebugger } from "../../site/interactive/coco-debugger.js";
 import { compareCocoStates } from "../../site/interactive/coco-state-comparison.js";
 import { cocoSavedCheckpoints } from "../../site/interactive/coco-saved-state.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
@@ -17,6 +18,7 @@ import { standardGamepad } from "../helpers/gamepad.js";
 import { memoryStorage } from "../helpers/browser-storage.js";
 import { tapeBlocks } from "../helpers/coco-tape.js";
 import { saveCocoPerformanceCheckpoint } from "../helpers/coco-software.js";
+import { catalogue6809 } from "./6809-inspection-fixture.js";
 
 const needsMedia = !(process.env.COCO_ROM && process.env.COCO_EXTENDED_ROM && process.env.COCO_BRICKAWAY_CAS)
   && "Set COCO_ROM, COCO_EXTENDED_ROM, and COCO_BRICKAWAY_CAS for the independent cassette game.";
@@ -118,6 +120,24 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
     }
     assert.ok(changed > 100, "movement changes visible pixels on each axis");
   }
+
+  const debug = createCocoDebugger(() => session.machine, catalogue6809);
+  debug.setWatchpoints([{ address: 0x17d9, enabled: true }]);
+  session.restore(await checkpoints().restore("Playing")); debug.reset();
+  const paddlePixel = () => renderCocoFrame(session.machine)[142 * 256 + 207];
+  assert.equal(paddlePixel(), 8, "the dot is black in the saved frame");
+  session.machine.pias.setJoystickPosition("right", 58, 58);
+  debug.run();
+  for (let i = 0; !debug.beforeStep(); i++) {
+    assert.ok(i < 100_000, "expected the first paddle store");
+    debug.capture(() => session.step());
+  }
+  const hit = debug.hit;
+  assert.ok(hit?.kind === "write");
+  assert.deepEqual(hit.record.instruction, { address: 0x26a3, bytes: [0xa7, 0x84] });
+  assert.deepEqual([hit.address, hit.before, hit.after, pc()], [0x17d9, 0x10, 0x11, 0x26a5]);
+  assert.equal(paddlePixel(), 0, "the store lights the dot green");
+  debug.dispose();
 
   function firstBrick(batch: number) {
     const clock = session.machine.clock, sampler = createSpeakerSamples(clock.hertz!, 48000, clock.ticks, session.machine.pias.soundLevel);

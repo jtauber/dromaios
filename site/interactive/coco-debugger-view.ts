@@ -16,10 +16,10 @@ export function createCocoDebuggerView(root: HTMLElement, debug: ReturnType<type
     kind: "breakpoint", key: "dromaios:debugger:coco:breakpoints", maximum: 0xffff,
     values: () => debug.breakpoints, set: debug.setBreakpoints, changed: actions.changed,
   })!;
-  createBreakpointView(root.querySelector("[data-coco-watchpoints]"), {
+  const writes = createBreakpointView(root.querySelector("[data-coco-watchpoints]"), {
     kind: "watchpoint", key: "dromaios:debugger:coco:watchpoints", maximum: 0xffff,
     values: () => debug.watchpoints, set: debug.setWatchpoints, changed: actions.watchesChanged, history: actions.history,
-  });
+  })!;
   createBreakpointView(root.querySelector("[data-coco-read-watches]"), {
     kind: "watchpoint", key: "dromaios:debugger:coco:read-watches", maximum: 0xffff,
     values: () => debug.readWatchpoints, set: debug.setReadWatchpoints, changed: actions.watchesChanged, history: actions.readHistory,
@@ -36,6 +36,7 @@ export function createCocoDebuggerView(root: HTMLElement, debug: ReturnType<type
   return {
     has: (address: number) => breakpoints.at(address)?.enabled ?? false,
     toggle: breakpoints.toggle,
+    watchWrites: writes.add,
     refresh(running: boolean): void {
       const hit = debug.hit;
       navigation.hidden = code.disabled = memory.disabled = !hit;

@@ -5,8 +5,10 @@ import type { CocoSessionState } from "./coco-session.js";
 import { compareCocoStates } from "./coco-state-comparison.js";
 
 /** Keep a paused observation on screen. Expanding a RAM page never reads the live machine. */
-export function createCocoStateComparisonView(panel: HTMLElement, machine: () => Coco,
-  browseRam: (address: number) => string | undefined) {
+export function createCocoStateComparisonView(panel: HTMLElement, machine: () => Coco, actions: {
+  browseRam(address: number): string | undefined;
+  watchWrites(address: number): void;
+}) {
   const summary = panel.querySelector<HTMLElement>("[data-comparison-summary]")!;
   const output = panel.querySelector<HTMLElement>("[data-comparison-differences]")!;
   const message = panel.querySelector<HTMLElement>("[data-comparison-message]")!;
@@ -38,8 +40,17 @@ export function createCocoStateComparisonView(panel: HTMLElement, machine: () =>
             const row = document.createElement("div"), link = document.createElement("button");
             link.type = "button"; link.className = "lab-memory-link"; link.textContent = "$" + hex(address);
             link.title = "Show physical RAM in Memory";
-            link.onclick = () => { message.textContent = browseRam(address) ?? ""; };
-            row.append(link, `  ${hex(before, 2)} → ${hex(after, 2)}`); page.append(row);
+            link.onclick = () => { message.textContent = actions.browseRam(address) ?? ""; };
+            const watch = document.createElement("button");
+            watch.type = "button"; watch.textContent = "Watch writes";
+            watch.setAttribute("aria-label", `Watch writes to $${hex(address)}`);
+            watch.onclick = () => {
+              try {
+                actions.watchWrites(address);
+                message.textContent = `Watching writes to physical RAM $${hex(address)}.`;
+              } catch (cause) { message.textContent = (cause as Error).message; }
+            };
+            row.append(link, `  ${hex(before, 2)} → ${hex(after, 2)}  `, watch); page.append(row);
           }
         };
         page.addEventListener("toggle", showBytes);

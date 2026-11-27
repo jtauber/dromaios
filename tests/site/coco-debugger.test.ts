@@ -45,7 +45,7 @@ test("RAM watchpoints stop after unchanged stores and after every byte of a mult
   assert.equal(p.execution.steps, 1); assert.equal(p.machine.cpu.snapshot().pc, 0x2003);
   assert.equal(p.debug.hit?.kind, "write");
   assert.equal(p.debug.hit?.address, 0x1210); assert.equal(p.debug.hit?.before, 0); assert.equal(p.debug.hit?.after, 0x20);
-  assert.match(p.debug.stop!.detail!, /Instruction \$2000 wrote RAM \$1210: \$00 → \$20/);
+  assert.match(p.debug.stop!.detail!, /\$2000 \(STA \$1210\) wrote RAM \$1210: \$00 → \$20/);
   p.run(); assert.equal(p.execution.steps, 2);
   assert.equal(p.debug.hit?.before, 0x20); assert.equal(p.debug.hit?.after, 0x20);
   p.debug.setWatchpoints([{ address: 0x3001, enabled: true }, { address: 0x3000, enabled: true }]); p.run();
