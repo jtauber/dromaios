@@ -408,8 +408,9 @@ but stay at BASIC's prompt. Release both fire buttons before typing.
    the blue dot follows them and Hold fire changes it to red.
 
 For a checkpoint during either transfer, Pause while the motor is on, then
-choose **Save** in **Snapshot**. The saved state includes the tape samples,
-write permission, transport mode, and partially elapsed sample as well as the
+give the checkpoint a name in **Snapshot** and choose **Save new checkpoint**.
+The saved state includes the tape samples, write permission, transport mode,
+and partially elapsed sample as well as the
 CPU, RAM, clock, and keyboard queue. Restoring reinstates all of them; Run
 continues the transfer. A stopped computer does not require pressing the
 recorder's Stop button. CPU reset preserves the recorder; Fresh power-on
@@ -501,12 +502,11 @@ Use Color BASIC 1.3 and Extended Color BASIC 1.1. In the laboratory:
 
 1. Fresh power-on and Run to `OK`, then Pause. Load `3d-brickaway.cas` in
    **Cassette**, engage **Play**, then Run and type `CLOADM` followed by Enter.
-   `F 3DBRICK` appears during loading; wait for `OK`. Unlimited can shorten
+   `F 3DBRICK` appears when BASIC finds the file. Unlimited can shorten
    the wait without changing cassette timing in emulated clocks.
 2. To test recovery during loading, Pause while the motor is on and the tape
-   is partway through. **Save snapshot** retains the entire mounted waveform
-   and its position. Fresh power-on, then **Restore snapshot** and Run:
-   loading continues from the saved point and reaches `OK`.
+   is near the midpoint. Open **Snapshot**, enter `Brickaway loading` and choose
+   **Save new checkpoint**. Run until BASIC prints `OK`.
 3. In **Joysticks**, connect the right joystick, centre it, and release fire.
    Enter `EXEC`. The tunnel screen appears and asks for the right joystick
    button. Choose **Normal** and enable **Sound** before starting play.
@@ -516,15 +516,16 @@ Use Color BASIC 1.3 and Extended Color BASIC 1.1. In the laboratory:
    the paddle. Sliders and Hold fire remain an alternative for inspection.
    The first brick hit raises the score to `00100`, removes one brick,
    changes the colour set, and sounds a short burst.
-5. Pause during play and Save again, replacing the loading checkpoint. Move
-   the sliders or power on afresh, then Restore. The paddle, ball, score,
-   joystick positions, and tape return to the saved state. Select Keyboard or
-   Gamepad again, then Run and click the screen to resume live control.
+5. Pause during play and save a second checkpoint named `Brickaway playing`.
+   Reload the page with both ROMs remembered. In **Snapshot**, select
+   `Brickaway loading` and choose **Restore**. The tape returns to the saved
+   sample with the motor on. Run until BASIC finishes `CLOADM` and prints `OK`.
+   Pause and restore `Brickaway playing`. The saved frame, paddle, ball, score
+   and joystick positions return together. Select **Keyboard** and **Right**,
+   then Run, focus the screen and steer the paddle with the arrow keys.
 
-The browser stores one checkpoint. A long tape makes it several megabytes;
-insufficient browser storage reports a failed save and preserves the previous
-checkpoint. Normal speed is required for audible output; Unlimited deliberately
-mutes host audio. The game uses 256×192 one-bit graphics. Its opening green/black
+Normal speed plays the game’s sound. Unlimited mutes it. The game uses
+256×192 one-bit graphics. Its opening green/black
 scene keeps its direct colours. After the first brick hit selects black/buff,
 the laboratory's **Composite** display interprets dot pairs as blue and
 orange/red artifact colours. **Direct** shows the individual black/buff dots;
@@ -784,9 +785,8 @@ OK
 
 **Fresh power-on** clears RAM and resets the controller while retaining the
 mounted image, write permission, and filename. Run again and repeat the commands: `ANSWER`
-must still load from Drive 0. **Save snapshot** includes the disk bytes and
-the complete transfer state. After replacing or ejecting the disk, **Restore
-snapshot** restores that saved disk, not the replacement. A checkpoint during
+must still load from Drive 0. **Save new checkpoint** includes the disk bytes and
+the complete transfer state. After replacing or ejecting the disk, **Restore** restores that saved disk, not the replacement. A checkpoint during
 a sector transfer continues with the next byte, preserving pending DATA, HALT
 deferral, and the NMI edge; it does not restart the command. The same three ROM identities
 must be loaded when restoring.
@@ -959,7 +959,7 @@ laboratory, then:
    and Run to `OK`, then enter `DIR` and `LOADM "DONKEY"` on separate lines.
    The directory shows `DONKEY   BIN  2 B 9`; loading returns to `OK`.
 2. To exercise loading recovery, Pause partway through LOADM while Drive 0
-   is reading. **Save snapshot**, Fresh power-on, then **Restore snapshot**
+   is reading. **Save new checkpoint**, Fresh power-on, then **Restore**
    and Run. The disk, controller, partially loaded RAM, and pending input
    return together; loading must still reach `OK`.
 3. Connect and centre the right joystick, with fire released. Enter `EXEC`.
@@ -977,7 +977,7 @@ laboratory, then:
    controls climbing when aligned with a ladder.
 6. Pause and Save during play. Move the controls or Fresh power-on, then
    Restore and Run. The scene and joystick positions return, and play resumes.
-   Saving replaces the single earlier loading checkpoint.
+   Give the play checkpoint its own name so you can return to either point.
 
 Unlimited can shorten the loader and title waits; Normal is required for
 host audio. Composite uses the same [two-dot approximation](../../components/devices/specifications/mc6847.md#ntsc-artifact-colours)
@@ -1142,13 +1142,12 @@ must produce the same value and ZBUG breakpoint.
 ### Recover a cartridge tape transfer
 
 During either application's recording or loading, Pause with the tape motor
-on and choose **Save snapshot**. Let the operation finish. To exercise recovery,
-power on afresh or eject the tape, then **Restore snapshot** and Run. Restoration
+on and choose **Save new checkpoint**. Let the operation finish. To exercise recovery,
+power on afresh or eject the tape, then **Restore** and Run. Restoration
 brings back the cartridge, tape bytes, read/write permission, transport position,
 fractional sample phase, PIA state, CPU/RAM, clock, and queued keys. A recording
 must produce the same export, and a load must produce the same picture or source.
-Saving a loading checkpoint replaces the previous recording checkpoint; the lab
-stores only one.
+Use separate names for recording and loading to keep both transfer positions.
 
 The automated checks take packed browser checkpoints inside both transfers:
 after 600,000 samples for the picture and 180,000 for source, while data remains
@@ -1332,8 +1331,10 @@ panel acknowledges a PIA interrupt, consumes queued keys, or changes hardware.
 Disassembly navigation uses its held storage image while Live is off; Pause,
 Step, and showing either panel refresh its observations.
 
-**Snapshot** saves one explicit browser checkpoint: native hardware plus the
-queued chords, current press/release phase, remaining input clocks, and disk filename.
+**Snapshot** keeps named checkpoints in this browser. Enter a name and choose
+**Save new checkpoint**. Earlier single-slot saves appear as **Previous checkpoint**.
+Each name holds a compressed copy of the native hardware, queued chords,
+current press/release phase, remaining input clocks, and disk filename.
 Save and Restore require a paused machine. Restoring validates the complete
 state and matching ROM identities before replacing the session, stays paused, and clears
 the recent-step display. It does not issue a reset or inject another key.
@@ -1539,7 +1540,7 @@ startup banner) to `$0400` and runs through because it has a different PC.
 In **ROM walkthrough**, choose **Color BASIC: one H from keyboard to screen**.
 Start with 32 KiB, Color BASIC only, and an empty cartridge socket. Choose
 **Fresh power-on** and leave the keyboard alone. In Execution, run to `$A220`
-and **Save snapshot**. BASIC has printed `OK` and recorded the idle rows for
+and **Save new checkpoint**. BASIC has printed `OK` and recorded the idle rows for
 column 0 at `$0152`. It needs that earlier sample to recognize a new press.
 
 Focus the CoCo screen and press **H** once, without Enter. Choose **Run to
@@ -1971,7 +1972,7 @@ previous stop report is cleared.
       {
         "id": "keyboard-echo",
         "title": "Color BASIC: one H from keyboard to screen",
-        "setup": "Select 32 KiB, use Color BASIC only, and eject any cartridge. Fresh power-on with no keys queued. In Execution, run to A220 and Save snapshot. Click the CoCo screen and press H once without Enter. Run the stops in order, or restore the snapshot and press H again to replay any one stop.",
+        "setup": "Select 32 KiB, use Color BASIC only, and eject any cartridge. Fresh power-on with no keys queued. In Execution, run to A220 and save a named checkpoint. Click the CoCo screen and press H once without Enter. Run the stops in order, or restore the snapshot and press H again to replay any one stop.",
         "steps": [
           {
             "title": "Read keyboard row",

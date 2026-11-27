@@ -1,17 +1,18 @@
-import { xtSavedCheckpoints } from "./xt-checkpoint-storage.js";
-import type { XtSessionState } from "./xt-session.js";
-
 /** The Session panel manages named saves. The laboratory owns the running machine. */
-export function createXtCheckpointView(panel: HTMLElement, ega: boolean, actions: {
-  capture(): XtSessionState;
-  restore(state: XtSessionState): void;
+export function createCheckpointView<State>(panel: HTMLElement, store: {
+  names(): string[];
+  save(name: string, state: State): Promise<void>;
+  restore(name: string): Promise<State>;
+  remove(name: string): void;
+}, actions: {
+  capture(): State;
+  restore(state: State): void;
   refresh(): void;
 }) {
   const find = <T extends HTMLElement>(name: string) => panel.querySelector<T>(`[data-${name}]`)!;
   const form = find<HTMLFormElement>("checkpoint-form"), name = find<HTMLInputElement>("checkpoint-name");
   const choice = find<HTMLSelectElement>("checkpoint-choice"), status = find("saved");
   const save = find<HTMLButtonElement>("save"), restore = find<HTMLButtonElement>("restore"), remove = find<HTMLButtonElement>("remove");
-  const store = xtSavedCheckpoints(() => localStorage, ega);
   let busy = false;
 
   function list(selected = choice.value): void {
@@ -42,7 +43,7 @@ export function createXtCheckpointView(panel: HTMLElement, ega: boolean, actions
     const label = choice.value;
     void action("Restoring", async () => {
       actions.restore(await store.restore(label));
-      return `Restored “${label}”. The XT is paused.`;
+      return `Restored “${label}”. Execution is paused.`;
     });
   };
   remove.onclick = () => {

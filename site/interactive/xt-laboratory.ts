@@ -1,7 +1,8 @@
 import { createXtDiskActivity } from "./xt-disk-activity.js";
 import { createXtDiskActivityView } from "./xt-disk-activity-view.js";
 import { createXtDiskFilesView } from "./xt-disk-files-view.js";
-import { createXtCheckpointView } from "./xt-checkpoint-view.js";
+import { createCheckpointView } from "./checkpoint-view.js";
+import { xtSavedCheckpoints } from "./xt-checkpoint-storage.js";
 import { createXtDmaView } from "./xt-dma-view.js";
 import { createXtIoTrace } from "./xt-io-trace.js";
 import { createXtPaletteCapture } from "./xt-ega-palette.js";
@@ -383,7 +384,7 @@ function mount(root: HTMLElement): void {
   window.addEventListener("pagehide", leaveWindow);
   document.addEventListener("visibilitychange", () => { if (document.hidden) leaveWindow(); });
 
-  const checkpoints = createXtCheckpointView(root.querySelector<HTMLElement>('[data-workspace-panel="snapshot"]')!, ega, {
+  const checkpoints = createCheckpointView(root.querySelector<HTMLElement>('[data-workspace-panel="snapshot"]')!, xtSavedCheckpoints(() => localStorage, ega), {
     capture: () => session.snapshot(),
     restore(state) {
       session.restore(state); diskMessage.textContent = ""; resetTools();

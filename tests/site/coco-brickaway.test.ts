@@ -7,12 +7,13 @@ import { romImages } from "../../src/machines/generated/6809/coco.js";
 import { cocoDisplayMode, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
 import { readCocoTapeCas } from "../../src/components/devices/coco-tape-cas.js";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
-import { cocoSavedState } from "../../site/interactive/coco-saved-state.js";
+import { cocoSavedCheckpoints } from "../../site/interactive/coco-saved-state.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { cocoScreenText } from "../../site/interactive/coco-inspection.js";
 import { createSpeakerSamples } from "../../site/interactive/speaker-samples.js";
 import { createCocoJoystickInput } from "../../site/interactive/coco-joystick-input.js";
 import { standardGamepad } from "../helpers/gamepad.js";
+import { memoryStorage } from "../helpers/browser-storage.js";
 import { tapeBlocks } from "../helpers/coco-tape.js";
 import { saveCocoPerformanceCheckpoint } from "../helpers/coco-software.js";
 
@@ -36,10 +37,9 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   const payload = Uint8Array.from(blocks.filter(block => block.type === 1).flatMap(block => block.data));
   assert.equal(payload.length, 11_017);
   assert.equal(hash(payload), "00c86d64f8eca97ffff1d465e594e6aa2eb8eda157b9232e4b332ff596396833");
-  const session = createCocoSession(firmware, extended), storage = new Map<string, string>();
+  const session = createCocoSession(firmware, extended), storage = memoryStorage();
   const controls = createCocoJoystickInput(() => session.machine.pias);
-  const saved = cocoSavedState(() => ({ getItem: key => storage.get(key) ?? null,
-    setItem: (key, value) => { storage.set(key, value); }, removeItem: key => { storage.delete(key); } }), session.machine.clock.hertz!);
+  const checkpoints = () => cocoSavedCheckpoints(() => storage, session.machine.clock.hertz!);
   function run(count: number): void { for (let i = 0; i < count; i++) session.step(); }
   function until(predicate: () => boolean, limit = 15_000_000): number {
     for (let i = 0; i < limit; i++) { if (predicate()) return i; session.step(); }
@@ -56,13 +56,13 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   assert.ok(session.machine.pias.cassetteMotor);
   assert.deepEqual(ramBytes(0x1648, 1000), payload.slice(0, 1000));
   assert.notDeepEqual(ramBytes(0x1648, payload.length), payload);
-  const loading = session.snapshot(); assert.ok(loading.hardware.pias.cassette.phase > 0); saved.save(loading);
+  const loading = session.snapshot(); assert.ok(loading.hardware.pias.cassette.phase > 0); await checkpoints().save("Loading", loading);
   const remaining = until(() => !session.machine.pias.cassetteMotor && /\nOK(?:\n█)?$/.test(cocoScreenText(session.machine)));
   assert.match(cocoScreenText(session.machine), /F 3DBRICK\nOK/);
   assert.deepEqual(ramBytes(0x1648, payload.length), payload);
   assert.equal(word(0x9d), 0x412b, "CLOADM restores the header's EXEC address");
   const loaded = session.snapshot();
-  session.powerOn(); session.machine.pias.cassette.eject(); session.restore(saved.read()!.state); run(remaining);
+  session.powerOn(); session.machine.pias.cassette.eject(); session.restore(await checkpoints().restore("Loading")); run(remaining);
   assert.deepEqual(session.snapshot(), loaded); // Includes RAM, tape, sub-sample phase, clock and pending input.
 
   controls.select("gamepad", "right"); controls.chooseGamepad(0); controls.setActive(true); controls.poll([standardGamepad()]);
@@ -72,7 +72,9 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   controls.poll([standardGamepad([0, 0], [0])]); run(1000); controls.poll([standardGamepad()]);
   until(() => pc() === 0x2a0b, 1_000_000); // Paddle drawn; next ball update has not begun.
   assert.equal(word(0x1e18), 0);
-  const playing = session.snapshot(); saved.save(playing);
+  const playing = session.snapshot(); await checkpoints().save("Playing", playing);
+  assert.deepEqual(checkpoints().names(), ["Loading", "Playing"]);
+  assert.deepEqual(await checkpoints().restore("Loading"), loading);
   saveCocoPerformanceCheckpoint("brickaway", playing);
   assert.deepEqual(renderCocoFrame(session.machine, "composite"), renderCocoFrame(session.machine),
     "the green opening scene keeps its direct colours");
@@ -83,7 +85,7 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   }
   const frames: { raster: Uint8Array; address: number }[] = [];
   for (const [x, y, address] of [[5, 5, 0x0a22], [58, 5, 0x0a39], [58, 58, 0x17d9]] as const) {
-    session.restore(saved.read()!.state); controls.reset();
+    session.restore(await checkpoints().restore("Playing")); controls.reset();
     const restored = session.snapshot(); controls.poll([standardGamepad([1, 1], [0])]);
     assert.deepEqual(session.snapshot(), restored, "restoration hands ownership back to the saved controls");
     controls.select("gamepad", "right"); controls.setActive(true); controls.poll([standardGamepad()]);
@@ -139,7 +141,7 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
     assert.deepEqual(session.snapshot(), beforeDisplay, "switching display interpretation cannot alter play or sound");
     return { state: beforeDisplay, raster, composite, reversed, audio, edges };
   }
-  session.restore(saved.read()!.state); const first = firstBrick(1000);
-  session.powerOn(); session.machine.pias.cassette.eject(); session.restore(saved.read()!.state);
+  session.restore(await checkpoints().restore("Playing")); const first = firstBrick(1000);
+  session.powerOn(); session.machine.pias.cassette.eject(); session.restore(await checkpoints().restore("Playing"));
   assert.deepEqual(firstBrick(137), first, "play checkpoint repeats RAM, pixels, DAC edges and PCM at a different drain schedule");
 });

@@ -2,19 +2,14 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
-import { cocoSavedState } from "../../site/interactive/coco-saved-state.js";
+import { memoryStorage } from "../helpers/browser-storage.js";
+import { cocoSavedState, cocoSavedCheckpoints } from "../../site/interactive/coco-saved-state.js";
 import { cocoScreenText, readCocoStorage } from "../../site/interactive/coco-inspection.js";
 import { cocoDefaultLayout, cocoWorkspaceKey, migrateCocoWorkspace } from "../../site/interactive/coco-workspace.js";
 import { groups, closePanel, collapseGroup, panelGroup } from "../../site/interactive/workspace/layout.js";
 import { decodeWorkspaceState, encodeWorkspaceState } from "../../site/interactive/workspace/state.js";
 import { romFileStorage } from "../../site/interactive/rom-storage.js";
 import { readRomFile } from "../../site/interactive/rom-file.js";
-
-function memoryStorage() {
-  const values = new Map<string, string>();
-  return { values, getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
-}
 
 function withoutDisk(state: ReturnType<ReturnType<typeof createCocoSession>["snapshot"]>) {
   const { diskName, hardware, ...input } = state;
@@ -41,7 +36,7 @@ test("a ROM-free CoCo exposes RAM, while inspection leaves pending PIA edges and
   assert.deepEqual(session.snapshot(), saved, "a rejected snapshot does not replace the running machine");
 });
 
-test("one browser checkpoint preserves native state, rejects stale formats, and survives a failed replacement", () => {
+test("the original browser checkpoint preserves native state, rejects stale formats, and survives a failed replacement", () => {
   const storage = memoryStorage(), session = createCocoSession(), checkpoint = cocoSavedState(() => storage, session.machine.clock.hertz!);
   assert.equal(checkpoint.read(), undefined); session.machine.ram.write(100, 99); checkpoint.save(session.snapshot());
   session.powerOn(); session.restore(checkpoint.read()!.state); assert.equal(session.machine.ram.read(100), 99);
@@ -53,6 +48,26 @@ test("one browser checkpoint preserves native state, rejects stale formats, and 
     storage.values.set(key, invalid); assert.throws(() => checkpoint.read());
   }
   checkpoint.forget(); assert.equal(checkpoint.read(), undefined);
+});
+
+test("named CoCo checkpoints coexist with the original slot and restore their own RAM capacity", async () => {
+  const storage = memoryStorage(), original = createCocoSession(), hertz = original.machine.clock.hertz!;
+  original.machine.ram.write(0x1234, 0x42);
+  cocoSavedState(() => storage, hertz).save(original.snapshot());
+  const [key, text] = [...storage.values][0]!;
+  const saved = cocoSavedCheckpoints(() => storage, hertz);
+  const expanded = createCocoSession(null, null, null, 64);
+  expanded.machine.ram.write(0x9234, 0x64);
+  await saved.save("64 KiB", expanded.snapshot());
+  await assert.rejects(saved.save("Previous checkpoint", expanded.snapshot()), /already saved/);
+  assert.equal(storage.getItem(key), text);
+  const reopened = cocoSavedCheckpoints(() => storage, hertz);
+  assert.deepEqual(reopened.names(), ["64 KiB", "Previous checkpoint"]);
+  original.restore(await reopened.restore("64 KiB"));
+  assert.equal(original.memorySize, 64); assert.equal(original.machine.ram.read(0x9234), 0x64);
+  original.restore(await reopened.restore("Previous checkpoint"));
+  assert.equal(original.memorySize, 32); assert.equal(original.machine.ram.read(0x1234), 0x42);
+  reopened.remove("64 KiB"); assert.equal(storage.getItem(key), text);
 });
 
 test("CoCo ROM storage verifies bytes again and uses a key separate from Apple II media", async () => {

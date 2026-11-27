@@ -30,7 +30,8 @@ import { create6809InstructionView } from "./6809-instruction-view.js";
 import { previewCocoInstruction } from "./coco-instruction-preview.js";
 import { createCocoScreen } from "./coco-screen-view.js";
 import { createCocoInspectors } from "./coco-inspector-view.js";
-import { cocoSavedState } from "./coco-saved-state.js";
+import { createCheckpointView } from "./checkpoint-view.js";
+import { cocoSavedCheckpoints } from "./coco-saved-state.js";
 import { readRomFile } from "./rom-file.js";
 import type { RomFile } from "./rom-file.js";
 import { romFileStorage } from "./rom-storage.js";
@@ -56,8 +57,6 @@ function mountCoco(root: HTMLElement): void {
   const targetButton = at<HTMLButtonElement>("run-target-button");
   const removeExtended = at<HTMLButtonElement>("extended-rom-remove");
   const removeDisk = at<HTMLButtonElement>("disk-rom-remove");
-  const save = at<HTMLButtonElement>("snapshot-save"), restore = at<HTMLButtonElement>("snapshot-restore");
-  const forgetState = at<HTMLButtonElement>("snapshot-forget");
   type RomSlot = keyof typeof romImages;
   const roms: Record<RomSlot, RomFile | undefined> = { firmware: undefined, extended: undefined, dos: undefined };
   const slots = ([
@@ -75,8 +74,7 @@ function mountCoco(root: HTMLElement): void {
   let memorySize: 32 | 64 = 32;
   try { if (localStorage.getItem(memoryKey) === "64") memorySize = 64; } catch { /* Default to 32 KiB. */ }
   const memoryButtons = [...root.querySelectorAll<HTMLButtonElement>("[data-coco-ram]")];
-  let session = createCocoSession(null, null, null, memorySize), selecting = true, hasSaved = false;
-  const saved = cocoSavedState(() => localStorage, session.machine.clock.hertz!);
+  let session = createCocoSession(null, null, null, memorySize), selecting = true;
   const sound = createMachineSound(root, () => ({ clock: session.machine.clock, level: session.machine.pias.soundLevel }));
   const joysticks = createCocoJoystickView(root, () => session.machine.pias, {
     changed: () => refreshPanels(["pias"]), releaseKeyboard: () => session.releaseInput(),
@@ -201,7 +199,7 @@ function mountCoco(root: HTMLElement): void {
     },
   })!;
   function runTo(address: number, space?: "rom", when?: () => boolean): void {
-    if (!session.ready || selecting || execution.running || execution.error !== undefined) return;
+    if (!session.ready || selecting || checkpoints.busy || execution.running || execution.error !== undefined) return;
     targetInput.value = cocoHex(address); targetInput.setCustomValidity("");
     debug.runTo(address, space, when); message.textContent = ""; execution.run();
   }
@@ -212,41 +210,41 @@ function mountCoco(root: HTMLElement): void {
   }
   function refreshPanels(ids: readonly string[]): void { requested = ids; refresh(); requested = []; }
   function refresh(): void {
-    const ready = session.ready && !selecting, running = execution.running;
+    const unavailable = selecting || checkpoints.busy;
+    const ready = session.ready && !unavailable, running = execution.running;
     const now = performance.now();
     screenDue = screenCadence.due(now, running); inspectorsDue = inspectorCadence.due(now, running);
     run.disabled = !ready || running || execution.error !== undefined;
     pause.disabled = !running; step.disabled = !ready || running || execution.error !== undefined;
-    reset.disabled = !ready || running; power.disabled = selecting || running;
+    reset.disabled = !ready || running; power.disabled = unavailable || running;
     targetButton.disabled = targetInput.disabled = !ready || running || execution.error !== undefined;
-    speed.refresh(selecting);
-    sound.refresh({ running, normal: speed.normal, unavailable: selecting });
-    joysticks.refresh(selecting, running);
-    cassette.refresh(selecting, running);
-    disk.refresh(selecting, running);
-    cartridge.refresh(selecting, running);
+    speed.refresh(unavailable);
+    sound.refresh({ running, normal: speed.normal, unavailable });
+    joysticks.refresh(unavailable, running);
+    cassette.refresh(unavailable, running);
+    disk.refresh(unavailable, running);
+    cartridge.refresh(unavailable, running);
     for (const button of memoryButtons) {
-      button.disabled = selecting || running;
+      button.disabled = unavailable || running;
       button.setAttribute("aria-pressed", String(Number(button.dataset.cocoRam) === session.memorySize));
     }
     for (const slot of slots) {
-      slot.load.disabled = slot.forget.disabled = selecting;
+      slot.load.disabled = slot.forget.disabled = unavailable;
       const rom = roms[slot.id];
       slot.status.textContent = rom ? `${rom.name} · verified ${slot.label}`
         : slot.id === "firmware" ? "No Color BASIC ROM loaded · RAM and devices are available"
           : slot.id === "extended" ? "No Extended BASIC ROM loaded" : "No Disk BASIC ROM loaded";
     }
-    removeExtended.disabled = selecting || running || roms.extended === undefined;
-    removeDisk.disabled = selecting || running || roms.dos === undefined;
-    save.disabled = !ready || running; restore.disabled = !ready || running || !hasSaved;
-    forgetState.disabled = selecting || !hasSaved;
-    at("machine-status").textContent = `${running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${session.memorySize} KiB · ${execution.steps.toLocaleString()} steps`
+    removeExtended.disabled = unavailable || running || roms.extended === undefined;
+    removeDisk.disabled = unavailable || running || roms.dos === undefined;
+    checkpoints.refresh(ready && !running, !unavailable && !running);
+    at("machine-status").textContent = `${checkpoints.busy ? "Updating checkpoint" : running ? "Running" : ready ? "Paused" : "Ready for ROM"} · ${session.memorySize} KiB · ${execution.steps.toLocaleString()} steps`
       + ` · ${session.machine.clock.ticks.toLocaleString()} board ticks`
       + (session.pendingInput ? ` · ${session.pendingInput} keys queued` : "");
     if (session.hasFirmware && !session.ready) at("machine-status").textContent = "Load Extended Color BASIC 1.1 to use Disk BASIC.";
     at("machine-error").textContent = execution.error ?? "";
     debugView.refresh(running);
-    intervals.refresh({ running, unavailable: selecting, stop: execution.error ? "error" : debug.stop?.kind });
+    intervals.refresh({ running, unavailable, stop: execution.error ? "error" : debug.stop?.kind });
     if (shouldUpdate("log")) changeLog.refresh();
     if (shouldUpdate("debugger")) { watchView.refresh(); readView.refresh(); }
     stepControls(step.disabled, debug.canStepOut);
@@ -335,6 +333,7 @@ function mountCoco(root: HTMLElement): void {
   reset.addEventListener("click", () => action(() => { session.reset(); changedMachine(); }));
   power.addEventListener("click", () => action(() => { session.powerOn(); changedMachine(); }));
   screen.addEventListener("keydown", event => {
+    if (checkpoints.busy) return;
     try {
       if (joysticks.keyDown(event)) { event.preventDefault(); return; }
       const keys = cocoScreenKey(event); if (!keys) return;
@@ -346,7 +345,8 @@ function mountCoco(root: HTMLElement): void {
   });
   screen.addEventListener("keyup", event => { if (joysticks.keyUp(event)) event.preventDefault(); });
   screen.addEventListener("paste", event => {
-    event.preventDefault(); action(() => session.send(cocoTextInput(event.clipboardData?.getData("text/plain") ?? "")));
+    event.preventDefault(); if (checkpoints.busy) return;
+    action(() => session.send(cocoTextInput(event.clipboardData?.getData("text/plain") ?? "")));
   });
   at<HTMLInputElement>("coco-scanlines").addEventListener("change", event => {
     screen.classList.toggle("scanlines", (event.currentTarget as HTMLInputElement).checked);
@@ -362,18 +362,12 @@ function mountCoco(root: HTMLElement): void {
   document.addEventListener("visibilitychange", () => { if (document.hidden) releaseFocus(); });
   window.addEventListener("pagehide", releaseFocus);
 
-  function savedStatus(): void {
-    try {
-      const state = saved.read(); hasSaved = state !== undefined;
-      at("snapshot-status").textContent = state ? `Saved ${new Date(state.savedAt).toLocaleString()}` : "No snapshot saved";
-    } catch { hasSaved = true; at("snapshot-status").textContent = "Saved snapshot unavailable or invalid. Forget it to clear this entry."; }
-  }
-  save.addEventListener("click", () => action(() => { saved.save(session.snapshot()); savedStatus(); }));
-  restore.addEventListener("click", () => action(() => {
-    const state = saved.read(); if (!state) throw new Error("No saved CoCo snapshot.");
-    session.restore(state.state); changedMachine();
-  }));
-  forgetState.addEventListener("click", () => action(() => { saved.forget(); savedStatus(); }));
+  const checkpoints = createCheckpointView(root.querySelector<HTMLElement>('[data-workspace-panel="states"]')!,
+    cocoSavedCheckpoints(() => localStorage, session.machine.clock.hertz!), {
+      capture: () => session.snapshot(),
+      restore(state) { session.restore(state); changedMachine(); message.textContent = ""; },
+      refresh,
+    });
 
   const status = document.createElement("span"); status.className = "workspace-status"; status.setAttribute("role", "status");
   const pending = new Set<string>();
@@ -390,7 +384,7 @@ function mountCoco(root: HTMLElement): void {
     }, onStatus: message => { status.textContent = message; },
   });
   mountWorkspaceControls(document.getElementById("coco-layout-controls")!, workspace, status);
-  savedStatus(); refreshPanels(panels.map(panel => panel.dataset.workspacePanel!));
+  refreshPanels(panels.map(panel => panel.dataset.workspacePanel!));
   void (async () => {
     await Promise.all(slots.map(async slot => {
       try {
