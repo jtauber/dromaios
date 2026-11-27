@@ -355,7 +355,8 @@ same events by hand in the Debugger, use the addresses below.
    the game when DOS returns from its first failed open of `SAVED.GAM`. The
    return has carry set and `AX=0002` (file not found). This is the time to
    exchange disks. The empty playfield can appear while DOS is still reading
-   the tiles from the Program disk.
+   the tiles from the Program disk. Before swapping disks, open **Session**,
+   enter `Program disk exchange`, and choose **Save new checkpoint**.
 3. Use **Insert writable copy…** for `ULTIMA-PLAYER.IMG` and remove the
    disk-exchange breakpoint. For the EGA check, set the [keyboard poll
    breakpoint](#one-ega-step-in-iolos-hut) before choosing **Run**. The
@@ -399,7 +400,10 @@ uses this same byte to draw the table.
 
 At **Meet the party in Iolo’s hut** in the Journey Onward walkthrough, the
 game is polling the keyboard at `0C6F:1D6C`. Leave the writable Player disk
-mounted and choose **Session → Save snapshot** before pressing Down. Select
+mounted and save a second checkpoint named `Iolo’s hut` in **Session**.
+After a page reload, restoring `Program disk exchange` puts the write-protected
+Program disk back in Drive A at `0C6F:7249`. Restore `Iolo’s hut` to return
+to the keyboard poll with the writable Player disk. Select
 **Ultima V · One step in Iolo’s hut → Update party Y** to follow one keypress
 through all five stops. After the first stop, choose **Next → Run to checkpoint**
 each time. The game continues processing the original Down keypress.
@@ -659,14 +663,14 @@ location, X and Y bytes in the loaded party record, in decimal.
       "title": "Exchange the Program disk",
       "execution": "0C6F:7249",
       "prepare": "With the Program disk still mounted and Journey Onward highlighted, click the paused screen and press Enter once. Run to this checkpoint. Leave the Program disk in place while the game reads its tiles, even after the playfield appears.",
-      "observe": "DOS tried to open SAVED.GAM on the Program disk. Carry is set, AX is 0002 (file not found), and DS:DX points to the filename. This is the moment to exchange disks.",
+      "observe": "DOS tried to open SAVED.GAM on the Program disk. Carry is set, AX is 0002 (file not found), and DS:DX points to the filename. In Session, save a checkpoint named Program disk exchange before swapping disks.",
       "expect": { "missingFile": "SAVED.GAM" }
     },
     {
       "title": "Meet the party in Iolo’s hut",
       "execution": "0C6F:1D6C",
       "prepare": "In Drive A choose Insert writable copy… and select the original Elwood Player disk. Run to this checkpoint while the game retries its open, reads the party and draws the hut.",
-      "observe": "Elwood, Shamino and Iolo are on screen. The game is polling the keyboard. Inspect party bytes to see location 0D (Iolo’s hut) at $215C3 and X and Y at $215C6–215C7. Both coordinates are 0F (15).",
+      "observe": "Elwood, Shamino and Iolo are on screen. The game is polling the keyboard. Inspect party bytes to see location 0D (Iolo’s hut) at $215C3 and X and Y at $215C6–215C7. Both coordinates are 0F (15). Save a second checkpoint named Iolo’s hut to replay one Down keypress.",
       "expect": { "party": [13, 15, 15] }
     },
     {

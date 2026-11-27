@@ -968,14 +968,14 @@ write-protected. Use **Insert writable copy…** and **Export disk image** to
 **Eject** leaves the drive empty. **Fresh power-on** clears RAM and resets the
 controller while leaving the current disk in the drive.
 
-To resume later, pause and choose **Save snapshot**. The browser compresses the
-checkpoint before storing it so RAM and a mounted disk do not crowd out other
-laboratories’ saves. Older plain JSON checkpoints remain readable. Wait for
-“XT checkpoint saved in this browser”; a failed save leaves the previous
-checkpoint intact and reports the failure in Session. On a later visit, choose
-**Restore snapshot** with the same three ROMs loaded. The checkpoint restores
-the CPU, RAM, screen, board devices, and pending keyboard input. It also
-restores the saved disk's name, contents, and write permission, even if you have since ejected it
+To resume later, pause the XT, open **Session**, enter a name and choose
+**Save new checkpoint**. Each name keeps a separate compressed save in this
+browser. CGA and EGA have their own lists. If you used the earlier laboratory,
+your save appears as **Previous checkpoint**. Older plain JSON saves work too.
+On a later visit, load the same three ROMs, select a saved checkpoint, and
+choose **Restore**. The XT returns to its saved instruction, paused, with its CPU, RAM, screen,
+board devices, and pending keyboard input restored. Drive A recovers the disk’s name,
+contents, and write permission, even if you have since ejected the disk
 or inserted another disk. A checkpoint saved with an empty drive restores it empty.
 
 From fresh power-on, **Disassembly** shows `EA 5B E0 00 F0` at `FFFF:0000`
@@ -1585,7 +1585,7 @@ a return instruction before establishing a working RAM stack.
        "observe": "The BIOS has programmed DMA2 address 7C00, count 01FF, page 00 and mode 46 (stored mode 44 without channel bits). Eight controller parameters follow."},
       {"title": "Half a sector in RAM", "address": "FEF3A", "execution": "F000:EF3A", "routine": "DISKETTE_IO",
        "memory": "07C00", "event": {"kind": "dma", "address": 31999},
-       "prepare": "Run to the DMA2 transfer at physical 07CFF. Save snapshot here to replay the remaining half.",
+       "prepare": "Run to the DMA2 transfer at physical 07CFF. Save a named checkpoint here to replay the remaining half.",
        "observe": "256 bytes occupy 07C00–07CFF. The next address is 7D00, count 00FF and controller byte offset 256. The mounted image and its transfer delay are part of the checkpoint."},
       {"title": "Terminal count raises IRQ6", "address": "FEF57", "execution": "F000:EF57", "routine": "DISKETTE_IRQ",
        "memory": "07C00", "event": {"kind": "dma", "address": 32255},

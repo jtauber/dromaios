@@ -1,7 +1,7 @@
 import { createXtDiskActivity } from "./xt-disk-activity.js";
 import { createXtDiskActivityView } from "./xt-disk-activity-view.js";
 import { createXtDiskFilesView } from "./xt-disk-files-view.js";
-import { decodeStoredXtCheckpoint, encodeStoredXtCheckpoint } from "./xt-checkpoint-storage.js";
+import { createXtCheckpointView } from "./xt-checkpoint-view.js";
 import { createXtDmaView } from "./xt-dma-view.js";
 import { createXtIoTrace } from "./xt-io-trace.js";
 import { createXtPaletteCapture } from "./xt-ega-palette.js";
@@ -36,7 +36,6 @@ import { createXtScreen } from "./xt-screen.js";
 import { xtEgaPixelReadout } from "./xt-ega-pixel.js";
 import { planeByteLabel } from "./xt-ega-plane-watch.js";
 import { createXtEgaPixelInspector } from "./xt-ega-pixel-view.js";
-import { xtCheckpointKey } from "./xt-checkpoint.js";
 import { createXtDebugger, formatXtDebugAddress, observeXtBoundary, parseXtDebugAddress, xtDebugLocation, xtLogicalLocation } from "./xt-debugger.js";
 import { createXtDebuggerView } from "./xt-debugger-view.js";
 import { previewXtInstruction } from "./xt-instruction-preview.js";
@@ -70,7 +69,6 @@ function mount(root: HTMLElement): void {
   const observeSpeaker = () => session.machine.io.observeSpeaker((ticks, level) => sound.observeAt(ticks, Number(level)));
   let unobserveSpeaker = observeSpeaker();
   const images = { ...romImages, ...egaRomImages };
-  const checkpointKey = ega ? xtCheckpointKey + ":ega" : xtCheckpointKey;
   const registers = root.querySelector<HTMLElement>('[data-workspace-panel="registers"]')!;
   const code = root.querySelector<HTMLElement>('[data-workspace-panel="code"]')!;
   const instruction = root.querySelector<HTMLElement>('[data-workspace-panel="instruction"]')!;
@@ -151,8 +149,7 @@ function mount(root: HTMLElement): void {
   });
   const diskFile = at<HTMLInputElement>("disk-file"), diskName = at("disk-name"), motor = at("disk-motor");
   const diskMessage = at("disk-message");
-  let checkpointBusy = false;
-  let loading = true, readingDisk = false, writableCopy = false, saved = false, lastDraw = -Infinity;
+  let loading = true, readingDisk = false, writableCopy = false, lastDraw = -Infinity;
   function observeBoundary(): ReturnType<typeof observeXtBoundary> {
     // CPU reset, power-on and checkpoint restore clear the records through resetTools().
     return observeXtBoundary(session.machine, execution.records.at(-1)?.after);
@@ -260,7 +257,7 @@ function mount(root: HTMLElement): void {
   target.oninput = () => target.setCustomValidity("");
 
   function refresh(requested?: string): void {
-    const unavailable = loading || checkpointBusy;
+    const unavailable = loading || checkpoints.busy;
     const running = execution.running, ready = session.ready && !unavailable, runnable = ready && !execution.error;
     speed.refresh(!ready);
     sound.refresh({ running, normal: speed.normal, unavailable: !ready });
@@ -271,9 +268,7 @@ function mount(root: HTMLElement): void {
     button("pause").disabled = !running;
     button("reset").disabled = button("power").disabled = button("quick").disabled = !ready || running || readingDisk;
     button("break").disabled = button("warm").disabled = !runnable;
-    button("save").disabled = !ready || running || readingDisk;
-    button("restore").disabled = !ready || running || readingDisk || !saved;
-    button("remove").disabled = unavailable || running || !saved;
+    checkpoints.refresh(ready && !running && !readingDisk, !unavailable && !running);
     for (const slot of slots) { slot.load.disabled = unavailable || readingDisk || running; slot.forget.disabled = unavailable || running || !slot.remembered; }
 
     button("disk-insert").disabled = button("disk-writable").disabled = unavailable || readingDisk;
@@ -291,7 +286,7 @@ function mount(root: HTMLElement): void {
     }
 
     const cpu = session.machine.cpu.snapshot(), seconds = session.machine.io.oscillatorTicks / xtOscillatorHz;
-    status.textContent = [checkpointBusy ? "Saving or restoring checkpoint" : running ? "Running" : ready ? "Paused" : "Waiting for firmware",
+    status.textContent = [checkpoints.busy ? "Saving or restoring checkpoint" : running ? "Running" : ready ? "Paused" : "Waiting for firmware",
       `CS:IP ${hex(cpu.cs, 4)}:${hex(cpu.ip, 4)} · physical ${hex(cpu.pc, 5)}`,
       `${session.machine.io.oscillatorTicks.toLocaleString()} oscillator ticks · ${seconds.toFixed(2)} s on the XT`,
       session.keyboard.queuedBytes ? `${session.keyboard.queuedBytes} scan bytes queued` : "",
@@ -367,7 +362,7 @@ function mount(root: HTMLElement): void {
 
   screen.addEventListener("keydown", event => {
     if (pixelInspector?.handleKey(event)) return;
-    if (!session.ready || loading || event.metaKey || event.code === "Tab" || event.ctrlKey && event.code === "KeyV") return;
+    if (!session.ready || loading || checkpoints.busy || event.metaKey || event.code === "Tab" || event.ctrlKey && event.code === "KeyV") return;
     if (!xtKeySupported(event.code)) return;
     event.preventDefault();
     if (!event.repeat) act(() => session.keyboard.down(event.code));
@@ -375,7 +370,7 @@ function mount(root: HTMLElement): void {
   screen.addEventListener("keyup", event => { session.keyboard.up(event.code); });
   screen.addEventListener("paste", event => {
     if (pixelInspector?.active) { event.preventDefault(); return; }
-    if (!session.ready || loading || checkpointBusy) return;
+    if (!session.ready || loading || checkpoints.busy) return;
     event.preventDefault(); act(() => session.keyboard.paste(event.clipboardData?.getData("text/plain") ?? ""));
   });
   screen.addEventListener("blur", () => session.keyboard.releaseHeld());
@@ -388,27 +383,13 @@ function mount(root: HTMLElement): void {
   window.addEventListener("pagehide", leaveWindow);
   document.addEventListener("visibilitychange", () => { if (document.hidden) leaveWindow(); });
 
-  async function checkpointAction(action: "Save" | "Restore", perform: () => Promise<void>): Promise<void> {
-    act(() => { checkpointBusy = true; at("saved").textContent = `${action} in progress…`; });
-    try { await perform(); }
-    catch (cause) {
-      at("saved").textContent = `${action} failed. ${saved ? "The previous saved checkpoint is still available." : "No checkpoint was saved."}`;
-      message.textContent = cause instanceof Error ? cause.message : String(cause);
-    } finally { checkpointBusy = false; refresh(); }
-  }
-  button("save").onclick = () => void checkpointAction("Save", async () => {
-    const text = await encodeStoredXtCheckpoint(session.snapshot());
-    localStorage.setItem(checkpointKey, text);
-    saved = true; at("saved").textContent = "XT checkpoint saved in this browser.";
-  });
-  button("restore").onclick = () => void checkpointAction("Restore", async () => {
-    const value = localStorage.getItem(checkpointKey);
-    if (value === null) throw new Error("No saved XT checkpoint.");
-    session.restore(await decodeStoredXtCheckpoint(value, ega)); diskMessage.textContent = ""; resetTools();
-    message.textContent = "Session restored and paused."; at("saved").textContent = "XT checkpoint restored.";
-  });
-  button("remove").onclick = () => act(() => {
-    localStorage.removeItem(checkpointKey); saved = false; at("saved").textContent = "No checkpoint saved.";
+  const checkpoints = createXtCheckpointView(root.querySelector<HTMLElement>('[data-workspace-panel="snapshot"]')!, ega, {
+    capture: () => session.snapshot(),
+    restore(state) {
+      session.restore(state); diskMessage.textContent = ""; resetTools();
+      message.textContent = "Session restored and paused.";
+    },
+    refresh,
   });
 
   button("disk-insert").onclick = () => { writableCopy = false; diskFile.click(); };
@@ -464,10 +445,6 @@ function mount(root: HTMLElement): void {
     onStatus: text => { layoutStatus.textContent = text; },
   });
   mountWorkspaceControls(controls, workspace, layoutStatus);
-  try {
-    saved = localStorage.getItem(checkpointKey) !== null;
-    if (saved) at("saved").textContent = "Local XT checkpoint available.";
-  } catch { at("saved").textContent = "Browser storage unavailable."; }
   refresh();
   void Promise.all(slots.map(async slot => {
     try {

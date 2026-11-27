@@ -1,3 +1,4 @@
+import { checkStateName, namedStateStorage, type StateStorage } from "./named-state-storage.js";
 import { createApple2Session } from "./apple2-session.js";
 import type { Apple2SessionState } from "./apple2-session.js";
 import type { Apple2Media } from "./apple2-media.js";
@@ -45,12 +46,6 @@ export async function encodeApple2SavedState(experiment: SavedExperiment & { rea
   return { ...experiment, version: 6, diskSha256, diskSet };
 }
 
-function checkName(name: string): void {
-  if (typeof name !== "string" || !name.trim() || name !== name.trim() || name.length > 80) {
-    throw new Error("Give the state a name of 1–80 characters.");
-  }
-}
-
 /** Metadata is checked on read; component validation and media verification happen before use. */
 function decodeSavedState(text: string): Apple2SavedState {
   if (text.length > 4_000_000) throw new Error("Saved state is too large.");
@@ -62,7 +57,7 @@ function decodeSavedState(text: string): Apple2SavedState {
     ...(version === 6 ? ["diskSet"] : [])]);
   const saved = value as Apple2SavedState;
   if (saved.machine !== "apple2-plus") throw new Error("This saved state belongs to a different machine.");
-  checkName(saved.name);
+  checkStateName(saved.name);
   if (typeof saved.savedAt !== "string" || !Number.isFinite(Date.parse(saved.savedAt)) || typeof saved.flash !== "boolean"
     || saved.diskName !== null && (typeof saved.diskName !== "string" || !saved.diskName || saved.diskName.length > 1024)) {
     throw new Error("Invalid saved state details.");
@@ -72,46 +67,21 @@ function decodeSavedState(text: string): Apple2SavedState {
   return saved;
 }
 
-interface StateStorage {
-  readonly length: number;
-  key(index: number): string | null;
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
-  removeItem(key: string): void;
-}
-
-/** Each name has its own atomic storage entry; other tabs cannot overwrite an unrelated state. */
 export function apple2SavedStates(storage: () => StateStorage) {
-  const prefix = "dromaios:apple2-saved-state:";
-  const key = (name: string) => { checkName(name); return prefix + encodeURIComponent(name); };
+  const entries = namedStateStorage(storage, "dromaios:apple2-saved-state:");
   return {
-    names(): string[] {
-      const store = storage(), names: string[] = [];
-      for (let index = 0; index < store.length; index++) {
-        const entry = store.key(index);
-        if (entry?.startsWith(prefix)) {
-          try { const name = decodeURIComponent(entry.slice(prefix.length)); checkName(name); names.push(name); }
-          catch { /* Ignore keys that could not have been written by this instrument. */ }
-        }
-      }
-      return names.sort((a, b) => a.localeCompare(b));
-    },
+    names: entries.names,
+    remove: entries.remove,
     read(name: string): Apple2SavedState {
-      const text = storage().getItem(key(name));
-      if (text === null) throw new Error("This state is no longer saved.");
-      const saved = decodeSavedState(text);
+      const saved = decodeSavedState(entries.read(name));
       if (saved.name !== name) throw new Error("Saved state name does not match its entry.");
       return saved;
     },
     save(saved: Apple2SavedState): void {
       const text = JSON.stringify(saved);
       decodeSavedState(text);
-      const store = storage(), entry = key(saved.name);
-      if (store.getItem(entry) !== null) throw new Error("That name is already saved. Choose another name or delete the old state first.");
-      try { store.setItem(entry, text); }
-      catch { throw new Error("The browser could not save this state. Storage may be full or unavailable; existing states are unchanged."); }
+      entries.save(saved.name, text);
     },
-    remove(name: string): void { storage().removeItem(key(name)); },
   };
 }
 

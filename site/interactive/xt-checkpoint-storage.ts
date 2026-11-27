@@ -1,5 +1,25 @@
-import { decodeXtCheckpoint, encodeXtCheckpoint } from "./xt-checkpoint.js";
+import { decodeXtCheckpoint, encodeXtCheckpoint, xtCheckpointKey } from "./xt-checkpoint.js";
 import type { XtSessionState } from "./xt-session.js";
+import { namedStateStorage, type StateStorage } from "./named-state-storage.js";
+
+export function xtSavedCheckpoints(storage: () => StateStorage, ega: boolean) {
+  const key = ega ? xtCheckpointKey + ":ega" : xtCheckpointKey;
+  const entries = namedStateStorage(storage, key + ":named:", { key, name: "Previous checkpoint" });
+  return {
+    names: entries.names,
+    remove: entries.remove,
+    async restore(name: string): Promise<XtSessionState> {
+      return decodeStoredXtCheckpoint(entries.read(name), ega);
+    },
+    async save(name: string, state: XtSessionState): Promise<void> {
+      const text = await encodeStoredXtCheckpoint(state);
+      const write = () => entries.save(name, text);
+      // Two open laboratories can finish compressing a save with the same name together.
+      if (globalThis.navigator?.locks) await navigator.locks.request(key, write);
+      else write();
+    },
+  };
+}
 
 const prefix = "gzip:", maximum = 2_000_000;
 

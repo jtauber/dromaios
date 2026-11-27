@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { memoryStorage } from "../helpers/browser-storage.js";
 import { test } from "node:test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -22,13 +23,6 @@ function saved(session = createApple2Session(), name = "Before echo"): Extract<A
     machine: "apple2-plus", name, savedAt: "2026-10-07T12:00:00.000Z",
     diskName: session.machine.disk.inspect().loaded ? "test.dsk" : null, flash: true, state: session.snapshot() };
 }
-function storage() {
-  const values = new Map<string, string>();
-  return { values, get length() { return values.size; }, key: (index: number) => [...values.keys()][index] ?? null,
-    getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); },
-    removeItem: (key: string) => { values.delete(key); } };
-}
-
 test("disk exchange preserves the running machine and input; checkpoints and power-on retain the replacement medium", () => {
   const original = new Dos33Disk(diskBytes);
   const session = createApple2Session(null, { bootstrap: [...bootstrap], image: original });
@@ -104,7 +98,7 @@ test("invalid session snapshots and mismatched firmware leave current hardware a
 });
 
 test("named storage survives fresh readers, avoids silent replacement, and preserves existing entries on quota failure", () => {
-  const memory = storage(), store = apple2SavedStates(() => memory);
+  const memory = memoryStorage(), store = apple2SavedStates(() => memory);
   const first = saved(); store.save(first);
   assert.deepEqual(apple2SavedStates(() => memory).read(first.name), first);
   store.save(saved(createApple2Session(), "Before scroll / page 2"));
@@ -120,7 +114,7 @@ test("named storage survives fresh readers, avoids silent replacement, and prese
 });
 
 test("damaged entries remain deletable and incompatible machine versions are rejected", async () => {
-  const memory = storage(), store = apple2SavedStates(() => memory), first = saved(); store.save(first);
+  const memory = memoryStorage(), store = apple2SavedStates(() => memory), first = saved(); store.save(first);
   const key = [...memory.values.keys()][0]!;
   for (const value of ["{", "null", "{}", JSON.stringify({ ...first, version: 7 }),
     JSON.stringify({ ...first, machine: "other" }), JSON.stringify({ ...first, name: "wrong name" }),
@@ -147,7 +141,7 @@ test("preparation rechecks saved bootstrap and disk identities and never changes
 });
 
 test("new checkpoints restore a local disk's bytes, name and permission after ejection and reload", async () => {
-  const memory = storage(), bytes = diskBytes.slice(); bytes[0x12600] = 42;
+  const memory = memoryStorage(), bytes = diskBytes.slice(); bytes[0x12600] = 42;
   for (const writable of [true, false]) {
     const session = createApple2Session(null, { bootstrap: [...bootstrap], image: new Dos33Disk(bytes, { writable }) });
     const state = await encodeApple2SavedState({ ...saved(session), name: String(writable), diskName: "answer.dsk" });
