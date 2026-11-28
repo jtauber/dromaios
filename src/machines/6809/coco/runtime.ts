@@ -9,6 +9,7 @@ import { cocoMemorySupported, cocoDisplayAddress } from "./memory.ts";
 export type Coco = (ReturnType<typeof create6809Coco> & { readonly disk?: undefined; readonly dos?: undefined; readonly cartridge?: undefined })
   | ReturnType<typeof create6809CocoDisk> | ReturnType<typeof create6809Coco64>;
 export type CocoSnapshot = ReturnType<Coco["snapshot"]>;
+type CocoDisplay = Pick<Coco, "ram" | "sam" | "vdg"> & { readonly pias: Pick<Coco["pias"], "videoPins"> };
 
 /** One timed CPU boundary, or an idle interval ending at the next board event. */
 export function stepCoco(machine: Coco) {
@@ -84,7 +85,7 @@ export type CocoDisplayMode = { readonly kind: "text" } | {
 };
 
 /** Decode the VDG geometry when the SAM supplies the matching address sequence. */
-function decodeDisplayMode(machine: Coco): CocoDisplayMode | undefined {
+function decodeDisplayMode(machine: CocoDisplay): CocoDisplayMode | undefined {
   const { sam, vdg } = machine, pins = machine.pias.videoPins;
   if (vdg.alphaMode(pins)) {
     if (sam.displayBytesPerRow() === 32 && vdg.internalText(pins)) {
@@ -99,7 +100,7 @@ function decodeDisplayMode(machine: Coco): CocoDisplayMode | undefined {
   }
 }
 
-export function cocoDisplayMode(machine: Coco): CocoDisplayMode {
+export function cocoDisplayMode(machine: CocoDisplay): CocoDisplayMode {
   requireMemoryProfile(machine);
   const mode = decodeDisplayMode(machine);
   if (mode) return mode;
@@ -147,14 +148,14 @@ function inspectCharacterCell(machine: Coco, x: number, y: number): CocoPixel {
 }
 
 /** Capture the active raster from physical RAM; never perform CPU-bus or PIA reads. */
-export function renderCocoFrame(machine: Coco, signal: CocoVideoSignal = "direct"): Uint8Array {
+export function renderCocoFrame(machine: CocoDisplay, signal: CocoVideoSignal = "direct"): Uint8Array {
   const mode = cocoDisplayMode(machine), pixels = new Uint8Array(256 * 192);
   if (mode.kind === "bitmap") renderBitmap(machine, mode, pixels, signal);
   else renderAlpha(machine, pixels);
   return pixels;
 }
 
-function renderAlpha(machine: Coco, pixels: Uint8Array): void {
+function renderAlpha(machine: CocoDisplay, pixels: Uint8Array): void {
   const { ram, sam, vdg } = machine, pins = machine.pias.videoPins;
   const linesPerRow = sam.displayLinesPerRow();
   for (let row = 0; row < 192 / linesPerRow; row++) for (let column = 0; column < 32; column++) {
@@ -173,7 +174,7 @@ function renderAlpha(machine: Coco, pixels: Uint8Array): void {
   }
 }
 
-function bitmapPalette({ pias, vdg }: Coco, signal: CocoVideoSignal) {
+function bitmapPalette({ pias, vdg }: CocoDisplay, signal: CocoVideoSignal) {
   const pins = pias.videoPins;
   if (signal !== "direct" && vdg.artifactMode(pins)) {
     return { paired: true, at: (byte: number, pair: number) => vdg.artifactPairColour(byte, pair, signal === "composite-reversed") };
@@ -181,7 +182,7 @@ function bitmapPalette({ pias, vdg }: Coco, signal: CocoVideoSignal) {
   return { paired: false, at: (byte: number, pixel: number) => vdg.graphicsColour(byte, pixel, pins) };
 }
 
-function renderBitmap(machine: Coco, mode: Extract<CocoDisplayMode, { kind: "bitmap" }>, pixels: Uint8Array, signal: CocoVideoSignal): void {
+function renderBitmap(machine: CocoDisplay, mode: Extract<CocoDisplayMode, { kind: "bitmap" }>, pixels: Uint8Array, signal: CocoVideoSignal): void {
   const { ram, sam } = machine, palette = bitmapPalette(machine, signal);
   const pixelWidth = palette.paired ? 2 : 256 / mode.width, pixelHeight = 192 / mode.height;
   const pixelsPerByte = palette.paired ? 4 : 8 / mode.bitsPerPixel;

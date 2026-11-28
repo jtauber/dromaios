@@ -772,19 +772,20 @@ read-only for this example.
 
 **Catch the first Right-arrow redraw.** With Saturn displayed and its cursor
 still centred, run to the keyboard poll at `$7070` and save a checkpoint.
-Add a breakpoint at `$7070` so each replay can stop when Sketcher returns
-for another key.
 
-1. Restore the checkpoint, choose **Inspect pixel**, and select `(136,96)`.
-   The readout shows `$1A11 = $9F`. SG24 fetches a new 32-byte row on every
-   raster line, so this address is `$0E00 + 96 × 32 + 17`. Line 96 starts
-   a VDG character scan. The left block uses bit 3, which is set, and the
-   shared colour bits are `001` (yellow).
-2. Choose **Run until this pixel changes** with no key queued. Execution
-   returns to the breakpoint at `$7070` with the dot still yellow.
-3. Restore again. With the screen focused, leave **Inspect pixel** using
-   Escape if it is active. Press Right once while paused, turn inspection
-   back on, and run until the same dot changes.
+1. Restore the checkpoint. With no key queued, **Step** once, then run to
+   `$7070` again. In Snapshot, choose **Compare with current state**. The
+   idle poll produces **0 changed dots**.
+2. Restore again. With Inspect pixel off, press Right once on the paused
+   screen. Step and run to `$7070` as before, then compare. The map
+   highlights **8 changed dots** on line 96. Click the first highlighted
+   dot or choose **Inspect (136,96)** to open it on the Screen panel.
+3. Restore the checkpoint. Inspect pixel keeps the coordinate. The readout
+   now shows `$1A11 = $9F`. SG24 fetches a new 32-byte row on every raster
+   line, so this address is `$0E00 + 96 × 32 + 17`. The left block uses bit
+   3, and the shared colour bits are `001` (yellow).
+4. With the screen focused, press Escape to return to typing, then Right
+   once. Turn Inspect pixel back on and choose **Run until this pixel changes**.
 
 The old cursor byte at `$1A10` receives its original `$9F` at `$71F6`.
 The visible stop comes at `$713F STA [-90,PCR]`. The instruction reads the

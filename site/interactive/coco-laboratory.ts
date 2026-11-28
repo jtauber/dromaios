@@ -377,7 +377,15 @@ function mountCoco(root: HTMLElement): void {
   window.addEventListener("pagehide", releaseFocus);
 
   const snapshotPanel = root.querySelector<HTMLElement>('[data-workspace-panel="states"]')!;
-  const comparison = createCocoStateComparisonView(snapshotPanel, () => session.machine, { browseRam, watchWrites: debugView.watchWrites });
+  const comparison = createCocoStateComparisonView(snapshotPanel, () => session.machine, {
+    browseRam, watchWrites: debugView.watchWrites, signal: () => display.signal,
+    inspectPixel(x, y) {
+      if (execution.running || checkpoints.busy || selecting) return "Pause the CoCo to inspect a dot.";
+      workspace.show("screen"); refreshPanels(["screen"]);
+      pixelInspector.selectPixel(x, y);
+      if (!pixelInspector.active) return "The current screen cannot be inspected.";
+    },
+  });
   const checkpoints = createCheckpointView(snapshotPanel,
     cocoSavedCheckpoints(() => localStorage, session.machine.clock.hertz!), {
       comparison, capture: () => session.snapshot(),

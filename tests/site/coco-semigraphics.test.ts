@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { cocoDisplayMode, inspectCocoPixel, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
 import { createCocoDebugger } from "../../site/interactive/coco-debugger.js";
+import { compareCocoScreens } from "../../site/interactive/coco-state-comparison.js";
 import { catalogue6809 } from "./6809-inspection-fixture.js";
 import { cocoDisplayStatus } from "../../site/interactive/coco-inspection.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
@@ -59,26 +60,30 @@ test("Semigraphics-24 Sketcher loads Saturn, moves its cursor, and replays loadi
   const image = frame();
   for (let colour = 0; colour < 9; colour++) assert.ok(image.includes(colour), `picture includes colour ${colour}`);
   until(() => session.machine.cpu.snapshot().pc === 0x7070, 100_000, 1);
-  checkpoint.save(session.snapshot());
+  const drawing = session.snapshot();
+  checkpoint.save(drawing);
   const interval = 100_000;
   function move(right: boolean) {
     if (right) session.send([["ArrowRight"]]);
     run(interval);
-    return { state: session.snapshot(), pixels: frame() };
+    const screen = compareCocoScreens(drawing.hardware, session.machine, "composite");
+    return { state: session.snapshot(), pixels: frame(), changed: screen.changed };
   }
   const stationary = move(false); restore(); const moved = move(true);
   const changes: number[] = [];
   for (let i = 0; i < image.length; i++) if (stationary.pixels[i] !== moved.pixels[i]) changes.push(i);
   assert.deepEqual(changes, Array.from({ length: 8 }, (_, i) => 96 * 256 + 136 + i));
+  assert.deepEqual(stationary.changed, []); assert.deepEqual(moved.changed, changes);
+  const selected = moved.changed[0]!, x = selected % 256, y = Math.floor(selected / 256);
 
   const debug = createCocoDebugger(() => session.machine, catalogue6809, interval);
   debug.setBreakpoints([{ address: 0x7070, enabled: true }]);
   const yellow = { address: 0x1a11, byte: 0x9f, blockBit: 3, foreground: 1, colour: 1 };
   for (const right of [false, true]) {
     restore(); debug.reset();
-    assert.deepEqual(inspectCocoPixel(session.machine, 136, 96), yellow);
+    assert.deepEqual(inspectCocoPixel(session.machine, x, y), yellow);
     if (right) session.send([["ArrowRight"]]);
-    debug.runUntilPixelChanges(136, 96, "composite");
+    debug.runUntilPixelChanges(x, y, "composite");
     const cursorWrites: number[][] = [];
     let steps = 0, record;
     while (!debug.beforeStep()) {

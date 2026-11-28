@@ -64,6 +64,9 @@ export function createCocoPixelInspector(root: HTMLElement, debug: Pick<ReturnTy
   };
   return {
     get active() { return address !== undefined; },
+    selectPixel(column: number, row: number): void {
+      x = column; y = row; enabled = true; render(); screen.focus({ preventScroll: true });
+    },
     refresh(frame?: PausedCocoFrame): void {
       const target = debug.pixelTarget;
       if (target && waiting.hidden) waiting.textContent = `Waiting for pixel (${target.x},${target.y}) to change…`;

@@ -2,6 +2,9 @@
 .coco-screen { position: relative; width: min(100cqw, calc(100cqh * 4 / 3)); aspect-ratio: 4 / 3; background: #001800; overflow: hidden; border: 1px solid #40563e; }
 .coco-screen canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
 .coco-screen.is-inspecting { cursor: crosshair; }
+.coco-screen-comparison { display: grid; gap: 6px; margin-block: 6px 12px; }
+.coco-comparison-map { position: relative; width: min(100%, 512px); }
+.coco-comparison-map canvas { display: block; width: 100%; image-rendering: pixelated; cursor: crosshair; }
 .coco-laboratory [data-pixel-inspector] { flex-basis: 100%; }
 .coco-screen.scanlines::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(transparent 50%, #0003 50%); background-size: 100% calc(100% / 192); }
 .coco-screen-notice { position: absolute; inset: 0; display: grid; place-items: center; color: #9ac39a; font: 13px/1.4 var(--mono); padding: 20px; text-align: center; }

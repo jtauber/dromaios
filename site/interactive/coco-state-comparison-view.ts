@@ -1,23 +1,28 @@
 import { snapshotRam } from "../../src/machines/snapshot.js";
-import type { Coco } from "../../src/machines/6809/coco/runtime.js";
+import type { Coco, CocoVideoSignal } from "../../src/machines/6809/coco/runtime.js";
 import { cocoHex as hex } from "./coco-inspection.js";
 import type { CocoSessionState } from "./coco-session.js";
 import { compareCocoStates } from "./coco-state-comparison.js";
+import { createCocoScreenComparisonView } from "./coco-screen-comparison-view.js";
 
 /** Keep a paused observation on screen. Expanding a RAM page never reads the live machine. */
 export function createCocoStateComparisonView(panel: HTMLElement, machine: () => Coco, actions: {
   browseRam(address: number): string | undefined;
   watchWrites(address: number): void;
+  signal(): CocoVideoSignal;
+  inspectPixel(x: number, y: number): string | undefined;
 }) {
   const summary = panel.querySelector<HTMLElement>("[data-comparison-summary]")!;
   const output = panel.querySelector<HTMLElement>("[data-comparison-differences]")!;
   const message = panel.querySelector<HTMLElement>("[data-comparison-message]")!;
+  const screen = createCocoScreenComparisonView(panel, (x, y) => { message.textContent = actions.inspectPixel(x, y) ?? ""; });
   const count = (n: number, unit: string) => `${n.toLocaleString()} ${unit}${n === 1 ? "" : "s"}`;
   return {
-    clear(): void { summary.textContent = message.textContent = ""; output.replaceChildren(); },
+    clear(): void { summary.textContent = message.textContent = ""; output.replaceChildren(); screen.clear(); },
     show(name: string, { hardware: saved }: CocoSessionState): void {
       const board = machine(), current = { cpu: board.cpu.snapshot(), ram: snapshotRam(board.ram) };
       const { cpu, pages, byteCount } = compareCocoStates(saved, current);
+      screen.show(saved, board, actions.signal());
       const flags = cpu.filter(field => field.kind === "flag").length;
       summary.textContent = `“${name}” → captured at $${hex(current.cpu.pc)} · `
         + [count(cpu.length - flags, "register"), count(flags, "flag"), count(byteCount, "RAM byte")].join(", ") + " changed.";
