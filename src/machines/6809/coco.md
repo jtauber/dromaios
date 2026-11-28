@@ -1661,13 +1661,30 @@ POKE65314,PEEK(65314)OR8
 
 The same stripes are now buff, cyan, magenta, and orange. Set GM0 to reinterpret
 each byte as **eight one-bit pixels**, still using SAM V=001. RG1 shows 128 × 64
-black/buff pixels, each two raster pixels wide. `00011011` now means three black,
-two buff, one black, two buff pixels, repeated across the screen. Pause and save
-a snapshot if you want to return to this exact display and interpreter state.
+black/buff pixels, each two raster dots wide and three lines tall. `00011011`
+now means three black, two buff, one black, two buff pixels, repeated across
+the screen. Pause and save a snapshot to return to this display and interpreter
+state.
 
 ```text
 POKE65314,PEEK(65314)OR16
 ```
+
+Pause and choose **Inspect pixel**. The first buff block runs from raster dot
+`(6,0)` to `(7,2)`. Select either corner. Both show bit 4 of `$6000`, currently
+1. Press **Escape** to return to typing. While still paused, paste this line
+into the screen and press Enter to queue it.
+
+```text
+POKE24576,26:POKE24576,10
+```
+
+Choose **Inspect pixel** again and **Run until this pixel changes**. The first
+`POKE` changes `$1B` to `$1A`, clearing bit 0 at the far end of the byte. The
+second changes `$1A` to `$0A`, clearing bit 4. All six dots in the selected
+block turn black together. The lab stops just after `$B75B STB ,X` in Color
+BASIC 1.3. Choose the instruction in the result to see where `POKE` writes B
+to the address in X. Press **Escape** with the screen focused and resume **Run**.
 
 Return to text by clearing V0 and F4/F5, restoring F1, and clearing the video
 control outputs. This preserves the other SAM fields and PIA bits. The text

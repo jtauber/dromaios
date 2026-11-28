@@ -32,28 +32,27 @@ test("RG6 inspection follows the displayed physical byte and counts bits from th
     assert.equal(renderCocoFrame(machine)[y * 256 + x], 0, "the inspected bit lights the rendered green dot");
   }
   for (const [x, y] of [[-1, 0], [256, 0], [0, 192], [1.5, 0]] as const) assert.equal(inspectCocoPixel(machine, x, y), undefined);
-  configure(machine, 5, 0xd0); // Lower-resolution two-colour graphics.
-  assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
-  configure(machine, 0, 0);
-  assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
 });
 
-test("all four colour bitmap modes map repeated raster dots to the same two physical RAM bits", () => {
+test("all eight bitmap modes map every repeated raster dot to its field in physical RAM", () => {
   const machine = create6809Coco({ firmware: null, extended: null });
   machine.memory.read = () => { throw new Error("Inspection must not read the CPU bus"); };
-  for (const [v, pins, xRepeat, yRepeat, stride] of [
-    [1, 0x80, 4, 3, 16], [2, 0xa0, 2, 3, 32], [4, 0xc0, 2, 2, 32], [6, 0xe0, 2, 1, 32],
-  ] as const) for (const css of [0, 8]) {
-    configure(machine, v, pins | css, 0x3f);
+  for (const [gm, { width, height, bits, v }] of modes.entries()) for (const css of [0, 8]) {
+    configure(machine, v, 0x80 | gm << 4 | css, 0x3f);
+    const fields = bits === 1 ? [0, 0, 0, 1, 1, 0, 1, 1] : [0, 1, 2, 3]; // $1B, MSB first
+    const palette = bits === 1 ? [8, css ? 4 : 0] : css ? [4, 5, 6, 7] : [0, 1, 2, 3];
+    const xRepeat = 256 / width, yRepeat = 192 / height, stride = width / fields.length;
     const row = 512 / stride + 1, column = 2;
     const address = stride + column; // $7E00 + 512 wraps to the start of 32 KiB RAM.
-    machine.ram.write(address, 0x1b); // 00 01 10 11
+    machine.ram.write(address, 0x1b);
     const frame = renderCocoFrame(machine);
-    for (let index = 0; index < 4; index++) {
-      const colour = (css ? 4 : 0) + index;
+    for (const [index, field] of fields.entries()) {
+      const colour = palette[field], bit = (fields.length - 1 - index) * bits;
       for (let dx = 0; dx < xRepeat; dx++) for (let dy = 0; dy < yRepeat; dy++) {
-        const x = (column * 4 + index) * xRepeat + dx, y = row * yRepeat + dy;
-        assert.deepEqual(inspectCocoPixel(machine, x, y, "composite"), { address, bit: 6 - index * 2, bitsPerPixel: 2, byte: 0x1b, colour });
+        const x = (column * fields.length + index) * xRepeat + dx, y = row * yRepeat + dy;
+        const dot = { address, bit, bitsPerPixel: bits, byte: 0x1b, colour };
+        assert.deepEqual(inspectCocoPixel(machine, x, y), dot);
+        if (width < 256) assert.deepEqual(inspectCocoPixel(machine, x, y, "composite"), dot);
         assert.equal(frame[y * 256 + x], colour);
       }
     }
@@ -139,6 +138,7 @@ test("unsupported SAM/VDG pairings and INT/EXT high reject before reading RAM", 
     const machine = create6809Coco({ firmware: null, extended: null }); configure(machine, v, (graphics ? 0x80 : 0) + gm * 16);
     machine.ram.read = () => { throw new Error("Unsupported display must not read RAM"); };
     const supported = graphics ? v === modes[gm]!.v : v % 2 === 0 && gm % 2 === 0;
+    if (!graphics || !supported) assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
     if (supported) assert.equal(cocoDisplayMode(machine).kind, graphics ? "bitmap" : v === 0 ? "text" : "semigraphics");
     else {
       assert.throws(() => renderCocoFrame(machine), /Unsupported CoCo display/);

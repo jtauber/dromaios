@@ -67,7 +67,7 @@ test("pixel runs follow SAM display-page changes and stop cleanly on a mode chan
   p.debug.runUntilPixelChanges(0, 0, "direct"); p.execution.run(); p.jobs.shift()!();
   assert.equal(p.debug.pixelHit?.before.address, 0); assert.equal(p.debug.pixelHit?.after.address, 0x200);
   p.debug.runUntilPixelChanges(0, 0, "direct"); p.execution.run(); p.jobs.shift()!();
-  assert.equal(p.debug.stop?.kind, "pause"); assert.match(p.debug.stop?.detail ?? "", /left the inspectable bitmap modes/);
+  assert.equal(p.debug.stop?.kind, "pause"); assert.match(p.debug.stop?.detail ?? "", /left bitmap graphics/);
   assert.equal(p.debug.pixelHit, undefined); assert.equal(p.execution.error, undefined);
   assert.throws(() => p.debug.runUntilPixelChanges(0, 0, "direct"), /Select a dot/);
 

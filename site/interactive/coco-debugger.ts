@@ -61,7 +61,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
   function observePixel(target: PixelTarget, record: Boundary, caller: DebugLocation, at: DebugLocation): void {
     const { x, y, previous: before } = target, after = inspectCocoPixel(machine(), x, y, target.signal);
     if (!after) {
-      if (!policy.stop) policy.pause(at, "Pixel run ended when the CoCo left the inspectable bitmap modes.");
+      if (!policy.stop) policy.pause(at, "Pixel run ended when the CoCo left bitmap graphics.");
     } else if (before.colour !== after.colour) {
       const instruction = record.instruction ? decodeCaptured6809(caller.address, record.instruction.bytes, catalogue).assembly
         : "source" in record ? `${record.source.toUpperCase()} entry` : record.outcome;
@@ -143,7 +143,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
     },
     runUntilPixelChanges(x: number, y: number, signal: CocoVideoSignal): void {
       const previous = inspectCocoPixel(machine(), x, y, signal);
-      if (!previous) throw new Error("Select a dot in four-colour or 256 × 192 one-bit graphics first.");
+      if (!previous) throw new Error("Select a dot in bitmap graphics first.");
       clearHits(); pixelTarget = { x, y, signal, previous };
       policy.stepUntil(location(), () => undefined); // Use the same boundary budget as Run to address.
     },

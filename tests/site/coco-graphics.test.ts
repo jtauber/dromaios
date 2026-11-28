@@ -4,21 +4,23 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/6809/coco.js";
-import { cocoDisplayMode, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
+import { cocoDisplayMode, inspectCocoPixel, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { cocoScreenText } from "../../site/interactive/coco-inspection.js";
+import { createCocoDebugger } from "../../site/interactive/coco-debugger.js";
+import { catalogue6809 } from "./6809-inspection-fixture.js";
 
 test("the guide's bitmap experiment runs entirely through Color BASIC, restores graphics, and returns to text", {
   skip: !process.env.COCO_ROM && "Set COCO_ROM to the selected Color BASIC 1.3 image.",
-}, async () => {
+}, async t => {
   const firmware = await RomImage.verify(readFileSync(process.env.COCO_ROM!), romImages.firmware,
     async bytes => createHash("sha256").update(bytes).digest("hex"));
   const session = createCocoSession(firmware);
   const chapter = readFileSync("src/machines/6809/coco.md", "utf8");
   const section = chapter.split("## Try bitmap graphics\n")[1]!.split("\n## ")[0]!;
   const commands = [...section.matchAll(/```text\n([^`]+)\n```/g)].map(match => match[1]!);
-  assert.equal(commands.length, 6); assert.ok(commands.every(command => !command.includes("\n")));
+  assert.equal(commands.length, 7); assert.ok(commands.every(command => !command.includes("\n")));
   function run(count: number): void { for (let i = 0; i < count; i++) session.step(); }
   function line(command: string): void {
     session.send(cocoTextInput(command + "\n"));
@@ -47,9 +49,33 @@ test("the guide's bitmap experiment runs entirely through Color BASIC, restores 
   const resolution = stripeFrame([8, 8, 8, 4, 4, 8, 4, 4], 2);
   assert.deepEqual(renderCocoFrame(session.machine), resolution);
   const saved = JSON.parse(JSON.stringify(session.snapshot()));
-  line(commands[5]!);
+  await t.test("either corner of the 2 × 3 buff block runs through the bit 0 write and stops when POKE clears bit 4", () => {
+    const debug = createCocoDebugger(() => session.machine, catalogue6809);
+    const buff = { address: 0x6000, bit: 4, bitsPerPixel: 1, byte: 0x1b, colour: 4 };
+    for (const [x, y] of [[6, 0], [7, 2]] as const) {
+      session.restore(saved); debug.reset();
+      assert.deepEqual(inspectCocoPixel(session.machine, x, y), buff);
+      session.send(cocoTextInput(commands[5]! + "\n"));
+      debug.runUntilPixelChanges(x, y, "direct");
+      const stores: number[] = [];
+      while (!debug.beforeStep()) {
+        const record = debug.capture(() => session.step());
+        for (const access of record.accesses) if (access.kind === "write" && access.address === 0x6000) stores.push(access.value);
+      }
+      assert.deepEqual(stores, [0x1a, 0x0a]);
+      assert.equal(debug.stop?.kind, "event");
+      const hit = debug.pixelHit!;
+      assert.equal(hit.caller.address, 0xb75b); assert.equal(hit.instruction, "STB ,X");
+      assert.deepEqual(hit.before, { ...buff, byte: 0x1a });
+      assert.deepEqual(hit.after, { ...buff, byte: 0x0a, colour: 8 });
+      const frame = renderCocoFrame(session.machine);
+      for (let row = 0; row < 3; row++) assert.deepEqual([...frame.slice(row * 256 + 6, row * 256 + 10)], [8, 8, 4, 4]);
+    }
+    debug.dispose();
+  });
+  line(commands[6]!);
   assert.equal(cocoDisplayMode(session.machine).kind, "text"); assert.equal(session.machine.sam.displayStart(), 0x400);
   line("PRINT 2+3"); assert.match(cocoScreenText(session.machine), /\n 5\nOK\n█$/);
   session.restore(saved); assert.deepEqual(renderCocoFrame(session.machine), resolution);
-  line(commands[5]!); line("PRINT 2+3"); assert.match(cocoScreenText(session.machine), /\n 5\nOK\n█$/);
+  line(commands[6]!); line("PRINT 2+3"); assert.match(cocoScreenText(session.machine), /\n 5\nOK\n█$/);
 });

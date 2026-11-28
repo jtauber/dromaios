@@ -113,7 +113,7 @@ export type CocoVideoSignal = "direct" | "composite" | "composite-reversed";
 /** Map a 256 × 192 raster dot to the VDG's logical pixel and its field in physical RAM. */
 export function inspectCocoPixel(machine: Coco, x: number, y: number, signal: CocoVideoSignal = "direct") {
   const mode = cocoMemorySupported(machine) ? decodeDisplayMode(machine) : undefined;
-  if (mode?.kind !== "bitmap" || (mode.bitsPerPixel !== 2 && mode.width !== 256)) return;
+  if (mode?.kind !== "bitmap") return;
   if (!Number.isInteger(x) || x < 0 || x >= 256 || !Number.isInteger(y) || y < 0 || y >= 192) return;
   const pixel = Math.floor(x * mode.width / 256), row = Math.floor(y * mode.height / 192);
   const bitsPerPixel = mode.bitsPerPixel, pixelsPerByte = 8 / bitsPerPixel;
