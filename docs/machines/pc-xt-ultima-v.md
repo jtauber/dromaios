@@ -221,10 +221,13 @@ instruction boundary, rather than the instant a CRT beam reaches a dot.
 
 At 40 bytes per scan line, the second destination byte, `$0BCB`, is
 `75 × 40 + 19`. Its leftmost bit (bit 7) supplies pixel **(152,75)**,
-counting from the upper left. Choose **Inspect pixel (152,75)** at the
-walkthrough stop to mark that dot on the screen. Choose **Run until this pixel
-changes**. The Screen panel stops after one repetition, links to the captured
-`REP MOVSW` at `9D27:1C1A`, and shows both samples.
+counting from the upper left. To find the dots from the picture, save a
+checkpoint in **Session** at **Draw the first Origin logo pixels**, then
+**Step** once and choose **Compare with current state**. The eight amber dots
+span (152,75) through (159,75). Click one, or browse with the arrows and
+choose **Inspect**. Restore the checkpoint and choose **Run until this pixel
+changes**. The Screen panel keeps your coordinate and catches the
+`REP MOVSW` at `9D27:1C1A` that changes it from black to light blue.
 
 | Stage | Before | After one repetition |
 | --- | --- | --- |

@@ -275,8 +275,12 @@
       <p class="basic-message" data-disk-message role="status"></p>
     </section>
     <section class="lab-tool lab-panel-body lab-scroll" data-workspace-panel="snapshot" data-panel-title="Session">
-      {% include "checkpoint-controls.html" %}
+      {% with compare_checkpoints=ega %}{% include "checkpoint-controls.html" %}{% endwith %}
       <p class="lab-hint">Pause to save. Each checkpoint includes the mounted disk and its write permission.</p>
+      {% if ega %}
+      <p class="lab-hint">Compare a checkpoint with the paused display. In mode 0Dh, select a highlighted dot to open Inspect pixel.</p>
+      {% include "screen-comparison.html" %}
+      {% endif %}
       <p><a href="{{ calc_url(xt_url) }}#rom-basic-sessions" target="_blank" rel="noopener">Try the three-line BASIC program ↗</a></p>
     </section>
   </div>

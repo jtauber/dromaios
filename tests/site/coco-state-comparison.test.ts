@@ -42,12 +42,12 @@ test("screen comparison uses each side's physical page and video pins with the s
   assert.deepEqual(compareCocoScreens(saved, machine, "direct").changed, []);
   machine.pias.write(0x22, 0xf0); // Black/green changes the lit dot without a video RAM store.
   const palette = compareCocoScreens(saved, machine, "direct");
-  assert.deepEqual(palette.changed, [0]); assert.equal(palette.before[0], 4); assert.equal(palette.after[0], 0);
+  assert.deepEqual(palette.changed, [0]); assert.equal(palette.before.pixels[0], 4); assert.equal(palette.after.pixels[0], 0);
   machine.sam.write(18, 0); // Display the blank page at $0000.
   const held = session.snapshot();
   for (const [signal, expected] of [["composite", 12], ["composite-reversed", 11]] as const) {
     const { before, after, changed } = compareCocoScreens(saved, machine, signal);
-    assert.deepEqual(changed, [0, 1]); assert.equal(before[0], expected); assert.equal(after[0], 8);
+    assert.deepEqual(changed, [0, 1]); assert.equal(before.pixels[0], expected); assert.equal(after.pixels[0], 8);
   }
   assert.deepEqual(session.snapshot(), held);
 });

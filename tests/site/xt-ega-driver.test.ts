@@ -11,6 +11,8 @@ import type { IbmEga } from "../../src/components/devices/ibm-ega.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { createXtEgaSession, type XtBoundary } from "../../site/interactive/xt-session.js";
 import { egaPixelAt, xtEgaPixelReadout } from "../../site/interactive/xt-ega-pixel.js";
+import { compareXtEgaScreens } from "../../site/interactive/xt-ega-screen.js";
+import { pixelColour } from "../../site/interactive/screen-comparison.js";
 import { createXtPaletteCapture } from "../../site/interactive/xt-ega-palette.js";
 import { createXtDebugger, parseXtDebugAddress } from "../../site/interactive/xt-debugger.js";
 import { matchesXtDosObservation, type XtDosObservation } from "../../site/interactive/xt-dos-observation.js";
@@ -85,6 +87,24 @@ function planarMachine() {
   reg(0x3c0, 0x30, 1); reg(0x3c0, 0x32, 15);
   return { machine, reg };
 }
+
+test("checkpoint comparison follows the 5154 output wiring and preserves live EGA state", () => {
+  const { machine: { ega }, reg } = planarMachine();
+  const black = ega.snapshot();
+  reg(0x3c0, 0x20, 0x28); // Secondary red and blue do not drive this RGBI monitor.
+  assert.deepEqual(compareXtEgaScreens(black, ega).changed, []);
+  const rgbi = ega.snapshot();
+  ega.writePort(0x3c2, 0x83); // Same pins and plane data, now with six-bit monitor wiring.
+  const held = ega.snapshot(), { before, after, changed } = compareXtEgaScreens(rgbi, ega);
+  assert.equal(changed.length, 320 * 200);
+  assert.deepEqual([pixelColour(before, 0), pixelColour(after, 0)], [0, 0x550055]);
+  assert.deepEqual(ega.snapshot(), held);
+  reg(0x3c0, 0x30, 0); // Text at the same raster size can also be compared.
+  const text = ega.snapshot();
+  assert.deepEqual(compareXtEgaScreens(text, ega).changed, []);
+  reg(0x3d4, 1, 79);
+  assert.throws(() => compareXtEgaScreens(text, ega), /320 × 200.*640 × 200/);
+});
 
 test("the watched dot follows a new CRTC start address and traces the matching byte of STOSW", () => {
   const { machine, reg } = planarMachine();
@@ -295,7 +315,7 @@ test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin lo
   debug.runTo(parseXtDebugAddress(logo.execution), { when: () => matchesXtDosObservation(logo.expect, machine) });
   while (!debug.beforeStep()) checkEarlierVideoWrite(machine.ega, capture());
   assert.equal(debug.stop?.kind, "target");
-  const before = machine.ega.snapshot();
+  const checkpoint = session.snapshot(), before = machine.ega.snapshot();
   assert.deepEqual([before.seq[2], before.gc[4], before.gc[5], before.gc[8], before.attr[0x12]], [9, 0, 0, 255, 15]);
   const selectedDot = () => xtEgaPixelReadout(machine.ega, 159, 75);
   assert.match(selectedDot(), /bit 0: 0 0 0 0 · index 0 · palette\[0\] = \$00 · #000000$/);
@@ -340,6 +360,18 @@ test("Ultima V enters EGA.DRV, sets mode 0Dh and draws the first eight Origin lo
   assert.equal(selectedDot(), "Pixel (159,75) · plane offset $0BCB · P0–P3: FF 00 00 FF · bit 0: 1 0 0 1 · index 9 · palette[9] = $39 · #5555FF");
   assert.match(xtEgaPixelReadout(machine.ega, 160, 75), /bit 7: 0 0 0 0 · index 0 · palette\[0\] = \$00 · #000000$/);
   debug.dispose(); activity.dispose();
+
+  const comparison = compareXtEgaScreens(before, machine.ega);
+  assert.deepEqual(comparison.changed, Array.from({ length: 8 }, (_, i) => y * 320 + x + i));
+  const dot = comparison.changed[3]!;
+  assert.deepEqual([pixelColour(comparison.before, dot), pixelColour(comparison.after, dot)], [0, 0x5555ff]);
+  session.restore(checkpoint);
+  const replay = createXtDebugger(() => session.machine);
+  replay.runUntilPixelChanges(dot % 320, Math.floor(dot / 320));
+  while (!replay.beforeStep()) replay.capture(() => session.step());
+  assert.deepEqual([replay.pixelHit?.x, replay.pixelHit?.y, replay.pixelHit?.record.before.cs,
+    replay.pixelHit?.record.before.ip, replay.pixelHit?.record.instruction?.bytes], [155, 75, 0x9d27, 0x1c1a, [0xf3, 0xa5]]);
+  replay.dispose();
 });
 
 function assertBlackPageZero(ega: IbmEga): void {

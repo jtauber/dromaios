@@ -201,12 +201,18 @@ one dot at a time. To return to DOS, choose **Run**, click the screen and press 
 
 To catch the palette change, add a breakpoint at `0C5F:012F` before choosing
 **Quick boot** with this disk. It lands on the program’s `INT 10h` with
-`AX=1002h`. Choose **Inspect pixel**, select the top-left dot (0,0),
+`AX=1002h`. Save a checkpoint in **Session**. Choose **Inspect pixel**, select the top-left dot (0,0),
 and choose **Run until this pixel changes**. The BIOS briefly blanks the
 display to load its palette. At `C000:1DB4`, `OUT DX,AL` sends `20h` to
 port `3C0h` and the picture returns. Compare **Before blanking** and
 **Display re-enabled**. The four plane bytes are still zero, but palette
 entry 0 now drives `$17` and the dot appears white.
+
+In **Session**, choose **Compare with current state**. All 64,000 dots
+changed from black to white while the screen was still filled with colour
+index zero. Choose **Inspect (0,0)**, restore the checkpoint, and run until
+that dot changes again. The before and after readouts both show
+`P0–P3: 00 00 00 00` at plane offset zero.
 
 Choose **Trace palette[0] write in Ports**. The entry shows the earlier
 `OUT DX,AL` at `C000:1DB1`. It wrote `17h` to the same port while the

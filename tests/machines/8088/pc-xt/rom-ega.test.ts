@@ -12,6 +12,8 @@ import type { XtDisketteTransfer } from "../../../../src/machines/8088/pc-xt/io.
 import { inspectFat12, fat12FileRegions, fat12FileSectors, readFat12File } from "../../../../site/interactive/fat12.js";
 import { matchesUltimaObservation } from "../../../../site/interactive/xt-ultima-v.js";
 import { xtEgaPixelReadout } from "../../../../site/interactive/xt-ega-pixel.js";
+import { compareXtEgaScreens } from "../../../../site/interactive/xt-ega-screen.js";
+import { pixelColour } from "../../../../site/interactive/screen-comparison.js";
 import { createXtDebugger } from "../../../../site/interactive/xt-debugger.js";
 import { createXtPaletteCapture } from "../../../../site/interactive/xt-ega-palette.js";
 import { createXtIoTrace } from "../../../../site/interactive/xt-io-trace.js";
@@ -100,6 +102,7 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
     && after.cs < 0xa000 && after.ip === 0x012f && after.ax === 0x1002 && instruction?.bytes[0] === 0xb8 });
   const debug = createXtDebugger(() => m);
   const palette = createXtPaletteCapture(m)!, trace = createXtIoTrace();
+  const black = m.ega.snapshot();
   trace.recording = true;
   debug.runUntilPixelChanges(0, 0);
   while (!debug.beforeStep()) {
@@ -115,6 +118,9 @@ test("a DOS program queries the EGA, selects mode 0Dh and draws sixteen bands wi
   assert.deepEqual(hit.before.planeBytes, [0, 0, 0, 0]); assert.deepEqual(hit.after.planeBytes, hit.before.planeBytes);
   assert.deepEqual([hit.before.paletteIndex, hit.after.paletteIndex, hit.before.pins, hit.after.pins], [0, 0, 0, 0x17]);
   assert.deepEqual([hit.before.colour, hit.after.colour, renderEgaGraphicsFrame(m.ega).pixels[0]], ["#000000", "#FFFFFF", 0x17]);
+  const comparison = compareXtEgaScreens(black, m.ega);
+  assert.equal(comparison.changed.length, 320 * 200); assert.equal(comparison.changed[0], 0);
+  assert.deepEqual([pixelColour(comparison.before, 0), pixelColour(comparison.after, 0)], [0, 0xffffff]);
   const entries = trace.entries().filter(({ transfer }) => transfer.kind === "output" && transfer.port === 0x3c0);
   assert.deepEqual(entries.map(e => [e.caller.space, e.transfer]), [
     ["CS:IP C000:1DAE", { kind: "output", port: 0x3c0, value: 0 }],

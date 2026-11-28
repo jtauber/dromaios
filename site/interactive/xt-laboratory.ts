@@ -33,7 +33,9 @@ import type { XtCatalogue } from "./xt-inspection.js";
 import { createXtEgaSession, createXtSession } from "./xt-session.js";
 import type { XtRomSlot } from "./xt-session.js";
 import { xtKeySupported } from "./xt-keyboard.js";
+import { compareXtEgaScreens } from "./xt-ega-screen.js";
 import { createXtScreen } from "./xt-screen.js";
+import { createScreenComparisonView } from "./screen-comparison-view.js";
 import { xtEgaPixelReadout } from "./xt-ega-pixel.js";
 import { planeByteLabel } from "./xt-ega-plane-watch.js";
 import { createXtEgaPixelInspector } from "./xt-ega-pixel-view.js";
@@ -384,7 +386,22 @@ function mount(root: HTMLElement): void {
   window.addEventListener("pagehide", leaveWindow);
   document.addEventListener("visibilitychange", () => { if (document.hidden) leaveWindow(); });
 
-  const checkpoints = createCheckpointView(root.querySelector<HTMLElement>('[data-workspace-panel="snapshot"]')!, xtSavedCheckpoints(() => localStorage, ega), {
+  const sessionPanel = root.querySelector<HTMLElement>('[data-workspace-panel="snapshot"]')!;
+  const comparison = pixelInspector && createScreenComparisonView(sessionPanel, (x, y) => {
+    if (!pixelInspector.available) { at("saved").textContent = "Pause in mode 0Dh to inspect this dot."; return; }
+    workspace.show("screen"); pixelInspector.select(x, y);
+  });
+  const checkpoints = createCheckpointView(sessionPanel, xtSavedCheckpoints(() => localStorage, ega), {
+    comparison: comparison && {
+      clear: comparison.clear,
+      show(name, { hardware }) {
+        const { machine } = session;
+        if (!("ega" in machine && "ega" in hardware)) throw new Error("Choose an EGA checkpoint.");
+        const { cs, ip } = machine.cpu.snapshot();
+        comparison.show(`“${name}” → ${hex(cs, 4)}:${hex(ip, 4)}`, () => compareXtEgaScreens(hardware.ega, machine.ega),
+          machine.ega.videoEnabled && machine.ega.graphicsSupported);
+      },
+    },
     capture: () => session.snapshot(),
     restore(state) {
       session.restore(state); diskMessage.textContent = ""; resetTools();

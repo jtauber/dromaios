@@ -8,6 +8,8 @@ import { Ram } from "../../src/components/memory/ram.js";
 import { restoreRam } from "../../src/machines/snapshot.js";
 import { renderCocoFrame, type Coco, type CocoVideoSignal } from "../../src/machines/6809/coco/runtime.js";
 import { createProcessorChanges } from "./change-log.js";
+import { cocoMonitorColours } from "./coco-inspection.js";
+import { compareScreenFrames } from "./screen-comparison.js";
 import type { CocoSessionState } from "./coco-session.js";
 
 type CpuAndRam = Pick<CocoSessionState["hardware"], "cpu" | "ram">;
@@ -45,7 +47,6 @@ export function compareCocoScreens(saved: CocoSessionState["hardware"], current:
   restoreRam(ram, saved.ram);
   const before = renderCocoFrame({ ram, sam: new Mc6883(saved.sam), vdg: new Mc6847(saved.vdg),
     pias: { videoPins: new Mc6821(saved.pias.pia1).pinsB() } }, signal);
-  const after = renderCocoFrame(current, signal), changed: number[] = [];
-  for (let i = 0; i < after.length; i++) if (before[i] !== after[i]) changed.push(i);
-  return { before, after, changed };
+  const frame = (pixels: Uint8Array) => ({ width: 256, height: 192, pixels, palette: cocoMonitorColours });
+  return compareScreenFrames(frame(before), frame(renderCocoFrame(current, signal)));
 }
