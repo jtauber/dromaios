@@ -110,15 +110,18 @@ export function cocoDisplayMode(machine: Coco): CocoDisplayMode {
 /** Display interpretation only; it is not retained in the machine snapshot. */
 export type CocoVideoSignal = "direct" | "composite" | "composite-reversed";
 
-/** The SAM selects a physical byte. RG6 shifts its eight dots out most significant bit first. */
+/** Map a 256 × 192 raster dot to the VDG's logical pixel and its field in physical RAM. */
 export function inspectCocoPixel(machine: Coco, x: number, y: number, signal: CocoVideoSignal = "direct") {
   const mode = cocoMemorySupported(machine) ? decodeDisplayMode(machine) : undefined;
-  if (mode?.kind !== "bitmap" || mode.width !== 256 || mode.height !== 192 || mode.bitsPerPixel !== 1) return;
-  if (!Number.isInteger(x) || x < 0 || x >= mode.width || !Number.isInteger(y) || y < 0 || y >= mode.height) return;
-  const address = cocoDisplayAddress(machine, y, Math.floor(x / 8));
-  const byte = machine.ram.read(address), dot = x % 8;
+  if (mode?.kind !== "bitmap" || (mode.bitsPerPixel !== 2 && mode.width !== 256)) return;
+  if (!Number.isInteger(x) || x < 0 || x >= 256 || !Number.isInteger(y) || y < 0 || y >= 192) return;
+  const pixel = Math.floor(x * mode.width / 256), row = Math.floor(y * mode.height / 192);
+  const bitsPerPixel = mode.bitsPerPixel, pixelsPerByte = 8 / bitsPerPixel;
+  const address = cocoDisplayAddress(machine, row, Math.floor(pixel / pixelsPerByte));
+  const byte = machine.ram.read(address), index = pixel % pixelsPerByte;
+  const bit = 8 - (index + 1) * bitsPerPixel; // Low bit of the field; pixels are packed left to right, MSB first.
   const palette = bitmapPalette(machine, signal);
-  return { address, bit: 7 - dot, byte, colour: palette.at(byte, palette.paired ? dot >> 1 : dot) };
+  return { address, bit, bitsPerPixel, byte, colour: palette.at(byte, palette.paired ? index >> 1 : index) };
 }
 
 /** Capture the active raster from physical RAM; never perform CPU-bus or PIA reads. */

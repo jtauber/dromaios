@@ -561,7 +561,7 @@ pixel changes**. Screen shows the instruction at `$26A3` alongside the
 byte, bit, and monitor colour immediately before and after its store.
 Select the instruction to open Disassembly. This one-shot run follows the
 screen coordinate through display-page changes and also works with Live off.
-An earlier debugger stop or leaving the one-bit mode ends the run.
+An earlier debugger stop or leaving the supported bitmap modes ends the run.
 
 In black/buff composite graphics, consider pixel (0,0) when the first
 screen byte changes from `$01` to `$41`. Bit 7 stays clear. Its neighbour,
@@ -1755,8 +1755,8 @@ calculation can be followed without the many calls made by LINE or CIRCLE.
 
 ```text
 10 PMODE3,1:PCLS5
-20 PSET(130,96,7)
-30 SCREEN1,1
+20 SCREEN1,1
+30 PSET(130,96,7)
 40 IFINKEY$=""THEN40
 50 SCREEN0,0
 60 END
@@ -1780,9 +1780,27 @@ from `$92E5`. Colour 7 becomes two-bit value `10`, repeated as `$AA` in ALLCOL.
 At `$9377`, X points to `$1210` and A holds `$30`. The ROM preserves the other
 pixels and combines the selected colour:
 `($00 & ~$30) | ($AA & $30) = $20`. At `$9386`, **Instruction** predicts the
-store without performing it. **Step** changes RAM from `$00` to `$20` and stops
-at `$9388`. Run normally to reach SCREEN and the key-waiting loop. The small
-magenta mark occupies raster columns 130–131 on row 96; Space returns to text.
+store before it executes. **Step** changes RAM from `$00` to `$20` and stops
+at `$9388`. Line 20 has already selected the graphics screen, so both raster
+dots turn magenta at the store. Run to the key-waiting loop and press Space
+to return to text.
+
+To find the store from the screen, run to the first walkthrough checkpoint
+(`$9361`) and save a checkpoint there. Choose **Inspect pixel** and select
+(130,96). The readout shows `$1210`, bits 5–4, with value `00` (buff).
+**Run until this pixel changes** stops just after `$9386  STA ,X`, when the
+field becomes `10` (magenta). Restore and select (131,96) to follow the same
+two bits from the other dot.
+
+To see writes to a neighbouring pixel run through, add this line at the BASIC
+prompt and repeat from the first PSET entry with ordinary watchpoints disabled.
+
+```text
+25 PSET(128,96,6):PSET(128,96,5)
+```
+
+Line 25 changes the same byte from `$00` to `$40` and back to `$00`.
+Only bits 7–6 change. The selected dots stay buff until line 30 writes `$20`.
 
 The names for the graphics workspace and entry addresses were cross-checked
 with [Extended BASIC Unravelled II][extended-unravelled], Appendix A and Appendix B
@@ -2342,7 +2360,7 @@ previous stop report is cleared.
             "title": "After the write",
             "address": "9388",
             "prepare": "If you stepped the previous instruction, you are already here.",
-            "observe": "The byte is $20 (00 10 00 00). Run normally to display the magenta pixel at x=130\u2013131, y=96. Press Space to return to BASIC.",
+            "observe": "The byte is $20 (00 10 00 00). The magenta pixel is visible at x=130\u2013131, y=96. Run and press Space to return to BASIC.",
             "routine": "WRITE_PIXEL"
           }
         ]

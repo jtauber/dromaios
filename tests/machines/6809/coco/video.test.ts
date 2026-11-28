@@ -28,14 +28,36 @@ test("RG6 inspection follows the displayed physical byte and counts bits from th
   for (const [x, y, address, bit] of [[0, 0, 0x7e00, 7], [7, 0, 0x7e00, 0], [8, 0, 0x7e01, 7],
     [0, 16, 0, 7], [255, 191, 0x15ff, 0]] as const) {
     machine.ram.write(address, 1 << bit);
-    assert.deepEqual(inspectCocoPixel(machine, x, y), { address, bit, byte: 1 << bit, colour: 0 });
+    assert.deepEqual(inspectCocoPixel(machine, x, y), { address, bit, bitsPerPixel: 1, byte: 1 << bit, colour: 0 });
     assert.equal(renderCocoFrame(machine)[y * 256 + x], 0, "the inspected bit lights the rendered green dot");
   }
   for (const [x, y] of [[-1, 0], [256, 0], [0, 192], [1.5, 0]] as const) assert.equal(inspectCocoPixel(machine, x, y), undefined);
-  configure(machine, 6, 0xe0); // 128 × 192 colour graphics uses the same SAM mode.
+  configure(machine, 5, 0xd0); // Lower-resolution two-colour graphics.
   assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
   configure(machine, 0, 0);
   assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
+});
+
+test("all four colour bitmap modes map repeated raster dots to the same two physical RAM bits", () => {
+  const machine = create6809Coco({ firmware: null, extended: null });
+  machine.memory.read = () => { throw new Error("Inspection must not read the CPU bus"); };
+  for (const [v, pins, xRepeat, yRepeat, stride] of [
+    [1, 0x80, 4, 3, 16], [2, 0xa0, 2, 3, 32], [4, 0xc0, 2, 2, 32], [6, 0xe0, 2, 1, 32],
+  ] as const) for (const css of [0, 8]) {
+    configure(machine, v, pins | css, 0x3f);
+    const row = 512 / stride + 1, column = 2;
+    const address = stride + column; // $7E00 + 512 wraps to the start of 32 KiB RAM.
+    machine.ram.write(address, 0x1b); // 00 01 10 11
+    const frame = renderCocoFrame(machine);
+    for (let index = 0; index < 4; index++) {
+      const colour = (css ? 4 : 0) + index;
+      for (let dx = 0; dx < xRepeat; dx++) for (let dy = 0; dy < yRepeat; dy++) {
+        const x = (column * 4 + index) * xRepeat + dx, y = row * yRepeat + dy;
+        assert.deepEqual(inspectCocoPixel(machine, x, y, "composite"), { address, bit: 6 - index * 2, bitsPerPixel: 2, byte: 0x1b, colour });
+        assert.equal(frame[y * 256 + x], colour);
+      }
+    }
+  }
 });
 
 test("SG8/12/24 preserve VDG character phase, mixed text, colours and physical RAM wrapping", () => {

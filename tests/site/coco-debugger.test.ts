@@ -54,8 +54,8 @@ test("pixel stops follow the displayed pair in composite and the selected bit in
     assert.ok(hit); assert.equal(hit.instruction, "STA $0000"); assert.equal(p.debug.stop?.kind, "event");
     const direct = signal === "direct", colour = direct ? 4 : signal === "composite" ? 11 : 12;
     assert.equal(hit.caller.address, direct ? 0x200c : 0x2007);
-    assert.deepEqual(hit.before, { address: 0, bit: 7, byte: direct ? 0x41 : 1, colour: 8 });
-    assert.deepEqual(hit.after, { address: 0, bit: 7, byte: direct ? 0xc1 : 0x41, colour });
+    assert.deepEqual(hit.before, { address: 0, bit: 7, bitsPerPixel: 1, byte: direct ? 0x41 : 1, colour: 8 });
+    assert.deepEqual(hit.after, { address: 0, bit: 7, bitsPerPixel: 1, byte: direct ? 0xc1 : 0x41, colour });
     assert.equal(renderCocoFrame(p.machine, signal)[0], colour); assert.equal(p.debug.pixelTarget, undefined);
     p.single(); assert.equal(p.debug.pixelHit, undefined);
   }
@@ -67,7 +67,7 @@ test("pixel runs follow SAM display-page changes and stop cleanly on a mode chan
   p.debug.runUntilPixelChanges(0, 0, "direct"); p.execution.run(); p.jobs.shift()!();
   assert.equal(p.debug.pixelHit?.before.address, 0); assert.equal(p.debug.pixelHit?.after.address, 0x200);
   p.debug.runUntilPixelChanges(0, 0, "direct"); p.execution.run(); p.jobs.shift()!();
-  assert.equal(p.debug.stop?.kind, "pause"); assert.match(p.debug.stop?.detail ?? "", /left 256/);
+  assert.equal(p.debug.stop?.kind, "pause"); assert.match(p.debug.stop?.detail ?? "", /left the inspectable bitmap modes/);
   assert.equal(p.debug.pixelHit, undefined); assert.equal(p.execution.error, undefined);
   assert.throws(() => p.debug.runUntilPixelChanges(0, 0, "direct"), /Select a dot/);
 

@@ -16,7 +16,7 @@ import { createExecutionTarget } from "../../site/interactive/execution-target.j
 import { createCocoDebugger, cocoDebugLocation } from "../../site/interactive/coco-debugger.js";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/6809/coco.js";
-import { renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
+import { inspectCocoPixel, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
 
 const chapter = readFileSync("src/machines/6809/coco.md", "utf8");
 const guides: CocoRomGuides & Record<keyof CocoRomGuides, { sha256: string }> = JSON.parse(chapter.match(/```json\n([\s\S]*?)```/)![1]!);
@@ -150,7 +150,7 @@ async function sessionWithRoms() {
   return { firmware, extended };
 }
 
-test("the chapter's PSET checkpoints reach the declared states and write exactly the independently calculated pixel", { skip: needsRoms }, async () => {
+test("the chapter's PSET checkpoints reach the declared states and write exactly the independently calculated pixel", { skip: needsRoms }, async t => {
   const { firmware, extended } = await sessionWithRoms(), session = createCocoSession(firmware, extended), target = createExecutionTarget();
   const state = () => session.machine.cpu.snapshot(), read = (address: number) => readCocoStorage(session.machine, address);
   let steps = 0;
@@ -224,6 +224,34 @@ test("the chapter's PSET checkpoints reach the declared states and write exactly
   settle(); const frame = renderCocoFrame(session.machine);
   for (let i = 0; i < frame.length; i++) assert.equal(frame[i], i === 96 * 256 + 130 || i === 96 * 256 + 131 ? 6 : 4);
   session.send(cocoTextInput(" ")); settle(); assert.match(cocoScreenText(session.machine), /OK\n█$/);
+
+  await t.test("both displayed dots skip the neighbouring PSET stores and stop together at the magenta store", () => {
+    const extraLine = section.match(/^25 PSET.*$/m)![0];
+    session.send(cocoTextInput(extraLine + "\n")); settle();
+    session.send(cocoTextInput("RUN\n"));
+    target.start(0x9361, steps); while (!target.beforeStep(state().pc, steps)) advance();
+    assert.equal(target.stopped, "reached");
+    const start = session.snapshot(), debug = createCocoDebugger(() => session.machine, catalogue);
+    const buff = { address: 0x1210, bit: 4, bitsPerPixel: 2, byte: 0, colour: 4 };
+    for (const x of [130, 131]) {
+      session.restore(start); debug.reset();
+      assert.deepEqual(inspectCocoPixel(session.machine, x, 96), buff);
+      debug.runUntilPixelChanges(x, 96, "composite");
+      const stores: number[] = [];
+      for (let i = 0; !debug.beforeStep(); i++) {
+        assert.ok(i < 100_000, "PSET should reach the selected pixel");
+        const record = debug.capture(() => session.step());
+        for (const access of record.accesses) if (access.kind === "write" && access.address === 0x1210) stores.push(access.value);
+      }
+      assert.deepEqual(stores, [0x40, 0, 0x20]);
+      assert.equal(debug.stop?.kind, "event"); assert.equal(state().pc, 0x9388);
+      const hit = debug.pixelHit;
+      assert.ok(hit); assert.equal(hit.caller.address, 0x9386); assert.equal(hit.instruction, "STA ,X");
+      assert.deepEqual(hit.before, buff); assert.deepEqual(hit.after, { ...buff, byte: 0x20, colour: 6 });
+      assert.deepEqual([...renderCocoFrame(session.machine).slice(96 * 256 + 128, 96 * 256 + 134)], [4, 4, 6, 6, 4, 4]);
+    }
+    debug.dispose();
+  });
   // A loaded ROM's annotations remain held when the live machine switches to an unsupported map.
   session.machine.sam.write(0x1f, 0);
   assert.equal(observeCocoRoms(session.machine).mapped(0x9361), false);

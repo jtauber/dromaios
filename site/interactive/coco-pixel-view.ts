@@ -1,5 +1,5 @@
 import { inspectCocoPixel, type Coco } from "../../src/machines/6809/coco/runtime.js";
-import { cocoHex } from "./coco-inspection.js";
+import { cocoHex, cocoPixelStorage } from "./coco-inspection.js";
 import { rasterPixelAt } from "./raster-pixel.js";
 import type { createCocoDebugger } from "./coco-debugger.js";
 import type { DebugLocation } from "./instruction-debugger.js";
@@ -38,8 +38,7 @@ export function createCocoPixelInspector(root: HTMLElement, debug: Pick<ReturnTy
     marker.style.top = `${(y + 0.5) / canvas.height * 100}%`;
     const offset = 4 * (y * canvas.width + x);
     const rgb = paused.image.data.subarray(offset, offset + 3);
-    const detail = `(${x},${y}) · RAM $${cocoHex(dot.address)} = $${cocoHex(dot.byte, 2)}`
-      + ` · bit ${dot.bit} = ${dot.byte >> dot.bit & 1} · RGB(${rgb.join(", ")})`;
+    const detail = `(${x},${y}) · ${cocoPixelStorage(dot)} · RGB(${rgb.join(", ")})`;
     if (readout.textContent !== detail) readout.textContent = detail;
     const hit = debug.pixelHit;
     result.hidden = !hit || hit.x !== x || hit.y !== y;

@@ -4,7 +4,7 @@ import type { RamWrite } from "../../src/components/memory/ram.js";
 import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instruction-debugger.js";
 import type { DebugLocation } from "./instruction-debugger.js";
 import { observeCocoRoms } from "./coco-rom-guide.js";
-import { cocoHex as hex, cocoMonitorColours, readCocoStorage } from "./coco-inspection.js";
+import { cocoHex as hex, cocoMonitorColours, cocoPixelStorage, readCocoStorage } from "./coco-inspection.js";
 import type { Catalogue6809 } from "./6809-catalogue.js";
 import { decode6809, decodeCaptured6809 } from "./6809-disassembly.js";
 import { create6809DebugObserver } from "./6809-debugger.js";
@@ -28,7 +28,7 @@ interface CocoPixelHit {
 }
 
 function describePixel(dot: Pixel): string {
-  return `RAM $${hex(dot.address)} = $${hex(dot.byte, 2)} · bit ${dot.bit} = ${dot.byte >> dot.bit & 1} · #${hex(cocoMonitorColours[dot.colour]!, 6)}`;
+  return `${cocoPixelStorage(dot)} · #${hex(cocoMonitorColours[dot.colour]!, 6)}`;
 }
 
 export function cocoDebugLocation(machine: Coco, address = machine.cpu.snapshot().pc): DebugLocation {
@@ -61,7 +61,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
   function observePixel(target: PixelTarget, record: Boundary, caller: DebugLocation, at: DebugLocation): void {
     const { x, y, previous: before } = target, after = inspectCocoPixel(machine(), x, y, target.signal);
     if (!after) {
-      if (!policy.stop) policy.pause(at, "Pixel run ended when the CoCo left 256 × 192 one-bit graphics.");
+      if (!policy.stop) policy.pause(at, "Pixel run ended when the CoCo left the inspectable bitmap modes.");
     } else if (before.colour !== after.colour) {
       const instruction = record.instruction ? decodeCaptured6809(caller.address, record.instruction.bytes, catalogue).assembly
         : "source" in record ? `${record.source.toUpperCase()} entry` : record.outcome;
@@ -143,7 +143,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
     },
     runUntilPixelChanges(x: number, y: number, signal: CocoVideoSignal): void {
       const previous = inspectCocoPixel(machine(), x, y, signal);
-      if (!previous) throw new Error("Select a dot in 256 × 192 one-bit graphics first.");
+      if (!previous) throw new Error("Select a dot in four-colour or 256 × 192 one-bit graphics first.");
       clearHits(); pixelTarget = { x, y, signal, previous };
       policy.stepUntil(location(), () => undefined); // Use the same boundary budget as Run to address.
     },
