@@ -124,6 +124,14 @@ test("SG8/12/24 preserve VDG character phase, mixed text, colours and physical R
       const frame = renderCocoFrame(machine);
       assert.deepEqual(frame, expected, `SG${height / 8}, ${memory}K, CSS=${css}, F=${page}`);
       assert.deepEqual(reads, Array.from({ length: height * 32 }, (_, i) => (page * 512 + i) % machine.ram.size));
+      // Inspect a normal glyph, an inverse glyph, and both halves of a graphics byte on every scanline.
+      for (let y = 0; y < 192; y++) for (const x of [3, 11, 16, 20]) {
+        const address = (page * 512 + Math.floor(y / repeats) * 32 + Math.floor(x / 8)) % machine.ram.size;
+        const byte = byteAt(address), colour = expected[y * 256 + x];
+        const field = x < 16 ? { glyph: 2, glyphRow: y % 12 }
+          : { blockBit: (y % 12 < 6 ? 3 : 1) - (x === 20 ? 1 : 0), foreground: (byte >> 4) & 7 };
+        assert.deepEqual(inspectCocoPixel(machine, x, y), { address, byte, colour, ...field });
+      }
       assert.deepEqual(renderCocoFrame(machine, "composite"), frame);
       assert.deepEqual(renderCocoFrame(machine, "composite-reversed"), frame);
       assert.deepEqual(machine.snapshot(), before); assert.equal(machine.pias.irq, true);
@@ -166,9 +174,9 @@ test("unsupported SAM/VDG pairings and INT/EXT high reject before reading RAM", 
     const machine = create6809Coco({ firmware: null, extended: null }); configure(machine, v, (graphics ? 0x80 : 0) + gm * 16);
     machine.ram.read = () => { throw new Error("Unsupported display must not read RAM"); };
     const supported = graphics ? v === modes[gm]!.v : v % 2 === 0 && gm % 2 === 0;
-    if (!supported || (!graphics && v !== 0)) assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
     if (supported) assert.equal(cocoDisplayMode(machine).kind, graphics ? "bitmap" : v === 0 ? "text" : "semigraphics");
     else {
+      assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
       assert.throws(() => renderCocoFrame(machine), /Unsupported CoCo display/);
       assert.match(cocoDisplayStatus(machine), /Unsupported CoCo display/);
       assert.equal(cocoScreenText(machine), "");

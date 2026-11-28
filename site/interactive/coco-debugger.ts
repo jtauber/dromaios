@@ -142,7 +142,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
     },
     runUntilPixelChanges(x: number, y: number, signal: CocoVideoSignal): void {
       const previous = inspectCocoPixel(machine(), x, y, signal);
-      if (!previous) throw new Error("Select a dot in Text / SG4 or bitmap graphics first.");
+      if (!previous) throw new Error("Select a dot in a supported display mode first.");
       clearHits(); pixelTarget = { x, y, signal, previous };
       policy.stepUntil(location(), () => undefined); // Use the same boundary budget as Run to address.
     },

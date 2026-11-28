@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { cocoDisplayMode, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
+import { cocoDisplayMode, inspectCocoPixel, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
+import { createCocoDebugger } from "../../site/interactive/coco-debugger.js";
+import { catalogue6809 } from "./6809-inspection-fixture.js";
 import { cocoDisplayStatus } from "../../site/interactive/coco-inspection.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { cocoBinaryFile } from "../helpers/coco-disk.js";
@@ -56,19 +58,57 @@ test("Semigraphics-24 Sketcher loads Saturn, moves its cursor, and replays loadi
   assert.equal(cocoDisplayStatus(session.machine), "SG24 · 64 × 192 · 8 colours + black · CSS 0 · $0E00");
   const image = frame();
   for (let colour = 0; colour < 9; colour++) assert.ok(image.includes(colour), `picture includes colour ${colour}`);
+  until(() => session.machine.cpu.snapshot().pc === 0x7070, 100_000, 1);
   checkpoint.save(session.snapshot());
+  const interval = 100_000;
   function move(right: boolean) {
-    session.machine.pias.setKey("ArrowRight", right); run(100_000);
-    session.machine.pias.setKey("ArrowRight", false);
+    if (right) session.send([["ArrowRight"]]);
+    run(interval);
     return { state: session.snapshot(), pixels: frame() };
   }
   const stationary = move(false); restore(); const moved = move(true);
   const changes: number[] = [];
   for (let i = 0; i < image.length; i++) if (stationary.pixels[i] !== moved.pixels[i]) changes.push(i);
-  assert.ok(changes.length > 0, "the right arrow visibly moves the cursor");
-  assert.ok(changes.every(i => i % 256 >= 128 && i % 256 < 144 && Math.floor(i / 256) === 96),
-    "only the cursor's old/new positions change, at the centre of the picture");
-  restore(); assert.deepEqual(move(true), moved, "checkpoint replay preserves CPU, RAM, devices, clocks and pixels");
+  assert.deepEqual(changes, Array.from({ length: 8 }, (_, i) => 96 * 256 + 136 + i));
+
+  const debug = createCocoDebugger(() => session.machine, catalogue6809, interval);
+  debug.setBreakpoints([{ address: 0x7070, enabled: true }]);
+  const yellow = { address: 0x1a11, byte: 0x9f, blockBit: 3, foreground: 1, colour: 1 };
+  for (const right of [false, true]) {
+    restore(); debug.reset();
+    assert.deepEqual(inspectCocoPixel(session.machine, 136, 96), yellow);
+    if (right) session.send([["ArrowRight"]]);
+    debug.runUntilPixelChanges(136, 96, "composite");
+    const cursorWrites: number[][] = [];
+    let steps = 0, record;
+    while (!debug.beforeStep()) {
+      record = debug.capture(() => session.step()); steps++;
+      for (const access of record.accesses) if (access.kind === "write" && (access.address === 0x1a10 || access.address === 0x1a11)) {
+        cursorWrites.push([record.before.pc, access.address, access.value]);
+      }
+    }
+    assert.ok(steps > 0, "cross the initial keyboard poll");
+    assert.deepEqual(cursorWrites, right ? [[0x71f6, 0x1a10, 0x9f], [0x713f, 0x1a11, 0xcf]] : []);
+    if (right) {
+      const hit = debug.pixelHit;
+      assert.ok(record && hit);
+      assert.equal(debug.stop?.kind, "event"); assert.equal(session.machine.cpu.snapshot().pc, 0x7143);
+      assert.deepEqual(record.instruction, { address: 0x713f, bytes: [0xa7, 0x9d, 0xff, 0xa6] });
+      assert.deepEqual(record.accesses.slice(-3), [
+        { kind: "read", address: 0x70e9, value: 0x1a }, { kind: "read", address: 0x70ea, value: 0x11 },
+        { kind: "write", address: 0x1a11, value: 0xcf },
+      ]);
+      assert.equal(hit.instruction, "STA [-90,PCR]"); assert.deepEqual(hit.before, yellow);
+      assert.deepEqual(hit.after, { ...yellow, byte: 0xcf, foreground: 4, colour: 4 });
+      assert.equal(frame()[96 * 256 + 136], 4);
+    } else {
+      assert.equal(debug.stop?.kind, "breakpoint"); assert.equal(session.machine.cpu.snapshot().pc, 0x7070);
+      assert.equal(debug.pixelHit, undefined); assert.deepEqual(frame(), image);
+    }
+    run(interval - steps);
+    assert.deepEqual(session.snapshot(), right ? moved.state : stationary.state);
+  }
+  debug.dispose();
   key("?"); run(300_000);
   assert.equal(session.machine.sam.videoMode(), 6, "help uses repeated glyph slices in SG24 too");
   assert.equal(session.machine.sam.displayStart(), 0x2600, "help switches physical display pages");

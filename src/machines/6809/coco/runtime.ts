@@ -120,8 +120,8 @@ export type CocoPixel = { address: number; byte: number; colour: number } & (
 export function inspectCocoPixel(machine: Coco, x: number, y: number, signal: CocoVideoSignal = "direct"): CocoPixel | undefined {
   if (!Number.isInteger(x) || x < 0 || x >= 256 || !Number.isInteger(y) || y < 0 || y >= 192) return;
   const mode = cocoMemorySupported(machine) ? decodeDisplayMode(machine) : undefined;
-  if (mode?.kind === "text") return inspectCharacterCell(machine, x, y);
-  if (mode?.kind !== "bitmap") return;
+  if (!mode) return;
+  if (mode.kind !== "bitmap") return inspectCharacterCell(machine, x, y);
   const pixel = Math.floor(x * mode.width / 256), row = Math.floor(y * mode.height / 192);
   const bitsPerPixel = mode.bitsPerPixel, pixelsPerByte = 8 / bitsPerPixel;
   const address = cocoDisplayAddress(machine, row, Math.floor(pixel / pixelsPerByte));
@@ -133,7 +133,8 @@ export function inspectCocoPixel(machine: Coco, x: number, y: number, signal: Co
 
 function inspectCharacterCell(machine: Coco, x: number, y: number): CocoPixel {
   const { vdg, ram, pias } = machine, row = y % 12, column = x % 8;
-  const address = cocoDisplayAddress(machine, Math.floor(y / 12), Math.floor(x / 8));
+  // The SAM can fetch a new byte row while the VDG continues its twelve-line character scan.
+  const address = cocoDisplayAddress(machine, Math.floor(y / machine.sam.displayLinesPerRow()), Math.floor(x / 8));
   const byte = ram.read(address), pins = pias.videoPins;
   const foreground = vdg.foreground(byte, pins), background = vdg.background(byte, pins);
   if (vdg.semigraphics(byte)) {
