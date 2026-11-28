@@ -326,6 +326,26 @@ semigraphics screen. The program works in Color BASIC alone and with Extended
 BASIC installed. Click the screen and press Escape or Ctrl-C to Break, releasing
 fire first. Save a paused checkpoint to retain the program and joystick state.
 
+To follow one redraw, choose **Sliders**, leave fire released, and set the
+right joystick to X=0, Y=63. In Execution, run to `$A8B0`, just after Color
+BASIC 1.3 draws a block. If the stick moved during a joystick reading, run
+there again until X (the CPU register) holds `$05E0` and that byte holds
+`$A2`. Save a checkpoint here. BASIC's dot at `(0,31)` fills four raster
+columns and six lines. Choose **Inspect pixel** and click its top-left dot
+at `(0,186)`. Bit 1 enables the lower-left block in the cell. Bits 6–4
+select blue (`010`) for every enabled block in that byte.
+
+Choose **Hold fire**, then **Run until this pixel changes** twice.
+
+| BASIC operation | Instruction | Screen byte | Selected dot |
+| --- | --- | --- | --- |
+| `RESET(A,B)` | `$A8BE STB ,X` | `$A2 → $A0` | Bit 1 clears. The block goes black while the shared colour stays blue. |
+| `SET(X,Y,C)` | `$A8AE STA ,X` | `$A0 → $B2` | Bit 1 is set again. The shared colour becomes red (`011`). |
+
+Line 40 sampled fire before either store, so the second stop still shows red
+after the first pause releases the button. Select either instruction in the
+result to see it in Disassembly. Restore the checkpoint to repeat the two stops.
+
 The [hardware tests](../../../tests/machines/6809/coco/joystick.test.ts) cover
 every axis/DAC comparison, selector and direction changes, fire/keyboard
 interaction, and restoration. The [ROM tests](../../../tests/site/coco-joystick.test.ts)

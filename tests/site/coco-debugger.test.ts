@@ -61,13 +61,31 @@ test("pixel stops follow the displayed pair in composite and the selected bit in
   }
 });
 
+test("an SG4 pixel stop follows the shared colour only while its own block is enabled", () => {
+  const p = fixture([
+    0x86, 0xb8, 0xb7, 0, 0, // Change blue to red with only the top-left block lit.
+    0x86, 0xba, 0xb7, 0, 0, // Enable the lower-left block.
+    0x86, 0xbb, 0xb7, 0, 0, // Enable its neighbour.
+    0x86, 0xab, 0xb7, 0, 0, // Change the three lit blocks to blue.
+  ]);
+  const { pias } = p.machine;
+  pias.write(0x23, 0); pias.write(0x22, 0xf8); pias.write(0x23, 4); pias.write(0x22, 0);
+  p.machine.ram.write(0, 0xa8);
+  for (const [pc, before, after] of [[0x2007, 0xb8, 0xba], [0x2011, 0xbb, 0xab]] as const) {
+    p.debug.runUntilPixelChanges(0, 6, "composite"); p.execution.run(); p.jobs.shift()!();
+    const hit = p.debug.pixelHit!;
+    assert.equal(hit.caller.address, pc); assert.equal(hit.before.byte, before); assert.equal(hit.after.byte, after);
+    assert.equal(hit.after.colour, renderCocoFrame(p.machine)[6 * 256]);
+  }
+});
+
 test("pixel runs follow SAM display-page changes and stop cleanly on a mode change, breakpoint, or limit", () => {
   const p = fixture([0xb7, 0xff, 0xc7, 0xb7, 0xff, 0xc4]); // Set F0, then clear V2.
   blackBuffGraphics(p.machine); p.machine.ram.write(0x200, 0x80);
   p.debug.runUntilPixelChanges(0, 0, "direct"); p.execution.run(); p.jobs.shift()!();
   assert.equal(p.debug.pixelHit?.before.address, 0); assert.equal(p.debug.pixelHit?.after.address, 0x200);
   p.debug.runUntilPixelChanges(0, 0, "direct"); p.execution.run(); p.jobs.shift()!();
-  assert.equal(p.debug.stop?.kind, "pause"); assert.match(p.debug.stop?.detail ?? "", /left bitmap graphics/);
+  assert.equal(p.debug.stop?.kind, "pause"); assert.match(p.debug.stop?.detail ?? "", /display mode does not support inspection/);
   assert.equal(p.debug.pixelHit, undefined); assert.equal(p.execution.error, undefined);
   assert.throws(() => p.debug.runUntilPixelChanges(0, 0, "direct"), /Select a dot/);
 

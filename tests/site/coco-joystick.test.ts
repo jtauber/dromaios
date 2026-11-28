@@ -4,10 +4,12 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { RomImage } from "../../src/machines/rom-image.js";
 import { romImages } from "../../src/machines/generated/6809/coco.js";
-import { renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
+import { inspectCocoPixel, renderCocoFrame } from "../../src/machines/6809/coco/runtime.js";
 import { createCocoSession } from "../../site/interactive/coco-session.js";
 import { cocoTextInput } from "../../site/interactive/coco-input.js";
 import { cocoScreenText } from "../../site/interactive/coco-inspection.js";
+import { createCocoDebugger } from "../../site/interactive/coco-debugger.js";
+import { catalogue6809 } from "./6809-inspection-fixture.js";
 
 const needsRom = !process.env.COCO_ROM && "Set COCO_ROM to Color BASIC 1.3.";
 const chapter = readFileSync("src/machines/6809/coco.md", "utf8");
@@ -71,7 +73,7 @@ test("a BASIC PEEK loop observes both fire buttons and returns to the prompt aft
   session.send([["Break"]]); run(50_000); assert.match(cocoScreenText(session.machine), /BREAK IN 10\nOK/);
 });
 
-test("the chapter's moving dot follows the right joystick, changes colour on fire, and restores mid-conversion", { skip: needsRom }, async () => {
+test("the chapter's moving dot follows the right joystick, changes colour on fire, and restores mid-conversion", { skip: needsRom }, async t => {
   const { session, line } = await boot();
   session.machine.pias.connectJoystick("right", true);
   example("Move a dot with a joystick").forEach(line); line("RUN");
@@ -91,6 +93,26 @@ test("the chapter's moving dot follows the right joystick, changes colour on fir
   dot(32, 16, 2);
   session.machine.pias.setJoystickPosition("right", 63, 0); dot(63, 0, 2);
   session.machine.pias.setJoystickPosition("right", 0, 63); dot(0, 31, 2);
+  await t.test("replay the lower-left block from blue through black to red, one ROM store per pixel stop", () => {
+    const blue = session.snapshot(), debug = createCocoDebugger(() => session.machine, catalogue6809);
+    const inspect = () => inspectCocoPixel(session.machine, 0, 186);
+    const cell = { address: 0x05e0, blockBit: 1 };
+    assert.deepEqual(inspect(), { ...cell, byte: 0xa2, foreground: 2, colour: 2 });
+    session.machine.pias.setJoystickButton("right", true);
+    for (const [pc, instruction, byte, foreground, colour] of [
+      [0xa8be, "STB ,X", 0xa0, 2, 8], [0xa8ae, "STA ,X", 0xb2, 3, 3],
+    ] as const) {
+      const before = inspect();
+      debug.runUntilPixelChanges(0, 186, "composite");
+      while (!debug.beforeStep()) debug.capture(() => session.step());
+      const hit = debug.pixelHit!;
+      assert.equal(hit.caller.address, pc); assert.equal(hit.instruction, instruction);
+      assert.deepEqual(hit.before, before); assert.deepEqual(hit.after, { ...cell, byte, foreground, colour });
+      assert.equal(renderCocoFrame(session.machine)[186 * 256], colour);
+      session.machine.pias.releaseJoystickButtons(); // The lab releases fire at each pause.
+    }
+    debug.dispose(); session.restore(blue);
+  });
   session.machine.pias.setJoystickButton("right", true); dot(0, 31, 3);
   session.machine.pias.setJoystickPosition("right", 12, 46);
   let converting = false;

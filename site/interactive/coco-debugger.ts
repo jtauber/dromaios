@@ -1,5 +1,5 @@
 import { cocoMemorySupported, cocoRamAddress } from "../../src/machines/6809/coco/memory.js";
-import { inspectCocoPixel, type Coco, type CocoVideoSignal, type stepCoco } from "../../src/machines/6809/coco/runtime.js";
+import { inspectCocoPixel, type Coco, type CocoPixel, type CocoVideoSignal, type stepCoco } from "../../src/machines/6809/coco/runtime.js";
 import type { RamWrite } from "../../src/components/memory/ram.js";
 import { createInstructionDebugger, decodeInstructionBreakpoints } from "./instruction-debugger.js";
 import type { DebugLocation } from "./instruction-debugger.js";
@@ -21,13 +21,12 @@ export interface CocoWriteHit extends RamWrite {
   readonly record: Boundary;
 }
 interface CocoReadHit extends DataRead6809 { readonly caller: DebugLocation; readonly record: Boundary }
-type Pixel = NonNullable<ReturnType<typeof inspectCocoPixel>>;
-interface PixelTarget { x: number; y: number; signal: CocoVideoSignal; previous: Pixel }
+interface PixelTarget { x: number; y: number; signal: CocoVideoSignal; previous: CocoPixel }
 interface CocoPixelHit {
-  x: number; y: number; before: Pixel; after: Pixel; caller: DebugLocation; instruction: string; transition: string;
+  x: number; y: number; before: CocoPixel; after: CocoPixel; caller: DebugLocation; instruction: string; transition: string;
 }
 
-function describePixel(dot: Pixel): string {
+function describePixel(dot: CocoPixel): string {
   return `${cocoPixelStorage(dot)} · #${hex(cocoMonitorColours[dot.colour]!, 6)}`;
 }
 
@@ -61,7 +60,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
   function observePixel(target: PixelTarget, record: Boundary, caller: DebugLocation, at: DebugLocation): void {
     const { x, y, previous: before } = target, after = inspectCocoPixel(machine(), x, y, target.signal);
     if (!after) {
-      if (!policy.stop) policy.pause(at, "Pixel run ended when the CoCo left bitmap graphics.");
+      if (!policy.stop) policy.pause(at, "Pixel run ended because this display mode does not support inspection.");
     } else if (before.colour !== after.colour) {
       const instruction = record.instruction ? decodeCaptured6809(caller.address, record.instruction.bytes, catalogue).assembly
         : "source" in record ? `${record.source.toUpperCase()} entry` : record.outcome;
@@ -143,7 +142,7 @@ export function createCocoDebugger(machine: () => Coco, catalogue: Catalogue6809
     },
     runUntilPixelChanges(x: number, y: number, signal: CocoVideoSignal): void {
       const previous = inspectCocoPixel(machine(), x, y, signal);
-      if (!previous) throw new Error("Select a dot in bitmap graphics first.");
+      if (!previous) throw new Error("Select a dot in Text / SG4 or bitmap graphics first.");
       clearHits(); pixelTarget = { x, y, signal, previous };
       policy.stepUntil(location(), () => undefined); // Use the same boundary budget as Run to address.
     },

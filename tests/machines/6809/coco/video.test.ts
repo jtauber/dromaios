@@ -59,6 +59,34 @@ test("all eight bitmap modes map every repeated raster dot to its field in physi
   }
 });
 
+test("Text / SG4 inspection follows the cell byte, its four block bits and its shared colour", () => {
+  const machine = create6809Coco({ firmware: null, extended: null });
+  machine.memory.read = () => { throw new Error("Inspection must not read the CPU bus"); };
+  const address = 0x5e0;
+  for (const css of [0, 8]) {
+    configure(machine, 0, css, 2);
+    for (const byte of [0xa5, 0xda]) {
+      machine.ram.write(address, byte);
+      const frame = renderCocoFrame(machine), foreground = (byte >> 4) & 7;
+      for (const [left, top, blockBit] of [[0, 180, 3], [4, 180, 2], [0, 186, 1], [4, 186, 0]] as const) {
+        const colour = byte & (1 << blockBit) ? foreground : 8;
+        for (let y = top; y < top + 6; y++) for (let x = left; x < left + 4; x++) {
+          assert.deepEqual(inspectCocoPixel(machine, x, y), { address, byte, blockBit, foreground, colour });
+          assert.equal(frame[y * 256 + x], colour);
+        }
+      }
+    }
+    // The adjacent cell contains B. Glyph row 3 is 00111100, reversed when bit 6 is set.
+    for (const byte of [0x02, 0x42]) {
+      machine.ram.write(address + 1, byte);
+      for (const x of [8, 10]) {
+        const lit = (x === 10) !== (byte === 0x42), colour = lit ? css ? 7 : 0 : css ? 10 : 9;
+        assert.deepEqual(inspectCocoPixel(machine, x, 183), { address: address + 1, byte, glyph: 2, glyphRow: 3, colour });
+      }
+    }
+  }
+});
+
 test("SG8/12/24 preserve VDG character phase, mixed text, colours and physical RAM wrapping", () => {
   // Tandy's mode table and Motorola's B glyph; neither oracle calls the device views.
   const b = [0, 0, 0, 0x3c, 0x12, 0x12, 0x1c, 0x12, 0x12, 0x3c, 0, 0];
@@ -138,7 +166,7 @@ test("unsupported SAM/VDG pairings and INT/EXT high reject before reading RAM", 
     const machine = create6809Coco({ firmware: null, extended: null }); configure(machine, v, (graphics ? 0x80 : 0) + gm * 16);
     machine.ram.read = () => { throw new Error("Unsupported display must not read RAM"); };
     const supported = graphics ? v === modes[gm]!.v : v % 2 === 0 && gm % 2 === 0;
-    if (!graphics || !supported) assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
+    if (!supported || (!graphics && v !== 0)) assert.equal(inspectCocoPixel(machine, 0, 0), undefined);
     if (supported) assert.equal(cocoDisplayMode(machine).kind, graphics ? "bitmap" : v === 0 ? "text" : "semigraphics");
     else {
       assert.throws(() => renderCocoFrame(machine), /Unsupported CoCo display/);

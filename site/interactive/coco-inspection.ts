@@ -1,15 +1,23 @@
 import { cocoMemorySupported, cocoRamAddress, cocoDisplayAddress } from "../../src/machines/6809/coco/memory.js";
 import { cocoDisplayMode } from "../../src/machines/6809/coco/runtime.js";
-import type { Coco, inspectCocoPixel } from "../../src/machines/6809/coco/runtime.js";
+import type { Coco, CocoPixel } from "../../src/machines/6809/coco/runtime.js";
 import { checkUnsigned } from "../../src/components/validation.js";
 
 export const cocoHex = (value: number, width = 4): string => value.toString(16).toUpperCase().padStart(width, "0");
 
 /** The live readout and the captured stop name the same bits, including leading zeroes. */
-export function cocoPixelStorage({ address, bit, bitsPerPixel, byte }: NonNullable<ReturnType<typeof inspectCocoPixel>>): string {
+export function cocoPixelStorage(dot: CocoPixel): string {
+  const { address, byte } = dot, storage = `RAM $${cocoHex(address)} = $${cocoHex(byte, 2)}`;
+  if ("blockBit" in dot) {
+    const names = ["green", "yellow", "blue", "red", "buff", "cyan", "magenta", "orange"];
+    const shared = dot.foreground.toString(2).padStart(3, "0");
+    return `${storage} · block bit ${dot.blockBit} = ${(byte >> dot.blockBit) & 1} · colour bits 6–4 = ${shared} (${names[dot.foreground]})`;
+  }
+  if ("glyph" in dot) return `${storage} · glyph $${cocoHex(dot.glyph, 2)} · row ${dot.glyphRow}`;
+  const { bit, bitsPerPixel } = dot;
   const field = bitsPerPixel === 1 ? `bit ${bit}` : `bits ${bit + bitsPerPixel - 1}–${bit}`;
   const value = (byte >> bit) & ((1 << bitsPerPixel) - 1);
-  return `RAM $${cocoHex(address)} = $${cocoHex(byte, 2)} · ${field} = ${value.toString(2).padStart(bitsPerPixel, "0")}`;
+  return `${storage} · ${field} = ${value.toString(2).padStart(bitsPerPixel, "0")}`;
 }
 
 // Presentation colours, including the VDG's two-dot composite approximation.

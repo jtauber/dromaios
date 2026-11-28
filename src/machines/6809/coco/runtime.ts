@@ -110,11 +110,18 @@ export function cocoDisplayMode(machine: Coco): CocoDisplayMode {
 /** Display interpretation only; it is not retained in the machine snapshot. */
 export type CocoVideoSignal = "direct" | "composite" | "composite-reversed";
 
-/** Map a 256 × 192 raster dot to the VDG's logical pixel and its field in physical RAM. */
-export function inspectCocoPixel(machine: Coco, x: number, y: number, signal: CocoVideoSignal = "direct") {
-  const mode = cocoMemorySupported(machine) ? decodeDisplayMode(machine) : undefined;
-  if (mode?.kind !== "bitmap") return;
+export type CocoPixel = { address: number; byte: number; colour: number } & (
+  | { bit: number; bitsPerPixel: number }
+  | { blockBit: number; foreground: number }
+  | { glyph: number; glyphRow: number }
+);
+
+/** Map a raster dot to its physical screen byte and the VDG's interpretation of that byte. */
+export function inspectCocoPixel(machine: Coco, x: number, y: number, signal: CocoVideoSignal = "direct"): CocoPixel | undefined {
   if (!Number.isInteger(x) || x < 0 || x >= 256 || !Number.isInteger(y) || y < 0 || y >= 192) return;
+  const mode = cocoMemorySupported(machine) ? decodeDisplayMode(machine) : undefined;
+  if (mode?.kind === "text") return inspectCharacterCell(machine, x, y);
+  if (mode?.kind !== "bitmap") return;
   const pixel = Math.floor(x * mode.width / 256), row = Math.floor(y * mode.height / 192);
   const bitsPerPixel = mode.bitsPerPixel, pixelsPerByte = 8 / bitsPerPixel;
   const address = cocoDisplayAddress(machine, row, Math.floor(pixel / pixelsPerByte));
@@ -122,6 +129,20 @@ export function inspectCocoPixel(machine: Coco, x: number, y: number, signal: Co
   const bit = 8 - (index + 1) * bitsPerPixel; // Low bit of the field; pixels are packed left to right, MSB first.
   const palette = bitmapPalette(machine, signal);
   return { address, bit, bitsPerPixel, byte, colour: palette.at(byte, palette.paired ? index >> 1 : index) };
+}
+
+function inspectCharacterCell(machine: Coco, x: number, y: number): CocoPixel {
+  const { vdg, ram, pias } = machine, row = y % 12, column = x % 8;
+  const address = cocoDisplayAddress(machine, Math.floor(y / 12), Math.floor(x / 8));
+  const byte = ram.read(address), pins = pias.videoPins;
+  const foreground = vdg.foreground(byte, pins), background = vdg.background(byte, pins);
+  if (vdg.semigraphics(byte)) {
+    const blockBit = (row < 6 ? 3 : 1) - Math.floor(column / 4);
+    const colour = byte & (1 << blockBit) ? foreground : background;
+    return { address, byte, blockBit, foreground, colour };
+  }
+  const glyph = vdg.glyph(byte), dots = vdg.textPixels(byte, characterRows[glyph * 12 + row]!);
+  return { address, byte, glyph, glyphRow: row, colour: dots & (0x80 >> column) ? foreground : background };
 }
 
 /** Capture the active raster from physical RAM; never perform CPU-bus or PIA reads. */

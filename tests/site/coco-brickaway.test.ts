@@ -122,12 +122,12 @@ test("3-D Brickaway loads through CLOADM, responds to both joystick axes, sounds
   }
 
   const debug = createCocoDebugger(() => session.machine, catalogue6809);
-  const dot = inspectCocoPixel(session.machine, 207, 142)!;
-  assert.deepEqual(dot, { address: 0x17d9, bit: 0, bitsPerPixel: 1, byte: 0x11, colour: 0 });
+  const dot = { address: 0x17d9, bit: 0, bitsPerPixel: 1, byte: 0x11, colour: 0 };
+  const black = { ...dot, byte: 0x10, colour: 8 };
+  assert.deepEqual(inspectCocoPixel(session.machine, 207, 142), dot);
   for (const stop of ["write", "pixel"]) {
     debug.setWatchpoints(stop === "write" ? [{ address: dot.address, enabled: true }] : []);
     session.restore(await checkpoints().restore("Playing")); debug.reset();
-    const black = { ...dot, byte: 0x10, colour: 8 };
     assert.deepEqual(inspectCocoPixel(session.machine, 207, 142), black);
     const paddlePixel = () => renderCocoFrame(session.machine)[142 * 256 + 207];
     assert.equal(paddlePixel(), 8, "the dot is black in the saved frame");
